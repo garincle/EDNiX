@@ -1,0 +1,133 @@
+import os
+import subprocess
+import glob
+import shutil
+import sys
+import nibabel as nb
+import numpy as np
+from math import pi
+
+#Path to the excels files and data structure
+opj = os.path.join
+opb = os.path.basename
+opn = os.path.normpath
+opd = os.path.dirname
+ope = os.path.exists
+spco = subprocess.check_output
+spgo = subprocess.getoutput
+
+from fonctions.extract_filename import extract_filename
+
+
+def correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, study_fMRI_Refth, i, r, overwrite):
+
+	root = extract_filename(RS_map[i])
+	root_RS = extract_filename(RS[r])
+
+	#copy map imag in new location
+	command = '3dcalc' + overwrite + ' -a ' + list_map[i] + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[i]) + ' -expr "a"'
+	spco([command], shell=True)
+
+	#mean of the map img
+	command = '3dTstat' + overwrite + ' -mean -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre.nii.gz') + ' ' + \
+			  opj(dir_fMRI_Refth_RS_prepro1, RS_map[i])
+	spco([command], shell=True)
+
+	# register each volume to the base image
+	command = '3dvolreg' + overwrite + ' -verbose -zpad 1 -base ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre.nii.gz') + \
+			  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align.nii.gz') + \
+			  ' -cubic ' + \
+			  opj(dir_fMRI_Refth_RS_prepro1, RS_map[i])
+	spco([command], shell=True)
+
+	'''
+	# realignment intra-run
+	command = 'mcflirt -in ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[i]) + \
+	' -out ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align.nii.gz') + \
+	' -mats -plots -reffile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre.nii.gz') + ' -rmsrel -rmsabs -spline_final'
+	spco([command], shell=True)
+	'''
+	#mean of the map img to ref img
+	command = '3dTstat' + overwrite + ' -mean -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean.nii.gz') + ' ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[i])
+	spco([command], shell=True)
+
+	#####################FRANCK????????????????????????????,
+	#dell? ==> do the job ?? opj(dir_fMRI_Refth_RS_prepro1, RS[r].replace('.nii.gz','_xdtr_mean.nii.gz'))
+	#command = '3dTcat -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,RS[int(ref_nb)-1].replace('.nii.gz','_fMRI_Ref.nii.gz')) + ' ' + opj(dir_fMRI_Refth_RS_prepro1, RS[int(ref_nb)-1]) + '[0-9]'
+	#spco([command], shell=True)
+	#command = '3dTstat -mean -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[i].replace('.nii.gz','_fMRI_Ref_mean.nii.gz')) + \
+	#' ' + opj(dir_fMRI_Refth_RS_prepro1,RS[int(ref_nb)-1].replace('.nii.gz','_fMRI_Ref.nii.gz'))
+	#spco([command], shell=True)
+	#os.remove(opj(dir_fMRI_Refth_RS_prepro1,RS[int(ref_nb)-1].replace('.nii.gz','_fMRI_Ref.nii.gz')))
+	###resemple anat to func #XXX change opj(dir_prepro, ID + '_mprage_reorient_NU.nii.gz') for opj(dir_prepro,ID + '_mprage_reorient_NU.nii.gz')
+
+	####### a foutu la merde sans raison!!!!!
+	#command = '3dresample -master ' + opj(dir_fMRI_Refth_RS_prepro1, RS[r].replace('.nii.gz','_xdtr_mean.nii.gz')) + \
+	#' -prefix ' +  opj(dir_fMRI_Refth_RS_prepro1, RS_map[i].replace('.nii.gz','_map_mean_reso.nii.gz')) + \
+	#' -input ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[i].replace('.nii.gz','_map_mean.nii.gz'))
+	#spco([command], shell=True)
+
+	command = '3dTcat' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se.nii.gz') + \
+	' ' + opj(dir_fMRI_Refth_RS_prepro1, opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean.nii.gz')) + \
+	' ' + opj(dir_fMRI_Refth_RS_prepro1, opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean.nii.gz'))
+	spco([command], shell=True)
+
+	#####correct image for topup (i.e. remove the slices that do not fit topup requirement)
+	#fslroi <input> <output> <xmin> <xsize> <ymin> <ysize> <zmin> <zsize>
+	#command = 'fslroi ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se.nii.gz') + \
+	#' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se1.nii.gz') + \
+	#' 0 -1 0 -1 1 132'
+	#' 1 77 0 -1 0 -1'
+	#spco([command], shell=True)
+
+	#https://www.jiscmail.ac.uk/cgi-bin/webadmin?A2=fsl;67dcb45c.1209
+	#I agree with Matt that you probably have an odd number of voxels in one direction (usually in the slice direction). 
+	#In topup, for various reasons, the images dimensions has to be an integer multiple of each sub-sampling level one uses. 
+	#We usually just throw away the top or bottom slice (provided it is outside the brain) in these cases.
+	"""
+	if 'x' in correction_direction:
+		intofencod = 0
+
+	elif 'y' in correction_direction:
+		intofencod = 1
+
+	elif 'z' in correction_direction:
+		intofencod = 2
+	"""
+	#### zeropad?? add a slice instate of removing!!!
+	im = nb.load(opj(dir_fMRI_Refth_RS_prepro1, root + '_se.nii.gz'))
+	imdata = im.get_fdata()
+	s = imdata.shape
+	dests = np.array(s)
+	hdr = im.header.copy()
+	hdr.set_data_shape(imdata.shape)
+	for b, d in enumerate(s):
+		if b < 3:
+			if (d % 2) == 0:
+				print("{0} est paire")
+
+			else:
+				print("{0} est impaire")
+				imdata = imdata.take(range(d - 1), axis=b)
+	
+	nb.Nifti1Image(imdata, im.affine, hdr).to_filename(opj(dir_fMRI_Refth_RS_prepro1, root + '_se1.nii.gz'))
+
+	### se_map don't change but 1 -1
+	### b02b0 don't change 
+
+	command = 'topup --imain=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se1.nii.gz') + \
+	' --datain=' + opj(study_fMRI_Refth,'se_map.txt') + \
+	' --config=' + opj(study_fMRI_Refth,'b02b0.cnf') + \
+	' --fout=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap.nii.gz') + \
+	' --iout=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_unwarped.nii.gz')
+	spco([command], shell=True)
+
+	##### for fugue
+	command = 'fslmaths ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap.nii.gz') + ' -mul ' + str(2*pi) + \
+	' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads.nii.gz')
+	spco([command], shell=True)
+
+	command = 'fslmaths ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_unwarped.nii.gz') + \
+	' -Tmean ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_mag.nii.gz')
+	spco([command], shell=True)
+
