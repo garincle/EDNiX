@@ -1,3 +1,5 @@
+image:: add images to display the pipeline
+
 EasyMRIbrain
 =======
 
@@ -6,14 +8,14 @@ This pipeline may not cover all issues encounter during processing, but has been
 EasyMRIbrain also for longitudinal co-coregistration (when a individual is scanned multiple time). Signal extration can rely on a library of cross-species atlases, provided along with the pipeline.
 
 
-Install
+Download 
 =======
 
 
 Dependencies
 =======
 
-Latest release
+Singularity
 --------------
 
 **1. Setup a virtual environment**
@@ -38,7 +40,9 @@ With ``conda``:
 
     conda create -n nilearn python=3.9
     conda activate nilearn
-
+    
+Singularity
+--------------
 **2. Install nilearn with pip**
 
 Execute the following command in the command prompt / terminal
@@ -47,20 +51,3 @@ in the proper python environment:
 .. code-block:: bash
 
     python -m pip install -U nilearn
-
-Development version
--------------------
-
-Please find all development setup instructions in the
-`contribution guide <https://nilearn.github.io/stable/development.html#setting-up-your-environment>`_.
-
-Check installation
-------------------
-
-Try importing nilearn in a python / iPython session:
-
-.. code-block:: python
-
-    import nilearn
-
-If no error is raised, you have installed nilearn correctly.
