@@ -15,39 +15,27 @@ Download
 Dependencies
 =======
 
-Singularity
+Python and conda
 --------------
 
-**1. Setup a virtual environment**
+**1. Virtual environment**
 
-We recommend that you install ``nilearn`` in a virtual Python environment,
-either managed with the standard library ``venv`` or with ``conda``
-(see `miniconda <https://docs.conda.io/en/latest/miniconda.html>`_ for instance).
-Either way, create and activate a new python environment.
-
-With ``venv``:
-
-.. code-block:: bash
-
-    python3 -m venv /<path_to_new_env>
-    source /<path_to_new_env>/bin/activate
-
-Windows users should change the last line to ``\<path_to_new_env>\Scripts\activate.bat`` in order to activate their virtual environment.
-
-With ``conda``:
-
-.. code-block:: bash
+We recommend that you install and use ``conda``
+To create and activate a new python environment:
 
     conda create -n nilearn python=3.9
     conda activate nilearn
     
+**2. Python dependencies**
+
+In this enviroment you should install the following toolboxes:
+
+
 Singularity
 --------------
-**2. Install nilearn with pip**
 
-Execute the following command in the command prompt / terminal
-in the proper python environment:
 
-.. code-block:: bash
+Roadmap
+=======
 
-    python -m pip install -U nilearn
+**1. Setup a virtual environment**
