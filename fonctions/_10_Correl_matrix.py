@@ -8,6 +8,7 @@ import numpy as np
 from nilearn import plotting
 import nibabel as nib
 from nilearn.connectome import ConnectivityMeasure
+from fonctions.extract_filename import extract_filename
 
 # Path to the excels files and data structure
 opj = os.path.join
@@ -16,13 +17,12 @@ opn = os.path.normpath
 spco = subprocess.check_output
 opd = os.path.dirname
 
-from fonctions.extract_filename import extract_filename
 
 
 #################################################################################################
 ####Seed base analysis
 #################################################################################################
-def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix, segmentation_name_list, ID, Session, bids_dir):
+def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix, segmentation_name_list, ID, Session, bids_dir,s_bind,afni_sif):
 
     out_results = opj(bids_dir, 'Results')
     if not os.path.exists(out_results): os.mkdir(out_results)
@@ -101,7 +101,7 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                     int(old_label)) + ')))+'
             string_build_atlas2 = "'" + string_build_atlas[:-1] + "'"
 
-            command = '3dcalc' + ' -a ' + atlas_filename + ' -expr ' + string_build_atlas2 + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, atlas[:-7] + '_filtered.nii.gz') + ' -overwrite'
+            command = 'singularity run' + s_bind + afni_sif + '3dcalc' + ' -a ' + atlas_filename + ' -expr ' + string_build_atlas2 + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, atlas[:-7] + '_filtered.nii.gz') + ' -overwrite'
             spco(command, shell=True)
 
             ##########################################################################

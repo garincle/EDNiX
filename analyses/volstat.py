@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 ########### Subject loader################
 ##########################################
 #https://bids-standard.github.io/pybids/reports/index.html
-from sammba import io_conversions, registration
+
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename

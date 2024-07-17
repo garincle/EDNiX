@@ -7,12 +7,8 @@
 ##############################################################################
 import os
 import subprocess
-import glob
-import shutil
-import sys
-import nilearn
 from nilearn import plotting
-
+import anatomical.Skullstrip_method
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -24,19 +20,18 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, otheranat,
-    check_visualy_final_mask, useT1T2_for_coregis, bids_dir, overwrite):
+    check_visualy_final_mask, useT1T2_for_coregis, bids_dir, overwrite,s_bind,afni_sif,fsl_sif,fs_sif):
 
     if ope(opj(masks_dir, ID + '_finalmask.nii.gz')):
         output_for_mask = opj(masks_dir, ID + '_finalmask.nii.gz')
 
     else:
-        import anatomical.Skullstrip_method
         step_skullstrip = 2
         brain_skullstrip = 'brain_skullstrip_2'
         output_for_mask =  anatomical.Skullstrip_method.Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
-        otheranat, ID, Session, check_visualy_final_mask, overwrite)
+        otheranat, ID, Session, check_visualy_final_mask, overwrite,s_bind,afni_sif,fsl_sif,fs_sif)
 
-        command = '3dmask_tool -overwrite -prefix ' + output_for_mask + \
+        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
         ' -input ' + output_for_mask + ' -fill_holes'
         spco(command, shell=True)
 
@@ -48,9 +43,9 @@ def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir
     if useT1T2_for_coregis == True:
         Ref_file = opj(volumes_dir,ID + type_norm + '_' + otheranat + '_brain.nii.gz')
         ###creat brain of the subject template
-        command = 'MultiplyImages 3 ' + opj(volumes_dir, ID + '_' + type_norm + '_' + otheranat + '_template.nii.gz') + \
-        ' ' + output_for_mask + \
-        ' ' + Ref_file
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(volumes_dir, ID + '_' + type_norm + '_' + otheranat + '_template.nii.gz') + \
+        ' -b ' + output_for_mask + \
+        ' -prefix ' + Ref_file + ' -expr "a*b"'
         spco([command], shell=True)
     else:
     # Organization of the folders
@@ -59,13 +54,13 @@ def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir
 
     #################################### signal correction 
     for Timage in listTimage:
-        spco(['3dresample', '-master', opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz'), 
+        spco(['singularity run' + s_bind + afni_sif + '3dresample', '-master', opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz'),
             '-prefix', opj(masks_dir, ID + '_mask_rsp_' + Timage + '.nii.gz'),
             '-input', output_for_mask, '-overwrite'])
 
         ### masking !!!!
         ###creat brain of the subject template
-        command = '3dcalc -overwrite -a ' + opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz') + \
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz') + \
                 ' -b ' + opj(masks_dir, ID + '_mask_rsp_' + Timage + '.nii.gz') + \
                 ' -expr "a*b" -prefix ' + opj(volumes_dir,ID + Timage + '_brain.nii.gz')
         spco([command], shell=True)
@@ -89,13 +84,16 @@ def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir
 
     ###N4BiasFieldCorrection
     try:
-        command = 'N4BiasFieldCorrection -d 3 -i ' + Ref_file + \
-            ' -x ' + output_for_mask + \
-            ' -o ' + opj(dir_prepro,ID + '_' + type_norm + '_brain_N4.nii.gz') + \
-            ' -s 4 -c [50x50x50x50,0.0000001] -b [200] --verbose 1';
-        spco([command], shell=True)
+        BRAIN = ants.image_read(Ref_file)
+        MSK   = ants.image_read(output_for_mask)
+        N4    = ants.n4_bias_field_correction(BRAIN, mask=MSK,
+                                           shrink_factor=4,
+                                           convergence={'iters': [50, 50, 50, 50], 'tol': 1e-07},
+                                           spline_param=200)
+        ants.image_write(N4, opj(dir_prepro,ID + '_' + type_norm + '_brain_N4.nii.gz'), ri=False)
+
     except:
         print("N4BiasFieldCorrection failed, we cna continue it is not that bad")
-        command = '3dcalc -overwrite -a ' + Ref_file + \
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + \
                 ' -expr "a" -prefix ' + opj(dir_prepro,ID + '_' + type_norm + '_brain_N4.nii.gz')
         spco([command], shell=True)

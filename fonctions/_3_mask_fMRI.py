@@ -1,10 +1,10 @@
 import os
 import subprocess
-import glob
-import shutil
-import sys
-import nilearn
 from nilearn.image import resample_to_img
+from fonctions.extract_filename import extract_filename
+from nilearn.image.image import mean_img
+from nilearn.masking import compute_epi_mask
+import ants
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -15,13 +15,13 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-from fonctions.extract_filename import extract_filename
-
 def Refimg_to_meanfMRI(SED, anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-    dir_fMRI_Refth_RS_prepro3, RS, nb_run, REF_int, ID, dir_prepro, n_for_ANTS, brainmask, V_mask, W_mask, G_mask, dilate_mask,
-                       list_atlases, labels_dir, costAllin, anat_subject, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, lower_cutoff, upper_cutoff, overwrite):
+                       dir_fMRI_Refth_RS_prepro3, RS, nb_run, REF_int, ID, dir_prepro, n_for_ANTS, brainmask, V_mask, W_mask, G_mask, dilate_mask,
+                       list_atlases, labels_dir, costAllin, anat_subject, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, lower_cutoff, upper_cutoff, overwrite,
+                       s_bind,afni_sif,fs_sif):
 
     ##### creat new variable for template space (we will need to store and downsample template img to func resolution)
+
     if ope(dir_fMRI_Refth_RS_prepro3) == False:
         os.makedirs(dir_fMRI_Refth_RS_prepro3)
         os.makedirs(opj(dir_fMRI_Refth_RS_prepro3,'tmp'))
@@ -49,37 +49,39 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_
 
     ################################################################# creat a mean image to use for the anat to func and recenter
     ###### average all func data and clean the image #####
-    command = '3dTcat' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,'residual_motion.nii.gz') + MEAN_im_list
+    command = 'singularity run' + s_bind + afni_sif + '3dTcat' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,'residual_motion.nii.gz') + MEAN_im_list
     spco([command], shell=True)
 
     #################################### production of Mean image ####################################
     #command = '3dMean' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz') + MEAN_im_list
     #spco([command], shell=True)
-    import nilearn
-    from nilearn.image.image import mean_img
+
     mean_haxby = mean_img(MEAN_im_list_1)
     mean_haxby.to_filename(opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz'))
     mean_haxby.to_filename(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test.nii.gz'))
 
 
-    command = '3dinfo -di ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
-    delta_x = str(abs(round(float(spgo([command])[-8:]), 10)))
-    command = '3dinfo -dj ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
-    delta_y= str(abs(round(float(spgo([command])[-8:]), 10)))
-    command = '3dinfo -dk ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
-    delta_z = str(abs(round(float(spgo([command])[-8:]), 10)))
+    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
+    ADI = spgo(command).split('\n')
+    delta_x = str(abs(round(float(ADI[-1]), 10)))
+    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dj ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
+    ADJ = spgo(command).split('\n')
+    delta_y= str(abs(round(float(ADJ[-1]), 10)))
+    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dk ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
+    ADK = spgo(command).split('\n')
+    delta_z = str(abs(round(float(ADK[-1]), 10)))
 
-    command = '3dinfo -orient ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
+    command = 'singularity run' + s_bind + afni_sif + '3dinfo -orient ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
     orient_meanimg = str(spgo([command]))
 
-    command = '3dcalc' + overwrite + ' -a ' + BASE_SS_coregistr +  \
+    command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + BASE_SS_coregistr +  \
     ' -prefix ' +  opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz') + ' -expr "a"'
     spco([command], shell=True)
 
     #command = '3drefit ' + overwrite + ' -orient ' + orient_meanimg + ' ' + opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz')
     #spco([command], shell=True)
 
-    command = '3dresample' + overwrite + \
+    command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \
     ' -orient ' + orient_meanimg + \
     ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz') + \
     ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' + \
@@ -101,28 +103,27 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_
     ##### first you need to re-create a dilate ref anat image (works better for co-registration anat to fMRI)
     #dilate MORE the "maskDilat"
     if dilate_mask >0:
-        command = '3dmask_tool' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz') + \
+        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz') + \
         ' -input ' + brainmask + ' -fill_holes -dilate_input ' + str(dilate_mask)
         spco(command, shell=True)
     else:
-        command = '3dmask_tool' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz') + \
+        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz') + \
         ' -input ' + brainmask + ' -fill_holes'
         spco(command, shell=True)
 
-    # B0 correction of the anat
-    command = 'DenoiseImage' + ' -d 3 -i ' + anat_subject + ' -n Gaussian -r 3 ' + \
-        ' -o ' + opj(dir_fMRI_Refth_RS_prepro2, TfMRI + '_NU_denoise.nii.gz')
-    spco([command], shell=True)
-
+    # B0 correction of the anat   < ====== Why ?
+    IMG = ants.image_read(anat_subject)
+    IMG = ants.denoise_image(IMG,r=3,noise_model='Gaussian')
+    ants.image_write(IMG,opj(dir_fMRI_Refth_RS_prepro2, TfMRI + '_NU_denoise.nii.gz'),ri=False)
 
     if anat_func_same_space == True:
-        command = 'cat_matvec ' + opj(dir_prepro,ID + '_brain_for_Align_Center.1D') + \
-        ' > ' + opj(dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D')
+        command = 'singularity run' + s_bind + afni_sif + 'cat_matvec ' + opj(dir_prepro,ID + '_brain_for_Align_Center.1D') + \
+        ' | tail -n +3 >' + opj(dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D')
         spco([command], shell=True)
 
         mvt_shft = opj(dir_prepro,ID + '_brain_for_Align_Center_inv.1D')
-        command = 'cat_matvec ' + opj(dir_prepro,ID + '_brain_for_Align_Center.1D') + \
-        ' -I > ' + mvt_shft
+        command = 'singularity run' + s_bind + afni_sif + 'cat_matvec ' + opj(dir_prepro,ID + '_brain_for_Align_Center.1D') + \
+        ' -I | tail -n +3 > ' + mvt_shft
         spco([command], shell=True)
 
         #don't work for two different 1d matrices... so lets do it speparatly....
@@ -135,10 +136,10 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_
 
             ##### apply the recenter fmri
 
-            command = '3dZeropad -I 200 -S 200 -A 200 -P 200 -L 200 -R 200 -S 200 -prefix ' + output2 + ' ' + input1 + ' -overwrite'
+            command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 200 -S 200 -A 200 -P 200 -L 200 -R 200 -S 200 -prefix ' + output2 + ' ' + input1 + ' -overwrite'
             spco([command], shell=True)
 
-            command = '3dAllineate -final NN' + overwrite + ' -overwrite -1Dmatrix_apply ' + mvt_shft + \
+            command = 'singularity run' + s_bind + afni_sif + '3dAllineate -final NN' + overwrite + ' -overwrite -1Dmatrix_apply ' + mvt_shft + \
             ' -prefix ' + output2 + \
             ' -master ' + opj(dir_prepro, ID + '_mprage_reorient' + TfMRI + '.nii.gz') + \
             ' -input  ' + output2
@@ -155,7 +156,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_
             caca2.to_filename(output2)
 
         ####skullstrip the anat
-        command = '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz') + ' -b ' + opj(
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz') + ' -b ' + opj(
             dir_fMRI_Refth_RS_prepro2, 'orig_anat_for_fMRI.nii.gz') + \
                   ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz') + ' -expr "a*b"'
         spco([command], shell=True)
@@ -167,18 +168,18 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_
 
             if input1 == opj(dir_fMRI_Refth_RS_prepro2, TfMRI + '_NU_denoise.nii.gz'):
 
-                command = '3dresample' + overwrite + \
+                command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \
                 ' -prefix ' +opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz') + \
                 ' -master ' + opj(dir_fMRI_Refth_RS_prepro2, TfMRI + '_NU_denoise.nii.gz') + \
                 ' -input  ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz')
                 spco([command], shell=True)
 
                 ####skullstrip the anat
-                command = '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz') + ' -b ' + opj(dir_fMRI_Refth_RS_prepro2, TfMRI + '_NU_denoise.nii.gz') + \
+                command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz') + ' -b ' + opj(dir_fMRI_Refth_RS_prepro2, TfMRI + '_NU_denoise.nii.gz') + \
                           ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2,'orig_anat_for_fMRI.nii.gz') + ' -expr "a*b"'
                 spco([command], shell=True)
 
-                command = '3dresample' + overwrite + \
+                command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \
                 ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz') + \
                 ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' + \
                 ' -input  ' + opj(dir_fMRI_Refth_RS_prepro2,'orig_anat_for_fMRI.nii.gz')
@@ -186,7 +187,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_
 
 
             else:
-                command = '3dresample' + overwrite + \
+                command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \
                 ' -prefix ' + output2 + \
                 ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' + \
                 ' -input  ' + input1
@@ -198,44 +199,43 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_
 
     if doMaskingfMRI == True:
         if ope(opj(dir_fMRI_Refth_RS_prepro1,'manual_mask.nii.gz')):
-                command = '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro1,'manual_mask.nii.gz') + \
+                command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro1,'manual_mask.nii.gz') + \
                 ' -prefix ' +  opj(dir_fMRI_Refth_RS_prepro1,'maskDilat_Allineate_in_func.nii.gz') + ' -expr "a"'
                 spco([command], shell=True)
         else:
             if anat_func_same_space == True:
-                command = '3dcalc' + overwrite + ' -a ' + opj(opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz')) + \
+                command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz')) + \
                           ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz') + ' -expr "a"'
                 spco([command], shell=True)
                 print('you are using the mask from the anat img!!!')
             else:
                 if Method_mask_func=="3dAllineate":
                     ##### mask the func img
-                    command = '3dAllineate' + overwrite + ' -cmass -EPI -final NN -float -twobest 5 -fineblur 0 -nomask -base ' + \
+                    command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -cmass -EPI -final NN -float -twobest 5 -fineblur 0 -nomask -base ' + \
                     opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz') + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_RcT_for_mask.nii.gz') + \
                     ' -source ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz') + ' -' + costAllin + ' -1Dmatrix_save ' + \
                     opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_RcT_for_mask.1D') + \
                     ' -master ' + opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz')
                     spco(command, shell=True)
 
-                    command = 'cat_matvec ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_RcT_for_mask.1D') + \
-                    ' -I > ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_RcT_for_mask_INV.1D')
+                    command = 'singularity run' + s_bind + afni_sif + 'cat_matvec ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_RcT_for_mask.1D') + \
+                    ' -I | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_RcT_for_mask_INV.1D')
                     spco([command], shell=True)
 
-                    command = '3dAllineate' + overwrite + ' -final NN -1Dmatrix_apply ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_RcT_for_mask_INV.1D') + \
+                    command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -final NN -1Dmatrix_apply ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_RcT_for_mask_INV.1D') + \
                     ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,'maskDilat_Allineate_in_func.nii.gz') + \
                     ' -master ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz') + \
                     ' -input  ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilat.nii.gz')
                     spco([command], shell=True)
 
                 elif Method_mask_func == "nilearn":
-                    from nilearn.masking import compute_epi_mask
                     # convert to float
-                    command = 'mri_convert -odt float ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz') + ' ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')[:-7] + '_float.nii.gz'
+                    command = 'singularity run' + s_bind + fs_sif + 'mri_convert -odt float ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz') + ' ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')[:-7] + '_float.nii.gz'
                     spco([command], shell=True)
                     mask_img = compute_epi_mask(opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')[:-7] + '_float.nii.gz', lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff,
                                                 connected=True, opening=1,
                                                 exclude_zeros=False, ensure_finite=True)
                     mask_img.to_filename(opj(dir_fMRI_Refth_RS_prepro2,'maskDilat_nilearn.nii.gz'))
-                    command = '3dmask_tool -overwrite -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,'maskDilat_Allineate_in_func.nii.gz') + \
+                    command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,'maskDilat_Allineate_in_func.nii.gz') + \
                               ' -input ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilat_nilearn.nii.gz') + ' -fill_holes -dilate_input 1'
                     spco(command, shell=True)

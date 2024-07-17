@@ -1,15 +1,6 @@
-import shutil
-import datetime
-import nibabel as nb
-import plotly.graph_objects as go
 import os
 import subprocess
-import glob
-import math
-import numpy as np
 import pandas as pd
-import sys
-import nibabel as nib
 import matplotlib.pyplot as plt
 
 

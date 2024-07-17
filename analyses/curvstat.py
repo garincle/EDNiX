@@ -1,15 +1,6 @@
-import shutil
-import datetime
-import nibabel as nb
-import plotly.graph_objects as go
 import os
 import subprocess
-import glob
-import math
-import numpy as np
 import pandas as pd
-import sys
-import nibabel as nib
 import matplotlib.pyplot as plt
 
 ######################################################################### ADD VARIANCE!!!!!!!! ###################################
@@ -24,6 +15,15 @@ ops = os.path.splitext
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
+MAIN_PATH   = opj('/','srv','projects','easymribrain')
+
+### singularity set up
+s_bind        = ' --bind ' + opj('/','scratch','in_Process/') + ',' + MAIN_PATH
+s_path      = opj(MAIN_PATH,'code','singularity')
+wb_sif      = ' ' + opj(s_path , 'connectome_workbench_1.5.0-freesurfer-update.sif') + ' '
+
+
+
 #################################################################################################
 ####first parameters
 #################################################################################################
@@ -36,7 +36,7 @@ def extractCurv(Pd_allinfo_study, regressor_list, all_ID, all_Session, all_data_
         for ID, Session, data_path in zip(all_ID, all_Session, all_data_path):
             animal_folder = 'sub-' + ID + '_ses-' + str(Session)
             # The anatomy
-            path_anat    = opj(data_path ,'anat/')
+            path_anat    = opj(data_path ,'anat')
             dir_transfo  = opj(path_anat ,'matrices')
 
             dir_native    = opj(path_anat ,'native')
@@ -74,23 +74,23 @@ def extractCurv(Pd_allinfo_study, regressor_list, all_ID, all_Session, all_data_
                     key = row['region']
                     for i in range(0, 2):
 
-                        cmd = 'wb_command -cifti-label-to-roi ' + opj(dir_native_resol, segmentation + '.dlabel.nii') + \
+                        cmd = 'singularity run' + s_bind + wb_sif + 'wb_command -cifti-label-to-roi ' + opj(dir_native_resol, segmentation + '.dlabel.nii') + \
                               ' ' + opj(Folder_ROIs, str(key) + '.' + h[i] +  '_rois.dscalar.nii') + ' -map 1 -name ' + h[i] +  '_' + str(key)
                         spco(cmd, shell=True)
 
                         print(str(key) + '.' + h[i] +  '_rois.func.gii')
-                        cmd = 'wb_command -cifti-separate ' + opj(Folder_ROIs, str(key) + '.' + h[i] +  '_rois.dscalar.nii') + ' COLUMN -metric CORTEX_' + H_SIDE[i] + ' ' + \
+                        cmd = 'singularity run' + s_bind + wb_sif + 'wb_command -cifti-separate ' + opj(Folder_ROIs, str(key) + '.' + h[i] +  '_rois.dscalar.nii') + ' COLUMN -metric CORTEX_' + H_SIDE[i] + ' ' + \
                         opj(Folder_ROIs, str(key) + '.' + h[i] +  '_rois.func.gii')
                         spco(cmd, shell=True)
                         print(str(key) + '.' + h[i] + '_rois.func.gii22')
-                        DATA = spco('wb_command -metric-vertex-sum ' + opj(dir_native_resol, animal_folder  + '.' + h[i] + '.curvature.shape.gii') + \
+                        DATA = spco('singularity run' + s_bind + wb_sif + 'wb_command -metric-vertex-sum ' + opj(dir_native_resol, animal_folder  + '.' + h[i] + '.curvature.shape.gii') + \
                                     ' -roi ' + opj(Folder_ROIs, str(key) + '.' + h[i] + '_rois.func.gii'), shell=True)
                         # Decode the byte string to a regular string
                         DATA = DATA.decode('utf-8')
                         # Convert the regular string to a float
                         DATA = float(DATA)
                         print(str(DATA))
-                        Vertex = spco('wb_command -metric-vertex-sum ' + opj(Folder_ROIs, str(key) + '.' + h[i] +  '_rois.func.gii') + \
+                        Vertex = spco('singularity run' + s_bind + wb_sif + 'wb_command -metric-vertex-sum ' + opj(Folder_ROIs, str(key) + '.' + h[i] +  '_rois.func.gii') + \
                                       ' -roi ' + opj(Folder_ROIs, str(key) + '.' + h[i] +  '_rois.func.gii'), shell=True)
                         Vertex = Vertex.decode('utf-8')
                         # Convert the regular string to a float

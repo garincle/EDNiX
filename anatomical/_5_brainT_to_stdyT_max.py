@@ -1,11 +1,7 @@
 import os
 import subprocess
-import glob
-import shutil
-import sys
-import nilearn
 from nilearn import plotting
-
+import ants
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -16,7 +12,7 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-def brainT_to_T_max(dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv, creat_sutdy_template, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, otheranat, bids_dir, overwrite):
+def brainT_to_T_max(dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv, creat_study_template, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, otheranat, bids_dir, overwrite):
     #################################################################### coregistration with ANTs ####################################################################
 
     print('Coregistration ready baby')
@@ -26,13 +22,29 @@ def brainT_to_T_max(dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo
     print('prouut')
 
     ######Coregistration!!!! (template to anat)
-    command = 'antsRegistration -d 3 --float 0 --verbose 1 -n ' + n_for_ANTS +\
-        ' -o [' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_') + ',' + opj(dir_prepro,'template_to_' + type_norm + '_SyN_final_max.nii.gz') + ']' + \
-        ' -t Affine[0.1] -f 8x4x2x1 -s 3x2x1x0vox -c [1000x500x250x100,1e-6,10]' + \
-        ' -m MI[' + Ref_file + ',' + BASE_SS_coregistr + ',1,32,Regular,0.2]' + \
-        ' -t Syn[0.1,3,0] -f 8x4x2x1 -s 3x2x1x0vox -c [1000x500x250x100,1e-6,10]' + \
-        ' -m CC[' + Ref_file + ',' + BASE_SS_coregistr + ',1,4,Regular,0.2]'
-    spco([command], shell=True)
+
+    IMG = ants.image_read(Ref_file)
+    REF = ants.image_read(BASE_SS_coregistr)
+
+    mTx = ants.registration(fixed=IMG, moving=REF,
+                            type_of_transform='SyNRA',
+                            outprefix=opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_max_'),
+                            grad_step=0.1,
+                            flow_sigma=3,
+                            total_sigma=0,
+                            aff_sampling=32,
+                            aff_random_sampling_rate=0.2,
+                            syn_sampling=32,
+                            aff_iterations=(1000, 500, 250, 100),
+                            aff_shrink_factors=(8, 4, 2, 1),
+                            aff_smoothing_sigmas=(3, 2, 1, 0),
+                            reg_iterations=(1000, 500, 250, 100),
+                            reg_smoothing_sigmas=(3, 2, 1, 0),
+                            reg_shrink_factors=(8, 4, 2, 1),
+                            verbose=True)
+    TRANS = ants.apply_transforms(fixed=IMG, moving=REF,
+                                  transformlist=mTx['fwdtransforms'], interpolator=n_for_ANTS)
+    ants.image_write(TRANS, opj(dir_prepro, 'template_to_' + type_norm + '_SyN_final_max.nii.gz'), ri=False)
 
 
     for Timage in listTimage:
@@ -41,12 +53,12 @@ def brainT_to_T_max(dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo
         print(img_ref)
         print(Timage)
 
-        command = 'antsApplyTransforms -d 3 -i ' + img_ref + \
-        ' -r ' + BASE_SS_coregistr + \
-        ' -o ' + opj(dir_prepro, Timage + '_to_template_test_matrix_max.nii.gz') + \
-        transfo_concat_inv + \
-        ' -n ' + n_for_ANTS
-        spco([command], shell=True)
+        IMG = ants.image_read(img_ref)
+        TRANS = ants.apply_transforms(fixed=REF, moving=IMG,
+                                      transformlist=transfo_concat_inv,
+                                      interpolator=n_for_ANTS,whichtoinvert=w2inv_inv)
+        ants.image_write(TRANS, opj(dir_prepro, 'template_to_' + Timage + '_to_template_test_matrix_max.nii.gz'), ri=False)
+
 
         ####plot the Reffile
         try:
@@ -65,7 +77,7 @@ def brainT_to_T_max(dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo
             display.close()
 
 
-    if creat_sutdy_template == True:
+    if creat_study_template == True:
     ###creat brain of the subject template
         # average the available T1 files
         if which_on == 'max': # all or max

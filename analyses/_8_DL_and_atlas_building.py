@@ -1,24 +1,16 @@
 import nilearn
 import numpy as np
-from nilearn import image
 from nilearn.image import iter_img
 from nilearn import plotting
 import glob
 import subprocess
-import nipype
-import pandas as pd
 import os
-from datetime import datetime as dt
-from datetime import timedelta as td
 ####DL
 from nilearn.decomposition import DictLearning
-from nilearn.decomposition import CanICA
-from nilearn.input_data import NiftiMasker
 from nilearn.image import threshold_img
 from nilearn import regions
 import nibabel as nib
 import numpy.ma as ma
-from nilearn.image import math_img
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -26,40 +18,6 @@ opb = os.path.basename
 opn = os.path.normpath
 spco = subprocess.check_output
 opd = os.path.dirname
-
-import nilearn
-import numpy as np
-from nilearn import image
-from nilearn.image import iter_img
-from nilearn import plotting
-import glob
-import subprocess
-import nipype
-import pandas as pd
-import os
-from datetime import datetime as dt
-from datetime import timedelta as td
-####DL
-from nilearn.decomposition import DictLearning
-from nilearn.decomposition import CanICA
-from nilearn.input_data import NiftiMasker
-from nilearn.image import threshold_img
-from nilearn import regions
-import nibabel as nib
-import numpy.ma as ma
-from nilearn.image import math_img
-from nilearn.input_data import NiftiLabelsMasker
-from nilearn.image import resample_to_img
-
-# Path to the excels files and data structure
-opj = os.path.join
-opb = os.path.basename
-opn = os.path.normpath
-spco = subprocess.check_output
-opd = os.path.dirname
-
-from fonctions.extract_filename import extract_filename
-
 
 #################################################################################################
 ####Seed base analysis

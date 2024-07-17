@@ -1,18 +1,6 @@
-##################################################################create a panda array with all the volume values
-##########################################
-########### Subject loader################
-##########################################
-
-
-#Path to the excels files and data structure
 import sys
 import os
 import subprocess
-import glob
-import json
-import shutil
-import math
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -24,7 +12,13 @@ ope = os.path.exists
 ops = os.path.splitext
 spco = subprocess.check_output
 spgo = subprocess.getoutput
-sys.path.append('/home/cgarin/Documents/0000_CODE/2023/EasyMRI_brain_CG')
+
+MAIN_PATH   = opj('/','srv','projects','easymribrain')
+sys.path.append(opj(MAIN_PATH + 'Code','EasyMRI_brain-master'))
+
+### singularity set up
+s_bind   = ' --bind ' + opj('/','scratch','in_Process/') + ',' + MAIN_PATH
+afni_sif = ' ' + opj(MAIN_PATH,'code','singularity','afni_make_build_AFNI_23.1.10.sif') + ' '
 
 def extractMyel(otheranat, max_sessionlist, Pd_allinfo_study, regressor_list,
                          all_ID, all_Session, all_data_path, type_norm, segmentation_name_list,
@@ -67,7 +61,7 @@ def extractMyel(otheranat, max_sessionlist, Pd_allinfo_study, regressor_list,
                   label_img, '-overwrite'])
             '''
 
-            value = spco(['3dROIstats', '-mask', label_img, data_raw + '<0..5>'])
+            value = spco(['export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dROIstats', '-mask', label_img, data_raw + '<0..5>'])
             with open(opj(wb_T1T2_dir, ID + '_' + type_norm + '_' + otheranat +  '_' + IDSEG + '_extracted.csv'), 'wb') as myfile:
                 myfile.write(value)
             data_pd = pd.read_table(opj(wb_T1T2_dir, ID + '_' + type_norm + '_' + otheranat +  '_' + IDSEG + '_extracted.csv'), delim_whitespace=True)

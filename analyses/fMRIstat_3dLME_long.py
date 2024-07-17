@@ -6,6 +6,12 @@
 
 #####################################################################fix necessary?????????????????
 
+
+MAIN_PATH   = opj('/','srv','projects','easymribrain')
+### singularity set up
+s_bind   = ' --bind ' + opj('/','scratch','in_Process/') + ',' + MAIN_PATH
+afni_sif = ' ' + opj(MAIN_PATH,'code','singularity','afni_make_build_AFNI_23.1.10.sif') + ' '
+
 mask = '/media/cgarin/Clement_11/1_Macaques/1_PFC_study/8_Study_template/studytemplate2/template2_mask.nii.gz'
 reg = 'brain_mask'
 
@@ -74,7 +80,7 @@ for regressor in regressor_list:
 
 
     ## lauch 3dLME
-    command = ('3dLME' + ' -prefix ' + file_results + '3dLME_glt.nii.gz' + ' -jobs' + ' 20' + \
+    command = ('singularity run' + s_bind + afni_sif + '3dLME' + ' -prefix ' + file_results + '3dLME_glt.nii.gz' + ' -jobs' + ' 20' + \
                ' -mask ' + mask + ' -model' + ' "Sexe*' + regressor + '"' + ' -qVars' + \
                ' "' + regressor + '"' + ' -ranEff' + ' "~1+' + regressor + '"' + ' -num_glt' + ' 4' + \
                ' -gltLabel 1 "' + regressor + '" -gltCode 1 "' + regressor + ' :"' + \
@@ -85,13 +91,13 @@ for regressor in regressor_list:
     spco(command, shell=True)
 
     # run cluster analysis  3dClusterize !!! change
-    spco(['3dClustSim', '-mask', mask, '-prefix', file_results + 'Clust_'])
+    spco(['singularity run' + s_bind + afni_sif + '3dClustSim', '-mask', mask, '-prefix', file_results + 'Clust_'])
     3dLME = file_results + '3dLME_glt.nii.gz'
 
     for i, gltlabel in zip([5, 7, 9, 11], [regressor, '1MNM', '1M', '1NM']):
         if i ==5:
 
-            spco(['1d_tool.py', '-infile', file_results + 'Clust_.NN1_2sided.1D[2]{5}', '-write', file_results + 'clustertresh.txt', '-overwrite'])
+            spco(['singularity run' + s_bind + afni_sif + '1d_tool.py', '-infile', file_results + 'Clust_.NN1_2sided.1D[2]{5}', '-write', file_results + 'clustertresh.txt', '-overwrite'])
             print(open(file_results + 'clustertresh.txt', "r").read())
             cluster_threshold = float(open(file_results + 'clustertresh.txt', "r").read()[:4])
 

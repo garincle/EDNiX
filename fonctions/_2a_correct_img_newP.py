@@ -1,11 +1,9 @@
 import os
 import subprocess
-import glob
-import shutil
-import sys
 import nibabel as nb
 import numpy as np
 from math import pi
+from fonctions.extract_filename import extract_filename
 
 # Path to the excels files and data structure
 opj = os.path.join
@@ -16,43 +14,39 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-from fonctions.extract_filename import extract_filename
-
-
-def correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, study_fMRI_Refth, r, overwrite):
+def correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, study_fMRI_Refth, r, overwrite,s_bind,afni_sif,fsl_sif,topup_file):
     for i in [0, 1]:
         root = extract_filename(RS_map[i])
         root_RS = extract_filename(RS[r])
 
         # copy map imag in new location
-        command = '3dcalc' + overwrite + ' -a ' + list_map[i] + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + list_map[i] + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,
                                                                                   RS_map[i]) + ' -expr "a"'
         spco([command], shell=True)
 
         # mean of the map img
-        command = ('3dTstat' + overwrite + ' -mean -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,
-                                                                   root + '_map_mean_pre' + str(i) + '.nii.gz') + ' ' + \
-                   opj(dir_fMRI_Refth_RS_prepro1, RS_map[i]))
+        command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -mean -prefix ' + \
+                  opj(dir_fMRI_Refth_RS_prepro1,root + '_map_mean_pre' + str(i) + '.nii.gz') + ' ' + \
+                  opj(dir_fMRI_Refth_RS_prepro1, RS_map[i])
         spco([command], shell=True)
 
         # register each volume to the base image
-        command = '3dvolreg' + overwrite + ' -verbose -zpad 1 -base ' + opj(dir_fMRI_Refth_RS_prepro1,
-                                                                            root + '_map_mean_pre' + str(
-                                                                                i) + '.nii.gz') + \
+        command = 'singularity run' + s_bind + afni_sif + '3dvolreg' + overwrite + ' -verbose -zpad 1 -base ' + \
+                  opj(dir_fMRI_Refth_RS_prepro1,root + '_map_mean_pre' + str(i) + '.nii.gz') + \
                   ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align' + str(i) + '.nii.gz') + \
                   ' -cubic ' + \
                   opj(dir_fMRI_Refth_RS_prepro1, RS_map[i])
         spco([command], shell=True)
 
         # mean of the map img to ref img
-        command = '3dTstat' + overwrite + ' -mean -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,
-                                                                  root + '_map_mean' + str(i) + '.nii.gz') + ' ' + \
+        command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -mean -prefix ' + \
+                  opj(dir_fMRI_Refth_RS_prepro1,root + '_map_mean' + str(i) + '.nii.gz') + ' ' + \
                   opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align' + str(i) + '.nii.gz')
         spco([command], shell=True)
 
     root = extract_filename(RS_map[0])
     root1 = extract_filename(RS_map[1])
-    command = '3dTcat' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se.nii.gz') + \
+    command = 'singularity run' + s_bind + afni_sif + '3dTcat' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se.nii.gz') + \
               ' ' + opj(dir_fMRI_Refth_RS_prepro1, root1 + '_map_mean' + str(1) + '.nii.gz') + \
                 ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean' + str(0) + '.nii.gz')
     spco([command], shell=True)
@@ -77,18 +71,18 @@ def correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, study_fMRI_Reft
     ### se_map don't change but 1 -1
     ### b02b0 don't change
 
-    command = 'topup --imain=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se1.nii.gz') + \
-              ' --datain=' + opj(study_fMRI_Refth, 'se_map.txt') + \
-              ' --config=' + opj(study_fMRI_Refth, 'b02b0.cnf') + \
+    command = 'singularity run' + s_bind + fsl_sif + 'topup --imain=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se1.nii.gz') + \
+              ' --datain=' + topup_file[0] + \
+              ' --config=' + topup_file[1] + \
               ' --fout=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap.nii.gz') + \
               ' --iout=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_unwarped.nii.gz')
     spco([command], shell=True)
 
     ##### for fugue
-    command = 'fslmaths ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap.nii.gz') + ' -mul ' + str(2 * pi) + \
+    command = 'singularity run' + s_bind + fsl_sif + 'fslmaths ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap.nii.gz') + ' -mul ' + str(2 * pi) + \
               ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads.nii.gz')
     spco([command], shell=True)
 
-    command = 'fslmaths ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_unwarped.nii.gz') + \
+    command = 'singularity run' + s_bind + fsl_sif + 'fslmaths ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_unwarped.nii.gz') + \
               ' -Tmean ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_mag.nii.gz')
     spco([command], shell=True)

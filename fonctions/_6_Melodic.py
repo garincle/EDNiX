@@ -1,8 +1,6 @@
 import os
 import subprocess
 import glob
-import shutil
-import sys
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -20,7 +18,7 @@ from fonctions.extract_filename import extract_filename
 ############################the end (ICA and normalisation to the same space)
 
 def Melodic_correct(dir_RS_ICA_native_PreTT, dir_RS_ICA_native, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, 
-    nb_ICA_run, nb_run, RS, TfMRI, overwrite):
+    nb_ICA_run, nb_run, RS, TfMRI, overwrite,s_bind,fsl_sif,itk_sif,TR):
 
     #   6.0 first pass : 'individual runs' ICA analysis
     if not ope(dir_RS_ICA_native_PreTT): os.mkdir(dir_RS_ICA_native_PreTT)
@@ -30,7 +28,7 @@ def Melodic_correct(dir_RS_ICA_native_PreTT, dir_RS_ICA_native, dir_fMRI_Refth_R
     for i in range(0, int(nb_run)):
         root_RS = extract_filename(RS[i])
 
-        command = 'melodic -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_2ref_RcT_masked.nii.gz') + \
+        command = 'singularity run' + s_bind + fsl_sif + 'melodic -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_2ref_RcT_masked.nii.gz') + \
         ' -o ' + opj(dir_RS_ICA_native, root_RS + '_residual.ica') + \
         ' --tr=' + str(TR) + \
         ' --bgimage=' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz') + \
@@ -45,7 +43,7 @@ def Melodic_correct(dir_RS_ICA_native_PreTT, dir_RS_ICA_native, dir_fMRI_Refth_R
             print('found txt file of the ICA to remove!')
 
         else:
-            command = 'gnome-terminal -- itksnap -g ' +  opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz') + \
+            command = 'gnome-terminal -- singularity run' + s_bind + itk_sif + 'itksnap -g ' +  opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz') + \
             ' -o ' + opj(dir_RS_ICA_native, root_RS + '_residual.ica', 'melodic_IC.nii.gz')
             spco([command], shell=True)
 
@@ -75,7 +73,7 @@ def Melodic_correct(dir_RS_ICA_native_PreTT, dir_RS_ICA_native, dir_fMRI_Refth_R
         print('processing fsl regflirt !! Close itksnap please !')
 
         #-a switch on aggressive filtering (full instead of partial regression)
-        command = 'fsl_regfilt -a -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_2ref_RcT_masked.nii.gz') + \
+        command = 'singularity run' + s_bind + fsl_sif + 'fsl_regfilt -a -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_2ref_RcT_masked.nii.gz') + \
         ' -d ' + opj(dir_RS_ICA_native, root_RS + '_residual.ica','melodic_mix') + \
         ' -o ' + opj(dir_RS_ICA_native, root_RS + '_norm_final_clean.nii.gz') + ' -f ' + str(readtxt_f)
         spco([command], shell=True)
@@ -90,7 +88,7 @@ def Melodic_correct(dir_RS_ICA_native_PreTT, dir_RS_ICA_native, dir_fMRI_Refth_R
         name  = name  + ',' + DATA[m]
         DATA2 = DATA2 + ' ' + DATA[m]
 
-    command = 'melodic -i ' + name[1:] + \
+    command = 'singularity run' + s_bind + fsl_sif + 'melodic -i ' + name[1:] + \
     ' -o ' + opj(dir_RS_ICA_native_PreTT, root_RS + '_residual.ica') + \
     ' --tr=' + str(TR) + \
     ' --bgimage=' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz') + \

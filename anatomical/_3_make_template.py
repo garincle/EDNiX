@@ -5,6 +5,7 @@ import os
 import subprocess
 import shutil
 import anatomical.anat_to_common_EMB
+from nilearn.masking import compute_epi_mask
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -22,7 +23,8 @@ spgo = subprocess.getoutput
 ################################
 
 
-def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, type_norm, study_template_atlas_forlder, template_skullstrip, BASE_SS, BASE_mask, overwrite):
+def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, type_norm, study_template_atlas_forlder, template_skullstrip, BASE_SS, BASE_mask, overwrite,
+                  s_bind, afni_sif, fsl_sif, fs_sif):
 
     if which_on == 'max': # all or max
         all_ID_temp = all_ID_max
@@ -53,11 +55,11 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
 
         ############load the image for the template
         #creat a large image for co-registration
-        if not os.path.exists(opj(opj(all_data_path[0], 'anat', 'native', '01_preprocess'), all_ID[0] + '_acpc_cropped' + type_norm + 'Zp.nii.gz')):
+        if not ope(opj(opj(all_data_path[0], 'anat', 'native', '01_preprocess'), all_ID[0] + '_acpc_cropped' + type_norm + 'Zp.nii.gz')):
             spco(['3dZeropad', '-overwrite', '-I', '20', '-S', '20', '-A', '20', '-P', '20', '-L', '20', '-R', '20', '-S', '20', '-prefix', opj(opj(all_data_path[0], 'anat', 'native', '01_preprocess'), all_ID[0] + '_acpc_cropped' + type_norm + 'Zp.nii.gz'), opj(opj(all_data_path[0], 'anat', 'native', '01_preprocess'), all_ID[0] + '_acpc_cropped' + type_norm + '.nii.gz')])
 
         #resemple the other anat to this large img
-        spco(['3dresample', '-overwrite', '-master', opj(opj(all_data_path[0], 'anat', 'native', '01_preprocess'), all_ID[0] + '_acpc_cropped' + type_norm + 'Zp.nii.gz'), '-overwrite',
+        spco(['singularity run' + s_bind + afni_sif + '3dresample', '-overwrite', '-master', opj(opj(all_data_path[0], 'anat', 'native', '01_preprocess'), all_ID[0] + '_acpc_cropped' + type_norm + 'Zp.nii.gz'), '-overwrite',
         '-input', opj(dir_prepro, ID + '_acpc_cropped' + type_norm + '.nii.gz'), '-prefix', opj(dir_prepro, ID + '_acpc_cropped' + type_norm + 'Zp.nii.gz'), '-bound_type', 'SLAB'])
         template_list.append(opj(dir_prepro, ID + '_acpc_cropped' + type_norm + 'Zp.nii.gz'))
 
@@ -81,27 +83,24 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
     stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz')
 
     if template_skullstrip == 'Custum_Macaque':
-        import nilearn
-        from nilearn.masking import compute_epi_mask
         #convert to float
-        command = 'mri_convert -odt float ' + warp_adj + ' ' + opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_float.nii.gz')
+        command = 'singularity run' + s_bind + fs_sif + 'mri_convert -odt float ' + warp_adj + ' ' + opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_float.nii.gz')
         spco([command], shell=True)
         mask_img = compute_epi_mask(opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_float.nii.gz'), lower_cutoff=0.75, upper_cutoff=0.85, connected=True, opening=3,
             exclude_zeros=False, ensure_finite=True)
         mask_img.to_filename(stdy_template_mask)
-        command = '3dmask_tool -overwrite -prefix ' + stdy_template_mask + \
+        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + stdy_template_mask + \
         ' -input ' + stdy_template_mask + ' -fill_holes'
         spco(command, shell=True)
 
 
-    elif template_skullstrip == 'MachinL':
-        spco(['python3', '/home/cgarin/Documents/0_Clement/CODE/CODE/NHP-BrainExtraction-master/UNet_Model/muSkullStrip.py',
-        '-in', warp_adj, '-model', '/home/cgarin/Documents/1_Macaque_MRI/4_SSwarper_muSkull/result/model-20-epoch', '-out', 
-         opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm)])
-        shutil.copyfile(opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'warped_3_adjusted_mean_pre_mask.nii.gz'), stdy_template_mask)
+    #elif template_skullstrip == 'MachinL':
+    #    spco(['python3', '/home/cgarin/Documents/0_Clement/CODE/CODE/NHP-BrainExtraction-master/UNet_Model/muSkullStrip.py',
+    #    '-in', warp_adj, '-model', '/home/cgarin/Documents/1_Macaque_MRI/4_SSwarper_muSkull/result/model-20-epoch', '-out',
+    #     opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm)])
+    #    shutil.copyfile(opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'warped_3_adjusted_mean_pre_mask.nii.gz'), stdy_template_mask)
 
     elif template_skullstrip == 'Custum_Macaque2':
-        from nilearn.masking import compute_epi_mask
         #convert to float
         mask_img = compute_epi_mask(warp_adj, lower_cutoff=0.75, upper_cutoff=0.90, connected=True, opening=3,
             exclude_zeros=False, ensure_finite=True)
@@ -119,52 +118,52 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
 
     elif template_skullstrip =='Custum_QWARPT2':
 
-        command = '3dQwarp -overwrite -iwarp' + \
+        command = 'singularity run' + s_bind + afni_sif + '3dQwarp -overwrite -iwarp' + \
         ' -base ' + BASE_SS + \
         ' -prefix ' + stdy_template_mask + \
         ' -source ' + warp_adj + ' -maxlev 3 -resample'
         spco(command, shell=True)
 
-        spco(['3dNwarpApply', '-nwarp', opj(study_template_atlas_forlder,'study_template_mask_WARPINV.nii.gz'), 
+        spco(['singularity run' + s_bind + afni_sif + '3dNwarpApply', '-nwarp', opj(study_template_atlas_forlder,'study_template_mask_WARPINV.nii.gz'),
         '-source', BASE_mask, '-master', warp_adj, '-interp', 'NN',
         '-prefix', stdy_template_mask, '-overwrite'])
 
 
     elif template_skullstrip == '3dSkullStrip':
-        spco(['3dSkullStrip', '-overwrite', '-prefix', stdy_template_mask, 
+        spco(['singularity run' + s_bind + afni_sif + '3dSkullStrip', '-overwrite', '-prefix', stdy_template_mask,
             '-input', warp_adj, '-blur_fwhm', '2', '-orig_vol', '-mask_vol', '-use_skull', '-monkey'])
 
 
     elif template_skullstrip =='bet2':
         #####creat an approximate brain mask
-        command = 'bet2 ' + warp_adj + ' ' + stdy_template_mask + \
+        command = 'singularity run' + s_bind + fsl_sif + 'bet2 ' + warp_adj + ' ' + stdy_template_mask + \
         ' -f 0.70'
         spco([command], shell=True)
 
-        command = '3dmask_tool -overwrite -prefix ' +stdy_template_mask + \
+        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' +stdy_template_mask + \
         ' -input ' + stdy_template_mask + ' -fill_holes'
         spco(command, shell=True)
 
 
-    elif brain_skullstrip == 'antsBrainExtraction':
-        spco(['antsBrainExtraction.sh', '-d', '3', 
-            '-a', warp_adj, 
-            '-e', BASE_SS, '-m', BASE_mask, 
-            '-o', study_template_atlas_forlder + '/studytemplate2_' + type_norm + '/'])
-        shutil.copyfile(opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'BrainExtractionMask.nii.gz'), stdy_template_mask)
+    #elif brain_skullstrip == 'antsBrainExtraction':
+    #    spco(['antsBrainExtraction.sh', '-d', '3',
+    #        '-a', warp_adj,
+    #        '-e', BASE_SS, '-m', BASE_mask,
+    #        '-o', study_template_atlas_forlder + '/studytemplate2_' + type_norm + '/'])
+    #    shutil.copyfile(opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'BrainExtractionMask.nii.gz'), stdy_template_mask)
 
 
     '''
-    3dresample -master /media/cgarin/Clement_1/1_Macaques/1_PFC_study/10_2023_PP_U/Study_template/studytemplate2_T1/warped_3_adjusted_mean.nii.gz -input /media/cgarin/Clement_1/1_Macaques/1_PFC_study/10_2023_PP_U/Study_template/studytemplate2_T1/study_template_maskcp.nii.gz -prefix /media/cgarin/Clement_1/1_Macaques/1_PFC_study/10_2023_PP_U/Study_template/studytemplate2_T1/study_template_mask.nii.gz
+    'singularity run' + s_bind + afni_sif + 3dresample -master /media/cgarin/Clement_1/1_Macaques/1_PFC_study/10_2023_PP_U/Study_template/studytemplate2_T1/warped_3_adjusted_mean.nii.gz -input /media/cgarin/Clement_1/1_Macaques/1_PFC_study/10_2023_PP_U/Study_template/studytemplate2_T1/study_template_maskcp.nii.gz -prefix /media/cgarin/Clement_1/1_Macaques/1_PFC_study/10_2023_PP_U/Study_template/studytemplate2_T1/study_template_mask.nii.gz
     '''
 
     ##extract brain
-    command = '3dcalc -overwrite -a ' + stdy_template_mask + ' -b ' + warp_adj + ' -expr "(a*b)" -prefix ' + opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_not_align.nii.gz')
+    command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + stdy_template_mask + ' -b ' + warp_adj + ' -expr "(a*b)" -prefix ' + opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_not_align.nii.gz')
     spco(command, shell=True)
 
     ### to move in brainT to styT??? XXX
     ##align template to BASE_SS (atlas template)
-    command = '3dAllineate' + overwrite + ' -warp shift_rotate -cmass -overwrite -base ' + BASE_SS + \
+    command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -warp shift_rotate -cmass -overwrite -base ' + BASE_SS + \
     ' -nomask -onepass' + \
     ' -master ' + opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_not_align.nii.gz') + \
     ' -prefix ' + stdy_template + \
@@ -172,7 +171,7 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
     opj(study_template_atlas_forlder,ID + '_allign_template_to_stdy_template.1D')
     spco(command, shell=True)
 
-    command = '3dAllineate -overwrite -interp NN -1Dmatrix_apply ' + opj(study_template_atlas_forlder,ID + '_allign_template_to_stdy_template.1D') + \
+    command = 'singularity run' + s_bind + afni_sif + '3dAllineate -overwrite -interp NN -1Dmatrix_apply ' + opj(study_template_atlas_forlder,ID + '_allign_template_to_stdy_template.1D') + \
     ' -prefix ' + stdy_template_mask + \
     ' -master ' + stdy_template + \
     ' -input  ' + stdy_template_mask

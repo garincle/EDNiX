@@ -1,8 +1,6 @@
 import os
 import subprocess
 import glob
-import shutil
-import sys
 from fonctions.extract_filename import extract_filename
 import json
 from nilearn.image import resample_to_img
@@ -35,7 +33,8 @@ def correct_orient(BIDStype,
                    orientation, 
                    dir_prepro, 
                    IgotbothT1T2, 
-                   overwrite):
+                   overwrite,
+                   s_bind,afni_sif,fs_sif):
 
     for Timage in listTimage:
         # get variables from json
@@ -52,7 +51,7 @@ def correct_orient(BIDStype,
             #list_anat = [opj(path_anat, 'sub-' + ID + '_ses-' + str(Session) + '_' + Timage + '.nii.gz')]
             print(ope(list_anat[0]))
             #shutil.copyfile(list_anat[0], opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz'))
-            command = SINGULARITY + 'run' + AFNI_sif  + '3dcalc -a ' + list_anat[0] + \
+            command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + list_anat[0] + \
             ' -prefix ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz') + ' -expr "a"' + overwrite
             spco([command], shell=True)
 
@@ -74,17 +73,17 @@ def correct_orient(BIDStype,
 
             if len(list_anat) > 1:
                 ANAT= ' '.join(list_anat)
-                command = SINGULARITY + 'run' + FS_sif  + 'mri_robust_template --mov ' + ANAT + \
+                command = 'singularity run' + s_bind + fs_sif + 'mri_robust_template --mov ' + ANAT + \
                 ' --template ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz') + \
                 ' --satit --inittp 1 --fixtp --noit --iscale --average 0'
                 spco([command], shell=True)
             else:
                 #shutil.copyfile(list_anat[0], opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz'))
-                command = SINGULARITY + 'run' + AFNI_sif  + '3dcalc -a ' + list_anat[0] + \
+                command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + list_anat[0] + \
                 ' -prefix ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz') + ' -expr "a"' + overwrite
                 spco([command], shell=True)
 
-        #command = '3drefit -space ORIG ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz')
+        #command = 'singularity run' + s_bind + afni_sif + '3drefit -space ORIG ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz')
         #spco([command], shell=True)
         ####################################################
         ####### creat indiv T1/T2 template if necessary ####
@@ -97,7 +96,7 @@ def correct_orient(BIDStype,
                                 interpolation='nearest')
         caca2.to_filename(opj(path_anat, ID + 'template_indiv' + otheranat + 'rsp_TO_Tnorm.nii.gz'))
 
-        command = SINGULARITY + 'run' + AFNI_sif + '3dcalc -a ' +  opj(path_anat, ID + 'template_indiv' + type_norm + '.nii.gz') +  \
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' +  opj(path_anat, ID + 'template_indiv' + type_norm + '.nii.gz') +  \
         ' -b ' + opj(path_anat, ID + 'template_indiv' + otheranat + 'rsp_TO_Tnorm.nii.gz') + \
         ' -expr b*(step(a)) -prefix ' + opj(path_anat, ID + 'template_indiv' + otheranat + 'rsp_TO_Tnorm.nii.gz') + \
         '-overwrite'
@@ -114,7 +113,7 @@ def correct_orient(BIDStype,
                            img2=opj(path_anat, ID + 'template_indiv' + otheranat + 'rsp_TO_Tnorm.nii.gz'))
         log_img.to_filename(opj(path_anat, ID + 'template_indiv' + type_norm + 'rsp_T1T2.nii.gz'))
 
-        command = SINGULARITY + 'run' + AFNI_sif + '3dcalc -overwrite -a ' + opj(path_anat, ID + 'template_indiv' + type_norm + 'rsp_T1T2.nii.gz') + \
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(path_anat, ID + 'template_indiv' + type_norm + 'rsp_T1T2.nii.gz') + \
                   ' -b ' + opj(path_anat, ID + 'template_indiv' + otheranat + 'rsp_T1T2.nii.gz') + \
                   ' -expr "a/b" -datum float  -prefix ' + opj(path_anat, ID + 'template_indiv' + type_norm + '_' + otheranat + '.nii.gz')
         spco([command], shell=True)
@@ -132,10 +131,11 @@ def correct_orient(BIDStype,
 
     ###define if the two image have the same oblique
     if IgotbothT1T2 == True:
-        command = SINGULARITY + 'run' + AFNI_sif + '3dinfo -same_obl ' + \
+        command = 'singularity run' + s_bind + afni_sif + '3dinfo -same_obl ' + \
         opj(path_anat, ID + 'template_indiv' + otheranat + '.nii.gz') + ' ' + \
         opj(path_anat, ID + 'template_indiv' + type_norm + '.nii.gz')
-        nx = spco([command], shell=True)
+        arg = spgo(command).split('\n')
+        nx = arg[-1]
     else:
         nx="b'1\\n1\\n'" #code to say "same oblique"...
 
@@ -154,7 +154,7 @@ def correct_orient(BIDStype,
         list_anat = sorted(glob.glob(opj(path_anat, '*_' + Timage + '.nii.gz')))
         ## add option for if oblique = 0 !! XX
         if deoblique_1=='header':
-            command = SINGULARITY + 'run' + AFNI_sif + '3drefit -deoblique -NN' + overwrite + ' -orient ' + orientation + \
+            command = 'singularity run' + s_bind + afni_sif + '3drefit -deoblique -NN' + overwrite + ' -orient ' + orientation + \
             ' ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz')
             spco([command], shell=True)
 
@@ -165,11 +165,11 @@ def correct_orient(BIDStype,
         elif deoblique_1=='WARP':
             if str(nx)=="b'1\\n1\\n'":
                 print('same oblique')
-                command = SINGULARITY + 'run' + AFNI_sif + '3drefit' + overwrite + ' -orient ' + orientation + \
+                command = 'singularity run' + s_bind + afni_sif + '3drefit' + overwrite + ' -orient ' + orientation + \
                 ' ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz')
                 spco([command], shell=True)
                 # reorient the fiedls according to the json file
-                command = SINGULARITY + 'run' + AFNI_sif + '3dWarp' + overwrite + \
+                command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + \
                 ' -deoblique -NN -prefix ' +  opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz') + \
                 ' ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz')
                 spco([command], shell=True)
@@ -177,12 +177,12 @@ def correct_orient(BIDStype,
             else:
                 print('oblique different')
                 # reorient the fiedls according to the json file
-                command = SINGULARITY + 'run' + AFNI_sif + '3dWarp' + overwrite + \
+                command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + \
                 ' -deoblique -NN -prefix ' +  opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz') + \
                 ' ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz')
                 spco([command], shell=True)
                 
-                command = SINGULARITY + 'run' + AFNI_sif + '3drefit' + overwrite + ' -keepcen -orient ' + orientation + \
+                command = 'singularity run' + s_bind + afni_sif + '3drefit' + overwrite + ' -keepcen -orient ' + orientation + \
                 ' -duporigin' + ' ' + opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz') + \
                 ' ' + opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz')
                 spco([command], shell=True)
@@ -194,14 +194,14 @@ def correct_orient(BIDStype,
 
         elif deoblique_1=='exeption2': #re-alineate
             print('exeption2') ### add something else not usefull!! XX
-            command = '3dWarp' + overwrite + ' -deoblique -NN -prefix ' +  opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz') + \
+            command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix ' +  opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz') + \
             ' ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz')
             spco([command], shell=True)
             print('need to realinate or use just one')
 
     for Timage in listTimage:
         # B1 Non uniform correction (MINC tools via freesurfer)
-        command = SINGULARITY + 'run' + FS_sif + 'mri_nu_correct.mni --i ' + opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz') + \
+        command = 'singularity run' + s_bind + fs_sif + 'mri_nu_correct.mni --i ' + opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz') + \
         ' --o ' + opj(dir_prepro, ID + '_anat_reorient_NU' + Timage + '.nii.gz') + \
         ' --distance 60 --proto-iters 150 --stop 0.000'
         spco([command], shell=True)

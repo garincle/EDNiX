@@ -17,14 +17,26 @@ spgo = subprocess.getoutput
 
 ##############################################################  TO DO !! ##############################################################
 
+MAIN_PATH = opj('/','srv','projects','easymribrain')
+
 ##### where is EasyMRI_brain?
-sys.path.append('/home/cgarin/Documents/0000_CODE/2023/EasyMRI_brain_CG')
+sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
 import fonctions._0_Pipeline_launcher
+
 ###where are stored the BIDS data?
-bids_dir = opj('/home/cgarin/Documents/8_Multispecies/fMRI/rats/BIDS_rat/')
+bids_dir = opj(MAIN_PATH,'data','MRI','rats','BIDS_rat')
 
 ##### If your BIDS dataset is correct, I strongly advise  to use BIDSLayout,
 # it allows very quicly to build the architecture of your dataset to analyse all subjects of your dataset
+
+### singularity set up
+s_bind        = ' --bind ' + opj('/','scratch','in_Process/') + ',' + MAIN_PATH
+s_path      = opj(MAIN_PATH,'code','singularity')
+afni_sif    = ' ' + opj(s_path , 'afni_make_build_AFNI_23.1.10.sif') + ' '
+fsl_sif     = ' ' + opj(s_path , 'fsl_6.0.5.1-cuda9.1.sif') + ' '
+fs_sif      = ' ' + opj(s_path , 'freesurfer_NHP.sif') + ' '
+itk_sif    = ' ' + opj(s_path , 'itksnap_5.0.9.sif') + ' '
+wb_sif      = ' ' + opj(s_path , 'connectome_workbench_1.5.0-freesurfer-update.sif') + ' '
 
 ############################################################## NOTHING TO DO HERE ##############################################################
 
@@ -229,7 +241,7 @@ correction_direction = 'y' # string
 # Ones you have created the topup file you should save it somewhere
 
 #### where are stored the file for topup??
-study_fMRI_Refth = opj('/home/cgarin/Documents/1_Macaque_MRI/6_Raw/sub-Musly') #string (path)
+study_fMRI_Refth = opj(MAIN_PATH,'code','4topup.txt') #string (path)
 
 ##### masking steps SUPER IMPORTANT!!
 # you can choose to not do it (not advised)
@@ -300,10 +312,10 @@ do_anat_to_func = True # True or False
 ######################### study template??? ###########################
 #######################################################################
 ##### if you don't have an anat then template will be the same as anat...
-#creat_sutdy_template was created with the anat type_norm img, and you want to use it as standart space
-creat_sutdy_template = False # True or False
+#creat_study_template was created with the anat type_norm img, and you want to use it as standart space
+creat_study_template = False # True or False
 
-########## if creat_sutdy_template = True ##########
+########## if creat_study_template = True ##########
 
 ######no need to answer this question if you are not doing a study template
 #folder where you stored the stdy template
@@ -312,24 +324,24 @@ stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_
 stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
 GM_mask_studyT = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'GM_mask.nii.gz') # sting
 
-########## if creat_sutdy_template = False ##########
+########## if creat_study_template = False ##########
 
-# if creat_sutdy_template== False you need to provide this
-BASE_SS     = '/home/cgarin/Documents/8_Multispecies/13_Atlas_project/0_Atlas_modify/Atlas/Rat/templateT2.nii.gz' # sting
-BASE_mask   = '/home/cgarin/Documents/8_Multispecies/13_Atlas_project/0_Atlas_modify/Atlas/Rat/brain_mask.nii.gz' # sting
-GM_mask = '/home/cgarin/Documents/8_Multispecies/13_Atlas_project/0_Atlas_modify/Atlas/Rat/GM.nii.gz' # sting
+# if creat_study_template== False you need to provide this
+BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','Rat','templateT2.nii.gz') # sting
+BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','Rat','brain_mask.nii.gz') # sting
+GM_mask     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','Rat','GM.nii.gz') # sting
 
     ##########################################################
     ##### define atlases that are in template space ##########
     ##########################################################
 
 ####put all atlases and template to process in the same folder named: ...
-diratlas_orig = '/home/cgarin/Documents/8_Multispecies/13_Atlas_project/New_atlas_Dual/Rat/'
+diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual','Rat')
 list_atlases = [diratlas_orig + 'atlaslvl1.nii.gz',
 diratlas_orig + 'atlaslvl2.nii.gz',
 diratlas_orig + 'atlaslvl3.nii.gz',
 diratlas_orig + 'atlaslvl4.nii.gz',
-'/home/cgarin/Documents/8_Multispecies/13_Atlas_project/0_Atlas_modify/Atlas/Rat/atlas.nii.gz'] # liste
+opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','Rat','atlas.nii.gz')] # liste
 
 #######for melodic cleaning (step 4)
 melodic_prior_post_TTT = False # True or False
@@ -398,7 +410,7 @@ oversample_map = True # True or False
 #######for matrix analysis (step 10)
 #### name of the atlases  you want to use for the matrix analysis
 # Read the Excel file into a DataFrame
-file_path = '/home/cgarin/Documents/8_Multispecies/13_Atlas_project/Classiff/Legende_VDualvf2_formatrix.xlsx'
+file_path = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Classiff','Legende_VDualvf2_formatrix.xlsx')
 legendPNAS = pd.read_excel(file_path, 'Legend_2023')
 
 selected_atlases_matrix = [diratlas_orig + 'atlaslvl1.nii.gz',
@@ -435,7 +447,7 @@ Skip_step = []
 
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, anat_func_same_space,
     correction_direction, REF_int, study_fMRI_Refth, IgotbothT1T2, otheranat, deoblique_exeption1, deoblique_exeption2, deoblique, orientation,
-    TfMRI, GM_mask_studyT, GM_mask, creat_sutdy_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
+    TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
     extract_exterior_CSF, extract_WM, n_for_ANTS, list_atlases, selected_atlases, panda_files, useT1T2_for_coregis, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
     cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
-                    folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff)
+                    folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff,s_bind,afni_sif,fsl_sif,fs_sif,wb_sif,itk_sif)

@@ -3,6 +3,7 @@ import os
 import numpy as np
 import nibabel as nib
 from sklearn.cluster import KMeans
+from fonctions.extract_filename import extract_filename
 
 # Path to the excels files and data structure
 opj = os.path.join
@@ -11,8 +12,6 @@ opn = os.path.normpath
 spco = subprocess.check_output
 opd = os.path.dirname
 ope = os.path.exists
-
-from fonctions.extract_filename import extract_filename
 
 #################################################################################################
 ####Seed base analysis

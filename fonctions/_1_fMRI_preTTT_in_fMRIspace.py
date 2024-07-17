@@ -1,16 +1,6 @@
-    #######################################################################################################################################################################
-    ############################################################################################################# Preprocessing ###########################################
-    #######################################################################################################################################################################
-
-    ####################################################################################
-    ########################## Step 1 in EPI space #####################################
-    ####################################################################################
-
 import os
 import subprocess
-import glob
-import shutil
-
+import ants
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -25,7 +15,7 @@ from fonctions.extract_filename import extract_filename
 
 ##### XXX add ICA or DL to visualize pre-processing effect
 
-def preprocess_data(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, list_RS, nb_run, T1_eq, overwrite):
+def preprocess_data(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, list_RS, nb_run, T1_eq, overwrite,s_bind,afni_sif):
 
 
     if ope(dir_fMRI_Refth_RS_prepro1) == False:
@@ -41,7 +31,7 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, li
 
         root = extract_filename(RS[i])
         #copy func imag
-        command = '3dcalc -a ' + list_RS[i] + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '.nii.gz') + ' -expr "a"' + overwrite
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + list_RS[i] + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '.nii.gz') + ' -expr "a"' + overwrite
         spco([command], shell=True)
 
         #command = '3drefit -space ORIG ' + opj(dir_fMRI_Refth_RS_prepro1, root + '.nii.gz')
@@ -58,32 +48,33 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, li
                 # Read the second line and convert it to an integer
                 cut_high = int(file.readline().strip())
 
-            command = '3dTcat -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_x0.nii.gz') + ' ' + base_fMRI + \
+            command = 'singularity run' + s_bind + afni_sif + '3dTcat -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_x0.nii.gz') + ' ' + base_fMRI + \
             '[' + str(cut_low) + '-' + str(cut_high-1) + ']' + overwrite
             spco([command], shell=True)
             base_fMRI = opj(dir_fMRI_Refth_RS_prepro1, root + '_x0.nii.gz')
 
         # T1 equilibrium
-        command = '3dinfo -nv ' + base_fMRI
-        nb = spgo([command])
-        nb_vol = int(nb)
-        command = '3dTcat -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_x.nii.gz') + ' ' + base_fMRI + \
+        cmd = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -nv ' + base_fMRI
+        nb_vol = int(spgo(cmd).split('\n')[-1])
+
+
+        command = 'singularity run' + s_bind + afni_sif + '3dTcat -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_x.nii.gz') + ' ' + base_fMRI + \
         '[' + str(T1_eq) + '-' + str(nb_vol-1) + ']' + overwrite
         spco([command], shell=True)
         
         # Despiking
-        command = '3dDespike -NEW -nomask' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz') + \
+        command = 'singularity run' + s_bind + afni_sif + '3dDespike -NEW -nomask' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz') + \
         ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_x.nii.gz')
         spco([command], shell=True)
         
         # slice-timing correction -heptic!!!!!!
         # better be sure that the Dicom are in ascending mode ??? old option -TR ' + str(TR) + 's -tpattern XXX -slice ' + str(nslice-1) XXX
-        command = '3dTshift -heptic'  + overwrite + \
+        command = 'singularity run' + s_bind + afni_sif + '3dTshift -heptic'  + overwrite + \
         ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz ') + \
         ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz')
         spco([command], shell=True)
 
-        command = '3dTstat' + overwrite + ' -mean -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt_mean.nii.gz') + ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz')
+        command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -mean -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt_mean.nii.gz') + ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz')
         spco([command], shell=True)
 
         #outlier fraction for each volume
@@ -94,12 +85,12 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, li
 
         # realignment intra-run (volreg)
         '''
-        command = 'mcflirt -in ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz ') + \
+        command = 'singularity run' + s_bind + fsl_sif + 'mcflirt -in ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz ') + \
         ' -out ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr.nii.gz ') + \
         ' -mats -plots -reffile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt_mean.nii.gz') + ' -rmsrel -rmsabs -spline_final'
         spco([command], shell=True)
         # output mvt image in png (deplacement in absolute and relative)
-        command = 'fsl_tsplot -i ' + opj(dir_fMRI_Refth_RS_prepro1,root + '_xdtr.nii.gz_abs.rms') + \
+        command = 'singularity run' + s_bind + fsl_sif + 'fsl_tsplot -i ' + opj(dir_fMRI_Refth_RS_prepro1,root + '_xdtr.nii.gz_abs.rms') + \
         ',' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr.nii.gz_rel.rms') + \
         ' -t "MCFLIRT estimated mean displacement (mm)" -u 1 -w 640 -h 144 -a absolute,relative' + \
         ' -o ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr.png')
@@ -108,7 +99,7 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, li
         '''
 
         # register each volume to the base image
-        command = '3dvolreg' + overwrite + ' -verbose -zpad 1 -base ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt_mean.nii.gz') + \
+        command = 'singularity run' + s_bind + afni_sif + '3dvolreg' + overwrite + ' -verbose -zpad 1 -base ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt_mean.nii.gz') + \
         ' -1Dfile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + \
         ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr.nii.gz ') + \
         ' -cubic' + \
@@ -117,7 +108,7 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, li
         spco([command], shell=True)
 
         # censoring # see ex 10 in 1d_tool
-        command = '1d_tool.py' + overwrite + ' -infile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + \
+        command = 'singularity run' + s_bind + afni_sif + '1d_tool.py' + overwrite + ' -infile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + \
         ' -derivative -censor_prev_TR -collapse_cols euclidean_norm' + \
         ' -moderate_mask -1.2 1.2 -show_censor_count' + \
         ' -write_censor ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_censor.1D') + \
@@ -126,29 +117,33 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, li
 
         # compute motion magnitude time series: the Euclidean norm
         # (sqrt(sum squares)) of the motion parameter derivatives
-        command = '1d_tool.py' + overwrite + ' -infile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + ' -set_nruns 1' + \
+        command = 'singularity run' + s_bind + afni_sif + '1d_tool.py' + overwrite + ' -infile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + ' -set_nruns 1' + \
         ' -derivative -collapse_cols euclidean_norm ' + \
         '-write ' + opj(dir_fMRI_Refth_RS_prepro1, root + 'motion_enorm.1D')
         spco([command], shell=True)
 
         #writing regressors # get the first derivative
-        command = '1d_tool.py' + overwrite + ' -infile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + \
+        command = 'singularity run' + s_bind + afni_sif + '1d_tool.py' + overwrite + ' -infile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + \
         ' -derivative -write ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_deriv.1D')
         spco([command], shell=True)
 
         #writing regressors # get the demean
-        command = '1d_tool.py' + overwrite + ' -infile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + \
+        command = 'singularity run' + s_bind + afni_sif + '1d_tool.py' + overwrite + ' -infile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + \
         ' -demean -write ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_demean.1D')
         spco([command], shell=True)
 
-        command = '3dTstat' + overwrite + ' -mean -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_mean_preWARP.nii.gz') + \
+        command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -mean -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_mean_preWARP.nii.gz') + \
         ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr.nii.gz')
         spco([command], shell=True)
 
         #BiasFieldCorrection
-        command = 'N4BiasFieldCorrection -d 3 -i ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_mean_preWARP.nii.gz') + \
-        ' -o ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_mean.nii.gz') + ' -s 4 -c [50x50x50x50,0.0000001] -b [200] --verbose 1'
-        spco([command], shell=True)
+        IMG = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_mean_preWARP.nii.gz'))
+        N4 = ants.n4_bias_field_correction(IMG,
+                                           shrink_factor=4,
+                                           convergence={'iters': [50, 50, 50, 50], 'tol': 1e-07},
+                                           spline_param=200)
+        ants.image_write(N4, opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_mean.nii.gz'), ri=False)
+
 
     # for distortion correction    
 

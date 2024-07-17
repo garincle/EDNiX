@@ -1,9 +1,6 @@
 import os
 import subprocess
-import glob
-import shutil
-import sys
-
+import ants
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -13,9 +10,10 @@ opd = os.path.dirname
 ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
-import ants
 
-def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref, type_norm, ID, transfo_concat, dir_prepro, list_atlases, creat_sutdy_template, dir_out, diratlas_orig, check_visualy_each_img, n_for_ANTS, overwrite):
+
+def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref, type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, creat_study_template, dir_out, diratlas_orig, check_visualy_each_img, n_for_ANTS, overwrite,
+                s_bind,afni_sif,fs_sif):
     print("BASE_SS_mask is " + BASE_SS_mask)
     print("BASE_SS_coregistr is " + BASE_SS_coregistr)
     print("Ref_file is " + Ref_file)
@@ -25,64 +23,56 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
     ################################################################################################
     ####test on the template (atlas or sty) to see if it works
     ####save the old "Ref_file"
-    command = '3dcalc -overwrite -a ' +  Ref_file + ' -expr "a" -prefix ' + opj(volumes_dir, ID + type_norm + '_brain_coregistr_QC.nii.gz')
+    command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' +  Ref_file + ' -expr "a" -prefix ' + opj(volumes_dir, ID + type_norm + '_brain_coregistr_QC.nii.gz')
     spco([command], shell=True)
     print(command)
 
-    command = 'antsApplyTransforms -d 3 -i ' + BASE_SS_mask + \
-    ' -r ' + Ref_file + \
-    ' -o ' + opj(masks_dir,'brain_mask_in_anat_DC.nii.gz') + \
-    transfo_concat + \
-    ' -n NearestNeighbor'
-    spco([command], shell=True)
 
-    command = 'antsApplyTransforms -d 3 -i ' + BASE_SS_coregistr + \
-    ' -r ' + Ref_file + \
-    ' -o ' + opj(dir_prepro,'template_in_anat_DC.nii.gz') + \
-    transfo_concat + \
-    ' -n ' + n_for_ANTS
-    spco([command], shell=True)
-    print(command)
+    brain_img  = ants.image_read(Ref_file)
+    MSK = ants.image_read(BASE_SS_mask)
+    IMG  = ants.image_read(BASE_SS_coregistr)
 
-    command = '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(dir_prepro,'template_in_anat_DC.nii.gz') + ' -expr "step(a)*b" -prefix ' + opj(dir_prepro,'template_in_anat_DC.nii.gz')
+    TRANS = ants.apply_transforms(fixed=brain_img, moving=MSK,
+                                  transformlist=transfo_concat, interpolator='nearestNeighbor',which2invert=w2inv_fwd)
+    ants.image_write(TRANS, opj(masks_dir,'brain_mask_in_anat_DC.nii.gz'), ri=False)
+
+
+    TRANS = ants.apply_transforms(fixed=brain_img, moving=IMG,
+                                  transformlist=transfo_concat, interpolator=n_for_ANTS,which2invert=w2inv_fwd)
+    ants.image_write(TRANS, opj(dir_prepro,'template_in_anat_DC.nii.gz'), ri=False)
+
+
+
+    command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(dir_prepro,'template_in_anat_DC.nii.gz') + ' -expr "step(a)*b" -pbrain_imgix ' + opj(dir_prepro,'template_in_anat_DC.nii.gz')
     spco([command], shell=True)
 
     #### apply to all atlases
     for atlas in list_atlases:
-        if creat_sutdy_template==True:
-            diratlas = dir_out
-        else:
-            diratlas = diratlas_orig
-        command = 'antsApplyTransforms -d 3 -i ' + atlas + \
-        ' -r ' + Ref_file + \
-        ' -o ' + opj(labels_dir,type_norm + opb(atlas)) + \
-        transfo_concat + \
-        ' -n NearestNeighbor'
-        spco([command], shell=True)
+        IMG = ants.image_read(atlas)
+        TRANS = ants.apply_transforms(fixed=brain_img, moving=IMG,
+                                      transformlist=transfo_concat, interpolator='nearestNeighbor',whichtoinvert=w2inv_fwd)
+        ants.image_write(TRANS, opj(labels_dir,type_norm + opb(atlas)), ri=False)
 
-        command = '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(labels_dir,type_norm + opb(atlas)) + ' -expr "step(a)*b" -prefix ' + opj(labels_dir,type_norm + opb(atlas))
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(labels_dir,type_norm + opb(atlas)) + ' -expr "step(a)*b" -prefix ' + opj(labels_dir,type_norm + opb(atlas))
         spco([command], shell=True)
 
     #### apply to asegLR
-    command = 'antsApplyTransforms -d 3 -i ' + Aseg_refLR + \
-        ' -r ' + Ref_file + \
-        ' -o ' + opj(labels_dir, type_norm + 'Aseg_refLR.nii.gz') + \
-        transfo_concat + \
-        ' -n NearestNeighbor'
-    spco([command], shell=True)
+    IMG = ants.image_read(Aseg_refLR)
+    TRANS = ants.apply_transforms(fixed=brain_img, moving=IMG,
+                                  transformlist=transfo_concat, interpolator='nearestNeighbor',whichtoinvert=w2inv_fwd)
+    ants.image_write(TRANS, opj(labels_dir, type_norm + 'Aseg_refLR.nii.gz'), ri=False)
 
-    command = '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(labels_dir, type_norm + 'Aseg_refLR.nii.gz') + ' -expr "step(a)*b" -prefix ' + opj(labels_dir, type_norm + 'Aseg_refLR.nii.gz')
+    command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(labels_dir, type_norm + 'Aseg_refLR.nii.gz') + ' -expr "step(a)*b" -prefix ' + opj(labels_dir, type_norm + 'Aseg_refLR.nii.gz')
     spco([command], shell=True)   
 
     #### apply to aseg
-    command = 'antsApplyTransforms -d 3 -i ' + Aseg_ref + \
-    ' -r ' + Ref_file + \
-    ' -o ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + \
-    transfo_concat + \
-    ' -n NearestNeighbor'
-    spco([command], shell=True)
+    IMG = ants.image_read(Aseg_ref)
+    TRANS = ants.apply_transforms(fixed=brain_img, moving=IMG,
+                                  transformlist=transfo_concat, interpolator='nearestNeighbor',whichtoinvert=w2inv_fwd)
+    ants.image_write(TRANS, opj(labels_dir, type_norm + 'aseg.nii.gz'), ri=False)
 
-    command = '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "step(a)*b" -prefix ' + opj(labels_dir, type_norm + 'aseg.nii.gz')
+
+    command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "step(a)*b" -prefix ' + opj(labels_dir, type_norm + 'aseg.nii.gz')
     spco([command], shell=True)   
 
     #### check the result if you are not a fan of auto "like Simon Clavagnier =)"
@@ -90,7 +80,7 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
         #  Check for manual correction of the seg file!!!"
         # if manual correction save file as opj(labels_dir,'aseg_manual.nii.gz')!!!!!!!!!!!!!
         try:
-            command = 'freeview -v ' +  Ref_file + ' ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ':colormap=heat:opacity=0.2:visible=1'
+            command = 'singularity run' + s_bind + fs_sif + 'freeview -v ' +  Ref_file + ' ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ':colormap=heat:opacity=0.2:visible=1'
             spco([command], shell=True)
         except:
             pass
@@ -107,16 +97,19 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
 
         elif Your_choice=="C":
 
-            ######New coregistration!!!! 
-            command = 'antsRegistration -d 3 --float 0 --verbose 1 -u 1 -w [0.05,0.95]  -n ' + n_for_ANTS + \
-                ' -o [' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_') + ',' + opj(labels_dir,'aseg_manual_for_transform.nii.gz') + ']' + \
-                ' -t Affine[0.1] -f 8x4x2x1 -s 3x2x1x0vox -c [1000x500x250x100,1e-6,10]' + \
-                ' -m MI[' + opj(labels_dir, type_norm + 'aseg_manual.nii.gz') + ',' + Aseg_ref + ',1,32,Regular,0.2]' + \
-                ' -t Syn[0.1,3,0] -f 8x4x2x1 -s 3x2x1x0vox -c [500x200x50x10,1e-6,10]' + \
-                ' -m CC[' + opj(labels_dir,type_norm + 'aseg_manual.nii.gz') + ',' + Aseg_ref + ',1,4,Regular,0.2]'
-            spco([command], shell=True)
+            ######New coregistration!!!!
 
-            command = '3dcalc -overwrite -a ' + opj(labels_dir, type_norm + 'aseg_manual_for_transform.nii.gz') + ' -expr "a" -prefix ' + opj(labels_dir, type_norm + 'aseg.nii.gz')
+            manual_IMG = ants.image_read(opj(labels_dir, type_norm + 'aseg_manual.nii.gz'))
+
+            mTx = ants.registration(fixed=manual_IMG, moving=IMG,
+                                    type_of_transform='SyN',
+                                    outprefix=opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_'));
+
+            TRANS = ants.apply_transforms(fixed=manual_IMG, moving=IMG,
+                                          transformlist=mTx['fwdtransform'], interpolator='nearestNeighbor')
+            ants.image_write(TRANS, opj(labels_dir,'aseg_manual_for_transform.nii.gz'), ri=False)
+
+            command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(labels_dir, type_norm + 'aseg_manual_for_transform.nii.gz') + ' -expr "a" -prefix ' + opj(labels_dir, type_norm + 'aseg.nii.gz')
             spco([command], shell=True)
 
     ####################################################################################
@@ -139,26 +132,24 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
     new_max_WM = 110
 
     ####################################################################################
-    ####??? prkoi pas N4?
-    brain_img = ants.image_read(Ref_file)
 
     Sig_max = brain_img.max()
     normT1 = (brain_img/Sig_max)*110
 
     #creat CSF file
-    command = '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + CSF_edit + ')" -prefix ' + opj(labels_dir, type_norm + 'CSF_select.nii.gz')
+    command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + CSF_edit + ')" -prefix ' + opj(labels_dir, type_norm + 'CSF_select.nii.gz')
     spco([command], shell=True)
     img_CSF = ants.image_read(opj(labels_dir, type_norm + 'CSF_select.nii.gz'))
     CSF     = ants.mask_image(normT1, img_CSF, 1)
 
     #creat WM file
-    command = '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + WM_edit + ')" -prefix ' + opj(labels_dir, type_norm + 'WM_select.nii.gz')
+    command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + WM_edit + ')" -prefix ' + opj(labels_dir, type_norm + 'WM_select.nii.gz')
     spco([command], shell=True)
     img_WM = ants.image_read(opj(labels_dir, type_norm + 'WM_select.nii.gz'))
     WM     = ants.mask_image(normT1, img_WM, 1)
 
     #creat GM file
-    command = '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + GM_edit + ')" -prefix ' + opj(labels_dir, type_norm + 'GM_select.nii.gz')
+    command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + GM_edit + ')" -prefix ' + opj(labels_dir, type_norm + 'GM_select.nii.gz')
     spco([command], shell=True)
 
     img_GM  = ants.image_read(opj(labels_dir, type_norm + 'GM_select.nii.gz'))
@@ -192,18 +183,18 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
     nii = oCSF + oGM + oWM 
     ants.image_write(nii, Ref_file.replace('.nii.gz', '_norm_' + type_norm + '.nii.gz'), ri=False)
 
-    command = '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + aseg_edit + ')*250" -prefix ' + opj(labels_dir, type_norm + 'aseg_edit.nii.gz')
+    command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + aseg_edit + ')*250" -prefix ' + opj(labels_dir, type_norm + 'aseg_edit.nii.gz')
     spco([command], shell=True)
     ASEG = ants.image_read(opj(labels_dir, type_norm + 'aseg_edit.nii.gz'))
 
-    command = '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + wm_aseg_edit + ')" -prefix ' + opj(labels_dir, type_norm + 'wm_edit.nii.gz')
+    command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + wm_aseg_edit + ')" -prefix ' + opj(labels_dir, type_norm + 'wm_edit.nii.gz')
     spco([command], shell=True)
     img_WM2  = ants.image_read(opj(labels_dir, type_norm + 'wm_edit.nii.gz'))
     WM_seg = ants.mask_image(pWM, img_WM2, 1)
     WM_FS  = ASEG + WM_seg
     ants.image_write(WM_FS, opj(labels_dir, type_norm + 'wm.nii.gz'), ri=False)
 
-    command = '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + filled_edit + ')" -prefix ' + opj(labels_dir, type_norm + 'filled_mask.nii.gz')
+    command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + filled_edit + ')" -prefix ' + opj(labels_dir, type_norm + 'filled_mask.nii.gz')
     spco([command], shell=True)
 
 
@@ -216,6 +207,6 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
     #nii[143:,:,:]  = closed[143:,:,:]*255
     ants.image_write(nii, opj(labels_dir, type_norm + 'filled.nii.gz'), ri=False)
     #ants.image_write(thresh, filled_3, ri=False)
-    command = '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'Aseg_refLR.nii.gz') + ' -b ' + opj(labels_dir, type_norm + 'filled.nii.gz') + ' -expr "b*a" -prefix ' + opj(labels_dir, type_norm + 'filled.nii.gz') + ' -overwrite'
+    command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'Aseg_refLR.nii.gz') + ' -b ' + opj(labels_dir, type_norm + 'filled.nii.gz') + ' -expr "b*a" -prefix ' + opj(labels_dir, type_norm + 'filled.nii.gz') + ' -overwrite'
     spco([command], shell=True)
 

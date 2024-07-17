@@ -1,19 +1,18 @@
 #import
 import os
 import subprocess
-import glob
-import json
-import shutil
-import math
-import numpy as np
-import pandas as pd
 import sys
-import ants
-from bids import BIDSLayout
-from bids.reports import BIDSReport
-from math import pi
-import nibabel as nib
 
+#Path to the excels files and data structure
+opj = os.path.join
+opb = os.path.basename
+opn = os.path.normpath
+opd = os.path.dirname
+ope = os.path.exists
+ops = os.path.splitext
+opi = os.path.isfile
+spco = subprocess.check_output
+spgo = subprocess.getoutput
 
 ######### to do
 ### add a verbose feature
@@ -29,8 +28,6 @@ import nibabel as nib
 #https://bids-standard.github.io/pybids/reports/index.html
 
 MAIN_PATH   = opj('/','srv','projects','easymribrain')
-
-from sammba import io_conversions, registration
 sys.path.append(opj(MAIN_PATH + 'Code','EasyMRI_brain-master'))
 import anatomical._0_Pipeline_launcher
 import anatomical._1_correct_orient
@@ -50,31 +47,21 @@ import anatomical._14_Finalise
 import anatomical._15_to_WB
 import anatomical._200_Data_QC
 
-#Path to the excels files and data structure
-opj = os.path.join
-opb = os.path.basename
-opn = os.path.normpath
-opd = os.path.dirname
-ope = os.path.exists
-ops = os.path.splitext
-spco = subprocess.check_output
-spgo = subprocess.getoutput
+### singularity set up
+s_bind      = ' --bind ' + opj('/','scratch','in_Process/') + ',' + MAIN_PATH
+s_path      = opj(MAIN_PATH,'code','singularity')
+afni_sif    = ' ' + opj(s_path , 'afni_make_build_AFNI_23.1.10.sif') + ' '
+fsl_sif     = ' ' + opj(s_path , 'fsl_6.0.5.1-cuda9.1.sif') + ' '
+fs_sif      = ' ' + opj(s_path , 'freesurfer_NHP.sif') + ' '
+itk_sif     = ' ' + opj(s_path , 'itksnap_5.0.9.sif') + ' '
+wb_sif      = ' ' + opj(s_path , 'connectome_workbench_1.5.0-freesurfer-update.sif') + ' '
 
-SINGULARITY = 'singularity -- bind ' + opj(MAIN_PATH)
-s_path      = opj(MAIN_PATH + 'code' + 'singularity')
-AFNI_sif    = ' ' + opj(s_path + 'afni_make_build_AFNI_23.1.10.sif ')
-FSL_sif     = ' ' + opj(s_path + 'fsl_6.0.5.1-cuda9.1.sif ')
-FS_sif      = ' ' + opj(s_path + 'freesurfer_7.4.1.sif ')
-WB_sif      = ' ' + opj(s_path + 'connectome_workbench_1.5.0-freesurfer-update.sif ')
-ITKs        = ' ' + opj(s_path + 'itksnap_5.0.9.sif ')
-
-
-def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deoblique, BASE_mask, coregistration_longitudinal, creat_sutdy_template, 
+def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
-    BASE_SS, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, template_skullstrip, 
+    BASE_SS,BASE_bet, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, template_skullstrip,
     IgotbothT1T2, list_atlases, Aseg_ref, Aseg_refLR, dir_out, FS_dir, diratlas_orig, do_surfacewith, Atemplate_to_Stemplate,
-    FS_buckner40, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, useT1T2_for_coregis, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate,
-    species, overwrite_option):
+    FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, useT1T2_for_coregis, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate,
+    species, overwrite_option,s_bind,afni_sif,fsl_sif,fs_sif,wb_sif,itk_sif):
 
     ###########################################################################################################################################################
     ############################################################## start the proces ###########################################################################
@@ -104,9 +91,8 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
 
 
         # The anatomy
-        path_anat    = opj(data_path,'anat/')
-        dir_transfo  = opj(path_anat,'matrices')
-
+        path_anat     = opj(data_path,'anat')
+        dir_transfo   = opj(path_anat,'matrices')
         dir_native    = opj(path_anat,'native')
         dir_prepro    = opj(dir_native,'01_preprocess')
         wb_native_dir = opj(dir_native,'02_Wb')
@@ -139,8 +125,8 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
             os.makedirs(masks_dir)
 
         #creat path
-        if ope(bids_dir + '/QC/') == False:
-            os.makedirs(bids_dir + '/QC/')
+        if ope(opj(bids_dir + 'QC')) == False:
+            os.makedirs(opj(bids_dir + 'QC'))
 
         print(str(ID) + ' ' +  str(Session) + ' ' + str(type_norm))
 
@@ -150,24 +136,25 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
             print('skip step ' + str(1))
 
         else:
-            anatomical._1_correct_orient.correct_orient(BIDStype, listTimage, path_anat, ID, Session, otheranat, type_norm, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, dir_prepro, IgotbothT1T2, overwrite)
+            anatomical._1_correct_orient.correct_orient(BIDStype, listTimage, path_anat, ID, Session, otheranat, type_norm, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, dir_prepro, IgotbothT1T2, overwrite,s_bind,afni_sif,fs_sif)
 
         if 2 in Skip_step:
             print('skip step ' + str(2))
 
         else:
             anatomical._2_clean_anat.clean_anat(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, otheranat, type_norm, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, dir_prepro, masking_img, do_manual_crop,
-            brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, overwrite)
+            brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS,BASE_bet, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, overwrite,
+                                                s_bind,afni_sif,fsl_sif,fs_sif)
 
     ###### STOP THE LOOP ######
 
-    if creat_sutdy_template==True:
+    if creat_study_template==True:
 
         if 3 in Skip_step:
             print('skip step ' + str(3))
 
         else:
-            anatomical._3_make_template.make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, type_norm, study_template_atlas_forlder, template_skullstrip, BASE_SS, BASE_mask, overwrite)
+            anatomical._3_make_template.make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, type_norm, study_template_atlas_forlder, template_skullstrip, BASE_SS, BASE_mask, overwrite,s_bind,afni_sif,fsl_sif,fs_sif)
 
     ###### LOOP AGAIN ######
     for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, max_sessionlist):
@@ -197,7 +184,7 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
         if coregistration_longitudinal==True:
 
             data_path_max     = opj(bids_dir,'sub-' + ID,'ses-' + str(max_ses))
-            path_anat_max     = opj(data_path_max,'anat/')
+            path_anat_max     = opj(data_path_max,'anat')
             dir_transfo_max   = opj(path_anat_max,'matrices')
             dir_native_max    = opj(path_anat_max,'native')
             wb_native_dir_max = opj(dir_native_max,'02_Wb')
@@ -210,33 +197,37 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
             BASE_SS_mask = opj(masks_dir_max, ID + masking_img + '_mask_2.nii.gz')
 
             transfo_concat = \
-            ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz') + \
-            ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat') + \
-            ' -t ' + opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz') + \
-            ' -t ' + opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat')
+            [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
+             opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
+             opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz'),
+             opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat')]
+            w2inv_fwd = [False,False,False,False]
 
             ####
             transfo_concat_inv = \
-            ' -t ' + str([opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),1]) + \
-            ' -t ' + opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_1InverseWarp.nii.gz') + \
-            ' -t ' + str([opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),1]) + \
-            ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz')
+            [opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),
+             opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_1InverseWarp.nii.gz'),
+             opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
+             opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz')]
+            w2inv_inv = [True, False, True, False]
+
 
             if coregistration_longitudinal == True:
                 if Session == max_ses:
                     transfo_concat = \
-                        ' -t ' + opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz') + \
-                        ' -t ' + opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')
+                        [opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
+                         opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')]
+                    w2inv_fwd = [False, False]
 
                     transfo_concat_inv = \
-                        ' -t ' + opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz') + \
-                        ' -t ' + '[' + opj(dir_transfo,
-                                           'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat') + ', 1]'
+                        [opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz'),
+                         opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')]
+                    w2inv_inv = [False, True]
 
         ################# coregistration non longitudinal #################
 
         else:
-            if creat_sutdy_template == True:
+            if creat_study_template == True:
                 stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
                                          'study_template_mask.nii.gz')
                 stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
@@ -249,12 +240,14 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
                 BASE_SS_mask = BASE_mask
 
             transfo_concat = \
-            ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz') + \
-            ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')
+                [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
+                 opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')]
+            w2inv_fwd = [False, False]
 
             transfo_concat_inv = \
-            ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz') + \
-            ' -t ' + str([opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),1])
+                [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz'),
+                 opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')]
+            w2inv_inv = [False, True]
 
         if useT1T2_for_coregis == True:
             Ref_file = opj(volumes_dir, ID + type_norm + '_' + otheranat + '_brain.nii.gz')
@@ -268,7 +261,7 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
 
         else:
             anatomical._4_create_template_brain.create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir, masking_img, brain_skullstrip_1, brain_skullstrip_2, 
-                masks_dir, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, otheranat, check_visualy_final_mask, useT1T2_for_coregis, bids_dir, overwrite)
+                masks_dir, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, otheranat, check_visualy_final_mask, useT1T2_for_coregis, bids_dir, overwrite,s_bind,afni_sif,fsl_sif,fs_sif)
 
 
         ###### coregistration of each indiv template to the selected template (sty, atlas)
@@ -276,11 +269,11 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
             print('skip step ' + str(5))
 
         else:
-            anatomical._5_brainT_to_stdyT.brainT_to_T(dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv, creat_sutdy_template, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, otheranat, bids_dir, overwrite)
+            anatomical._5_brainT_to_stdyT.brainT_to_T(dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv,creat_study_template, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, otheranat, bids_dir, overwrite)
 
         if coregistration_longitudinal == True:
             if Session == max_ses:
-                if creat_sutdy_template == True:
+                if creat_study_template == True:
                     stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
                                              'study_template_mask.nii.gz')
                     stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
@@ -292,17 +285,19 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
                     BASE_SS_mask = BASE_mask
 
                 transfo_concat = \
-                ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz') + \
-                ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat') + \
-                ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz') + \
-                ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat')
+                    [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat')]
+                w2inv_fwd = [False, False,False,False]
 
                 ####
                 transfo_concat_inv = \
-                ' -t ' + str([opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),1]) + \
-                ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1InverseWarp.nii.gz') + \
-                ' -t ' + str([opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),1]) + \
-                ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz')
+                    [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1InverseWarp.nii.gz'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz')]
+                w2inv_inv = [True, False, True, False]
 
                 ###### coregistration of each indiv template to the selected template (sty, atlas)
                 if 5 in Skip_step:
@@ -310,16 +305,16 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
 
                 else:
                     anatomical._5_brainT_to_stdyT_max.brainT_to_T_max(dir_prepro, ID, Session, listTimage, n_for_ANTS,
-                                                              dir_transfo, type_norm, BASE_SS_coregistr, Ref_file,
-                                                              volumes_dir, transfo_concat_inv, creat_sutdy_template,
-                                                              which_on, all_ID_max, max_session, all_data_path_max,
-                                                              all_ID, all_Session, all_data_path,
-                                                              study_template_atlas_forlder, otheranat, bids_dir,
-                                                              overwrite)
+                                                                      dir_transfo, type_norm, BASE_SS_coregistr, Ref_file,
+                                                                      volumes_dir, transfo_concat_inv,w2inv_inv, creat_study_template,
+                                                                      which_on, all_ID_max, max_session, all_data_path_max,
+                                                                      all_ID, all_Session, all_data_path,
+                                                                      study_template_atlas_forlder, otheranat, bids_dir,
+                                                                      overwrite)
     ###### STOP THE LOOP ######
 
     
-    if creat_sutdy_template==True:
+    if creat_study_template==True:
         stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
                                  'study_template_mask.nii.gz')
         stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
@@ -331,7 +326,8 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
             print('skip step ' + str(6))
 
         else:
-            anatomical._6_stdyT_to_AtlasT.stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_ANTS, study_template_atlas_forlder, Atemplate_to_Stemplate, overwrite)
+            anatomical._6_stdyT_to_AtlasT.stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_ANTS, study_template_atlas_forlder, Atemplate_to_Stemplate, overwrite,
+                                                          s_bind,afni_sif)
 
         list_atlases3 = list_atlases
         list_atlases = []
@@ -379,7 +375,7 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
         ################# coregistration longitudinal ???? #################
 
         if coregistration_longitudinal==True:
-            if creat_sutdy_template == True:
+            if creat_study_template == True:
                 stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
                                          'study_template_mask.nii.gz')
                 stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
@@ -391,12 +387,12 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
                 BASE_SS_mask = BASE_mask
                 
             if Session == max_ses:
-
                 transfo_concat = \
-                ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz') + \
-                ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat') + \
-                ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz') + \
-                ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat')
+                    [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat')]
+                w2inv_fwd = [False, False, False, False]
 
             else:
                 data_path_max = opj(bids_dir,'sub-' + ID,'ses-' + str(max_ses))
@@ -408,15 +404,16 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
                 masks_dir_max     = opj(volumes_dir_max,'masks')
 
                 transfo_concat = \
-                ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz') + \
-                ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat') + \
-                ' -t ' + opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz') + \
-                ' -t ' + opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat')
+                    [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
+                     opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz'),
+                     opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat')]
+                w2inv_fwd = [False, False, False, False]
 
         ################# coregistration non longitudinal #################
 
         else:
-            if creat_sutdy_template == True:
+            if creat_study_template == True:
                 stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
                                          'study_template_mask.nii.gz')
                 stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
@@ -428,8 +425,9 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
                 BASE_SS_mask = BASE_mask
 
             transfo_concat = \
-            ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz') + \
-            ' -t ' + opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')
+                [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
+                 opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')]
+            w2inv_fwd = [False, False]
 
         if useT1T2_for_coregis == True:
             Ref_file = opj(volumes_dir,ID + type_norm + '_' + otheranat + '_brain.nii.gz')
@@ -441,7 +439,8 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
         if 7 in Skip_step:
             print('skip step ' + str(7))
         else:
-            anatomical._7_prepar_aseg.prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref, type_norm, ID, transfo_concat, dir_prepro, list_atlases, creat_sutdy_template, dir_out, diratlas_orig, check_visualy_each_img, n_for_ANTS, overwrite)                                                       
+            anatomical._7_prepar_aseg.prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref, type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, creat_study_template, dir_out, diratlas_orig, check_visualy_each_img, n_for_ANTS, overwrite,
+                                                  s_bind,afni_sif,fs_sif)
         
         if do_fMRImasks == True:
 
@@ -450,7 +449,8 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
 
             else:
                 ########################## Building fMRI masks for EPI analysis ##############################
-                anatomical._8_do_fMRImasks.do_fMRImasks(masks_dir, labels_dir, type_norm, overwrite)   
+                anatomical._8_do_fMRImasks.do_fMRImasks(masks_dir, labels_dir, type_norm, overwrite,
+                                                        s_bind,afni_sif,)
 
         if 9 in Skip_step:
             print('skip step ' + str(9))
@@ -458,14 +458,15 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
         else:
             ########################## White Surface construction ##############################
             # You can go grab a cup of coffe, it can take more than an hour...
-            anatomical._9_nii_to_mgz.nii_to_mgz(ID, Session, FS_dir, Ref_file, labels_dir, volumes_dir, otheranat, IgotbothT1T2, type_norm, overwrite)
+            anatomical._9_nii_to_mgz.nii_to_mgz(ID, Session, FS_dir, Ref_file, labels_dir, volumes_dir, otheranat, IgotbothT1T2, type_norm, overwrite,
+                                                s_bind,fs_sif)
 
         if 10 in Skip_step:
             print('skip step ' + str(10))
 
         else:
             ########################## White Surface construction ##############################
-            anatomical._10_FS_1_white.White_create(FS_dir, animal_folder)
+            anatomical._10_FS_1_white.White_create(FS_dir, animal_folder,s_bind,fs_sif)
 
         if 11 in Skip_step:
             print('skip step ' + str(11))
@@ -473,13 +474,14 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
         else:
             ########################## White Surface construction ##############################
             # You can go grab a cup of coffe, it can take more than an hour...
-            anatomical._10_FS_1_white.White_more(FS_dir, animal_folder, FS_buckner40)
+            anatomical._10_FS_1_white.White_more(FS_dir, animal_folder, FS_buckner40_TIF,FS_buckner40_GCS,s_bind,fs_sif)
 
         if 12 in Skip_step:
             print('skip step ' + str(12))
 
         else:
-            anatomical._12_make_pial.make_pial(FS_dir, animal_folder, type_norm, otheranat, Hmin, Ref_file, do_surfacewith, overwrite)
+            anatomical._12_make_pial.make_pial(FS_dir, animal_folder, type_norm, otheranat, Hmin, Ref_file, do_surfacewith, overwrite,
+                                               s_bind,fs_sif)
 
 
         if check_visualy_each_img == True:
@@ -487,21 +489,28 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
                 print('skip step ' + str(13))
 
             else:
-                anatomical._13_FS_freeview.FS_Freeview(FS_dir, animal_folder, 'pial', Lut_file)
+                anatomical._13_FS_freeview.FS_Freeview(FS_dir, animal_folder, 'pial', Lut_file,
+                                                       s_bind,fs_sif)
 
         if 14 in Skip_step:
             print('skip step ' + str(14))
 
         else:
-            anatomical._14_Finalise.FS_finalise(FS_dir, animal_folder, FreeSlabel_ctab_list, list_atlases_2, labels_dir, type_norm, Ref_file)
+            anatomical._14_Finalise.FS_finalise(FS_dir, animal_folder, FreeSlabel_ctab_list, list_atlases_2, labels_dir, type_norm, Ref_file,
+                                                s_bind,fs_sif)
         if 15 in Skip_step:
             print('skip step ' + str(15))
 
         else:
-            anatomical._15_to_WB.WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2)
+            anatomical._15_to_WB.WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2,s_bind,afni_sif,fsl_sif,fs_sif,wb_sif)
+
+        if 100 in Skip_step:
+                print('skip step ' + str(100))
+            else:
+                anatomical._100_Data_Clean.clean(all_ID, all_Session, all_data_path)
 
         if 200 in Skip_step:
             print('skip step ' + str(200))
 
         else:
-            anatomical._200_Data_QC._itk_check_masks(dir_prepro, masks_dir, ID, type_norm)
+            anatomical._200_Data_QC._itk_check_masks(dir_prepro, masks_dir, ID, type_norm,s_bind, itk_sif)

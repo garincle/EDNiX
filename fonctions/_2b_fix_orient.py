@@ -3,9 +3,7 @@
 ###################################################################################################
 import os
 import subprocess
-import glob
 import shutil
-import sys
 
 
 #Path to the excels files and data structure
@@ -17,7 +15,8 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-def fix_orient(anat_func_same_space, imgO, imgI, dir_prepro, IgotbothT1T2, path_anat, otheranat, dir_fMRI_Refth_RS_prepro1, root_RS, ID, Session, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, overwrite):
+def fix_orient(anat_func_same_space, imgO, imgI, dir_prepro, IgotbothT1T2, path_anat, otheranat, dir_fMRI_Refth_RS_prepro1, root_RS, ID, Session, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, overwrite,
+               s_bind,afni_sif):
     debolique_spe = ID + 'ses-' + str(Session)
     if debolique_spe in deoblique_exeption1:
         deoblique_1='exeption1'
@@ -37,17 +36,17 @@ def fix_orient(anat_func_same_space, imgO, imgI, dir_prepro, IgotbothT1T2, path_
         shutil.copyfile(opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgI), opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO))
 
     elif deoblique_1 == 'WARP':
-        command = '3drefit ' + overwrite + ' -orient ' + orientation + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI)
+        command = 'singularity run' + s_bind + afni_sif + '3drefit ' + overwrite + ' -orient ' + orientation + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI)
         spco([command], shell=True)
         shutil.copyfile(opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI), opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO))
 
     elif deoblique_1 == 'header':
-        command = '3drefit ' + overwrite + ' -orient ' + orientation + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI)
+        command = 'singularity run' + s_bind + afni_sif + '3drefit ' + overwrite + ' -orient ' + orientation + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI)
         spco([command], shell=True)
         shutil.copyfile(opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI), opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO))
 
     elif deoblique_1 == 'header_deob':
-        command = '3drefit ' + overwrite + ' -deoblique -orient ' + orientation + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI)
+        command = 'singularity run' + s_bind + afni_sif + '3drefit ' + overwrite + ' -deoblique -orient ' + orientation + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI)
         spco([command], shell=True)
         shutil.copyfile(opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI), opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO))
 

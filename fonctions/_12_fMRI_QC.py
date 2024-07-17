@@ -7,8 +7,6 @@ import nibabel as nib
 from nilearn.connectome import ConnectivityMeasure
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.stats import ttest_rel
-from scipy.stats import ttest_ind
 from nilearn import plotting
 import pingouin as pg
 from pingouin import pairwise_ttests
@@ -17,8 +15,8 @@ import seaborn as sns
 import shutil
 from sklearn.cluster import KMeans, SpectralClustering
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
-from sklearn.metrics import pairwise_distances
 from scipy.spatial.distance import pdist, squareform
+from fonctions.extract_filename import extract_filename
 
 
 # Path to the excels files and data structure
@@ -29,12 +27,10 @@ spco = subprocess.check_output
 opd = os.path.dirname
 ope = os.path.exists
 
-from fonctions.extract_filename import extract_filename
-
 #################################################################################################
 ####Seed base analysis
 #################################################################################################
-def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, bids_dir):
+def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, bids_dir,s_bind,afni_sif):
 
     # This is a function to estimate functional connectivity specificity. See Grandjean 2020 for details on the reasoning
     def specific_FC(specific_roi, unspecific_ROI):
@@ -68,7 +64,7 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                     int(old_label)) + ')))+'
             string_build_atlas2 = "'" + string_build_atlas[:-1] + "'"
 
-            command = '3dcalc' + ' -a ' + atlas_filenamelvl3LR + ' -expr ' + string_build_atlas2 + ' -prefix ' + opj(
+            command = 'singularity run' + s_bind + afni_sif + '3dcalc' + ' -a ' + atlas_filenamelvl3LR + ' -expr ' + string_build_atlas2 + ' -prefix ' + opj(
                 direction, atlas[:-7] + '_forfMRIQC.nii.gz') + ' -overwrite'
             spco(command, shell=True)
 
@@ -222,7 +218,7 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                         int(old_label)) + ')))+'
                 string_build_atlas2 = "'" + string_build_atlas[:-1] + "'"
 
-                command = '3dcalc' + ' -a ' + atlas_filename + ' -expr ' + string_build_atlas2 + ' -prefix ' + atlas_filename[                                                                              :-7] + '_filtered.nii.gz' + ' -overwrite'
+                command = 'singularity run' + s_bind + afni_sif + '3dcalc' + ' -a ' + atlas_filename + ' -expr ' + string_build_atlas2 + ' -prefix ' + atlas_filename[                                                                              :-7] + '_filtered.nii.gz' + ' -overwrite'
                 spco(command, shell=True)
 
                 for i in range(0, int(nb_run)):

@@ -8,6 +8,7 @@ from nilearn.input_data import NiftiMasker
 import nibabel as nib
 from nilearn.input_data import NiftiLabelsMasker
 from nilearn.image import resample_to_img
+from fonctions.extract_filename import extract_filename
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -16,14 +17,11 @@ opn = os.path.normpath
 spco = subprocess.check_output
 opd = os.path.dirname
 
-from fonctions.extract_filename import extract_filename
-
-
 #################################################################################################
 ####Seed base analysis
 ################################################################################################# 
 def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, 
-    dir_fMRI_Refth_RS_prepro3, RS, nb_run, ID, selected_atlases, panda_files, oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, overwrite):
+    dir_fMRI_Refth_RS_prepro3, RS, nb_run, ID, selected_atlases, panda_files, oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, overwrite,s_bind,afni_sif):
 
     for panda_file, atlas in zip(panda_files, selected_atlases):
         for i in range(0, int(nb_run)):
@@ -111,7 +109,7 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                     output_folder = opj(output_results, Seed_name + '/')
                     if not os.path.exists(output_folder): os.mkdir(output_folder)
 
-                    command = '3dcalc -overwrite -a ' + atlas_filename  + ' -expr "ispositive(a)*(iszero(ispositive((a-' + str(Seed_label) + ')^2)))" -prefix ' + output_folder + '/' + Seed_name + '.nii.gz'
+                    command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + atlas_filename  + ' -expr "ispositive(a)*(iszero(ispositive((a-' + str(Seed_label) + ')^2)))" -prefix ' + output_folder + '/' + Seed_name + '.nii.gz'
                     spco([command], shell=True)
 
                     labels_img = resample_to_img(output_folder + '/' + Seed_name + '.nii.gz', func_filename, interpolation='nearest')
