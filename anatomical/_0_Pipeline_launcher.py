@@ -27,8 +27,7 @@ spgo = subprocess.getoutput
 
 #https://bids-standard.github.io/pybids/reports/index.html
 
-MAIN_PATH   = opj('/','srv','projects','easymribrain')
-sys.path.append(opj(MAIN_PATH + 'Code','EasyMRI_brain-master'))
+
 import anatomical._0_Pipeline_launcher
 import anatomical._1_correct_orient
 import anatomical._2_clean_anat
@@ -45,23 +44,28 @@ import anatomical._12_make_pial
 import anatomical._13_FS_freeview
 import anatomical._14_Finalise
 import anatomical._15_to_WB
+import anatomical._100_Data_Clean
 import anatomical._200_Data_QC
 
-### singularity set up
-s_bind      = ' --bind ' + opj('/','scratch','in_Process/') + ',' + MAIN_PATH
-s_path      = opj(MAIN_PATH,'code','singularity')
-afni_sif    = ' ' + opj(s_path , 'afni_make_build_AFNI_23.1.10.sif') + ' '
-fsl_sif     = ' ' + opj(s_path , 'fsl_6.0.5.1-cuda9.1.sif') + ' '
-fs_sif      = ' ' + opj(s_path , 'freesurfer_NHP.sif') + ' '
-itk_sif     = ' ' + opj(s_path , 'itksnap_5.0.9.sif') + ' '
-wb_sif      = ' ' + opj(s_path , 'connectome_workbench_1.5.0-freesurfer-update.sif') + ' '
+
 
 def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
     BASE_SS,BASE_bet, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, template_skullstrip,
     IgotbothT1T2, list_atlases, Aseg_ref, Aseg_refLR, dir_out, FS_dir, diratlas_orig, do_surfacewith, Atemplate_to_Stemplate,
     FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, useT1T2_for_coregis, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate,
-    species, overwrite_option,s_bind,afni_sif,fsl_sif,fs_sif,wb_sif,itk_sif):
+    species, overwrite_option,MAIN_PATH):
+
+    sys.path.append(opj(MAIN_PATH + 'Code', 'EasyMRI_brain-master'))
+
+    ### singularity set up
+    s_bind = ' --bind ' + opj('/', 'scratch', 'in_Process/') + ',' + MAIN_PATH
+    s_path = opj(MAIN_PATH, 'code', 'singularity')
+    afni_sif = ' ' + opj(s_path, 'afni_make_build_24_2_01.sif') + ' '
+    fsl_sif = ' ' + opj(s_path, 'fsl_6.0.5.1-cuda9.1.sif') + ' '
+    fs_sif = ' ' + opj(s_path, 'freesurfer_NHP.sif') + ' '
+    itk_sif = ' ' + opj(s_path, 'itksnap_5.0.9.sif') + ' '
+    wb_sif = ' ' + opj(s_path, 'connectome_workbench_1.5.0-freesurfer-update.sif') + ' '
 
     ###########################################################################################################################################################
     ############################################################## start the proces ###########################################################################
@@ -125,8 +129,8 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
             os.makedirs(masks_dir)
 
         #creat path
-        if ope(opj(bids_dir + 'QC')) == False:
-            os.makedirs(opj(bids_dir + 'QC'))
+        if ope(opj(bids_dir, 'QC')) == False:
+            os.makedirs(opj(bids_dir, 'QC'))
 
         print(str(ID) + ' ' +  str(Session) + ' ' + str(type_norm))
 
@@ -261,7 +265,7 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
 
         else:
             anatomical._4_create_template_brain.create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir, masking_img, brain_skullstrip_1, brain_skullstrip_2, 
-                masks_dir, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, otheranat, check_visualy_final_mask, useT1T2_for_coregis, bids_dir, overwrite,s_bind,afni_sif,fsl_sif,fs_sif)
+                masks_dir, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, otheranat, check_visualy_final_mask, useT1T2_for_coregis, bids_dir, overwrite, BASE_bet, s_bind,afni_sif,fsl_sif,fs_sif)
 
 
         ###### coregistration of each indiv template to the selected template (sty, atlas)
@@ -506,8 +510,8 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
 
         if 100 in Skip_step:
                 print('skip step ' + str(100))
-            else:
-                anatomical._100_Data_Clean.clean(all_ID, all_Session, all_data_path)
+        else:
+            anatomical._100_Data_Clean.clean(all_ID, all_Session, all_data_path)
 
         if 200 in Skip_step:
             print('skip step ' + str(200))

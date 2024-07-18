@@ -78,7 +78,7 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, li
         spco([command], shell=True)
 
         #outlier fraction for each volume
-        command = '3dToutcount' + overwrite + ' -automask -fraction -polort 4 -legendre ' + \
+        command = 'singularity run' + s_bind + afni_sif + '3dToutcount' + overwrite + ' -automask -fraction -polort 4 -legendre ' + \
         opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz ') + ' > ' + \
         opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt_outcount.r$run.1D')
         spco([command], shell=True)

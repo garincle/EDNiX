@@ -71,8 +71,8 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_
     ADK = spgo(command).split('\n')
     delta_z = str(abs(round(float(ADK[-1]), 10)))
 
-    command = 'singularity run' + s_bind + afni_sif + '3dinfo -orient ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
-    orient_meanimg = str(spgo([command]))
+    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -orient ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
+    orient_meanimg = spgo(command).split('\n')[2]
 
     command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + BASE_SS_coregistr +  \
     ' -prefix ' +  opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz') + ' -expr "a"'
@@ -84,7 +84,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_
     command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \
     ' -orient ' + orient_meanimg + \
     ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz') + \
-    ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' + \
+    ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + \
     ' -rmode Cu -input  ' + opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz')
     spco([command], shell=True)
     '''

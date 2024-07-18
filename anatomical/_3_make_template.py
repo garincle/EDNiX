@@ -56,11 +56,14 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
         ############load the image for the template
         #creat a large image for co-registration
         if not ope(opj(opj(all_data_path[0], 'anat', 'native', '01_preprocess'), all_ID[0] + '_acpc_cropped' + type_norm + 'Zp.nii.gz')):
-            spco(['3dZeropad', '-overwrite', '-I', '20', '-S', '20', '-A', '20', '-P', '20', '-L', '20', '-R', '20', '-S', '20', '-prefix', opj(opj(all_data_path[0], 'anat', 'native', '01_preprocess'), all_ID[0] + '_acpc_cropped' + type_norm + 'Zp.nii.gz'), opj(opj(all_data_path[0], 'anat', 'native', '01_preprocess'), all_ID[0] + '_acpc_cropped' + type_norm + '.nii.gz')])
+            command = 'singularity run' + s_bind + afni_sif + '3dZeropad -overwrite -I 20 -S 20 -A 20 -P 20 -L 20 -R 20 -S 20 -prefix ' + opj(opj(all_data_path[0], 'anat', 'native', '01_preprocess'), all_ID[0] + '_acpc_cropped' + type_norm + 'Zp.nii.gz') + \
+                      ' ' + opj(opj(all_data_path[0], 'anat', 'native', '01_preprocess'), all_ID[0] + '_acpc_cropped' + type_norm + '.nii.gz')
+            spco(command, shell=True)
 
         #resemple the other anat to this large img
-        spco(['singularity run' + s_bind + afni_sif + '3dresample', '-overwrite', '-master', opj(opj(all_data_path[0], 'anat', 'native', '01_preprocess'), all_ID[0] + '_acpc_cropped' + type_norm + 'Zp.nii.gz'), '-overwrite',
-        '-input', opj(dir_prepro, ID + '_acpc_cropped' + type_norm + '.nii.gz'), '-prefix', opj(dir_prepro, ID + '_acpc_cropped' + type_norm + 'Zp.nii.gz'), '-bound_type', 'SLAB'])
+        command = 'singularity run' + s_bind + afni_sif + '3dresample -overwrite -master ' + opj(opj(all_data_path[0], 'anat', 'native', '01_preprocess'), all_ID[0] + '_acpc_cropped' + type_norm + 'Zp.nii.gz') + ' -overwrite' + \
+        ' -input ' + opj(dir_prepro, ID + '_acpc_cropped' + type_norm + '.nii.gz') + ' -prefix ' + opj(dir_prepro, ID + '_acpc_cropped' + type_norm + 'Zp.nii.gz') + ' -bound_type SLAB'
+        spco(command, shell=True)
         template_list.append(opj(dir_prepro, ID + '_acpc_cropped' + type_norm + 'Zp.nii.gz'))
 
             ###########################template
@@ -124,14 +127,16 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
         ' -source ' + warp_adj + ' -maxlev 3 -resample'
         spco(command, shell=True)
 
-        spco(['singularity run' + s_bind + afni_sif + '3dNwarpApply', '-nwarp', opj(study_template_atlas_forlder,'study_template_mask_WARPINV.nii.gz'),
-        '-source', BASE_mask, '-master', warp_adj, '-interp', 'NN',
-        '-prefix', stdy_template_mask, '-overwrite'])
+        command = 'singularity run' + s_bind + afni_sif + '3dNwarpApply -nwarp ' + opj(study_template_atlas_forlder,'study_template_mask_WARPINV.nii.gz') + \
+        ' -source ' + BASE_mask + ' -master ' + warp_adj + ' -interp NN' + \
+        ' -prefix ' + stdy_template_mask + ' -overwrite'
+        spco(command, shell=True)
 
 
     elif template_skullstrip == '3dSkullStrip':
-        spco(['singularity run' + s_bind + afni_sif + '3dSkullStrip', '-overwrite', '-prefix', stdy_template_mask,
-            '-input', warp_adj, '-blur_fwhm', '2', '-orig_vol', '-mask_vol', '-use_skull', '-monkey'])
+        command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -overwrite -prefix ' + stdy_template_mask + \
+            ' -input ' + warp_adj + ' -blur_fwhm 2 -orig_vol -mask_vol -use_skull -monkey'
+        spco(command, shell=True)
 
 
     elif template_skullstrip =='bet2':

@@ -42,10 +42,10 @@ def nii_to_mgz(ID, Session, FS_dir, Ref_file, labels_dir, volumes_dir, otheranat
         os.makedirs(opj(FS_dir, animal_folder, 'scripts'))
 
     command = 'singularity run' + s_bind + fs_sif + 'mri_convert ' + fwdFS_cmd + ' ' + Ref_file + ' ' + opj(FS_dir,animal_folder, 'mri','orig.mgz') + \
-    ';mri_convert ' + fwdFS_cmd + ' ' + Ref_file.replace('.nii.gz', '_norm_' + type_norm + '.nii.gz') + ' ' + opj(FS_dir,animal_folder,'mri','brain.mgz') + \
-    ';mri_convert ' + fwdFS_cmd + ' -odt uchar ' + opj(labels_dir, type_norm + 'wm.nii.gz') + ' ' + opj(FS_dir,animal_folder,'mri','wm.seg.mgz') + \
-    ';mri_convert ' + fwdFS_cmd + ' ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' ' + opj(FS_dir,animal_folder,'mri','aseg.mgz') + \
-    ';mri_convert ' + fwdFS_cmd + ' ' + opj(labels_dir, type_norm + 'filled.nii.gz') + ' '  + opj(FS_dir,animal_folder,'mri','filled.mgz')
+    ';singularity run' + s_bind + fs_sif + 'mri_convert ' + fwdFS_cmd + ' ' + Ref_file.replace('.nii.gz', '_norm_' + type_norm + '.nii.gz') + ' ' + opj(FS_dir,animal_folder,'mri','brain.mgz') + \
+    ';singularity run' + s_bind + fs_sif + 'mri_convert ' + fwdFS_cmd + ' -odt uchar ' + opj(labels_dir, type_norm + 'wm.nii.gz') + ' ' + opj(FS_dir,animal_folder,'mri','wm.seg.mgz') + \
+    ';singularity run' + s_bind + fs_sif + 'mri_convert ' + fwdFS_cmd + ' ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' ' + opj(FS_dir,animal_folder,'mri','aseg.mgz') + \
+    ';singularity run' + s_bind + fs_sif + 'mri_convert ' + fwdFS_cmd + ' ' + opj(labels_dir, type_norm + 'filled.nii.gz') + ' '  + opj(FS_dir,animal_folder,'mri','filled.mgz')
     spco([command], shell=True)
     print(command)
 

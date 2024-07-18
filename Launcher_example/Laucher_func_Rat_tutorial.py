@@ -24,7 +24,7 @@ sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
 import fonctions._0_Pipeline_launcher
 
 ###where are stored the BIDS data?
-bids_dir = opj(MAIN_PATH,'data','MRI','rats','BIDS_rat')
+bids_dir = opj(MAIN_PATH,'data','MRI','Rat','BIDS_rat')
 
 ##### If your BIDS dataset is correct, I strongly advise  to use BIDSLayout,
 # it allows very quicly to build the architecture of your dataset to analyse all subjects of your dataset
@@ -76,15 +76,15 @@ df.head()
 ##############################################################  TO DO !! ##############################################################
 
 #### Create a pandas sheet for the dataset (I like it, it help to know what you are about to process
-allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == 'nii.gz')]
+allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
 list_of_ones = [1] * len(allinfo_study_c)
 allinfo_study_c['Session'] = list_of_ones
 allinfo_study_c.rename(columns={'subject': 'ID'}, inplace=True)
 allinfo_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
 
 ##############Select the "good" monkey for the study
-filter1 = allinfo_study_c["ID"].isin(["Trinity"]) & allinfo_study_c["Session"].isin(["1"])
-allinfo_study_filtered = allinfo_study_c[filter1]
+#filter1 = allinfo_study_c["ID"].isin(["Trinity"]) & allinfo_study_c["Session"].isin(["1"])
+allinfo_study_filtered = allinfo_study_c
 
 ############################################################## NOTHING TO DO HERE ##############################################################
 
@@ -292,7 +292,7 @@ deoblique_exeption1 = [] # list
 deoblique_exeption2 = animal_ID # list
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
-n_for_ANTS = 'HammingWindowedSinc' # string
+n_for_ANTS = 'hammingWindowedSinc' # string
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
 ### define the acronyme/suffix of the anat as in the BIDS
@@ -337,11 +337,10 @@ GM_mask     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','
 
 ####put all atlases and template to process in the same folder named: ...
 diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual','Rat')
-list_atlases = [diratlas_orig + 'atlaslvl1.nii.gz',
-diratlas_orig + 'atlaslvl2.nii.gz',
-diratlas_orig + 'atlaslvl3.nii.gz',
-diratlas_orig + 'atlaslvl4.nii.gz',
-opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','Rat','atlas.nii.gz')] # liste
+list_atlases = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4.nii.gz')] # liste
 
 #######for melodic cleaning (step 4)
 melodic_prior_post_TTT = False # True or False
@@ -364,6 +363,9 @@ extract_Vc = False # True or False
 #use the eroded ventricular functional mask (produced during the anat processing)
 use_erode_V_func_masks = False # True or False
 
+#Global signal regression ?
+extract_GS = False # True or False
+
 ### Band path filtering
 band = '0.01 0.1' # string
 #Smooth
@@ -379,6 +381,8 @@ selected_atlases = ['atlaslvl3.nii.gz'] #liste
 
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 panda_files = [pd.DataFrame({'region':[
+'Orbital frontal cortex (oFC)',
+'Prefrontal cortex (PFC)',
 'Somatosensory cortex',
 'Posterior parietal cortex',
 'Posterior medial cortex (PMC)',
@@ -393,7 +397,7 @@ panda_files = [pd.DataFrame({'region':[
 'Basal forebrain',
 'Amygdala',
 'Hypothalamus',
-'Thalamus'],'label':[58,59,60,61,62,64,67,68,71,74,75,76,79,80,81]})] # liste of pandas dataframe
+'Thalamus'],'label':[51,57,58,59,60,61,62,64,67,68,71,74,75,76,79,80,81]})] # liste of pandas dataframe
 
 #### coordinate of the template plot in list form, each number will be a slice (plotting.plot_stat_map = cut_coords)
 cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
@@ -413,10 +417,10 @@ oversample_map = True # True or False
 file_path = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Classiff','Legende_VDualvf2_formatrix.xlsx')
 legendPNAS = pd.read_excel(file_path, 'Legend_2023')
 
-selected_atlases_matrix = [diratlas_orig + 'atlaslvl1.nii.gz',
-diratlas_orig + 'atlaslvl2.nii.gz',
-diratlas_orig + 'atlaslvl3.nii.gz',
-diratlas_orig + 'atlaslvl4.nii.gz'] # list
+selected_atlases_matrix = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4.nii.gz')] # list
 
 # Select the desired columns and rename them
 pandas1 = legendPNAS[['NEWlvl1_label', 'NEWLVL1']].rename(columns={'NEWlvl1_label': 'label', 'NEWLVL1': 'region'})
@@ -438,8 +442,12 @@ pandas4['label'] = pandas4['label'].astype(int)
 #### name of the regions and labels  you want to use for the matrix analysis
 segmentation_name_list = [pandas1, pandas2, pandas3, pandas4] # liste of pandas dataframe
 
+specific_roi_tresh = 0.4
+unspecific_ROI_thresh = 0.2
+Seed_name = 'Periarchicortex'
+
 ############ Right in a list format the steps that you want to skip
-Skip_step = []
+Skip_step = [14,100]
 
     ############################################################
     ######################## START de pipeline #################
@@ -450,4 +458,4 @@ fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_pat
     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
     extract_exterior_CSF, extract_WM, n_for_ANTS, list_atlases, selected_atlases, panda_files, useT1T2_for_coregis, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
     cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
-                    folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff,s_bind,afni_sif,fsl_sif,fs_sif,wb_sif,itk_sif)
+    folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff, selected_atlases_matrix, specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH)

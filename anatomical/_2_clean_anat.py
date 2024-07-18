@@ -20,13 +20,13 @@ spgo = subprocess.getoutput
 
 
 def clean_anat(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, otheranat, type_norm, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, dir_prepro, masking_img, do_manual_crop,
-    brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, overwrite,
+    brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, BASE_bet, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, overwrite,
                s_bind,afni_sif,fsl_sif,fs_sif):
 
     step_skullstrip = 1
     brain_skullstrip = 'brain_skullstrip_1'
     output_for_mask =  anatomical.Skullstrip_method.Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
-    otheranat, ID, Session, check_visualy_final_mask, overwrite,s_bind,afni_sif,fsl_sif,fs_sif)
+    otheranat, ID, Session, check_visualy_final_mask, overwrite, BASE_bet, s_bind,afni_sif,fsl_sif,fs_sif)
     print(listTimage)
 
     #### Apply masking to other anat images
@@ -62,7 +62,10 @@ def clean_anat(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, ot
         ####################################################################################
     command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 200 -S 200 -A 200 -P 200 -L 200 -R 200 -S 200 -prefix ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz') + ' ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz') + ' -overwrite'
     spco([command], shell=True)
-    spco(['singularity run' + s_bind + afni_sif + '3dresample', '-master', opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz'), '-prefix', opj(masks_dir, ID + Timage + '_mask_1_rsp.nii.gz'), '-input', opj(masks_dir, ID + Timage + '_mask_1_rsp.nii.gz'), '-overwrite'])
+
+    command = 'singularity run' + s_bind + afni_sif + '3dresample -master ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz') + ' -prefix ' + opj(masks_dir, ID + Timage + '_mask_1_rsp.nii.gz') + \
+              ' -input ' + opj(masks_dir, ID + Timage + '_mask_1_rsp.nii.gz') + ' -overwrite'
+    spco([command], shell=True)
     #command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 50 -S 50 -A 50 -P 50 -L 50 -R 50 -S 50 -prefix ' + opj(masks_dir, ID + type_norm + '_mask_1_rsp.nii.gz') + ' ' + opj(masks_dir, ID + type_norm + '_mask_1_rsp.nii.gz') + ' -overwrite'
     #spco([command], shell=True)
     print(Timage)
@@ -155,7 +158,7 @@ def clean_anat(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, ot
             command = 'singularity run' + s_bind + fs_sif + 'freeview -v ' + opj(dir_prepro, ID + '_acpc' + Timage + '.nii.gz')
         else:
             command = 'singularity run' + s_bind + afni_sif + '3dAutobox' + overwrite + ' -input ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + ' -prefix ' + opj(dir_prepro, ID + '_acpc_cropped' + Timage + '.nii.gz') + ' -noclust  -overwrite'
-         spco(command, shell=True)
+            spco(command, shell=True)
 
         ######################################################################
         ####### B0 correction ####### ==> creat INDIV template !!!!!!!!!!!####
