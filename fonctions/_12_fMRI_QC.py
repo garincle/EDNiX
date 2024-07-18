@@ -112,7 +112,7 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                             print(f"  Image 2: {values[1]}")
                             caca = nilearn.image.resample_to_img(atlas_filename, func_filename, interpolation='nearest')
                             caca.to_filename(atlas_filename)
-                            extracted_data = nib.load(atlas_filename).get_data()
+                            extracted_data = nib.load(atlas_filename).get_fdata()
                             labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
                             labeled_img2.to_filename(atlas_filename)
                     else:
@@ -254,7 +254,7 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                             interpolation='nearest')
                         caca.to_filename(atlas_filename[:-7] + '_filtered.nii.gz')
                         extracted_data = nib.load(
-                            atlas_filename[:-7] + '_filtered.nii.gz').get_data()
+                            atlas_filename[:-7] + '_filtered.nii.gz').get_fdata()
                         labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
                         labeled_img2.to_filename(atlas_filename[:-7] + '_filtered.nii.gz')
 

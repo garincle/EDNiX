@@ -14,9 +14,17 @@ import sys
 ##########################################
 
 #https://bids-standard.github.io/pybids/reports/index.html
+#Path to the excels files and data structure
+opj = os.path.join
+opb = os.path.basename
+opn = os.path.normpath
+opd = os.path.dirname
+ope = os.path.exists
+ops = os.path.splitext
+spco = subprocess.check_output
+spgo = subprocess.getoutput
 
-MAIN_PATH   = opj('/','srv','projects','easymribrain')
-sys.path.append(opj(MAIN_PATH + 'Code','EasyMRI_brain-master'))
+
 
 import fonctions._1_fMRI_preTTT_in_fMRIspace
 import fonctions._2_coregistration_to_norm
@@ -32,27 +40,9 @@ import fonctions._11_Seed_base_many_regionsatlas
 import fonctions._12_fMRI_QC
 import fonctions._13_spatial_QC
 import fonctions._14_fMRI_QC_SBA
-#Path to the excels files and data structure
-opj = os.path.join
-opb = os.path.basename
-opn = os.path.normpath
-opd = os.path.dirname
-ope = os.path.exists
-ops = os.path.splitext
-spco = subprocess.check_output
-spgo = subprocess.getoutput
 
 
-### singularity set up
-s_bind        = ' --bind ' + opj('/','scratch','in_Process/') + ',' + MAIN_PATH
-s_path      = opj(MAIN_PATH,'code','singularity')
-afni_sif    = ' ' + opj(s_path , 'afni_make_build_AFNI_23.1.10.sif') + ' '
-fsl_sif     = ' ' + opj(s_path , 'fsl_6.0.5.1-cuda9.1.sif') + ' '
-fs_sif      = ' ' + opj(s_path , 'freesurfer_NHP.sif') + ' '
-itk_sif        = ' ' + opj(s_path , 'itksnap_5.0.9.sif') + ' '
-wb_sif      = ' ' + opj(s_path , 'connectome_workbench_1.5.0-freesurfer-update.sif') + ' '
 
-config_f = opj(MAIN_PATH,'code','config','b02b0.cnf')
 
 ##### to ask or find solution ####
 ##### if change the orientation should we change the  phase encoding direction as well? ####
@@ -61,8 +51,20 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
     extract_exterior_CSF, extract_WM, n_for_ANTS, list_atlases, selected_atlases, panda_files, useT1T2_for_coregis, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
     cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
-                    folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff, selected_atlases_matrix, specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS,
-                    s_bind,afni_sif,fsl_sif,fs_sif,wb_sif,itk_sif,config_f):
+    folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff, selected_atlases_matrix, specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH):
+
+    sys.path.append(opj(MAIN_PATH + 'Code', 'EasyMRI_brain-master'))
+
+    ### singularity set up
+    s_bind = ' --bind ' + opj('/', 'scratch', 'in_Process/') + ',' + MAIN_PATH
+    s_path = opj(MAIN_PATH, 'code', 'singularity')
+    afni_sif = ' ' + opj(s_path, 'afni_make_build_24_2_01.sif') + ' '
+    fsl_sif = ' ' + opj(s_path, 'fsl_6.0.5.1-cuda9.1.sif') + ' '
+    fs_sif = ' ' + opj(s_path, 'freesurfer_NHP.sif') + ' '
+    itk_sif = ' ' + opj(s_path, 'itksnap_5.0.9.sif') + ' '
+    wb_sif = ' ' + opj(s_path, 'connectome_workbench_1.5.0-freesurfer-update.sif') + ' '
+
+    config_f = opj(MAIN_PATH, 'code', 'config', 'b02b0.cnf')
 
     ###########################################################################################################################################################
     ############################################################## start the proces ###########################################################################

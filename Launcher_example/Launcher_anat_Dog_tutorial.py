@@ -19,18 +19,10 @@ spco = subprocess.check_output
 
 
 MAIN_PATH = opj('/','srv','projects','easymribrain')
-
 # Freesurfer set up
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
-
-### singularity set up
-s_bind        = ' --bind ' + opj('/','scratch','in_Process/') + ',' + MAIN_PATH
-s_path      = opj(MAIN_PATH,'code','singularity')
-afni_sif    = ' ' + opj(s_path , 'afni_make_build_AFNI_23.1.10.sif') + ' '
-fsl_sif     = ' ' + opj(s_path , 'fsl_6.0.5.1-cuda9.1.sif') + ' '
-fs_sif      = ' ' + opj(s_path , 'freesurfer_NHP.sif') + ' '
-itk_sif        = ' ' + opj(s_path , 'itksnap_5.0.9.sif') + ' '
-wb_sif      = ' ' + opj(s_path , 'connectome_workbench_1.5.0-freesurfer-update.sif') + ' '
+sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
+import anatomical._0_Pipeline_launcher
 
 
 ################################### if re-use this script auto: ####################################################
@@ -43,36 +35,9 @@ wb_sif      = ' ' + opj(s_path , 'connectome_workbench_1.5.0-freesurfer-update.s
 
 #https://bids-standard.github.io/pybids/reports/index.html
 
-sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
-import anatomical._0_Pipeline_launcher
-
-#Path to the excels files and data structure
-opj = os.path.join
-opb = os.path.basename
-opn = os.path.normpath
-opd = os.path.dirname
-ope = os.path.exists
-ops = os.path.splitext
-spco = subprocess.check_output
-
-MAIN_PATH = opj('/','srv','projects','easymribrain')
-
-### singularity set up
-s_bind        = ' --bind ' + opj('/','scratch','in_Process/') + ',' + MAIN_PATH
-s_path      = opj(MAIN_PATH,'code','singularity')
-afni_sif    = ' ' + opj(s_path , 'afni_make_build_AFNI_23.1.10.sif') + ' '
-fsl_sif     = ' ' + opj(s_path , 'fsl_6.0.5.1-cuda9.1.sif') + ' '
-fs_sif      = ' ' + opj(s_path , 'freesurfer_NHP.sif') + ' '
-itk_sif        = ' ' + opj(s_path , 'itksnap_5.0.9.sif') + ' '
-wb_sif      = ' ' + opj(s_path , 'connectome_workbench_1.5.0-freesurfer-update.sif') + ' '
-
-
-# Freesurfer set up
-FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
-
 ###where to store the BIDS data?
-bids_dir = opj(MAIN_PATH,'data','MRI','rats','BIDS_rat')
-study = 'Rat'
+bids_dir = opj(MAIN_PATH,'data','MRI','Dog','BIDS_k9')
+study = 'Dog'
 
 ##########################################
 ########### Subject loader################
@@ -99,21 +64,21 @@ print(T1)
 
 
 # Ask get() to return the ids of subjects that have T2w files
-T2 = layout.get(return_type='filename', target='subject', suffix='T2w', extension='nii.gz')
-print(T2)
+#T2 = layout.get(return_type='filename', target='subject', suffix='T2w', extension='nii.gz')
+#print(T2)
 
 # Ask get() to return the ids of subjects that have T1w files
-Bold = layout.get(return_type='filename', target='subject', suffix='bold', extension='nii.gz')
+Bold = layout.get(return_type='filename', target='subject', suffix='epi', extension='nii.gz')
 
 # Ask get() to return the ids of subjects that have T1w files
-topup_dir = layout.get(return_type='filename', target='subject', suffix='epi', extension='nii.gz')
+#topup_dir = layout.get(return_type='filename', target='subject', suffix='epi', extension='nii.gz')
 
 # Convert the layout to a pandas dataframe
 df = layout.to_df()
 df.head()
 
 
-allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == 'nii.gz')]
+allinfo_study_c = df[(df['suffix'] == 'epi') & (df['extension'] == '.nii.gz')]
 
 #### Session number
 list_of_ones = [1] * len(allinfo_study_c)
@@ -128,34 +93,13 @@ folders = glob.glob(opj(bids_dir,'sub*'))
 ##############################################################  TO DO !! ##############################################################
 
 #### Create a pandas sheet for the dataset (I like it, it help to know what you are about to process
-allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == 'nii.gz')]
+allinfo_study_c = df[(df['suffix'] == 'T1') & (df['extension'] == '.nii.gz')]
 list_of_ones = [1] * len(allinfo_study_c)
 allinfo_study_c['Session'] = list_of_ones
 allinfo_study_c.rename(columns={'subject': 'ID'}, inplace=True)
 allinfo_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
 
-filter1 = allinfo_study_c["ID"].isin([
-'300208',
-'300401',
-'300600',
-'300809',
-'300902',
-'300908',
-'300909',
-'301100',
-'301300',
-'301301',
-'301302',
-'301500',
-'301501',
-'301503',
-'301504',
-'301505',
-'301508',
-'301509',
-'302107',
-'302108',
-'300600'])
+filter1 = allinfo_study_c["ID"].isin([])
 
 allinfo_study_c_formax = allinfo_study_c.copy()
 
@@ -204,70 +148,7 @@ removelist = []
 ''' 
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in ['300102',
- '300104',
- '300106',
- '300107',
- '300108',
- '300109',
- '300200',
- '300202',
- '300204',
- '300205',
- '300206',
- '300208',
- '300304',
- '300405',
- '300409',
- '300503',
- '300504',
- '300505',
- '300506',
- '300509',
- '300601',
- '300602',
- '300603',
- '300606',
- '300705',
- '300801',
- '300802',
- '300806',
- '300809',
- '300900',
- '300902',
- '300908',
- '301003',
- '301008',
- '301104',
- '301200',
- '301201',
- '301205',
- '301209',
- '301306',
- '301307',
- '301308',
- '301400',
- '301401',
- '301402',
- '301403',
- '301406',
- '301409',
- '301500',
- '301502',
- '301604',
- '301608',
- '301700',
- '301701',
- '301702',
- '301801',
- '301802',
- '301803',
- '301804',
- '301808',
- '301809',
- '301905',
- '301907',
- '302009']:
+    if ID in []:
         removelist.append(num)
 '''
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
@@ -294,7 +175,7 @@ IgotbothT1T2 = False #YES or NO
 
 check_visualy_final_mask = False #YES or NO
 deoblique='WARP' #header or WARP
-n_for_ANTS='HammingWindowedSinc'
+n_for_ANTS='hammingWindowedSinc'
 overwrite_option = True #YES or NO
 
 ####Choose to normalize using T1 or T2
@@ -383,14 +264,14 @@ FS_buckner40_GCS = opj(FS_dir,'MacaqueYerkes19')
     ##### define atlases and tempates ########
     ##########################################
 diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual','RatWHS') # sting # sting
-list_atlases = [diratlas_orig + 'atlaslvl1.nii.gz',
-diratlas_orig + 'atlaslvl2.nii.gz',
-diratlas_orig + 'atlaslvl3.nii.gz',
-diratlas_orig + 'atlaslvl4.nii.gz',
-diratlas_orig + 'atlaslvl1_LR.nii.gz',
-diratlas_orig + 'atlaslvl2_LR.nii.gz',
-diratlas_orig + 'atlaslvl3_LR.nii.gz',
-diratlas_orig + 'atlaslvl4_LR.nii.gz']
+list_atlases = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4.nii.gz'),
+opj(diratlas_orig, 'atlaslvl1_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4_LR.nii.gz')]
 
 BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','RatWHS','templateT2.nii.gz') # sting
 BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual','RatWHS','BrainMask.nii.gz') # sting
@@ -416,10 +297,10 @@ if not ope(Aseg_refLR):
 
 
 #### for 14 ####
-list_atlases_2 = [diratlas_orig + 'atlaslvl1.nii.gz',
-diratlas_orig + 'atlaslvl2.nii.gz',
-diratlas_orig + 'atlaslvl3.nii.gz',
-diratlas_orig + 'atlaslvl4.nii.gz']
+list_atlases_2 = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4.nii.gz')]
 
 FreeSlabel_ctab_list = [opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt'),
 opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt'),
@@ -435,13 +316,14 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [1,2,3,4,5,6,7,9, 10, 11, 12, 13, 14,15,200]
+Skip_step = [10,11,12,13,14,15]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 species = 'RatWHS'
+
 
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
     BASE_SS,BASE_bet, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, template_skullstrip,
     IgotbothT1T2, list_atlases, Aseg_ref, Aseg_refLR, dir_out, FS_dir, diratlas_orig, do_surfacewith, Atemplate_to_Stemplate,
-    FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, useT1T2_for_coregis, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, species, overwrite_option,s_bind,afni_sif,fsl_sif,fs_sif,wb_sif,itk_sif)
+    FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, useT1T2_for_coregis, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, species, overwrite_option,MAIN_PATH)

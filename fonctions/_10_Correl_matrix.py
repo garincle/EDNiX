@@ -68,7 +68,7 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                     print(f"  Image 2: {values[1]}")
                     caca = nilearn.image.resample_to_img(atlas_filename, func_filename, interpolation='nearest')
                     caca.to_filename(atlas_filename)
-                    extracted_data = nib.load(atlas_filename).get_data()
+                    extracted_data = nib.load(atlas_filename).get_fdata()
                     labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
                     labeled_img2.to_filename(atlas_filename)
             else:
@@ -118,7 +118,7 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
             except:
                 caca = nilearn.image.resample_to_img(opj(dir_fMRI_Refth_RS_prepro1, atlas[:-7] + '_filtered.nii.gz'), func_filename, interpolation='nearest')
                 caca.to_filename(opj(dir_fMRI_Refth_RS_prepro1, atlas[:-7] + '_filtered.nii.gz'))
-                extracted_data = nib.load(opj(dir_fMRI_Refth_RS_prepro1, atlas[:-7] + '_filtered.nii.gz')).get_data()
+                extracted_data = nib.load(opj(dir_fMRI_Refth_RS_prepro1, atlas[:-7] + '_filtered.nii.gz')).get_fdata()
                 labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
                 labeled_img2.to_filename(opj(dir_fMRI_Refth_RS_prepro1, atlas[:-7] + '_filtered.nii.gz'))
 

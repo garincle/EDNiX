@@ -87,7 +87,7 @@ def fMRI_QC_SBA(Seed_name, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMR
 
                 if os.path.exists(output_folder + '/' + root_RS + '_correlations_fish.nii.gz'):
 
-                    image = nib.load(output_folder + '/' + root_RS + '_correlations_fish.nii.gz').get_data()
+                    image = nib.load(output_folder + '/' + root_RS + '_correlations_fish.nii.gz').get_fdata()
                     # Reshape the image data to a 2D array where each row is a voxel with its intensity values
                     # Remove the unnecessary dimension if it exists
                     if image.ndim == 4 and image.shape[-1] == 1:

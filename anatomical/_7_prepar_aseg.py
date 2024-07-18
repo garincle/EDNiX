@@ -43,7 +43,7 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
 
 
 
-    command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(dir_prepro,'template_in_anat_DC.nii.gz') + ' -expr "step(a)*b" -pbrain_imgix ' + opj(dir_prepro,'template_in_anat_DC.nii.gz')
+    command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(dir_prepro,'template_in_anat_DC.nii.gz') + ' -expr "step(a)*b" -prefix ' + opj(dir_prepro,'template_in_anat_DC.nii.gz')
     spco([command], shell=True)
 
     #### apply to all atlases

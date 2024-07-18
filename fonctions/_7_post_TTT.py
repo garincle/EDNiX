@@ -54,9 +54,11 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
         ' | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_Wc.1D')
         spco([command], shell=True)
 
-        command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dROIstats -quiet -nomeanout -nzvoxels -mask ' + \
+        command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dROIstats -nomeanout -nzvoxels -mask ' + \
                   opj(dir_fMRI_Refth_RS_prepro1,'Vmask.nii.gz') + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,'Vmask.nii.gz')
         count = spgo(command).split('\n')[-1].split('\t')
+        print(command)
+        print(count)
         # check if ok....
         if count[-1] == '0[?]':
             countVmask = 0

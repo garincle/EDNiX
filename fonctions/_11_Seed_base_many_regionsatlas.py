@@ -101,7 +101,7 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
 
                     return formatted_name
 
-                for colomn, row in panda_file.T.iteritems():
+                for colomn, row in panda_file.T.items():
                     Seed_name = row['region']
                     Seed_name = format_seed_name(Seed_name)
                     Seed_label = row['label']
@@ -116,7 +116,7 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
 
                     labels_img.to_filename(output_folder + '/' + Seed_name + 'rsp.nii.gz')
                     # Plot the generated mask using the mask_img_ attribute
-                    extracted_data2 = nib.load(output_folder + '/' + Seed_name + 'rsp.nii.gz').get_data()
+                    extracted_data2 = nib.load(output_folder + '/' + Seed_name + 'rsp.nii.gz').get_fdata()
                     labeled_img2 = image.new_img_like(func_filename,
                         extracted_data2, copy_header=True)
                     labeled_img2.to_filename(output_folder + '/' + Seed_name + 'rsp.nii.gz')
@@ -131,7 +131,7 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                     resampled_cortical_mask_func = resample_to_img(cortical_mask_func, func_filename, interpolation='nearest')
                     resampled_cortical_mask_func.to_filename(output_folder + '/' + Seed_name + 'cortical_mask_funcrsp.nii.gz')
                     # Plot the generated mask using the mask_img_ attribute
-                    extracted_data2 = nib.load(output_folder + '/' + Seed_name + 'cortical_mask_funcrsp.nii.gz').get_data()
+                    extracted_data2 = nib.load(output_folder + '/' + Seed_name + 'cortical_mask_funcrsp.nii.gz').get_fdata()
                     labeled_img2 = image.new_img_like(func_filename,
                         extracted_data2, copy_header=True)
                     labeled_img2.to_filename(output_folder + '/' + Seed_name + 'cortical_mask_funcrsp.nii.gz')
@@ -175,10 +175,10 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                     ####remove a percentage of the zmap
 
                     threshold_val99 = 99
-                    loadimg = nib.load(output_folder + '/' + root_RS + '_correlations_fish.nii.gz').get_data() 
+                    loadimg = nib.load(output_folder + '/' + root_RS + '_correlations_fish.nii.gz').get_fdata()
                     loadimgsort99 =  np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val99)
 
-                    loadimg = nib.load(output_folder + '/' + root_RS + '_correlations_fish.nii.gz').get_data() 
+                    loadimg = nib.load(output_folder + '/' + root_RS + '_correlations_fish.nii.gz').get_fdata()
                     custom_thresh =  np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val)
 
                     mask_imag = nilearn.image.threshold_img(output_folder + '/' + root_RS + '_correlations.nii.gz', custom_thresh)
@@ -186,7 +186,7 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
 
                     labels_img = resample_to_img(output_folder + 'higher_thresold.nii.gz', studytemplatebrain, interpolation='nearest')
                     labels_img.to_filename(output_folder + 'higher_thresold_res.nii.gz')
-                    extracted_data2 = nib.load(output_folder + 'higher_thresold_res.nii.gz').get_data()
+                    extracted_data2 = nib.load(output_folder + 'higher_thresold_res.nii.gz').get_fdata()
                     labeled_img2 = image.new_img_like(studytemplatebrain,
                         extracted_data2, copy_header=True)
                     labeled_img2.to_filename( output_folder + 'higher_thresold_res.nii.gz')

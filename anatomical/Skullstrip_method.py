@@ -22,9 +22,8 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 
-def Skullstrip_method(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, otheranat, type_norm, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, dir_prepro, masking_img, do_manual_crop,
-            brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS,BASE_bet, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, overwrite,
-                                                s_bind,afni_sif,fsl_sif,fs_sif):
+def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
+    otheranat, ID, Session, check_visualy_final_mask, overwrite, BASE_bet, s_bind,afni_sif,fsl_sif,fs_sif):
 
     if step_skullstrip == 1:
         masking_img = masking_img
@@ -256,10 +255,11 @@ def Skullstrip_method(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Sess
 
     elif brain_skullstrip == '3dSkullStrip':
 
-        spco(['singularity run' + s_bind + afni_sif + '3dSkullStrip', '-prefix', output_for_mask, '-overwrite',
-            '-input', input_for_msk, '-blur_fwhm', '2', '-orig_vol', '-mask_vol', '-use_skull', '-monkey'])
+        command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
+            '-input ' + input_for_msk + ' -blur_fwhm 2 -orig_vol -mask_vol -use_skull -monkey'
+        spco(command, shell=True)
 
-        command = 'singularity run' + s_bind + afni_sif + ''3dmask_tool -overwrite -prefix ' + output_for_mask + \
+        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
         ' -input ' + output_for_mask + ' -fill_holes -dilate_input 2'
         spco(command, shell=True)
 
@@ -271,7 +271,8 @@ def Skullstrip_method(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Sess
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
         ' -input ' + output_for_mask + ' -fill_holes -dilate_input 1'
         spco(command, shell=True)
-        spco(['singularity run' + s_bind + afni_sif + '3dresample', '-master', input_for_msk, '-prefix', output_for_mask, '-input', output_for_mask, '-overwrite', '-bound_type', 'SLAB'])
+        command = 'singularity run' + s_bind + afni_sif + '3dresample -master ' + input_for_msk + ' -prefix' + output_for_mask + ' -input ' + output_for_mask + ' -overwrite -bound_type SLAB'
+        spco(command, shell=True)
 
     elif brain_skullstrip == 'Custum_Baboon':
         #convert to float
@@ -323,11 +324,14 @@ def Skullstrip_method(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Sess
         command = 'singularity run' + s_bind + fsl_sif + 'bet2 ' + input_for_msk + ' ' + opj(masks_dir, ID + '_bet' + masking_img + '.nii.gz') + \
         ' -f 0.70'
         spco([command], shell=True)
-        spco(['singularity run' + s_bind + afni_sif + '3dcalc', '-a', opj(masks_dir, ID + '_bet' + masking_img + '.nii.gz'), '-expr', 'step(a)', '-prefix', output_for_mask, '-overwrite'])
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(masks_dir, ID + '_bet' + masking_img + '.nii.gz') + ' -expr step(a) -prefix ' + output_for_mask + ' -overwrite'
+        spco(command, shell=True)
 
     elif brain_skullstrip == 'Custum T1/T2':
-        spco(['singularity run' + s_bind + afni_sif + '3dresample', '-master', input_for_msk, '-prefix', opj(volumes_dir, ID + '_' + otheranat + '_template_RSPL.nii.gz'), '-input', opj(volumes_dir, ID + '_' + otheranat + '_template.nii.gz'), '-overwrite'])
-        spco(['singularity run' + s_bind + afni_sif + '3dcalc', '-a', input_for_msk, '-b', opj(volumes_dir, ID + '_' + otheranat + '_template_RSPL.nii.gz'), '-expr', 'b*(step(a))', '-prefix', opj(volumes_dir, ID + '_' + otheranat + '_template_RSPL.nii.gz'), '-overwrite'])
+        command = 'singularity run' + s_bind + afni_sif + '3dresample -master ' + input_for_msk + ' -prefix ' + opj(volumes_dir, ID + '_' + otheranat + '_template_RSPL.nii.gz') + ' -input ' + opj(volumes_dir, ID + '_' + otheranat + '_template.nii.gz') + ' -overwrite'
+        spco([command], shell=True)
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + input_for_msk + ' -b ' + opj(volumes_dir, ID + '_' + otheranat + '_template_RSPL.nii.gz') + ' -expr b*(step(a)) -prefix ' + opj(volumes_dir, ID + '_' + otheranat + '_template_RSPL.nii.gz') + ' -overwrite'
+        spco([command], shell=True)
         log_img = math_img("np.where((img1 > 1) & (img2 > 1), img2, 0)", img1=input_for_msk, img2=opj(volumes_dir, ID + '_' + otheranat + '_template_RSPL.nii.gz'))
         log_img.to_filename(opj(volumes_dir, ID + '_' + otheranat + '_template_RSPL.nii.gz'))
         log_img = math_img("np.where((img1 > 1) & (img2 > 1), img1, 0)", img1=input_for_msk, img2=opj(volumes_dir, ID + '_' + otheranat + '_template_RSPL.nii.gz'))
@@ -396,9 +400,10 @@ def Skullstrip_method(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Sess
         ' -source ' + input_for_msk + ' -maxlev 5 -resample'
         spco(command, shell=True)
 
-        spco(['singularity run' + s_bind + afni_sif + '3dNwarpApply', '-nwarp', opj(dir_prepro,'template_to_' + masking_img + '_AFNIQ_WARPINV.nii.gz'),
-        '-source', BASE_SS_mask, '-master', input_for_msk, '-interp', 'NN',
-        '-prefix', opj(dir_prepro,masking_img + 'template_brainmask.nii.gz'), '-overwrite'])
+        command = 'singularity run' + s_bind + afni_sif + '3dNwarpApply -nwarp ' + opj(dir_prepro,'template_to_' + masking_img + '_AFNIQ_WARPINV.nii.gz') + \
+        ' -source ' + BASE_SS_mask + ' -master ' + input_for_msk + ' -interp NN' + \
+        ' -prefix ' + opj(dir_prepro,masking_img + 'template_brainmask.nii.gz') + ' -overwrite'
+        spco(command, shell=True)
 
         Ex_Mask    = opj(dir_prepro,'mask_tmp' + masking_img + '.nii.gz')
 
@@ -406,7 +411,7 @@ def Skullstrip_method(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Sess
         ' -input ' + opj(dir_prepro,masking_img + 'template_brainmask.nii.gz') + ' -fill_holes' # -dilate_input 2'
         spco(command, shell=True)
 
-        shutil.copyfile(Ex_Mask,output_for_mask)
+        shutil.copyfile(Ex_Mask, output_for_mask)
 
         if check_visualy_final_mask == True:
             command = 'singularity run' + s_bind + fs_sif + 'freeview - v' + input_for_msk + \
@@ -415,22 +420,24 @@ def Skullstrip_method(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Sess
 
     elif brain_skullstrip == '3dSkullStrip_Rat':
         if ID in ['301502','302101','302105','302106','301603', '300908','301500','301501','301503','301504','301505','301508','301509','302107','302108','300600']:
-            spco(['singularity run' + s_bind + afni_sif + '3dSkullStrip', '-prefix', output_for_mask, '-overwrite',
-                '-input', input_for_msk, '-orig_vol', '-mask_vol', '-rat'])
+            command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite -input ' + input_for_msk + ' -orig_vol -mask_vol -rat'
+            spco([command], shell=True)
 
             command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
             ' -input ' + output_for_mask + ' -fill_holes -dilate_input 15'
             spco(command, shell=True)
         else:
-            spco(['singularity run' + s_bind + afni_sif + '3dSkullStrip', '-prefix', output_for_mask, '-overwrite',
-                '-input', input_for_msk, '-orig_vol', '-mask_vol', '-surface_coil', '-rat'])
+            command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite -input ' + input_for_msk + ' -orig_vol -mask_vol -surface_coil -rat'
+            spco([command], shell=True)
 
             command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
             ' -input ' + output_for_mask + ' -fill_holes -dilate_input 4'
             spco(command, shell=True)
 
     elif brain_skullstrip == 'NoSkullStrip':
-        spco(['singularity run' + s_bind + afni_sif + '3dcalc', '-a', input_for_msk, '-expr', 'step(a)', '-prefix', output_for_mask, '-overwrite'])
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + input_for_msk + \
+                  ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
+        spco(command, shell=True)
 
     elif brain_skullstrip =='sammba_rat':
         command = 'singularity run' + s_bind + fs_sif + 'mri_convert -odt float ' + input_for_msk + ' ' + input_for_msk[:-7] + '_float.nii.gz'
@@ -508,9 +515,10 @@ def Skullstrip_method(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Sess
             ' -source ' + input_for_msk + ' -maxlev 5 -lpa -resample'
             spco(command, shell=True)
 
-            spco(['singularity run' + s_bind + afni_sif + '3dNwarpApply', '-nwarp', opj(dir_prepro,'template_to_' + masking_img + '_AFNIQ_WARPINV.nii.gz'),
-            '-source', BASE_SS_mask, '-master', input_for_msk, '-interp', 'NN',
-            '-prefix', opj(dir_prepro,masking_img + 'template_brainmask.nii.gz'), '-overwrite'])
+            command = 'singularity run' + s_bind + afni_sif + '3dNwarpApply -nwarp ' + opj(dir_prepro,'template_to_' + masking_img + '_AFNIQ_WARPINV.nii.gz') + \
+            ' -source ' + BASE_SS_mask + ' -master ' + input_for_msk + ' -interp NN' + \
+            ' -prefix ' + opj(dir_prepro,masking_img + 'template_brainmask.nii.gz') + ' -overwrite'
+            spco(command, shell=True)
 
             Ex_Mask    = opj(dir_prepro,'mask_tmp' + masking_img + '.nii.gz')
 
@@ -533,9 +541,10 @@ def Skullstrip_method(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Sess
             ' -source ' + input_for_msk + ' -maxlev 5 -resample'
             spco(command, shell=True)
 
-            spco(['singularity run' + s_bind + afni_sif + '3dNwarpApply', '-nwarp', opj(dir_prepro,'template_to_' + masking_img + '_AFNIQ_WARPINV.nii.gz'),
-            '-source', BASE_SS_mask, '-master', input_for_msk, '-interp', 'NN',
-            '-prefix', opj(dir_prepro,masking_img + 'template_brainmask.nii.gz'), '-overwrite'])
+            command = 'singularity run' + s_bind + afni_sif + '3dNwarpApply -nwarp ' + opj(dir_prepro,'template_to_' + masking_img + '_AFNIQ_WARPINV.nii.gz') + \
+            ' -source ' + BASE_SS_mask + ' -master ' + input_for_msk + ' -interp NN' + \
+            ' -prefix ' + opj(dir_prepro,masking_img + 'template_brainmask.nii.gz') + ' -overwrite'
+            spco(command, shell=True)
 
             Ex_Mask    = opj(dir_prepro,'mask_tmp' + masking_img + '.nii.gz')
 
@@ -559,9 +568,10 @@ def Skullstrip_method(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Sess
         ' -source ' + input_for_msk + ' -maxlev 3 -resample'
         spco(command, shell=True)
 
-        spco(['singularity run' + s_bind + afni_sif + '3dNwarpApply', '-nwarp', opj(dir_prepro,'template_to_' + masking_img + '_AFNIQ_WARPINV.nii.gz'),
-        '-source', BASE_SS_mask, '-master', input_for_msk, '-interp', 'NN',
-        '-prefix', opj(dir_prepro,masking_img + 'template_brainmask.nii.gz'), '-overwrite'])
+        command = 'singularity run' + s_bind + afni_sif + '3dNwarpApply -nwarp ' + opj(dir_prepro,'template_to_' + masking_img + '_AFNIQ_WARPINV.nii.gz') + \
+        ' -source ' + BASE_SS_mask + ' -master ' + input_for_msk + ' -interp NN' + \
+        ' -prefix ' + opj(dir_prepro,masking_img + 'template_brainmask.nii.gz') + ' -overwrite'
+        spco(command, shell=True)
 
         Ex_Mask    = opj(dir_prepro,'mask_tmp' + masking_img + '.nii.gz')
 
