@@ -21,7 +21,7 @@ packages = {
     "pingouin": "0.5.4",
     "seaborn": "0.13.2",
     "bids": "0.16.5",
-    "openpyxl": "3.0.10"
+    "openpyxl": "3.1.00"
 }
 
 def install_with_conda(package, version):
