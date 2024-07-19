@@ -1,5 +1,6 @@
 import os
 import subprocess
+import shutil
 import glob
 from fonctions.extract_filename import extract_filename
 import json
@@ -40,11 +41,16 @@ def correct_orient(BIDStype,
         # get variables from json
         if BIDStype == 1:
             list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_ses-' + str(Session) + '_run-*' + Timage + '.nii.gz')))
-        if BIDStype == 2:
+            print(list_anat)
+        elif BIDStype == 2:
             list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_' + Timage + '.nii.gz')))
+            print(list_anat)
+        elif BIDStype == 3:
+            list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_ses-' + str(Session) + '_' + Timage + '.nii.gz')))
+            print(list_anat)
+        else:
+            print('no anat img found!!!!!!!!!!!!!')
 
-        print(opj(path_anat, 'sub-' + ID + '_ses-' + str(Session) + '_run-*' + Timage + '.nii.gz'))
-        print(list_anat)
 
         if len(list_anat)==1:
             print('test for one run')
@@ -154,7 +160,7 @@ def correct_orient(BIDStype,
         list_anat = sorted(glob.glob(opj(path_anat, '*_' + Timage + '.nii.gz')))
         ## add option for if oblique = 0 !! XX
         if deoblique_1=='header':
-            command = 'singularity run' + s_bind + afni_sif + '3drefit -deoblique -NN' + overwrite + ' -orient ' + orientation + \
+            command = 'singularity run' + s_bind + afni_sif + '3drefit -deoblique' + overwrite + ' -orient ' + orientation + \
             ' ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz')
             spco([command], shell=True)
 
