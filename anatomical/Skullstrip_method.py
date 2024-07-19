@@ -289,11 +289,11 @@ def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skul
         #convert to float
         command = 'singularity run' + s_bind + fs_sif + 'mri_convert -odt float ' + input_for_msk + ' ' + input_for_msk[:-7] + '_float.nii.gz'
         spco([command], shell=True)
-        mask_img = compute_epi_mask(input_for_msk[:-7] + '_float.nii.gz', lower_cutoff=0.75, upper_cutoff=0.90, connected=True, opening=3,
+        mask_img = compute_epi_mask(input_for_msk[:-7] + '_float.nii.gz', lower_cutoff=0.2, upper_cutoff=0.90, connected=True, opening=3,
             exclude_zeros=False, ensure_finite=True)
         mask_img.to_filename(output_for_mask)
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
-        ' -input ' + output_for_mask + ' -fill_holes -dilate_input 10'
+        ' -input ' + output_for_mask + ' -fill_holes -dilate_input 8 -2'
         spco(command, shell=True)
 
 
@@ -324,7 +324,7 @@ def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skul
         command = 'singularity run' + s_bind + fsl_sif + 'bet2 ' + input_for_msk + ' ' + opj(masks_dir, ID + '_bet' + masking_img + '.nii.gz') + \
         ' -f 0.70'
         spco([command], shell=True)
-        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(masks_dir, ID + '_bet' + masking_img + '.nii.gz') + ' -expr step(a) -prefix ' + output_for_mask + ' -overwrite'
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(masks_dir, ID + '_bet' + masking_img + '.nii.gz') + ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
         spco(command, shell=True)
 
     elif brain_skullstrip == 'Custum T1/T2':
@@ -475,35 +475,6 @@ def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skul
         ################################################
         ###### in use for study don't touch ############
         ################################################
-
-    #elif brain_skullstrip == 'Custum_Macaque2':
-    #    if ID == 'Pickle' and Session == 5:
-    #       spco(['python3', '/home/cgarin/Documents/0_Clement/CODE/CODE/NHP-BrainExtraction-master/UNet_Model/muSkullStrip.py',
-    #       '-in', input_for_msk, '-model', '/home/cgarin/Documents/1_Macaque_MRI/4_SSwarper_muSkull/result/model-20-epoch', '-out',
-    #        masks_dir])
-    #        shutil.copyfile(opj(masks_dir, opb(ID + '_anat_reorient_NU' + masking_img + '_pre_mask.nii.gz')), output_for_mask)
-    #        command = '3dmask_tool -overwrite -prefix ' + output_for_mask + \
-    #        ' -input ' + output_for_mask + ' -fill_holes -dilate_input 10' #10 for Pickel session 5 and Trinity Session 6
-    #        spco(command, shell=True)
-
-    #    elif ID == 'Trinity' and Session == 6:
-    #        spco(['python3', '/home/cgarin/Documents/0_Clement/CODE/CODE/NHP-BrainExtraction-master/UNet_Model/muSkullStrip.py',
-    #        '-in', input_for_msk, '-model', '/home/cgarin/Documents/1_Macaque_MRI/4_SSwarper_muSkull/result/model-20-epoch', '-out',
-    #        masks_dir])
-    #        shutil.copyfile(opj(masks_dir, opb(ID + '_anat_reorient_NU' + masking_img + '_pre_mask.nii.gz')), output_for_mask)
-    #        command = '3dmask_tool -overwrite -prefix ' + output_for_mask + \
-    #        ' -input ' + output_for_mask + ' -fill_holes -dilate_input 10' #10 for Pickel session 5 and Trinity Session 6
-    #        spco(command, shell=True)
-
-    #    else:
-    #        spco(['python3', '/home/cgarin/Documents/0_Clement/CODE/CODE/NHP-BrainExtraction-master/UNet_Model/muSkullStrip.py',
-    #        '-in', input_for_msk, '-model', '/home/cgarin/Documents/1_Macaque_MRI/4_SSwarper_muSkull/result/model-20-epoch', '-out',
-    #        masks_dir])
-    #        shutil.copyfile(opj(masks_dir, opb(ID + '_anat_reorient_NU' + masking_img + '_pre_mask.nii.gz')), output_for_mask)
-    #        command = '3dmask_tool -overwrite -prefix ' + output_for_mask + \
-    #        ' -input ' + output_for_mask + ' -fill_holes -dilate_input 3' #10 for Pickel session 5 and Trinity Session 6
-    #        spco(command, shell=True)
-
 
     elif brain_skullstrip =='Custum_QWARP':
 

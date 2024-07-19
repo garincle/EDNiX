@@ -115,6 +115,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_
         opj(dir_fMRI_Refth_RS_prepro1,'Wmask.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1,'Gmask.nii.gz')]):
 
         # mask
+        MEAN = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'))
         IMG = ants.image_read(input1)
         TRANS = ants.apply_transforms(fixed=MEAN, moving=IMG,
                                       transformlist=mvt_shft_INV_ANTs,

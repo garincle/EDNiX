@@ -85,13 +85,13 @@ def clean_anat(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, ot
 
     command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz')
     dummy = spgo(command).split('\n')
-    delta_x = str(round(float(dummy[-1]), 2))
+    delta_x = str(round(abs(float(dummy[-1])), 2))
     command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dj ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz')
     dummy = spgo(command).split('\n')
-    delta_y = str(round(float(dummy[-1]), 2))
+    delta_y = str(round(abs(float(dummy[-1])), 2))
     command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dk ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz')
     dummy = spgo(command).split('\n')
-    delta_z = str(round(float(dummy[-1]), 2))
+    delta_z = str(round(abs(float(dummy[-1])), 2))
 
     command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \
               ' -prefix ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + \

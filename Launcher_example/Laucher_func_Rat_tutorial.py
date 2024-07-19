@@ -306,7 +306,7 @@ useT1T2_for_coregis = False # True or False
 ###### sometime, the functional quality is so poor that co-registering the anat to the functional image will creat mistakes
 ###### if it is the case and if you !!!! FUNC IS IN THE ANAT SPACE !!!!! you may try do_anat_to_func = False,
 # it will assume that no coregistration between the anatomical image and the func is necessary
-do_anat_to_func = True # True or False
+do_anat_to_func = False # True or False
 
 #######################################################################
 ######################### study template??? ###########################
@@ -382,10 +382,8 @@ selected_atlases = ['atlaslvl3.nii.gz'] #liste
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 panda_files = [pd.DataFrame({'region':[
 'Orbital frontal cortex (oFC)',
-'Prefrontal cortex (PFC)',
 'Somatosensory cortex',
 'Posterior parietal cortex',
-'Posterior medial cortex (PMC)',
 'Visual pre and extra striate cortex',
 'Visual striate cortex',
 'Auditory cortex (Superior temporal)',
@@ -397,7 +395,8 @@ panda_files = [pd.DataFrame({'region':[
 'Basal forebrain',
 'Amygdala',
 'Hypothalamus',
-'Thalamus'],'label':[51,57,58,59,60,61,62,64,67,68,71,74,75,76,79,80,81]})] # liste of pandas dataframe
+'Thalamus'],'label':[51,58,59,61,62,64,67,68,71,74,75,76,79,80,81]})] # liste of pandas dataframe
+
 
 #### coordinate of the template plot in list form, each number will be a slice (plotting.plot_stat_map = cut_coords)
 cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
@@ -447,7 +446,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [14,100]
+Skip_step = [1,2,3,4,5,6,7,8,14,100]
 
     ############################################################
     ######################## START de pipeline #################
