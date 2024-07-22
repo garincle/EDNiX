@@ -33,7 +33,7 @@ def FS_finalise(FS_dir, animal_folder, FreeSlabel_ctab_list, list_atlases_2, lab
     fwdFS_cmd = ' --in_orientation ' + orient_raw + reorient
 
     # 1) Create the ribbon.mgz
-    command = export_FS + 'singularity run' + s_bind + fs_sif + 'mris_volmask --aseg_name aseg --label_left_white 2 --label_left_ribbon 3 --label_right_white 41 --label_right_ribbon 42 --save_ribbon ' + animal_folder
+    command = export_FS + ';singularity run' + s_bind + fs_sif + 'mris_volmask --aseg_name aseg --label_left_white 2 --label_left_ribbon 3 --label_right_white 41 --label_right_ribbon 42 --save_ribbon ' + animal_folder
     spco([command], shell=True)
 
     for H in range(2):
@@ -48,7 +48,7 @@ def FS_finalise(FS_dir, animal_folder, FreeSlabel_ctab_list, list_atlases_2, lab
             spco([command], shell=True)
 
             # create label surface
-            command = export_FS + 'singularity run' + s_bind + fs_sif + 'mris_sample_parc -ct ' + FreeSlabel_ctab + ' -surf mid -projfrac 0.01 ' + animal_folder + ' ' + Hmin[H] + 'h ' + opb(atlas) + '.mgz ' + \
+            command = export_FS + ';singularity run' + s_bind + fs_sif + 'mris_sample_parc -ct ' + FreeSlabel_ctab + ' -surf mid -projfrac 0.01 ' + animal_folder + ' ' + Hmin[H] + 'h ' + opb(atlas) + '.mgz ' + \
             Hmin[H] + 'h.' + animal_folder + '_' + opb(atlas) + '.annot'
             spco([command], shell=True)
 
