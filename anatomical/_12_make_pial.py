@@ -27,14 +27,14 @@ def make_pial(FS_dir, animal_folder, type_norm, otheranat, Hmin, Ref_file, do_su
         if 'T1' in type_norm:
 
             for H in range(2):
-                command = export_FS + 'singularity run' + s_bind + fs_sif + 'mris_make_surfaces -white NOWRITE -aseg aseg -orig white -noaparc -mgz -T1 brain -T2 ' + opj(FS_dir,animal_folder, 'mri', otheranat + 'brain') + ' ' + animal_folder + ' ' + Hmin[H] + 'h'
+                command = export_FS + ';singularity run' + s_bind + fs_sif + 'mris_make_surfaces -white NOWRITE -aseg aseg -orig white -noaparc -mgz -T1 brain -T2 ' + opj(FS_dir,animal_folder, 'mri', otheranat + 'brain') + ' ' + animal_folder + ' ' + Hmin[H] + 'h'
                 spco([command], shell=True)
         else:
             for H in range(2):
-                command = export_FS + 'singularity run' + s_bind + fs_sif + 'mris_make_surfaces -white NOWRITE -aseg aseg -orig white -noaparc -mgz -T1 ' + 'T1brain' + ' -T2 ' + opj(FS_dir,animal_folder, 'mri', 'brain ') + animal_folder + ' ' + Hmin[H] + 'h'
+                command = export_FS + ';singularity run' + s_bind + fs_sif + 'mris_make_surfaces -white NOWRITE -aseg aseg -orig white -noaparc -mgz -T1 ' + 'T1brain' + ' -T2 ' + opj(FS_dir,animal_folder, 'mri', 'brain ') + animal_folder + ' ' + Hmin[H] + 'h'
                 spco([command], shell=True)
 
     elif do_surfacewith == 'T1':
         for H in range(2):
-            command = export_FS + 'singularity run' + s_bind + fs_sif + 'mris_make_surfaces -white NOWRITE -aseg aseg -orig white -noaparc -mgz -T1 brain ' + animal_folder + ' ' + Hmin[H] + 'h'
+            command = export_FS + ';singularity run' + s_bind + fs_sif + 'mris_make_surfaces -white NOWRITE -aseg aseg -orig white -noaparc -mgz -T1 brain ' + animal_folder + ' ' + Hmin[H] + 'h'
             spco([command], shell=True)

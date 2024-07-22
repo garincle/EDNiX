@@ -47,7 +47,7 @@ def White_create(FS_dir, monkey,s_bind,fs_sif):
         shutil.copyfile(opj(FS_dir,monkey,'surf', Hmin[H] + 'h.orig.nofix'),    opj(FS_dir,monkey,'surf', Hmin[H] + 'h.orig'))
         shutil.copyfile(opj(FS_dir,monkey,'surf', Hmin[H] + 'h.inflated.nofix'),opj(FS_dir,monkey,'surf', Hmin[H] + 'h.inflated'))
     
-        command = export_FS + 'singularity run' + s_bind + fs_sif + 'mris_fix_topology -mgz -sphere qsphere.nofix -ga ' + monkey + ' ' + Hmin[H] + 'h'
+        command = export_FS + ';singularity run' + s_bind + fs_sif + 'mris_fix_topology -mgz -sphere qsphere.nofix -ga ' + monkey + ' ' + Hmin[H] + 'h'
         spco([command], shell=True)
         command = 'singularity run' + s_bind + fs_sif + 'mris_euler_number ' + opj(FS_dir,monkey,'surf',Hmin[H] + 'h.orig')
         spco([command], shell=True)
@@ -55,7 +55,7 @@ def White_create(FS_dir, monkey,s_bind,fs_sif):
         spco([command], shell=True)
         
         # 3) Fine white surface;  The coarse white surface is modified according to the 3 images: "wm", "aseg" and "brain".
-        command = export_FS + 'singularity run' + s_bind + fs_sif + 'mris_make_surfaces -aseg aseg -whiteonly -noaparc -mgz -T1 brain ' + monkey + ' ' + Hmin[H] + 'h'
+        command = export_FS + ';singularity run' + s_bind + fs_sif + 'mris_make_surfaces -aseg aseg -whiteonly -noaparc -mgz -T1 brain ' + monkey + ' ' + Hmin[H] + 'h'
         spco([command], shell=True)
         
         os.remove(opj(FS_dir,monkey,'surf', Hmin[H] + 'h.inflated'))
