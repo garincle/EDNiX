@@ -69,6 +69,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_
         tx = ants.new_ants_transform(dimension=3)
         tx.set_parameters([1., 0., 0., 0., 1., 0., 0., 0., 1., 0., 0., 0])
         ants.write_transform(tx, opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat'))
+        ants.write_transform(tx, opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'))
 
     else:
 

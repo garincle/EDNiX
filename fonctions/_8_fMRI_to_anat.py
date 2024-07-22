@@ -45,7 +45,7 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
     TRANS = ants.apply_transforms(fixed=BRAIN, moving=MEAN,
                                   transformlist=mvt_shft_ANTs,
                                   interpolator=n_for_ANTS,
-                                  which2invert=w2inv_inv)
+                                  which2invert=w2inv_fwd)
 
     ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro2, 'Mean_Image_RcT_SS_in_anat.nii.gz'), ri=False)
 
@@ -56,9 +56,9 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
         FUNC = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz'))
 
         TRANS = ants.apply_transforms(fixed=BRAIN, moving=FUNC,
-                                      transformlist=mvt_shft_INV_ANTs,
+                                      transformlist=mvt_shft_ANTs,
                                       interpolator=n_for_ANTS,
-                                      which2invert=w2inv_inv,imagetype=3)
+                                      which2invert=w2inv_fwd,imagetype=3)
 
         ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro2, root_RS + '_residual_in_anat.nii.gz'), ri=False)
 
