@@ -18,7 +18,7 @@ spgo = subprocess.getoutput
 ########################## Step 3 normalisation to template atlas space ############
 ####################################################################################
 def to_common_template_space(Session, deoblique_exeption1, deoblique_exeption2, deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, BASE_SS_coregistr,
-                nb_run, RS, transfo_concat_inv,w2inv_Anat, TR, n_for_ANTS, list_atlases, TfMRI, BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template,
+                nb_run, RS, transfo_concat_inv,w2inv_Anat,do_anat_to_func, TR, n_for_ANTS, list_atlases, TfMRI, BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template,
                 anat_func_same_space, orientation, path_anat, ID, REF_int, dir_prepro, IhaveanANAT, overwrite,s_bind,afni_sif):
 
 
@@ -30,10 +30,17 @@ def to_common_template_space(Session, deoblique_exeption1, deoblique_exeption2, 
             spco([command], shell=True)
 
     else:
-        mvt_shft_ANTs = [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
-                         opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
-                         opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')]
-        w2inv_fwd = [False, False, False]
+        if do_anat_to_func == True:
+            mvt_shft_ANTs = [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
+                             opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
+                             opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')]
+            w2inv_fwd = [False, False, False]
+        elif do_anat_to_func == False and anat_func_same_space == True:
+            mvt_shft_ANTs = []
+            w2inv_fwd = []
+        else : print('ERROR: If Anat and Func are not in the same space you need to perform that trasnformation (do_anat_to_func = True)')
+
+
 
         ##### creat new variable  for template space
         if ope(dir_fMRI_Refth_RS_prepro3) == False:
@@ -130,9 +137,9 @@ def to_common_template_space(Session, deoblique_exeption1, deoblique_exeption2, 
             MEAN = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_SS_pre.nii.gz'))
             REF  = ants.image_read(opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz'))
             TRANS = ants.apply_transforms(fixed=REF, moving=MEAN,
-                                          transformlist=mvt_shft_ANTs + transfo_concat_inv,
+                                          transformlist=transfo_concat_inv + mvt_shft_ANTs,
                                           interpolator=n_for_ANTS,
-                                          which2invert=w2inv_fwd + w2inv_Anat)
+                                          which2invert=w2inv_Anat + w2inv_fwd)
             ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz'), ri=False)
 
 
