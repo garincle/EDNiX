@@ -500,7 +500,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print('##########   Working on step ' + str(9) + ' _9_coregistration_to_template_space  ###############')
                 print(str(ID) + ' Session ' + str(Session))
                 fonctions._9_coregistration_to_template_space.to_common_template_space(Session, deoblique_exeption1, deoblique_exeption2, deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, BASE_SS_coregistr,
-                    nb_run, RS, transfo_concat_inv,w2inv_inv, TR, n_for_ANTS, list_atlases, TfMRI, BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template, anat_func_same_space, orientation, path_anat, ID, REF_int, dir_prepro, IhaveanANAT, overwrite,s_bind,afni_sif)
+                    nb_run, RS, transfo_concat_inv,w2inv_inv,do_anat_to_func, TR, n_for_ANTS, list_atlases, TfMRI, BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template, anat_func_same_space, orientation, path_anat, ID, REF_int, dir_prepro, IhaveanANAT, overwrite,s_bind,afni_sif)
 
             if 10 in Skip_step:
                 print('skip step ' + str(10))

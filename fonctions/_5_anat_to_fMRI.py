@@ -56,21 +56,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_
     w2inv_fwd = [False,False, False]
 
     if anat_func_same_space == True and do_anat_to_func == False:
-
-        command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz') + \
-                  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'FakeWarp.nii.gz') + ' -expr "a*0"'
-        spco([command], shell=True)
-
-        command = 'singularity run' + s_bind + afni_sif + '3dTcat ' + overwrite + ' ' + opj(dir_fMRI_Refth_RS_prepro1, 'FakeWarp.nii.gz') + ' ' + opj(dir_fMRI_Refth_RS_prepro1, 'FakeWarp.nii.gz') + ' ' + opj(dir_fMRI_Refth_RS_prepro1, 'FakeWarp.nii.gz') + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1InverseWarp.nii.gz')
-        spco([command], shell=True)
-        command = 'singularity run' + s_bind + afni_sif + '3dTcat ' + overwrite + ' ' + opj(dir_fMRI_Refth_RS_prepro1, 'FakeWarp.nii.gz') + ' ' + opj(dir_fMRI_Refth_RS_prepro1, 'FakeWarp.nii.gz') + ' ' + opj(dir_fMRI_Refth_RS_prepro1, 'FakeWarp.nii.gz') + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz')
-        spco([command], shell=True)
-
-        tx = ants.new_ants_transform(dimension=3)
-        tx.set_parameters([1., 0., 0., 0., 1., 0., 0., 0., 1., 0., 0., 0])
-        ants.write_transform(tx, opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat'))
-        ants.write_transform(tx, opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'))
-
+        print('No anat to func step required')
     else:
 
         if 'i' in SED:
