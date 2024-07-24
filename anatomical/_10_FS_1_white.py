@@ -93,7 +93,7 @@ def White_more(FS_dir, monkey, FS_buckner40_TIF, FS_buckner40_GCS,s_bind,fs_sif)
         #      sampling 10 neighbors out to a distance of 10mm (10mm true for human what about monkeys data  ? I chose 5mm from the size factor)
         #                  lh.orig.H = mean curvature
         #	               lh.orig.K = gaussian curvature
-        command = export_FS + 'singularity run' + s_bind + fs_sif + 'mris_curvature_stats -m --writeCurvatureFiles -G -o ' + opj(FS_dir,monkey,'stats',Hmin[H] + 'h.curv.stats') + \
+        command = export_FS + ';singularity run' + s_bind + fs_sif + 'mris_curvature_stats -m --writeCurvatureFiles -G -o ' + opj(FS_dir,monkey,'stats',Hmin[H] + 'h.curv.stats') + \
         ' -F smoothwm ' + monkey + ' ' + Hmin[H] + 'h curv sulc'
         spco([command], shell=True)
         
@@ -108,7 +108,7 @@ def White_more(FS_dir, monkey, FS_buckner40_TIF, FS_buckner40_GCS,s_bind,fs_sif)
 
         DIR = os.getcwd()
         os.chdir(opj(FS_dir,monkey,'surf'))
-        command = export_FS + 'singularity run' + s_bind + fs_sif + 'mris_register -curv -dist 5 -max_degrees 68 ' + Hmin[H] + 'h.sphere ' + opj(FS_buckner40_TIF, Hmin[H] + TIF) + \
+        command = export_FS + ';singularity run' + s_bind + fs_sif + 'mris_register -curv -dist 5 -max_degrees 68 ' + Hmin[H] + 'h.sphere ' + opj(FS_buckner40_TIF, Hmin[H] + TIF) + \
         ' ' + Hmin[H] + 'h.sphere.reg'
         spco([command], shell=True)
         os.chdir(DIR)
@@ -120,7 +120,7 @@ def White_more(FS_dir, monkey, FS_buckner40_TIF, FS_buckner40_GCS,s_bind,fs_sif)
         
         # 3.4 define what is the cortex: if thi step is not done the T2 correction 
         # (beware it has the tendency to overestimate the cortical thickness and to cross the middline)
-        command = export_FS + 'singularity run' + s_bind + fs_sif + 'mris_ca_label -l ' + opj(FS_dir,monkey,'label',Hmin[H] + 'h.cortex.label') + \
+        command = export_FS + ';singularity run' + s_bind + fs_sif + 'mris_ca_label -l ' + opj(FS_dir,monkey,'label',Hmin[H] + 'h.cortex.label') + \
         ' -aseg ' + opj(FS_dir,monkey,'mri','aseg.mgz') + \
         ' ' + monkey + ' ' + Hmin[H] + 'h' + \
         ' ' + opj(FS_dir,monkey,'surf',Hmin[H] + 'h.sphere.reg') + \
