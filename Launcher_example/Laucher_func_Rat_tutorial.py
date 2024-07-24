@@ -327,9 +327,9 @@ GM_mask_studyT = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm
 ########## if creat_study_template = False ##########
 
 # if creat_study_template== False you need to provide this
-BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','Rat','templateT2.nii.gz') # sting
-BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','Rat','brain_mask.nii.gz') # sting
-GM_mask     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','Rat','GM.nii.gz') # sting
+BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','RatWHS','templateT2.nii.gz') # sting
+BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','RatWHS','BrainMask.nii.gz') # sting
+GM_mask     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','RatWHS','CorticalMask.nii.gz') # sting
 
     ##########################################################
     ##### define atlases that are in template space ##########
@@ -446,7 +446,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,14,100]
+Skip_step = [1,2,3,4,5,6,7,8,100]
 
     ############################################################
     ######################## START de pipeline #################
