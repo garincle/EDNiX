@@ -311,11 +311,11 @@ def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skul
         #convert to float
         command = 'singularity run' + s_bind + fs_sif + 'mri_convert -odt float ' + input_for_msk + ' ' + input_for_msk[:-7] + '_float.nii.gz'
         spco([command], shell=True)
-        mask_img = compute_epi_mask(input_for_msk[:-7] + '_float.nii.gz', lower_cutoff=0.2, upper_cutoff=0.80, connected=True, opening=3,
+        mask_img = compute_epi_mask(input_for_msk[:-7] + '_float.nii.gz', lower_cutoff=0.7, upper_cutoff=0.80, connected=True, opening=3,
             exclude_zeros=False, ensure_finite=True)
         mask_img.to_filename(output_for_mask)
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
-        ' -input ' + output_for_mask + ' -fill_holes -dilate_input 6 -1'
+        ' -input ' + output_for_mask + ' -fill_holes -dilate_input 2 -1'
         spco(command, shell=True)
 
     elif brain_skullstrip == 'Custum_dog':
