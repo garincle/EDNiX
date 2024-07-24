@@ -73,7 +73,7 @@ def WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2
     cmd = 'singularity run' + s_bind + fs_sif + 'mri_convert -odt float ' + Ref_file + ' ' + opj(wb_native_dir,'dummy.nii.gz')
     spco(cmd,shell=True)
 
-    cras = str(spco('mri_info --cras ' + opj(wb_native_dir,'dummy.nii.gz'), shell=True))
+    cras = str(spco('singularity run' + s_bind + fs_sif + 'mri_info --cras ' + opj(wb_native_dir,'dummy.nii.gz'), shell=True))
     os.remove(opj(wb_native_dir,'dummy.nii.gz'))
     mm = cras[2:-3].split(" ")
     c_ras = [[1, 0, 0, float(mm[0])], [0, 1, 0, float(mm[1])], [0, 0, 1, float(mm[2])]]
@@ -149,7 +149,7 @@ def WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2
         spco([command], shell=True)
 
         # flat map
-        if h == 0 and opi(opj(FS_dir, animal_folder, 'surf', Hmin[h] + 'h.full.flatten.patch.3d')) == True :
+        if h == 0 and ope(opj(FS_dir, animal_folder, 'surf', Hmin[h] + 'h.full.flatten.patch.3d')) == True :
             command = 'singularity run' + s_bind + fs_sif + 'mris_convert_v6 -p ' + opj(FS_dir, animal_folder, 'surf', Hmin[h] + 'h.full.flatten.patch.3d') + \
                   ' ' + opj(dir_native_resol, animal_folder + '.' + Hmin[h] + '.flat.surf.gii') + \
                   ';singularity run' + s_bind + wb_sif + 'wb_command -set-structure ' + opj(dir_native_resol,animal_folder + '.' + Hmin[h] + '.flat.surf.gii') + ' ' + \
@@ -164,7 +164,7 @@ def WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2
                       ' ' + opj(dir_native_resol, animal_folder + '.' + Hmin[h] + '.flat.surf.gii')
             nl = spgo(command)
 
-        elif h == 1 and opi(opj(FS_dir, animal_folder, 'surf', Hmin[h] + 'h.full.flatten.patch.3d')) == True :
+        elif h == 1 and ope(opj(FS_dir, animal_folder, 'surf', Hmin[h] + 'h.full.flatten.patch.3d')) == True :
             command = 'singularity run' + s_bind + wb_sif + 'mris_convert_v6 -p ' + opj(FS_dir, animal_folder, 'surf', Hmin[h] + 'h.full.flatten.patch.3d') + \
                       ' ' + opj(dir_native_resol, animal_folder + '.' + Hmin[h] + '.flat.surf.gii') + \
                       ';singularity run' + s_bind + wb_sif + 'wb_command -set-structure ' + opj(dir_native_resol, animal_folder + '.' + Hmin[h] + '.flat.surf.gii') + ' ' + \
@@ -279,7 +279,7 @@ def WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2
         dir_native_resol, animal_folder + '.r.roi.shape.gii') + \
               ';singularity run' + s_bind + wb_sif + 'wb_command -set-map-names ' + opj(dir_native_resol,
                                                   animal_folder + '.thickness.dscalar.nii') + ' -map 1 ' + animal_folder + '_thickness' + \
-              ';wb_command -cifti-palette ' + opj(dir_native_resol, animal_folder + '.thickness.dscalar.nii') + \
+              ';singularity run' + s_bind + wb_sif + 'wb_command -cifti-palette ' + opj(dir_native_resol, animal_folder + '.thickness.dscalar.nii') + \
               ' MODE_AUTO_SCALE_PERCENTAGE ' + opj(dir_native_resol, animal_folder + '.thickness.dscalar.nii') + \
               ' -pos-percent 4 96 -interpolate true -palette-name videen_style -disp-pos true -disp-neg false -disp-zero false'
     spco([command], shell=True)

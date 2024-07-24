@@ -232,7 +232,7 @@ template_skullstrip = ''
 stdy_template_mask = ''
 stdy_template = ''
 
-do_surfacewith = 'T1w' #'T1' 'T1andT2'
+do_surfacewith = 'T1' #'T1' 'T1andT2'
 
     ##########################################
     ###########define orientation#############
