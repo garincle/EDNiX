@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import subprocess
 import ants
 from nilearn import plotting
@@ -19,7 +20,7 @@ spgo = subprocess.getoutput
 #################################################
 
 
-def clean_anat(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, otheranat, type_norm, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, dir_prepro, masking_img, do_manual_crop,
+def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, otheranat, type_norm, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, dir_prepro, masking_img, do_manual_crop,
     brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, BASE_bet, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, overwrite,
                s_bind,afni_sif,fsl_sif,fs_sif):
 
@@ -71,14 +72,46 @@ def clean_anat(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, ot
     print(Timage)
 
     #### align anat img to atlas template
+    if Align_img_to_template == '3dAllineate':
+        command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -warp shift_rotate -cmass -base ' + BASE_SS + \
+        ' -cost ' + cost3dAllineate + \
+        ' -source_mask ' + opj(masks_dir, ID + type_norm + '_mask_1_rsp.nii.gz') + \
+        ' -prefix ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + \
+        ' -source ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz') + ' -1Dmatrix_save ' + \
+        opj(dir_prepro,ID + '_brain_for_Align_Center.1D')
+        spco(command, shell=True)
+    elif Align_img_to_template == '@Align_Centers':
+        current_working_directory = os.getcwd()
+        os.chdir(dir_prepro)
+        command = 'singularity run' + s_bind + afni_sif + '@Align_Centers -base ' + BASE_SS + \
+        ' -dset ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz') + ' -cm -prefix ' + ID + '_brain_for_Align_Center'
+        spco([command], shell=True)
 
-    command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -warp shift_rotate -cmass -base ' + BASE_SS + \
-    ' -cost ' + cost3dAllineate + \
-    ' -source_mask ' + opj(masks_dir, ID + type_norm + '_mask_1_rsp.nii.gz') + \
-    ' -prefix ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + \
-    ' -source ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz') + ' -1Dmatrix_save ' + \
-    opj(dir_prepro,ID + '_brain_for_Align_Center.1D')
-    spco(command, shell=True)
+        command = 'singularity run' + s_bind + afni_sif + '3dcopy ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz') + ' ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + overwrite
+        spco([command], shell=True)
+
+        os.chdir(str(current_working_directory))
+    elif Align_img_to_template == 'No':
+        command = 'singularity run' + s_bind + afni_sif + '3dcopy ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz') + ' ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + overwrite
+        spco([command], shell=True)
+        def create_1D_matrix(filename, matrix):
+            if matrix.shape != (3, 4):
+                raise ValueError("Matrix must be 3x4 for a valid AFNI transformation.")
+            # Flatten the matrix to 1D and save it
+            flat_matrix = matrix.flatten()
+            np.savetxt(filename, [flat_matrix], fmt='%.6f')
+
+        # Example usage
+        filename = '/srv/projects/easymribrain/data/MRI/Bat/BIDS_bat/sub-1/ses-1/anat/native/01_preprocess/1_brain_for_Align_Center.1D'
+        matrix = np.array([
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0]])
+        create_1D_matrix(filename, matrix)
+        print(f".1D matrix file saved as {filename}")
+    else:
+        print('ERROR: Align_img_to_template need to be define (3dAllineate, @Align_Centers, No)')
+
 
     command = 'export AFNI_NIFTI_TYPE_WARN=NO'
     spco([command], shell=True)
@@ -137,21 +170,6 @@ def clean_anat(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, ot
         ' -input  ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz')
         spco([command], shell=True)
 
-        '''
-        #caca2 = resample_to_img(opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz'), opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz'), interpolation='nearest')
-        #caca2.to_filename(opj(dir_prepro, ID + '_acpc' + Timage + '.nii.gz'))
-
-        command = 'antsApplyTransforms -d 3 -i ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz') + \
-        ' -r ' + BASE_SS + \
-        ' -o ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + \
-        ' -t ' + opj(dir_transfo, ID + '_to_acpc_Rigid' + type_norm) + '0GenericAffine.mat'
-        spco([command], shell=True)
-        '''
-
-        ### to remove?? XXX
-        ######## convert to float #######
-        #command = 'mri_convert -odt float ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + ' ' + opj(dir_prepro, ID + '_acpc' + Timage + '.nii.gz')
-        #spco([command], shell=True)
 
         ####### optional crop !! save as "ID_acpc_cropped.nii.gz" #######
         if do_manual_crop == True:

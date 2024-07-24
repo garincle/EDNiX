@@ -152,19 +152,19 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             if Session_anat == max_ses_anat:
 
                 transfo_concat = \
-                    [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat')]
+                    [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
+                    opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
+                    opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),
+                    opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz')]
                 w2inv_fwd = [False,False,False,False]
 
                 ####
                 transfo_concat_inv = \
-                    [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1InverseWarp.nii.gz'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz')]
-                w2inv_inv = [True, False, True, False]
+                    [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1InverseWarp.nii.gz'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')]
+                w2inv_inv = [False, True, False, True]
 
             else:
                 data_path_max = opj(bids_dir,'sub-' + ID,'ses-' + str(max_ses_anat))
@@ -176,19 +176,20 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 masks_dir_max     = opj(volumes_dir_max,'masks')
 
                 transfo_concat = \
-                    [opj(dir_transfo,    'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
-                     opj(dir_transfo,    'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
-                     opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
-                     opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')]
+                    [opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
+                     opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
+                     opj(dir_transfo_max, 'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),
+                     opj(dir_transfo_max, 'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz')]
+
                 w2inv_fwd = [False,False,False,False]
 
                 #### if doesn't work change the order
                 transfo_concat_inv = \
-                    [opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
-                     opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz'),
-                     opj(dir_transfo,    'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
-                     opj(dir_transfo,    'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz')]
-                w2inv_inv = [True, False, True, False]
+                    [opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_1InverseWarp.nii.gz'),
+                     opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')]
+                w2inv_inv = [False, True, False, True]
 
 
             if creat_study_template == True:
@@ -210,8 +211,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 BASE_SS_mask = BASE_mask
 
             transfo_concat = \
-                [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
-                 opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')]
+                [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
+                 opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz')]
             w2inv_fwd = [False, False]
 
             transfo_concat_inv = \
