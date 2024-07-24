@@ -40,20 +40,13 @@ def correct_orient(BIDStype,
     for Timage in listTimage:
         # get variables from json
         if BIDStype == 1:
-            list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_ses-' + str(Session) + '_run-*' + Timage + '.nii.gz')))
-            print(list_anat)
+            list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_ses-' + str(Session) + '_*' + Timage + '.nii*')))
         elif BIDStype == 2:
-            list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_' + Timage + '.nii.gz')))
-            print(list_anat)
-        elif BIDStype == 3:
-            list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_ses-' + str(Session) + '_' + Timage + '.nii.gz')))
-            print(list_anat)
-        else:
-            print('no anat img found!!!!!!!!!!!!!')
-
+            list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_' + Timage + '.nii*')))
 
         if len(list_anat)==1:
-            print('test for one run')
+            print('INFO: We found only one anat images for this session')
+            print(list_anat)
             #list_anat = [opj(path_anat, 'sub-' + ID + '_ses-' + str(Session) + '_' + Timage + '.nii.gz')]
             print(ope(list_anat[0]))
             #shutil.copyfile(list_anat[0], opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz'))
@@ -65,17 +58,24 @@ def correct_orient(BIDStype,
             ###########remove norm anat #########
             ###################################
         elif len(list_anat)>1:
+            print('INFO: We found ' + str(len(list_anat)) + ' anat images for this session')
+            print(list_anat)
             for i, anat in enumerate(list_anat):
-                read_json = opj(opd(list_anat[i]), extract_filename(list_anat[i]) + '.json')
-                ff = open(read_json)
-                anat_T1 = json.load(ff)
-                ImageType = anat_T1["ImageType"]
-
-                # Compare the contents of the two files
-                if 'NORM' in ImageType:
-                    print('Removing ' + extract_filename(list_anat[i]) + ' as it is a NORM')
-                    list_anat.pop(i)
-                    # After removing the file, no need to increment i since the next file takes the place of the removed one
+                if ope(opj(opd(list_anat[i]), extract_filename(list_anat[i]) + '.json')):
+                    read_json = opj(opd(list_anat[i]), extract_filename(list_anat[i]) + '.json')
+                else:
+                    print("WARNING: No .json associated to the the anat image !! you might want to check that!")
+                    ff = open(read_json)
+                    anat_T1 = json.load(ff)
+                    try:
+                        ImageType = anat_T1["ImageType"]
+                        # Compare the contents of the two files
+                        if 'NORM' in ImageType:
+                            print('Removing ' + extract_filename(list_anat[i]) + ' as it is a NORM')
+                            list_anat.pop(i)
+                            # After removing the file, no need to increment i since the next file takes the place of the removed one
+                    except:
+                        print("WARNING No ImageType, could not check if NORM image was included in your BIDS, you might want to check that!")
 
             if len(list_anat) > 1:
                 ANAT= ' '.join(list_anat)
@@ -88,6 +88,8 @@ def correct_orient(BIDStype,
                 command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + list_anat[0] + \
                 ' -prefix ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz') + ' -expr "a"' + overwrite
                 spco([command], shell=True)
+        else:
+            print('#############################   Error no anat img found!! Please check BIDStype variable, it might not be adapted ##############################################')
 
         #command = 'singularity run' + s_bind + afni_sif + '3drefit -space ORIG ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz')
         #spco([command], shell=True)
