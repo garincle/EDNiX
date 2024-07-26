@@ -251,7 +251,7 @@ FS_buckner40_GCS = opj(FS_dir,'MacaqueYerkes19')
     ##########################################
 
 
-list_atlases = ['/srv/projects/easymribrain/data/Atlas/13_Atlas_project/0_Atlas_modify/Atlas/Mustached_bat/atlas.nii.gz']
+list_atlases = ['/srv/projects/easymribrain/data/Atlas/13_Atlas_project/0_Atlas_modify/Atlas/Bat/atlas.nii.gz']
 
 BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'templateT2.nii.gz') # sting
 BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'BrainMask.nii.gz') # sting
@@ -292,7 +292,7 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [1,2,3,4,5,8,9,10,11,12,13,14,15]
+Skip_step = [1,2,3,4,5,6,8,9,10,11,12,13,14,15]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 

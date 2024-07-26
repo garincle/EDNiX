@@ -186,7 +186,6 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
         ################# coregistration longitudinal ???? #################
 
         if coregistration_longitudinal==True:
-
             data_path_max     = opj(bids_dir,'sub-' + ID,'ses-' + str(max_ses))
             path_anat_max     = opj(data_path_max,'anat')
             dir_transfo_max   = opj(path_anat_max,'matrices')
@@ -328,11 +327,11 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
 
         if 6 in Skip_step:
             print('skip step ' + str(6))
-
         else:
             anatomical._6_stdyT_to_AtlasT.stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_ANTS, study_template_atlas_forlder, Atemplate_to_Stemplate, overwrite,
                                                           s_bind,afni_sif)
 
+        ###### re-define the variable: study template atlas, etc should now be the new template !!
         list_atlases3 = list_atlases
         list_atlases = []
         for atlas_new in list_atlases3:
@@ -343,14 +342,18 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
         BASE_mask2 = BASE_mask
         Aseg_ref2 = Aseg_ref
         Aseg_refLR2 = Aseg_refLR
-
         BASE_SS     = opj(dir_out, opb(BASE_SS2))
         BASE_mask   = opj(dir_out, opb(BASE_mask2))
 
         ####atlases files
-        Aseg_ref = opj(dir_out, opb(Aseg_ref2))
-        Aseg_refLR = opj(dir_out, opb(Aseg_refLR2))
-
+        if ope(Aseg_ref2):
+            Aseg_ref = opj(dir_out, opb(Aseg_ref2))
+        else:
+            Aseg_ref = ''
+        if ope(Aseg_ref2):
+            Aseg_refLR = opj(dir_out, opb(Aseg_refLR2))
+        else:
+            Aseg_refLR = ''
 
     ###### LOOP AGAIN ######
 
