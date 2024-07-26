@@ -87,13 +87,13 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
     for atlas in list_atlases2:
         print(atlas)
         if ope(atlas):
+
             command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -interp NN -1Dmatrix_apply ' + opj(dir_out,'Align_Center_shft.1D') + \
             ' -prefix ' + opj(dir_out, opb(ops(ops(atlas)[0])[0]) + '_Allin.nii.gz') + \
             ' -master ' + stdy_template + \
             ' -input  ' + atlas
             spco([command], shell=True)
             IMG = ants.image_read(opj(dir_out, opb(ops(ops(atlas)[0])[0]) + '_Allin.nii.gz'))
-
             TRANS = ants.apply_transforms(fixed=REF, moving=IMG,
                                           transformlist=mTx['fwdtransforms'], interpolator='nearestNeighbor')
             ants.image_write(TRANS, opj(dir_out, opb(atlas)), ri=False)

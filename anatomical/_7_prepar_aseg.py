@@ -27,22 +27,15 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
     spco([command], shell=True)
     print(command)
 
-
     brain_img  = ants.image_read(Ref_file)
     MSK = ants.image_read(BASE_SS_mask)
     IMG  = ants.image_read(BASE_SS_coregistr)
-
     TRANS = ants.apply_transforms(fixed=brain_img, moving=MSK,
                                   transformlist=transfo_concat, interpolator='nearestNeighbor',which2invert=w2inv_fwd)
     ants.image_write(TRANS, opj(masks_dir,'brain_mask_in_anat_DC.nii.gz'), ri=False)
-
-
     TRANS = ants.apply_transforms(fixed=brain_img, moving=IMG,
                                   transformlist=transfo_concat, interpolator=n_for_ANTS,which2invert=w2inv_fwd)
     ants.image_write(TRANS, opj(dir_prepro,'template_in_anat_DC.nii.gz'), ri=False)
-
-
-
     command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(dir_prepro,'template_in_anat_DC.nii.gz') + ' -expr "step(a)*b" -prefix ' + opj(dir_prepro,'template_in_anat_DC.nii.gz')
     spco([command], shell=True)
 
@@ -56,11 +49,13 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
                 ants.image_write(TRANS, opj(labels_dir,type_norm + opb(atlas)), ri=False)
                 command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(labels_dir,type_norm + opb(atlas)) + ' -expr "step(a)*b" -prefix ' + opj(labels_dir,type_norm + opb(atlas))
                 spco([command], shell=True)
+                print('INFO: done with atlas in subject space! you should check that')
             else:
                 print('WARNING: no atlas found')
 
     #### apply to asegLR
     if ope(Aseg_refLR):
+        print('INFO: found Aseg_refLR:' + str(Aseg_refLR))
         IMG = ants.image_read(Aseg_refLR)
         TRANS = ants.apply_transforms(fixed=brain_img, moving=IMG,
                                       transformlist=transfo_concat, interpolator='nearestNeighbor',whichtoinvert=w2inv_fwd)
@@ -70,7 +65,7 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
     else:
         print('WARNING: no Aseg_refLR found')
 
-    if ope(Aseg_refLR):
+    if ope(Aseg_ref):
         #### apply to aseg
         IMG = ants.image_read(Aseg_ref)
         TRANS = ants.apply_transforms(fixed=brain_img, moving=IMG,
