@@ -12,7 +12,7 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 
-def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref, type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, creat_study_template, dir_out, diratlas_orig, check_visualy_each_img, n_for_ANTS, overwrite,
+def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref, type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, check_visualy_each_img, n_for_ANTS, overwrite,
                 s_bind,afni_sif,fs_sif):
     print("BASE_SS_mask is " + BASE_SS_mask)
     print("BASE_SS_coregistr is " + BASE_SS_coregistr)

@@ -247,7 +247,7 @@ def to_common_template_space(Session, deoblique_exeption1, deoblique_exeption2, 
               ' -input  ' + BASE_SS_mask
     spco([command], shell=True)
 
-    if creat_sutdy_template== True:
+    if creat_study_template== True:
         command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \
                   ' -orient ' + orient_meanimg + \
                   ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro3,'Gmask.nii.gz') + \

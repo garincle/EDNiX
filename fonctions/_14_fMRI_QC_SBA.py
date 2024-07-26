@@ -156,7 +156,7 @@ def fMRI_QC_SBA(Seed_name, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMR
     '''
 
                     # Open the file in append mode and add the new line
-                    with open(opd(output_results) + '/fMRI_QC/'+ root_RS + 'QC_result.txt', 'a+') as file:
+                    with open(opd(output_results) + '/fMRI_QC/' + root_RS + 'QC_result.txt', 'w') as file:
                         # Move the pointer to the end of the file
                         file.seek(0, 2)
                         # Check if the file already ends with a newline
@@ -165,7 +165,7 @@ def fMRI_QC_SBA(Seed_name, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMR
                             last_char = file.read(1)
                             if last_char != '\n':
                                 file.write('\n')
-                        file.write("Global Clustering Index:", global_clustering_index)
+                        file.write("Global Clustering Index SBA:", global_clustering_index)
 
                 else:
                     print("correlation file of the seed does not exists, please check that")

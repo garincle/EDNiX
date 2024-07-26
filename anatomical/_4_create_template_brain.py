@@ -6,6 +6,7 @@
 ####### CREATE THE STUDY TEMPLATE (IF YOU WANT ON) ###########################
 ##############################################################################
 import os
+import nibabel as nib
 import subprocess
 from nilearn import plotting
 import anatomical.Skullstrip_method
@@ -20,7 +21,7 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, otheranat,
-    check_visualy_final_mask, useT1T2_for_coregis, bids_dir, overwrite, BASE_bet, s_bind,afni_sif,fsl_sif,fs_sif):
+    check_visualy_final_mask, useT1T2_for_coregis, bids_dir, overwrite, BASE_bet, s_bind,afni_sif,fsl_sif,fs_sif, itk_sif):
 
     if ope(opj(masks_dir, ID + '_finalmask.nii.gz')):
         output_for_mask = opj(masks_dir, ID + '_finalmask.nii.gz')
@@ -29,7 +30,7 @@ def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir
         step_skullstrip = 2
         brain_skullstrip = 'brain_skullstrip_2'
         output_for_mask =  anatomical.Skullstrip_method.Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
-    otheranat, ID, Session, check_visualy_final_mask, overwrite, BASE_bet, s_bind,afni_sif,fsl_sif,fs_sif)
+        otheranat, ID, Session, check_visualy_final_mask, overwrite, BASE_bet, s_bind,afni_sif,fsl_sif,fs_sif, itk_sif)
 
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
         ' -input ' + output_for_mask + ' -fill_holes'
@@ -93,8 +94,27 @@ def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir
                                            spline_param=200)
         ants.image_write(N4, opj(dir_prepro,ID + '_' + type_norm + '_brain_N4.nii.gz'), ri=False)
 
+        try:
+            # Load the NIfTI image
+            img = nib.load(file_path)
+            # Get the image data
+            data = img.get_fdata()
+            # Check if all the data is zero
+            return np.all(data == 0)
+        except:
+            print("WARNING: N4BiasFieldCorrection failed, we can continue it is not the end of the world =)")
+            command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + \
+                      ' -expr "a" -prefix ' + opj(dir_prepro, ID + '_' + type_norm + '_brain_N4.nii.gz')
+            spco([command], shell=True)
+
+        if np.all(data == 0)== True:
+            print("WARNING: N4BiasFieldCorrection failed, we can continue it is not the end of the world =)")
+            command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + \
+                      ' -expr "a" -prefix ' + opj(dir_prepro, ID + '_' + type_norm + '_brain_N4.nii.gz')
+            spco([command], shell=True)
+
     except:
-        print("N4BiasFieldCorrection failed, we cna continue it is not that bad")
+        print("WARNING: N4BiasFieldCorrection failed, we can continue it is not the end of the world =)")
         command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + \
                 ' -expr "a" -prefix ' + opj(dir_prepro,ID + '_' + type_norm + '_brain_N4.nii.gz')
         spco([command], shell=True)

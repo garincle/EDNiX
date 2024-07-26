@@ -4,8 +4,12 @@ from nipype.caching import Memory
 from sklearn.utils import Bunch
 import anatomical.Histrogram_mask_EMB
 import os
+import tempfile
+import subprocess
+spgo = subprocess.getoutput
+spco = subprocess.check_output
 
-def anats_to_common(anat_filenames, write_dir, brain_volume,
+def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
                     registration_kind='affine',
                     nonlinear_levels=[1, 2, 3],
                     nonlinear_minimal_patches=[75],
@@ -13,6 +17,36 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
                     convergence=0.005, blur_radius_coarse=1.1,
                     caching=False, verbose=1,
                     unifize_kwargs=None, brain_masking_unifize_kwargs=None):
+    
+
+    # Create a temporary directory for the wrapper scripts
+    wrapper_dir = tempfile.mkdtemp()
+    sing_com = s_bind + afni_sif
+    # Define the path to the Singularity container
+    # List of AFNI commands to create wrappers for
+    afni_commands = [
+        '3dAllineate', '3dUnifize', '3dcalc',
+        '3dCM', '3drefit', '3dTcat', '3dTstat', '3dUndump', '3dresample', 'cat_matvec',
+        '3dmask_tool', '3dQwarp', '3dNwarpAdjust', '3dNwarpCat', '3dNwarpApply', '3dcopy',
+    ]
+
+    # Create wrapper scripts
+    for cmd in afni_commands:
+        wrapper_path = os.path.join(wrapper_dir, cmd)
+        with open(wrapper_path, 'w') as wrapper_file:
+            # Redirect stderr to /dev/null to suppress warnings
+            wrapper_file.write(f"#!/bin/bash\nsingularity run {sing_com} {cmd} \"$@\" 2>/dev/null")
+        os.chmod(wrapper_path, 0o755)
+
+    # Add the wrapper directory to the PATH environment variable
+    os.environ['PATH'] = f"{wrapper_dir}:{os.environ['PATH']}"
+
+    try:
+        result = subprocess.check_output(['3dAllineate', '--version'])
+        print(result.decode('utf-8'))
+    except subprocess.CalledProcessError as e:
+        print(e.output.decode('utf-8'))
+
     print('nonlinear_minimal_patches is ' + str(nonlinear_minimal_patches))
     print('nonlinear_levels is ' + str(nonlinear_levels))
     """ Create common template from native anatomical images and achieve
@@ -115,13 +149,10 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
             'Registration kind must be one of {0}, you entered {1}'.format(
                 registration_kinds, registration_kind))
 
-    if registration_kind == 'nonlinear' and len(anat_filenames) < 5:
+    if registration_kind is 'nonlinear' and len(anat_filenames) < 5:
         raise ValueError('At least 5 input files are required to make a '
                          'template by non-linear \n registration. Only '
                          '{0} have been provided.'.format(len(anat_filenames)))
-
-    ComputeMask = anatomical.Histrogram_mask_EMB.HistogramMask
-
     if verbose:
         terminal_output = 'stream'
         verbosity_kwargs = {'verbose': verbose > 1}
@@ -139,8 +170,6 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
         memory = Memory(write_dir)
         copy = memory.cache(afni.Copy)
         unifize = memory.cache(afni.Unifize)
-        clip_level = memory.cache(afni.ClipLevel)
-        compute_mask = memory.cache(ComputeMask)
         calc = memory.cache(afni.Calc)
         center_mass = memory.cache(afni.CenterMass)
         refit = memory.cache(afni.Refit)
@@ -166,8 +195,6 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
     else:
         copy = afni.Copy(terminal_output=terminal_output).run
         unifize = afni.Unifize(terminal_output=terminal_output).run
-        clip_level = afni.ClipLevel().run  # XXX fix nipype bug with 'none'
-        compute_mask = ComputeMask().run
         calc = afni.Calc(terminal_output=terminal_output).run
         center_mass = afni.CenterMass().run  # XXX fix nipype bug with 'none'
         refit = afni.Refit(terminal_output=terminal_output).run
@@ -253,21 +280,10 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
     brain_masking_in_files = []
     for n, anat_file in enumerate(copied_anat_filenames):
         out_unifize = unifize(in_file=anat_file,
-                              out_file='%s_Unifized_for_brain_masking',
+                              out_file='%s_Unifized_FBM',
                               outputtype='NIFTI_GZ',
                               **brain_masking_unifize_kwargs)
         brain_masking_in_files.append(out_unifize.outputs.out_file)
-
-    # brain mask creation
-    brain_mask_files = []
-    for n, brain_masking_in_file in enumerate(brain_masking_in_files):
-        out_clip_level = clip_level(in_file=brain_masking_in_file)
-        out_compute_mask = compute_mask(
-            in_file=brain_masking_in_file,
-            out_file=fname_presuffix(brain_masking_in_file, suffix='_mask'),
-            volume_threshold=brain_volume,
-            intensity_threshold=int(out_clip_level.outputs.clip_val))
-        brain_mask_files.append(out_compute_mask.outputs.out_file)
 
     # bias correction for images to be both brain-extracted with the mask
     # generated above and then passed on to the rest of the function
@@ -276,34 +292,44 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
 
     unifize_kwargs.update(quietness_kwargs)
     unifized_files = []
+    unifized_files_false_head = []
     for n, anat_file in enumerate(copied_anat_filenames):
         out_unifize = unifize(in_file=anat_file,
-                              out_file='%s_Unifized_for_brain_extraction',
+                              out_file='%s_Unifized_FBE',
                               outputtype='NIFTI_GZ',
                               **unifize_kwargs)
         unifized_files.append(out_unifize.outputs.out_file)
+        unifized_files_false_head.append(out_unifize.outputs.out_file)
 
+
+    '''
     # extrcat brains and set NIfTI image center (as defined in the header) to
     # the brain CoM
     brain_files = []
-    for (brain_mask_file, unifized_file) in zip(brain_mask_files,
+    for (brain_mask_file, unifized_file) in zip(unifized_files,
                                                 unifized_files):
         out_calc_mask = calc(in_file_a=unifized_file,
                              in_file_b=brain_mask_file,
                              expr='a*b',
                              outputtype='NIFTI_GZ')
-        out_center_mass = center_mass(
-            in_file=out_calc_mask.outputs.out_file,
-            cm_file=fname_presuffix(unifized_file, suffix='_cm.txt',
-                                    use_ext=False),
-            set_cm=(0, 0, 0))
-        brain_files.append(out_center_mass.outputs.out_file)
+        command = 'singularity run' + s_bind + afni_sif + ' 3dCM ' + out_calc_mask.outputs.out_file + ' -set 0 0 0'
+        arg = spgo(command).split('\n')[-1]
+        print(arg)
+        argstr = str(arg)
+        print(argstr)
+        brain_files.append(arg)
 
     # apply center change to head files too
     head_files = []
     for unifized_file, brain_file in zip(unifized_files, brain_files):
-        out_refit = refit(in_file=unifized_file, duporigin_file=brain_file)
-        head_files.append(out_refit.outputs.out_file)
+        # Split the string into separate components
+        components = argstr.split()
+        # Convert the components to floats and assign to variables
+        var1, var2, var3 = map(float, components)
+        #out_refit = refit(in_file=unifized_file, duporigin_file=brain_file)
+        command = 'singularity run' + s_bind + afni_sif + ' 3drefit ' + out_calc_mask.outputs.out_file + ' -xorigin_raw ' + str(var1) + ' -yorigin_raw ' + var2 + ' -zorigin_raw ' + var3
+        spco(command, shell=True)
+        head_files.append(out_calc_mask.outputs.out_file)
 
     # create an empty template with a center at the image matrix center
     out_undump = undump(in_file=out_tstat.outputs.out_file,
@@ -321,12 +347,13 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
                                 master=out_refit.outputs.out_file,
                                 outputtype='NIFTI_GZ')
         centered_brain_files.append(out_resample.outputs.out_file)
-    out_tcat = tcat(in_files=centered_brain_files,
+    '''
+    out_tcat = tcat(in_files=unifized_files,
                     out_file=os.path.join(write_dir, 'centered_brains.nii.gz'),
                     **verbosity_kwargs)
     out_tstat_centered_brain = tstat(in_file=out_tcat.outputs.out_file,
                                      outputtype='NIFTI_GZ')
-
+    '''
     # do the same for heads. is also a better quality check than the brain
     centered_head_files = []
     for head_file in head_files:
@@ -335,7 +362,8 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
                                 master=out_refit.outputs.out_file,
                                 outputtype='NIFTI_GZ')
         centered_head_files.append(out_resample.outputs.out_file)
-    out_tcat = tcat(in_files=centered_head_files,
+    '''
+    out_tcat = tcat(in_files=unifized_files,
                     out_file=os.path.join(write_dir, 'centered_heads.nii.gz'),
                     **verbosity_kwargs)
     out_tstat_centered_brain = tstat(in_file=out_tcat.outputs.out_file,
@@ -362,7 +390,7 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
     # rigid-body registration
     shift_rotated_brain_files = []
     rigid_transform_files = []
-    for centered_brain_file in centered_brain_files:
+    for centered_brain_file in unifized_files:
         suffixed_matrix = fname_presuffix(centered_brain_file,
                                           suffix='_shr.aff12.1D',
                                           use_ext=False)
@@ -381,7 +409,7 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
 
     # application to the head images
     shift_rotated_head_files = []
-    for centered_head_file, rigid_transform_file in zip(centered_head_files,
+    for centered_head_file, rigid_transform_file in zip(unifized_files,
                                                         rigid_transform_files):
         suffixed_file = fname_presuffix(centered_head_file, suffix='_shr')
         out_file = os.path.join(write_dir, os.path.basename(suffixed_file))
@@ -460,27 +488,70 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
                                            (out_allineate.outputs.out_matrix,
                                             'ONELINE')],
                                   out_file=catmatvec_out_file)
+        import re
+
+        def extract_and_save_matrix(input_file_path, output_file_path):
+            with open(input_file_path, 'r') as f:
+                content = f.read()
+
+            # Find the last occurrence of '-ONELINE' and get the position after it
+            match = re.search(r'-ONELINE\s+', content)
+            if match:
+                # Extract the text after the last '-ONELINE'
+                matrix_start_pos = match.end()
+                matrix_content = content[matrix_start_pos:].strip()
+
+                # Split the content into lines and process as needed
+                matrix_lines = matrix_content.splitlines()
+
+                # Convert matrix lines to a list of lists
+                matrix = []
+                for line in matrix_lines:
+                    try:
+                        # Split each line into components and convert to float
+                        row = [float(num) for num in line.split()]
+                        matrix.append(row)
+                    except ValueError:
+                        # Ignore lines that cannot be converted to floats
+                        continue
+
+                # Save the matrix to a new file
+                with open(output_file_path, 'w') as out_file:
+                    for row in matrix:
+                        out_file.write(' '.join(map(str, row)) + '\n')
+
+                print(f"Matrix saved to {output_file_path}")
+            else:
+                print("No '-ONELINE' found in the file.")
+
+        # Inside your anats_to_common function
+        input_file = out_catmatvec.outputs.out_file  # Replace with the actual input file path
+        output_file = out_catmatvec.outputs.out_file  # Replace with the desired output file path
+        extract_and_save_matrix(input_file, output_file)
+
+        affine_transform_files.append(out_catmatvec.outputs.out_file)
+
         affine_transform_files.append(out_catmatvec.outputs.out_file)
 
     # application to brains
     allineated_brain_files = []
     for centered_brain_file, affine_transform_file in zip(
-            centered_brain_files, affine_transform_files):
+            unifized_files, affine_transform_files):
         out_allineate = allineate2(
             in_file=centered_brain_file,
             master=out_tstat_shr.outputs.out_file,
             in_matrix=affine_transform_file,
             out_file=fname_presuffix(centered_brain_file,
-                                     suffix='_shr_affine_catenated'),
+                                     suffix='_shr_af_cat'),
             **verbosity_quietness_kwargs)
         allineated_brain_files.append(out_allineate.outputs.out_file)
 
     # application to heads
     allineated_head_files = []
     for centered_head_file, affine_transform_file in zip(
-            centered_head_files, affine_transform_files):
+            unifized_files_false_head, affine_transform_files):
         suffixed_file = fname_presuffix(centered_head_file,
-                                        suffix='_shr_affine_catenated')
+                                        suffix='_shr_af_cat')
         out_file = os.path.join(write_dir, os.path.basename(suffixed_file))
         out_allineate = allineate2(
             in_file=centered_head_file,
@@ -560,7 +631,7 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
             # the first cycle non-linear registration
             previous_warp_files = []
             for affine_file, centered_head_file in zip(affine_transform_files,
-                                                       centered_head_files):
+                                                       unifized_files):
                 out_nwarp_cat = nwarp_cat(
                     in_files=[('IDENT', centered_head_file), affine_file],
                     out_file=fname_presuffix(centered_head_file,
@@ -570,7 +641,7 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
         warped_files = []
         warp_files = []
         for warp_file, centered_head_file in zip(previous_warp_files,
-                                                 centered_head_files):
+                                                 unifized_files):
             out_file = fname_presuffix(centered_head_file,
                                        suffix='_warped{}'.format(n_lev))
             out_qwarp = qwarp(
@@ -596,7 +667,7 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
         common_head_file = os.path.join(
             write_dir, 'warped_{0}_adjusted_mean.nii.gz'.format(n_lev))
         out_nwarp_adjust = nwarp_adjust(warps=warp_files,
-                                        in_files=centered_head_files,
+                                        in_files=unifized_files,
                                         out_file=common_head_file)
 
     if nonlinear_levels == []:
@@ -618,7 +689,7 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
         n_iter = n_lev + 1 + n_patch
         print('n_iter :' + str(n_iter))
         for warp_file, centered_head_file in zip(previous_warp_files,
-                                                 centered_head_files):
+                                                 unifized_files):
             out_file = fname_presuffix(centered_head_file,
                                        suffix='_warped{}'.format(n_iter))
             out_qwarp = qwarp2(
@@ -649,7 +720,7 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
         common_head_file = os.path.join(
             write_dir, 'warped_{0}_adjusted_mean.nii.gz'.format(n_iter))
         out_nwarp_adjust = nwarp_adjust(warps=warp_files,
-                                        in_files=centered_head_files,
+                                        in_files=unifized_files,
                                         out_file=common_head_file)
 
     ###########################################################################
@@ -658,7 +729,7 @@ def anats_to_common(anat_filenames, write_dir, brain_volume,
     # Apply non-linear registration results to uncorrected images
     # XXX has already been computed !
     warped_files = []
-    for centered_head_file, warp_file in zip(centered_head_files, warp_files):
+    for centered_head_file, warp_file in zip(unifized_files, warp_files):
         suffixed_file = fname_presuffix(
             centered_head_file,
             suffix='affine_warp{}_catenated'.format(len(nonlinear_levels)))
