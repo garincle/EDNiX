@@ -109,7 +109,6 @@ def coregist_to_norm(TR, anat_func_same_space, dir_prepro, correction_direction,
                                                 s_bind,afni_sif)
 
     elif recordings == 'very_old':
-
         # norm between runs
         r = REF_int
         root_RS = extract_filename(RS[r])

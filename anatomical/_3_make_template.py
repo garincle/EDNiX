@@ -136,7 +136,6 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
         ' -prefix ' + stdy_template_mask + \
         ' -source ' + warp_adj + ' -maxlev 3 -resample'
         spco(command, shell=True)
-
         command = 'singularity run' + s_bind + afni_sif + '3dNwarpApply -nwarp ' + opj(study_template_atlas_forlder,'study_template_mask_WARPINV.nii.gz') + \
         ' -source ' + BASE_mask + ' -master ' + warp_adj + ' -interp NN' + \
         ' -prefix ' + stdy_template_mask + ' -overwrite'
@@ -158,19 +157,6 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' +stdy_template_mask + \
         ' -input ' + stdy_template_mask + ' -fill_holes'
         spco(command, shell=True)
-
-
-    #elif brain_skullstrip == 'antsBrainExtraction':
-    #    spco(['antsBrainExtraction.sh', '-d', '3',
-    #        '-a', warp_adj,
-    #        '-e', BASE_SS, '-m', BASE_mask,
-    #        '-o', study_template_atlas_forlder + '/studytemplate2_' + type_norm + '/'])
-    #    shutil.copyfile(opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'BrainExtractionMask.nii.gz'), stdy_template_mask)
-
-
-    '''
-    'singularity run' + s_bind + afni_sif + 3dresample -master /media/cgarin/Clement_1/1_Macaques/1_PFC_study/10_2023_PP_U/Study_template/studytemplate2_T1/warped_3_adjusted_mean.nii.gz -input /media/cgarin/Clement_1/1_Macaques/1_PFC_study/10_2023_PP_U/Study_template/studytemplate2_T1/study_template_maskcp.nii.gz -prefix /media/cgarin/Clement_1/1_Macaques/1_PFC_study/10_2023_PP_U/Study_template/studytemplate2_T1/study_template_mask.nii.gz
-    '''
 
     ##extract brain
     command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + stdy_template_mask + ' -b ' + warp_adj + ' -expr "(a*b)" -prefix ' + opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_not_align.nii.gz')

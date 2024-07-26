@@ -444,7 +444,7 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
             print('skip step ' + str(7))
         else:
             anatomical._7_prepar_aseg.prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref, type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, check_visualy_each_img, n_for_ANTS, overwrite,
-                                                  s_bind,afni_sif,fs_sif)
+                                                  s_bind,afni_sif,itk_sif)
         
         if do_fMRImasks == True:
 
