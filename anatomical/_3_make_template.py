@@ -24,7 +24,7 @@ spgo = subprocess.getoutput
 
 
 def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, type_norm, study_template_atlas_forlder, template_skullstrip, BASE_SS, BASE_mask, overwrite,
-                  s_bind, afni_sif, fsl_sif, fs_sif):
+                  s_bind, afni_sif, fsl_sif, fs_sif, itk_sif):
 
     if which_on == 'max': # all or max
         all_ID_temp = all_ID_max
@@ -37,7 +37,7 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
         all_data_path_temp = all_data_path
 
     else:
-        print("error with which_on name, need to be all or max")
+        print("ERROR: with which_on name, need to be all or max")
 
     template_list = []
     for ID, Session, data_path in zip(all_ID_temp, all_Session_temp, all_data_path_temp):
@@ -60,6 +60,7 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
                       ' ' + opj(opj(all_data_path[0], 'anat', 'native', '01_preprocess'), all_ID[0] + '_acpc_cropped' + type_norm + '.nii.gz')
             spco(command, shell=True)
 
+
         #resemple the other anat to this large img
         command = 'singularity run' + s_bind + afni_sif + '3dresample -overwrite -master ' + opj(opj(all_data_path[0], 'anat', 'native', '01_preprocess'), all_ID[0] + '_acpc_cropped' + type_norm + 'Zp.nii.gz') + ' -overwrite' + \
         ' -input ' + opj(dir_prepro, ID + '_acpc_cropped' + type_norm + '.nii.gz') + ' -prefix ' + opj(dir_prepro, ID + '_acpc_cropped' + type_norm + 'Zp.nii.gz') + ' -bound_type SLAB'
@@ -70,10 +71,12 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
 
     templatedir2 = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm)
     if not os.path.exists(templatedir2): os.mkdir(templatedir2)
+
     anatomical.anat_to_common_EMB.anats_to_common(
+        s_bind,
+        afni_sif,
         template_list,
         templatedir2,
-        brain_volume=300000,
         blur_radius_coarse=11,
         convergence=0,
         registration_kind='nonlinear',
@@ -110,14 +113,21 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
         mask_img.to_filename(stdy_template_mask)
 
     elif template_skullstrip == 'Manual':
-        while True:
-            Your_choice = input('Enter "OK" if you have finished doing/corrected yourself the template mask img to continu and save it as "study_template_mask" in the template folder')
-            if Your_choice == '' or not Your_choice in ['C','OK']: 
-                print('Please answer with OK!') 
-            else: 
-                break 
-        if Your_choice=="OK":
-            print("CONTINUE!!")
+        def run_command_and_wait(command):
+            print("Running command:", command)
+            result = subprocess.run(command, shell=True)
+            if result.returncode == 0:
+                print("Command completed successfully.")
+            else:
+                print("Command failed with return code:", result.returncode)
+        print('save the mask as "study_template_mask" in the template folder')
+        print(stdy_template_mask)
+        if not os.path.exists(stdy_template_mask):
+            command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + warp_adj + ' -expr "step(a)" -prefix ' + stdy_template_mask
+            spco(command, shell=True)
+        # Example usage
+        command = ('singularity run' + s_bind + itk_sif + 'itksnap -g ' + warp_adj + ' -s ' + stdy_template_mask)
+        run_command_and_wait(command)
 
     elif template_skullstrip =='Custum_QWARPT2':
 

@@ -91,6 +91,7 @@ folders = glob.glob(opj(bids_dir,'sub*'))
 filter1 = allinfo_study_c["ID"].isin([])
 allinfo_study_c_formax = allinfo_study_c.copy()
 
+
 ##############Select all the monkey of the study
 ### equal to allinfo_study_c, espcially if not longitudinal  and you have not selected specific subjects
 
@@ -144,7 +145,9 @@ max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i not in r
 
 
 ###### needs to be ID + 'ses-' + str(Session)
-deoblique_exeption1 = []
+#do not deoblique
+deoblique_exeption1 = animal_ID
+#WARP without reorient
 deoblique_exeption2 = []
 
 ##########################################
@@ -172,10 +175,10 @@ otheranat = '' #NA if none
 ###img use for masking in Skullstrip 1 'maybe this need to be change'!!!!!! because Skullstrip 2 is in auto equal to type_norm.... not sure that it will not creat problem in the futur
 masking_img = 'acq-coronal_T2w'
 
-brain_skullstrip_1 ='Custum_bat' # bet2_ANTS or MachinL
+brain_skullstrip_1 ='bet2' # bet2_ANTS or MachinL
 
 #precise
-brain_skullstrip_2 ='Custum_QWARPT2' # bet2_ANTS or MachinL
+brain_skullstrip_2 ='NoSkullStrip' # bet2_ANTS or MachinL
 
 useT1T2_for_coregis = False
 
@@ -201,23 +204,17 @@ lpa+ *OR*  localPcorAbs+Others= Local Pearson Abs + Others
 #######################################################################
 
 #creat_study_template with type_norm img
-creat_study_template = False
-
+creat_study_template = True
 #folder where you want to store the stdy template
-study_template_atlas_forlder = ''
+study_template_atlas_forlder = '/srv/projects/easymribrain/data/MRI/Bat/BIDS_bat/sty_template'
 #then
-dir_out = study_template_atlas_forlder + ''
-
+dir_out = study_template_atlas_forlder + 'template_in_stdy_template'
 #do you want to use all the data or only the last one of each subject (for longitud inal co-registration)
-which_on = '' # all or max
+which_on = 'all' # all or max
 
-###use type_norm or otheranat for atlas template to study template co-registration
-Atemplate_to_Stemplate = ''
-
-template_skullstrip = ''
-
-stdy_template_mask = ''
-stdy_template = ''
+###use type_norm or otheranat (the name) for atlas template to study template co-registration
+Atemplate_to_Stemplate = 'acq-coronal_T2w'
+template_skullstrip = 'Manual' #'Manual':'Custum_Macaque2':'Manual':'Custum_QWARPT2':'3dSkullStrip':'bet2':
 
 do_surfacewith = '' #'T1' 'T1andT2'
 
@@ -252,20 +249,14 @@ FS_buckner40_GCS = opj(FS_dir,'MacaqueYerkes19')
     ##########################################
     ##### define atlases and tempates ########
     ##########################################
-diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',species) # sting # sting
-list_atlases = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
-opj(diratlas_orig, 'atlaslvl2.nii.gz'),
-opj(diratlas_orig, 'atlaslvl3.nii.gz'),
-opj(diratlas_orig, 'atlaslvl4.nii.gz'),
-opj(diratlas_orig, 'atlaslvl1_LR.nii.gz'),
-opj(diratlas_orig, 'atlaslvl2_LR.nii.gz'),
-opj(diratlas_orig, 'atlaslvl3_LR.nii.gz'),
-opj(diratlas_orig, 'atlaslvl4_LR.nii.gz')]
+
+
+list_atlases = ['/srv/projects/easymribrain/data/Atlas/13_Atlas_project/0_Atlas_modify/Atlas/Mustached_bat/atlas.nii.gz']
 
 BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'templateT2.nii.gz') # sting
-BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',species,'BrainMask.nii.gz') # sting
+BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'BrainMask.nii.gz') # sting
 BASE_bet =''
-GM_mask     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',species,'CorticalMask.nii.gz') # sting
+GM_mask     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'CorticalMask.nii.gz') # sting
 
 ####atlases files
 Aseg_ref    = ''
@@ -301,13 +292,13 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [10,11,12,13,14,15]
+Skip_step = [1,2,10,11,12,13,14,15]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
     BASE_SS,BASE_bet, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, template_skullstrip,
-    IgotbothT1T2, list_atlases, Aseg_ref, Aseg_refLR, dir_out, FS_dir, diratlas_orig, do_surfacewith, Atemplate_to_Stemplate,
+    IgotbothT1T2, list_atlases, Aseg_ref, Aseg_refLR, dir_out, FS_dir, do_surfacewith, Atemplate_to_Stemplate,
     FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, useT1T2_for_coregis, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, Align_img_to_template,
     species, overwrite_option,MAIN_PATH)

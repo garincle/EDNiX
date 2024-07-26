@@ -24,7 +24,9 @@ sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
 import fonctions._0_Pipeline_launcher
 
 ###where are stored the BIDS data?
-bids_dir = opj(MAIN_PATH,'data','MRI','Rat','BIDS_rat')
+species = 'Rat'
+
+bids_dir = opj(MAIN_PATH,'data','MRI',species,'BIDS_rat')
 
 ##### If your BIDS dataset is correct, I strongly advise  to use BIDSLayout,
 # it allows very quicly to build the architecture of your dataset to analyse all subjects of your dataset
@@ -325,22 +327,26 @@ stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
 GM_mask_studyT = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'GM_mask.nii.gz') # sting
 
 ########## if creat_study_template = False ##########
+diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual', species)
 
 # if creat_study_template== False you need to provide this
-BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','RatWHS','templateT2.nii.gz') # sting
-BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','RatWHS','BrainMask.nii.gz') # sting
-GM_mask     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','RatWHS','CorticalMask.nii.gz') # sting
+BASE_SS     = opj(diratlas_orig, 'templateT2.nii.gz') # sting
+BASE_mask   = opj(diratlas_orig, 'BrainMask.nii.gz') # sting
+GM_mask     =opj(diratlas_orig, 'CorticalMask.nii.gz') # sting
 
     ##########################################################
     ##### define atlases that are in template space ##########
     ##########################################################
 
 ####put all atlases and template to process in the same folder named: ...
-diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual','Rat')
 list_atlases = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
 opj(diratlas_orig, 'atlaslvl2.nii.gz'),
 opj(diratlas_orig, 'atlaslvl3.nii.gz'),
-opj(diratlas_orig, 'atlaslvl4.nii.gz')] # liste
+opj(diratlas_orig, 'atlaslvl4.nii.gz'),
+opj(diratlas_orig, 'atlaslvl1_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4_LR.nii.gz')]
 
 #######for melodic cleaning (step 4)
 melodic_prior_post_TTT = False # True or False
@@ -381,7 +387,6 @@ selected_atlases = ['atlaslvl3.nii.gz'] #liste
 
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 panda_files = [pd.DataFrame({'region':[
-'Orbital frontal cortex (oFC)',
 'Somatosensory cortex',
 'Posterior parietal cortex',
 'Visual pre and extra striate cortex',
@@ -395,7 +400,7 @@ panda_files = [pd.DataFrame({'region':[
 'Basal forebrain',
 'Amygdala',
 'Hypothalamus',
-'Thalamus'],'label':[51,58,59,61,62,64,67,68,71,74,75,76,79,80,81]})] # liste of pandas dataframe
+'Thalamus'],'label':[58,59,61,62,64,67,68,71,74,75,76,79,80,81]})] # liste of pandas dataframe
 
 
 #### coordinate of the template plot in list form, each number will be a slice (plotting.plot_stat_map = cut_coords)
@@ -419,7 +424,11 @@ legendPNAS = pd.read_excel(file_path, 'Legend_2023')
 selected_atlases_matrix = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
 opj(diratlas_orig, 'atlaslvl2.nii.gz'),
 opj(diratlas_orig, 'atlaslvl3.nii.gz'),
-opj(diratlas_orig, 'atlaslvl4.nii.gz')] # list
+opj(diratlas_orig, 'atlaslvl4.nii.gz'),
+opj(diratlas_orig, 'atlaslvl1_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4_LR.nii.gz')]
 
 # Select the desired columns and rename them
 pandas1 = legendPNAS[['NEWlvl1_label', 'NEWLVL1']].rename(columns={'NEWlvl1_label': 'label', 'NEWLVL1': 'region'})
@@ -446,7 +455,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,5,6,7,8,100]
+Skip_step = [200]
 
     ############################################################
     ######################## START de pipeline #################

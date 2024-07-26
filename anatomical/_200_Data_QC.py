@@ -17,7 +17,20 @@ from fonctions.extract_filename import extract_filename
 
 def _itk_check_masks(dir_prepro, masks_dir, ID, type_norm,s_bind,itk_sif):
 
-    print('if you modify the mask, please save it as ' + str(opj(masks_dir, ID + '_finalmask.nii.gz')))
-    command = 'gnome-terminal -- singularity run' + s_bind + itk_sif + 'itksnap -g ' + opj(dir_prepro, ID + '_acpc_cropped' + type_norm + '.nii.gz') + \
-              ' -s ' +opj(masks_dir, 'brain_mask_in_anat_DC.nii.gz')
-    subprocess.run(f"gnome-terminal --wait -- bash -c '{command}; exec bash'", shell=True)
+    def run_command_and_wait(command):
+        print("Running command:", command)
+        result = subprocess.run(command, shell=True)
+        if result.returncode == 0:
+            print("Command completed successfully.")
+        else:
+            print("Command failed with return code:", result.returncode)
+
+    # Example usage
+    command = ('singularity run' + s_bind + itk_sif + 'itksnap -g ' + opj(dir_prepro, ID + '_acpc_cropped' + type_norm + '.nii.gz') + \
+              ' -s ' + opj(masks_dir, 'brain_mask_in_anat_DC.nii.gz'))
+    run_command_and_wait(command)
+
+    # Continue with the rest of your script
+    print("Continuing with the rest of the script...")
+
+

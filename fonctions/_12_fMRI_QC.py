@@ -55,7 +55,8 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
 
 
         if ope(atlas_filenamelvl3LR)==False:
-            print('no altlas lvl 3 LR found, this is a requirement for QC analysis')
+            print('ERROR: no altlas lvl 3 LR found, this is a requirement for QC analysis')
+            print('ERROR: If this analysis is nto performed Step 14 will failed too!')
         else:
             #### Build the atlas for LR somato ant anterior cingulate
             string_build_atlas = str('')
