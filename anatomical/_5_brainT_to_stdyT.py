@@ -44,9 +44,7 @@ def brainT_to_T(dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, ty
                               verbose=True)
     TRANS = ants.apply_transforms(fixed=IMG, moving=REF,
                                       transformlist=mTx['fwdtransforms'], interpolator=n_for_ANTS)
-    ants.image_write(TRANS,opj(dir_prepro,'template_to_' + type_norm + '_SyN_final.nii.gz'),ri=False)
-
-
+    ants.image_write(TRANS,opj(dir_prepro,'template_to_' + type_norm + '_SyN_final.nii.gz'), ri=False)
 
 
     for Timage in listTimage:

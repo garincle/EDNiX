@@ -40,7 +40,7 @@ import fonctions._11_Seed_base_many_regionsatlas
 import fonctions._12_fMRI_QC
 import fonctions._13_spatial_QC
 import fonctions._14_fMRI_QC_SBA
-
+import fonctions._100_Data_Clean
 
 
 
@@ -121,6 +121,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
 
             else:
                 template_anat_for_fmri = glob.glob(opj(opd(data_path),'**','anat','native','02_Wb', 'volumes', '*' + TfMRI + '_brain.nii*'))
+                print(opj(opd(data_path),'**','anat','native','02_Wb', 'volumes', '*' + TfMRI + '_brain.nii*'))
+                print(template_anat_for_fmri)
 
                 if len(template_anat_for_fmri) == 1:
                     data_path_anat = opd(opd(opd(opd(opd(template_anat_for_fmri[0])))))
@@ -128,7 +130,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                     print("we found multiple anat template for this animal, please choose one!")
                     data_path_anat = input("Please enter manually a data_path_anat for preprocessing:")
                 elif len(template_anat_for_fmri) == 0:
-                    print("We havn't found any anat template for this animal!!!! We can't continue !!! please provid at least one anat image!")
+                    print("ERROR: We havn't found any anat template for this animal!!!! We can't continue !!! please provid at least one anat image!")
+                    print(template_anat_for_fmri + 'not found!!!')
 
                 # The anatomy
                 path_anat    = opj(data_path_anat,'anat')
@@ -276,6 +279,11 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
         list_RS = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endfmri)))
         list_json = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endjson)))
 
+        if len(list_RS) == 0:
+            print('ERROR : No func image found')
+            print(opj(dir_fMRI_Refth_RS, endfmri))
+            print(list_RS)
+
         nb_run  = len(list_RS)
         RS      = [os.path.basename(i) for i in list_RS]
 
@@ -356,28 +364,37 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 TRT = info_RS['TotalReadoutTime']
             except:
                 print("Total Readout Time not found in header")
-            try:
-                PE_d2 = info_RS['PhaseEncodingDirection']
-                if PE_d2 == 'j':
-                    dmap = '0 1 0 ' + str(TRT)
-                    dbold = '0 -1 0 ' + str(TRT)
-                    correction_direction = 'y-'
-                elif PE_d2 == 'j-':
-                    dmap = '0 -1 0 ' + str(TRT)
-                    dbold = '0 1 0 ' + str(TRT)
-                    correction_direction = 'y'
-                elif PE_d2 == 'i':
-                    dmap = '1 0 0 ' + str(TRT)
-                    dbold = '-1 0 0 ' + str(TRT)
-                    correction_direction = 'x-'
-                elif PE_d2 == 'i-':
-                    dmap = '-1 0 0 ' + str(TRT)
-                    dbold = '1 0 0 ' + str(TRT)
-                    correction_direction = 'x'
-            except:
-                print("Phase Encoding Direction not found in header")
-                dmap=''
-                dbold=''
+
+            if correction_direction:
+                ('INFO: input correction_direction is the launcher was determined as' + correction_direction)
+            else:
+                ('INFO: input correction_direction was empty, let s try to find what is with the header')
+                try:
+                    PE_d2 = info_RS['PhaseEncodingDirection']
+                    if PE_d2 == 'j':
+                        dmap = '0 1 0 ' + str(TRT)
+                        dbold = '0 -1 0 ' + str(TRT)
+                        correction_direction = 'y-'
+                    elif PE_d2 == 'j-':
+                        dmap = '0 -1 0 ' + str(TRT)
+                        dbold = '0 1 0 ' + str(TRT)
+                        correction_direction = 'y'
+                    elif PE_d2 == 'i':
+                        dmap = '1 0 0 ' + str(TRT)
+                        dbold = '-1 0 0 ' + str(TRT)
+                        correction_direction = 'x-'
+                    elif PE_d2 == 'i-':
+                        dmap = '-1 0 0 ' + str(TRT)
+                        dbold = '1 0 0 ' + str(TRT)
+                        correction_direction = 'x'
+                except:
+                    print("INFO: Phase Encoding Direction not found in header")
+                    dmap=''
+                    dbold=''
+
+                    print("WARNING :Phase Encoding Direction not found in header and you didn't provided any")
+                    recordings = 'very_old'
+                    print('WARNING : recordings = very_old no distortion correction will be applied with fugue')
 
 
             SED = 'i'  # or initialize it with some default value if needed
