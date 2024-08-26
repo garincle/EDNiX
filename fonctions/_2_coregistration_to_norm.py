@@ -16,14 +16,15 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 
-def coregist_to_norm(TR, anat_func_same_space, dir_prepro, correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map, nb_run, recordings, REF_int, list_map, study_fMRI_Refth, IgotbothT1T2, path_anat, otheranat,
+def coregist_to_norm(anat_func_same_space, dir_prepro, correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map, nb_run, recordings, REF_int, list_map, study_fMRI_Refth, IgotbothT1T2, path_anat, otheranat,
     ID, Session, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, DwellT, n_for_ANTS, overwrite,s_bind,afni_sif,fsl_sif,dmap,dbold,config_f):
 
     import fonctions._2a_correct_img
     import fonctions._2a_correct_img_newP
     import fonctions._2b_fix_orient
 
-
+    if recordings != 'very_old':
+        print('INFO: DwellT is equal to ' + str(DwellT) + ' please check!!' )
 
     if recordings == 'old':
         i = 0

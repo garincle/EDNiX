@@ -21,7 +21,7 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, otheranat,
-    check_visualy_final_mask, useT1T2_for_coregis, bids_dir, overwrite, BASE_bet, s_bind,afni_sif,fsl_sif,fs_sif, itk_sif):
+    check_visualy_final_mask, useT1T2_for_coregis, bids_dir, s_bind,afni_sif,fsl_sif,fs_sif, itk_sif):
 
     if ope(opj(masks_dir, ID + '_finalmask.nii.gz')):
         output_for_mask = opj(masks_dir, ID + '_finalmask.nii.gz')
@@ -29,8 +29,8 @@ def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir
     else:
         step_skullstrip = 2
         brain_skullstrip = 'brain_skullstrip_2'
-        output_for_mask =  anatomical.Skullstrip_method.Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
-        otheranat, ID, Session, check_visualy_final_mask, overwrite, BASE_bet, s_bind,afni_sif,fsl_sif,fs_sif, itk_sif)
+        output_for_mask =  anatomical.Skullstrip_method.Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
+    otheranat, ID, Session, check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif)
 
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
         ' -input ' + output_for_mask + ' -fill_holes'

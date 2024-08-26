@@ -69,6 +69,7 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
 
             ###########################template
 
+    if not os.path.exists(study_template_atlas_forlder): os.mkdir(study_template_atlas_forlder)
     templatedir2 = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm)
     if not os.path.exists(templatedir2): os.mkdir(templatedir2)
 

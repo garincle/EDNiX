@@ -11,6 +11,7 @@ import math
 import nilearn
 from nilearn.masking import compute_epi_mask
 from nilearn.image import math_img
+import numpy as np
 import anatomical.Histrogram_mask_EMB
 
 #Path to the excels files and data structure
@@ -23,8 +24,8 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 
-def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
-    otheranat, ID, Session, check_visualy_final_mask, overwrite, BASE_bet, s_bind,afni_sif,fsl_sif,fs_sif,itk_sif):
+def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
+    otheranat, ID, Session, check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif):
 
     if step_skullstrip == 1:
         masking_img = masking_img
@@ -70,7 +71,7 @@ def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skul
                   ' ' + str(math.ceil(int(hd_IMG['dimensions'][2]) / 2)) + ' -m'
             spco([cmd], shell=True)
             IMG      = ants.image_read(input_for_msk)
-            REF_BET  = ants.image_read(BASE_bet)
+            REF_BET  = ants.image_read(BASE_SS_coregistr)
             tmp_bet  = ants.image_read(opj(masks_dir, ID + '_bet' + masking_img + '.nii.gz'))
             REF_MASK = ants.image_read(BASE_SS_mask)
             mTx = ants.registration(fixed=tmp_bet, moving=REF_BET,
@@ -228,9 +229,9 @@ def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skul
             spco(command, shell=True)
 
         elif brain_skullstrip == 'Custum_1':
-            loadimg = nib.load(opj(volumes_dir, ID + '_' + otheranat + '_template.nii.gz')).get_data()
+            loadimg = nib.load(input_for_msk).get_fdata()
             loadimgsort85 =  np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], 40)
-            mask_imag = nilearn.image.threshold_img(opj(volumes_dir, ID + '_' + otheranat + '_template.nii.gz'), loadimgsort85, cluster_threshold=10)
+            mask_imag = nilearn.image.threshold_img(input_for_msk, loadimgsort85, cluster_threshold=10)
             mask_imag.to_filename(output_for_mask)
             command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
             ' -input ' + output_for_mask + ' -fill_holes -dilate_input 1'
@@ -259,6 +260,18 @@ def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skul
             command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
             ' -input ' + output_for_mask + ' -fill_holes -dilate_input 8 -2'
             spco(command, shell=True)
+
+        elif brain_skullstrip == 'Custum_Chimp':
+            loadimg = nib.load(input_for_msk).get_fdata()
+            loadimgsort85 =  np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], 40)
+            mask_imag = nilearn.image.threshold_img(input_for_msk, loadimgsort85, cluster_threshold=10)
+            mask_imag.to_filename(output_for_mask)
+            command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
+            ' -input ' + output_for_mask + ' -fill_holes -dilate_input 3'
+            spco(command, shell=True)
+            command = 'singularity run' + s_bind + afni_sif + '3dresample -master ' + input_for_msk + ' -prefix ' + output_for_mask + ' -input ' + output_for_mask + ' -overwrite -bound_type SLAB'
+            spco(command, shell=True)
+
 
         elif brain_skullstrip == 'Custum_mouse':
             #convert to float
@@ -297,6 +310,15 @@ def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skul
             #####creat an approximate brain mask
             command = 'singularity run' + s_bind + fsl_sif + 'bet2 ' + input_for_msk + ' ' + opj(masks_dir, ID + '_bet' + masking_img + '.nii.gz') + \
             ' -f 0.70'
+            spco([command], shell=True)
+            command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(masks_dir, ID + '_bet' + masking_img + '.nii.gz') + ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
+            spco(command, shell=True)
+
+        elif brain_skullstrip =='bet2_high':
+            print('brain_skullstrip: applying ' + brain_skullstrip + ' method')
+            #####creat an approximate brain mask
+            command = 'singularity run' + s_bind + fsl_sif + 'bet2 ' + input_for_msk + ' ' + opj(masks_dir, ID + '_bet' + masking_img + '.nii.gz') + \
+            ' -f 0.20'
             spco([command], shell=True)
             command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(masks_dir, ID + '_bet' + masking_img + '.nii.gz') + ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
             spco(command, shell=True)
@@ -475,7 +497,7 @@ def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skul
 
             shutil.copyfile(Ex_Mask,output_for_mask)
         else:
-            print("ERROR in brain_skullstrip name???")
+            print("ERROR: brain_skullstrip not recognized, check that brain_skullstrip_1 or brain_skullstrip_2 are correctly written!!")
 
         if check_visualy_final_mask == True:
             if step_skullstrip == 1:

@@ -46,30 +46,32 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
             ' | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_NonB.1D')
             spco([command], shell=True)
 
-        command = 'singularity run' + s_bind + afni_sif + '3dBrickStat -count -non-zero ' + opj(dir_fMRI_Refth_RS_prepro1,'Wmask.nii.gz')
-        count = spgo([command])
+        if extract_WM == True:
+            command = 'singularity run' + s_bind + afni_sif + '3dBrickStat -count -non-zero ' + opj(dir_fMRI_Refth_RS_prepro1,'Wmask.nii.gz')
+            count = spgo([command])
 
-        command = 'singularity run' + s_bind + afni_sif + '3dmaskSVD' + overwrite + ' -polort 2 -vnorm -mask ' + opj(dir_fMRI_Refth_RS_prepro1,'Wmask.nii.gz') + \
-        ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
-        ' | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_Wc.1D')
-        spco([command], shell=True)
-
-        command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dROIstats -nomeanout -nzvoxels -mask ' + \
-                  opj(dir_fMRI_Refth_RS_prepro1,'Vmask.nii.gz') + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,'Vmask.nii.gz')
-        count = spgo(command).split('\n')[-1].split('\t')
-        print(command)
-        print(count)
-        # check if ok....
-        if count[-1] == '0[?]':
-            countVmask = 0
-        else:
-            countVmask = int(count[-1])
-
-        if countVmask>10:
-            command = 'singularity run' + s_bind + afni_sif + '3dmaskSVD' + overwrite + ' -polort 2 -vnorm -mask ' + opj(dir_fMRI_Refth_RS_prepro1,'Vmask.nii.gz') + \
+            command = 'singularity run' + s_bind + afni_sif + '3dmaskSVD' + overwrite + ' -polort 2 -vnorm -mask ' + opj(dir_fMRI_Refth_RS_prepro1,'Wmask.nii.gz') + \
             ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
-            ' | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_Vc.1D')
+            ' | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_Wc.1D')
             spco([command], shell=True)
+
+        if extract_Vc == True:
+                command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dROIstats -nomeanout -nzvoxels -mask ' + \
+                          opj(dir_fMRI_Refth_RS_prepro1,'Vmask.nii.gz') + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,'Vmask.nii.gz')
+                count = spgo(command).split('\n')[-1].split('\t')
+                print(command)
+                print(count)
+                # check if ok....
+                if count[-1] == '0[?]':
+                    countVmask = 0
+                else:
+                    countVmask = int(count[-1])
+
+                if countVmask>10:
+                    command = 'singularity run' + s_bind + afni_sif + '3dmaskSVD' + overwrite + ' -polort 2 -vnorm -mask ' + opj(dir_fMRI_Refth_RS_prepro1,'Vmask.nii.gz') + \
+                    ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
+                    ' | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_Vc.1D')
+                    spco([command], shell=True)
 
         if extract_GS == True:
             command = 'singularity run' + s_bind + afni_sif + '3dmaskSVD' + overwrite + ' -polort 2 -vnorm -mask ' + opj(dir_fMRI_Refth_RS_prepro1,'maskDilat.nii.gz') + \
@@ -151,7 +153,9 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
             opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
             ' -censor ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_censor.1D') + \
             ' -cenmode ZERO -ort ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + 'X.nocensor.xmat.1D') + \
-            ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz') + ' -blur ' + str(blur)
+            ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
+            if blur>0:
+                command + ' -blur ' + str(blur)
             spco([command], shell=True)
 
     else:

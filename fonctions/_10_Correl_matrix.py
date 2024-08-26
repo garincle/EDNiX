@@ -85,6 +85,20 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
             # Check if labels in the segmentation DataFrame are in the atlas data
             filtered_labels = panda_file[panda_file['label'].isin(atlas_flat)]
             atlas_filtered_list = list(filtered_labels['region'])
+            print("label that you provided")
+            print(panda_file)
+
+            print("label found in the atlas after extraction of the signal :" + str(atlas))
+            print(atlas_flat)
+
+            print("if we combine them (analyse similarity we ware able to keep:")
+            print(filtered_labels)
+            print("corresponding to the labels")
+            print(atlas_filtered_list)
+
+            print("if they are different from the one you provided, you should investigate why!: region too small for fMRI? error in the labeling? error in the coregistration?, this is not always a big dill but you should know what happend!!")
+
+
 
             ### creat a new list of label with zero if not in the new label list (for 3dcalc)
             filtered_labels_list = list(filtered_labels['label'])
@@ -101,11 +115,11 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                     int(old_label)) + ')))+'
             string_build_atlas2 = "'" + string_build_atlas[:-1] + "'"
 
-            command = 'singularity run' + s_bind + afni_sif + '3dcalc' + ' -a ' + atlas_filename + ' -expr ' + string_build_atlas2 + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, atlas[:-7] + '_filtered.nii.gz') + ' -overwrite'
+            command = 'singularity run' + s_bind + afni_sif + '3dcalc' + ' -a ' + atlas_filename + ' -expr ' + string_build_atlas2 + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, atlas + '_run_' + str(i) + '_filtered.nii.gz') + ' -overwrite'
             spco(command, shell=True)
 
             ##########################################################################
-            NAD_masker = NiftiLabelsMasker(labels_img=opj(dir_fMRI_Refth_RS_prepro1, atlas[:-7] + '_filtered.nii.gz'),
+            NAD_masker = NiftiLabelsMasker(labels_img=opj(dir_fMRI_Refth_RS_prepro1, atlas + '_filtered.nii.gz'),
                                             detrend=False,
                                             smoothing_fwhm=None,
                                             standardize=False,
@@ -116,14 +130,14 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
             try:
                 time_series = NAD_masker.fit_transform(func_filename)
             except:
-                caca = nilearn.image.resample_to_img(opj(dir_fMRI_Refth_RS_prepro1, atlas[:-7] + '_filtered.nii.gz'), func_filename, interpolation='nearest')
-                caca.to_filename(opj(dir_fMRI_Refth_RS_prepro1, atlas[:-7] + '_filtered.nii.gz'))
-                extracted_data = nib.load(opj(dir_fMRI_Refth_RS_prepro1, atlas[:-7] + '_filtered.nii.gz')).get_fdata()
+                caca = nilearn.image.resample_to_img(opj(dir_fMRI_Refth_RS_prepro1, atlas + '_filtered.nii.gz'), func_filename, interpolation='nearest')
+                caca.to_filename(opj(dir_fMRI_Refth_RS_prepro1, atlas + '_filtered.nii.gz'))
+                extracted_data = nib.load(opj(dir_fMRI_Refth_RS_prepro1, atlas + '_filtered.nii.gz')).get_fdata()
                 labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
-                labeled_img2.to_filename(opj(dir_fMRI_Refth_RS_prepro1, atlas[:-7] + '_filtered.nii.gz'))
+                labeled_img2.to_filename(opj(dir_fMRI_Refth_RS_prepro1, atlas + '_filtered.nii.gz'))
 
                 NAD_masker = NiftiLabelsMasker(
-                    labels_img=opj(dir_fMRI_Refth_RS_prepro1, atlas[:-7] + '_filtered.nii.gz'),
+                    labels_img=opj(dir_fMRI_Refth_RS_prepro1, atlas + '_run_' + str(i) + '_filtered.nii.gz'),
                     detrend=False,
                     smoothing_fwhm=None,
                     standardize=False,
@@ -157,7 +171,7 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                 vmin=-0.8,
             )
 
-            plt.savefig(output_results + '/' + atlas[:-7] + 'matrix.png')
+            plt.savefig(output_results + '/' + atlas + '_run_' + str(i) + 'matrix.png')
 
             # Convert correlation matrix to a DataFrame
             corr_df = pd.DataFrame(correlation_matrix, index=atlas_filtered_list, columns=atlas_filtered_list)
@@ -183,5 +197,5 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
             print(flattened_df)
 
             # Optionally, save the flattened DataFrame to a CSV file
-            flattened_df.to_csv(output_results + '/' + atlas[:-7] + '_flattened_correlation_matrix.csv', index=False)
+            flattened_df.to_csv(output_results + '/' + atlas + '_run_' + str(i) + '_flattened_correlation_matrix.csv', index=False)
 
