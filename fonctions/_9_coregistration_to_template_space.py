@@ -18,8 +18,8 @@ spgo = subprocess.getoutput
 ########################## Step 3 normalisation to template atlas space ############
 ####################################################################################
 def to_common_template_space(Session, deoblique_exeption1, deoblique_exeption2, deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, BASE_SS_coregistr,
-                nb_run, RS, transfo_concat,w2inv_Anat,do_anat_to_func, TR, n_for_ANTS, list_atlases, TfMRI, BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template,
-                anat_func_same_space, orientation, path_anat, ID, REF_int, dir_prepro, IhaveanANAT, overwrite,s_bind,afni_sif):
+                nb_run, RS, transfo_concat,w2inv_Anat,do_anat_to_func, n_for_ANTS, list_atlases, TfMRI, BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template,
+                anat_func_same_space, orientation, path_anat, ID, REF_int, IhaveanANAT, overwrite,s_bind,afni_sif):
 
 
     if IhaveanANAT == False:
@@ -31,10 +31,15 @@ def to_common_template_space(Session, deoblique_exeption1, deoblique_exeption2, 
 
     else:
         if do_anat_to_func == True:
-            mvt_shft_ANTs = [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
-                             opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
-                             opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')]
-            w2inv_fwd = [False, False, False]
+            mvt_shft_ANTs = []
+            w2inv_fwd = [False, True, True]
+            for elem1, elem2 in zip([opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
+                                     opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
+                                     opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')],
+                                    [False, False, False]):
+                if ope(elem1):
+                    mvt_shft_ANTs.append(elem1)
+                    w2inv_fwd.append(elem2)
         elif do_anat_to_func == False and anat_func_same_space == True:
             mvt_shft_ANTs = []
             w2inv_fwd = []
@@ -151,7 +156,8 @@ def to_common_template_space(Session, deoblique_exeption1, deoblique_exeption2, 
                 ##### go for BOLD img preTTT
                 root_RS = extract_filename(RS[i])
                 for f in os.listdir(opj(dir_fMRI_Refth_RS_prepro3, 'tmp')):
-                    os.remove(os.path.join(opj(dir_fMRI_Refth_RS_prepro3, 'tmp'), f))
+                    if ope(os.path.join(opj(dir_fMRI_Refth_RS_prepro3, 'tmp'), f)):
+                        os.remove(os.path.join(opj(dir_fMRI_Refth_RS_prepro3, 'tmp'), f))
 
                 output3 = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_anat_sfht.nii.gz')
                 output2 = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_anat_reorient.nii.gz')
@@ -232,20 +238,23 @@ def to_common_template_space(Session, deoblique_exeption1, deoblique_exeption2, 
     orient_meanimg = spgo(command).split('\n')[-1]
 
     #### apply to all atlases
-    for atlas in list_atlases:
+    if len(list_atlases) > 0:
+        for atlas in list_atlases:
+            command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \
+                      ' -orient ' + orient_meanimg + \
+                      ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro3, opb(atlas)) + \
+                      ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' + \
+                      ' -input  ' + atlas
+            spco([command], shell=True)
+
         command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \
                   ' -orient ' + orient_meanimg + \
-                  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro3, opb(atlas)) + \
+                  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro3,'mask_brain.nii.gz') + \
                   ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' + \
-                  ' -input  ' + atlas
+                  ' -input  ' + BASE_SS_mask
         spco([command], shell=True)
-
-    command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \
-              ' -orient ' + orient_meanimg + \
-              ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro3,'mask_brain.nii.gz') + \
-              ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' + \
-              ' -input  ' + BASE_SS_mask
-    spco([command], shell=True)
+    else:
+        print('WARNING: list_atlases is empty!')
 
     if creat_study_template== True:
         command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \

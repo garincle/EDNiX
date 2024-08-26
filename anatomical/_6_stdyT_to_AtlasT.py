@@ -31,10 +31,8 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
     #######################################################################
     ################coregistration temaplte to template####################
     #######################################################################
-
     if not os.path.exists(dir_out):
         os.mkdir(dir_out)
-
 
     def flatten_comprehension(matrix):
         return [item for row in matrix for item in row]

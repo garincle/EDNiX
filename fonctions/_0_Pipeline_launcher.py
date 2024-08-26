@@ -51,13 +51,12 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
     extract_exterior_CSF, extract_WM, n_for_ANTS, list_atlases, selected_atlases, panda_files, useT1T2_for_coregis, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
     cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
-    folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff, selected_atlases_matrix, specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH):
+    folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff, selected_atlases_matrix,
+    specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH, DwellT, SED, TR, TRT, type_of_transform, s_bind, s_path):
 
     sys.path.append(opj(MAIN_PATH + 'Code', 'EasyMRI_brain-master'))
 
     ### singularity set up
-    s_bind = ' --bind ' + opj('/', 'scratch', 'in_Process/') + ',' + MAIN_PATH
-    s_path = opj(MAIN_PATH, 'code', 'singularity')
     afni_sif = ' ' + opj(s_path, 'afni_make_build_24_2_01.sif') + ' '
     fsl_sif = ' ' + opj(s_path, 'fsl_6.0.5.1-cuda9.1.sif') + ' '
     fs_sif = ' ' + opj(s_path, 'freesurfer_NHP.sif') + ' '
@@ -277,7 +276,6 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
 
         # get useful informations
         list_RS = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endfmri)))
-        list_json = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endjson)))
 
         if len(list_RS) == 0:
             print('ERROR : No func image found')
@@ -325,108 +323,158 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
 
 
             print('######################################################## recordings type detected: ' + str(recordings) + '##############################################')
-            f = open(list_json[0])
-            info_RS = json.load(f)
 
-            #nslice?
-            try:
-                nslice = int(len(info_RS["SliceTiming"]))
-            except:
-                nslice = int(len(info_RS["SlicePosition"]))
+            list_json = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endjson)))
 
-            ## TR
+            ### check if we found some .json file
+            if not list_json:
+                print('WARNING: no .json found!!, you will need to at least provide the TR, and not TOPUP correction will be applied if you do not provide DwellT')
+            else:
+                f = open(list_json[0])
+                info_RS = json.load(f)
+
+
+            if TR == 'Auto':
+                ## TR
+                try:
+                    TR     = info_RS["RepetitionTime"]
+                except:
+                    # nslice?
+                    try:
+                        nslice = int(len(info_RS["SliceTiming"]))
+                    except:
+                        try:
+                            nslice = int(len(info_RS["SlicePosition"]))
+                        except:
+                            print('INFO: nslice not found')
+                            raise Exception("ERROR: TR was set to auto, but we were unable to find it with the .json file, I know that's crazy but something might be wrong with it. Either it was not avaialble in this file or our auto technic didn't work. Restart and provide the TR value as str should solve this issue")
+                try:
+                    # Calculate the time difference
+                    slice_timing = info_RS["SliceTiming"]
+                    slice_timing.sort()
+                    slice_intervals = [slice_timing[i + 1] - slice_timing[i] for i in range(len(slice_timing) - 1)]
+
+                    # Calculate the TR
+                    TR = ((sum(slice_intervals)/(nslice-1))*1000)*nslice
+                    print('WARNING: TR not found in Header file!!!!! Repetition  Time (TR) calculated: {TR} seconds. YOU ABSOLUTELY NEED TO DOUBLE CHECK THAT!')
+                except:
+                    raise Exception("ERROR: TR was set to auto, but we were unable to find it with the .json file, I know that's crazy but something might be wrong with it. Either it was not avaialble in this file or our auto technic didn't work. Restart and provide the TR value as str should solve this issue")
+
+
+            ## find metrics in header (for fun)
+            print('find metrics in header (for fun)')
             try:
-                TR     = info_RS["RepetitionTime"]
-            except:
-                # Calculate the time difference
                 slice_timing = info_RS["SliceTiming"]
-                slice_timing.sort()
-                slice_intervals = [slice_timing[i + 1] - slice_timing[i] for i in range(len(slice_timing) - 1)]
-
-                # Calculate the TR
-                TR = ((sum(slice_intervals)/(nslice-1))*1000)*nslice
-                print(f"######################################################################################## WARNING !!!! TR not found in Header file!!!!! Repetition  Time (TR) calculated: {TR} seconds. YOU ABSOLUTELY NEED TO DOUBLE CHECK THAT!!!!!!!!!!!!!!!!!########################################################################################")
-
-            ## slice_timing
-            try:
-                slice_timing = info_RS["SliceTiming"]
+                print("INFO: SliceTiming = " + str(slice_timing))
             except:
-                print("Slice Timing not found!!!")
+                print("INFO: Slice Timing not found")
             try:
                 TE     = info_RS["EchoTime"]
+                print("INFO: EchoTime = " + str(TE))
             except:
-                print("EchoTime not found in header")
+                print("INFO: EchoTime not found in header")
             try:
                 EES    = info_RS["EffectiveEchoSpacing"]
+                print("INFO: Effective Echo Spacing = " + str(EES))
             except:
-                print("Effective Echo Spacing not found in header")
-            try:
-                TRT = info_RS['TotalReadoutTime']
-            except:
-                print("Total Readout Time not found in header")
+                print("INFO: Effective Echo Spacing not found in header")
 
-            if correction_direction:
-                ('INFO: input correction_direction is the launcher was determined as' + correction_direction)
+            if TRT == 'Auto':
+                try:
+                    TRT = info_RS['TotalReadoutTime']
+                    print("INFO: Total Readout Time = " + str(TRT))
+                except:
+                    print("INFO: Total Readout Time not found in header")
+                    TRT = 'None'
             else:
+                print('TRT = ' + str(TRT))
+
+            #Find correction_direction
+            if correction_direction == 'Auto':
                 ('INFO: input correction_direction was empty, let s try to find what is with the header')
                 try:
                     PE_d2 = info_RS['PhaseEncodingDirection']
-                    if PE_d2 == 'j':
-                        dmap = '0 1 0 ' + str(TRT)
-                        dbold = '0 -1 0 ' + str(TRT)
-                        correction_direction = 'y-'
-                    elif PE_d2 == 'j-':
-                        dmap = '0 -1 0 ' + str(TRT)
-                        dbold = '0 1 0 ' + str(TRT)
-                        correction_direction = 'y'
-                    elif PE_d2 == 'i':
-                        dmap = '1 0 0 ' + str(TRT)
-                        dbold = '-1 0 0 ' + str(TRT)
-                        correction_direction = 'x-'
-                    elif PE_d2 == 'i-':
-                        dmap = '-1 0 0 ' + str(TRT)
-                        dbold = '1 0 0 ' + str(TRT)
-                        correction_direction = 'x'
                 except:
                     print("INFO: Phase Encoding Direction not found in header")
                     dmap=''
                     dbold=''
-
                     print("WARNING :Phase Encoding Direction not found in header and you didn't provided any")
                     recordings = 'very_old'
                     print('WARNING : recordings = very_old no distortion correction will be applied with fugue')
+                    correction_direction = 'None'
+                    PE_d2 = 'None'
+            else :
+                ('INFO: input correction_direction is the launcher was determined as' + str(correction_direction))
+                PE_d2 = 'None'
 
+            if TRT != 'None':
+                if PE_d2 == 'j' or correction_direction == 'y-':
+                    dmap = '0 1 0 ' + str(TRT)
+                    dbold = '0 -1 0 ' + str(TRT)
+                    correction_direction = 'y-'
+                elif PE_d2 == 'j-' or correction_direction == 'y':
+                    dmap = '0 -1 0 ' + str(TRT)
+                    dbold = '0 1 0 ' + str(TRT)
+                    correction_direction = 'y'
+                elif PE_d2 == 'i' or correction_direction == 'x-':
+                    dmap = '1 0 0 ' + str(TRT)
+                    dbold = '-1 0 0 ' + str(TRT)
+                    correction_direction = 'x-'
+                elif PE_d2 == 'i-' or correction_direction == 'x':
+                    dmap = '-1 0 0 ' + str(TRT)
+                    dbold = '1 0 0 ' + str(TRT)
+                    correction_direction = 'x'
+                else:
+                    print('ERROR: correction_direction not fit with requirement')
+                    recordings = 'very_old'
+                    print('WARNING : recordings = very_old no distortion correction will be applied with fugue')
+                    dmap = ''
+                    dbold = ''
+            else:
+                print('WARNING: TRT not found')
+                recordings = 'very_old'
+                print('WARNING : recordings = very_old no distortion correction will be applied with fugue')
+                dmap = ''
+                dbold = ''
 
-            SED = 'i'  # or initialize it with some default value if needed
-            try:
-                SED = info_RS["SliceEncodingDirection"]
-            except KeyError:
+            #Find SliceEncodingDirection
+            if SED == 'Auto':
                 try:
-                    IOPD = info_RS["ImageOrientationPatientDICOM"]
-                    if info_RS["ImageOrientationPatientDICOM"][0]   == 1:  SED = "i"
-                    elif info_RS["ImageOrientationPatientDICOM"][0] == -1: SED = "i-"
-                    elif info_RS["ImageOrientationPatientDICOM"][1] == 1:  SED = "j"
-                    elif info_RS["ImageOrientationPatientDICOM"][1] == -1: SED = "j-"
-                    elif info_RS["ImageOrientationPatientDICOM"][2] == 1:  SED = "k"
-                    elif info_RS["ImageOrientationPatientDICOM"][2] == -1: SED = "k-"
+                    SED = info_RS["SliceEncodingDirection"]
                 except KeyError:
-                    print('WARNING !!!! Can not find SliceEncodingDirection in the DICOM, applied i as default values!!!!')
+                    try:
+                        IOPD = info_RS["ImageOrientationPatientDICOM"]
+                        if info_RS["ImageOrientationPatientDICOM"][0]   == 1:  SED = "i"
+                        elif info_RS["ImageOrientationPatientDICOM"][0] == -1: SED = "i-"
+                        elif info_RS["ImageOrientationPatientDICOM"][1] == 1:  SED = "j"
+                        elif info_RS["ImageOrientationPatientDICOM"][1] == -1: SED = "j-"
+                        elif info_RS["ImageOrientationPatientDICOM"][2] == 1:  SED = "k"
+                        elif info_RS["ImageOrientationPatientDICOM"][2] == -1: SED = "k-"
+                    except KeyError:
+                        SED = 'None'
+                        print('WARNING !!!! Can not find SliceEncodingDirection in the DICOM, no restriction of deformation will be applied (not a big deal)')
 
-                    '''
-                    while True:
-                        SED = input("Please define a variable (i, j, or k) for SliceEncodingDirection "
-                                    "since it was not found in the .json file: ")
-                        if SED in ["i", "i-", "j", "j-", "k", "k-"]:
-                            break
-                        else:
-                            print("Invalid input. Please enter either i, j, or k.")
-                    '''
+                        '''
+                        while True:
+                            SED = input("Please define a variable (i, j, or k) for SliceEncodingDirection "
+                                        "since it was not found in the .json file: ")
+                            if SED in ["i", "i-", "j", "j-", "k", "k-"]:
+                                break
+                            else:
+                                print("Invalid input. Please enter either i, j, or k.")
+                        '''
 
-            #### to check
-            try:
-                DwellT    = "%.16f" % (float(info_RS["DwellTime"]))
-            except:
-                DwellT   = "%.16f" % (float(info_RS["TotalReadOutTimeEPI"] / nslice))
+            ####Find Dwell time (to double check)
+            if DwellT=='Auto':
+                try:
+                    DwellT    = "%.16f" % (float(info_RS["DwellTime"]))
+                except:
+                    try:
+                        DwellT   = "%.16f" % (float(info_RS["TotalReadOutTimeEPI"] / nslice))
+                    except:
+                        DwellT = 'None'
+                        print('WARNING: couldn t find Dwell time, will not apply TOPUP correction !!! if you want to do it, then provide a DwellT value manually as str!!!!')
+
 
             ############################################
             ####marche pas XXX #######
@@ -458,7 +506,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print('##########   Working on step ' + str(2) + ' _2_coregistration_to_norm  ###############')
                 print(str(ID) + ' Session ' + str(Session))
 
-                fonctions._2_coregistration_to_norm.coregist_to_norm(TR, anat_func_same_space, dir_prepro, correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map, nb_run, recordings,
+                fonctions._2_coregistration_to_norm.coregist_to_norm(anat_func_same_space, dir_prepro, correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map, nb_run, recordings,
                     REF_int, list_map, study_fMRI_Refth, IgotbothT1T2, path_anat, otheranat, ID, Session, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, DwellT, n_for_ANTS, overwrite,
                                                                      s_bind,afni_sif,fsl_sif,dmap,dbold,config_f)
 
@@ -467,10 +515,10 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             else:
                 print('##########   Working on step ' + str(3) + ' _3_mask_fMRI  ###############')
                 print(str(ID) + ' Session ' + str(Session))
-                fonctions._3_mask_fMRI.Refimg_to_meanfMRI(SED, anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                    dir_fMRI_Refth_RS_prepro3, RS, nb_run, REF_int, ID, dir_prepro, n_for_ANTS, brainmask, V_mask, W_mask, G_mask, dilate_mask,
-                                                             list_atlases, labels_dir, costAllin, anat_subject, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, lower_cutoff, upper_cutoff, overwrite,
-                                                          s_bind,afni_sif,fs_sif)
+                fonctions._3_mask_fMRI.Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+                       dir_fMRI_Refth_RS_prepro3, RS, nb_run, REF_int, ID, dir_prepro, brainmask, V_mask, W_mask, G_mask, dilate_mask,
+                       costAllin, anat_subject, doMaskingfMRI, Method_mask_func, lower_cutoff, upper_cutoff, overwrite,
+                       s_bind,afni_sif,fs_sif,  fsl_sif, itk_sif)
             if 4 in Skip_step:
                 print('skip step ' + str(4))
             else:
@@ -483,10 +531,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             else:
                 print('##########   Working on step ' + str(5) + ' _5_anat_to_fMRI  ###############')
                 print(str(ID) + ' Session ' + str(Session))
-                fonctions._5_anat_to_fMRI.Refimg_to_meanfMRI(SED, anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                    dir_fMRI_Refth_RS_prepro3, RS, nb_run, REF_int, ID, dir_prepro, n_for_ANTS, brainmask, V_mask, W_mask, G_mask, dilate_mask,
-                                                             list_atlases, labels_dir, costAllin, anat_subject, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, lower_cutoff, upper_cutoff, overwrite,
-                                                             s_bind,afni_sif)
+                fonctions._5_anat_to_fMRI.Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run, ID, dir_prepro, n_for_ANTS, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform, overwrite, s_bind, afni_sif)
             if 6 in Skip_step:
                 print('skip step ' + str(6))
             else:
@@ -510,7 +555,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print('##########   Working on step ' + str(8) + ' _8_fMRI_to_anat  ###############')
                 print(str(ID) + ' Session ' + str(Session))
                 fonctions._8_fMRI_to_anat.to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                nb_run, RS, n_for_ANTS, TR, overwrite)
+                nb_run, RS, n_for_ANTS)
 
             if 9 in Skip_step:
                 print('skip step ' + str(9))
@@ -518,7 +563,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print('##########   Working on step ' + str(9) + ' _9_coregistration_to_template_space  ###############')
                 print(str(ID) + ' Session ' + str(Session))
                 fonctions._9_coregistration_to_template_space.to_common_template_space(Session, deoblique_exeption1, deoblique_exeption2, deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, BASE_SS_coregistr,
-                    nb_run, RS, transfo_concat,w2inv_fwd,do_anat_to_func, TR, n_for_ANTS, list_atlases, TfMRI, BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template, anat_func_same_space, orientation, path_anat, ID, REF_int, dir_prepro, IhaveanANAT, overwrite,s_bind,afni_sif)
+                    nb_run, RS, transfo_concat,w2inv_fwd,do_anat_to_func, n_for_ANTS, list_atlases, TfMRI, BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template, anat_func_same_space, orientation, path_anat, ID, REF_int, IhaveanANAT, overwrite,s_bind,afni_sif)
 
             if 10 in Skip_step:
                 print('skip step ' + str(10))

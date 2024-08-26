@@ -16,7 +16,7 @@ spgo = subprocess.getoutput
 
 
 def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-    nb_run, RS, n_for_ANTS, TR, overwrite):
+    nb_run, RS, n_for_ANTS):
     #########################################################################################################
     ################################### registration to anat space ##########################################
     #########################################################################################################
@@ -28,15 +28,15 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
     ############################### ############################### ############################### 
     ############################### apply transfo to anat space to each volume of each func image #
     ############################### ############################### ############################### 
-
-    mvt_shft_INV_ANTs = [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1InverseWarp.nii.gz'),
-                         opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat'),
-                         opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat')]
-    w2inv_inv = [False, True, True]
-    mvt_shft_ANTs = [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
+    mvt_shft_ANTs = []
+    w2inv_fwd = [False,True,True]
+    for elem1, elem2 in zip([#opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
                      opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
-                     opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')]
-    w2inv_fwd = [False, False, False]
+                     opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')], [False, False]):
+        if ope(elem1):
+            mvt_shft_ANTs.append(elem1)
+            w2inv_fwd.append(elem2)
+
 
     ## test on mean img (to see spatially that is works)
     MEAN  = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'))

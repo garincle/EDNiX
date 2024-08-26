@@ -19,6 +19,9 @@ spco = subprocess.check_output
 
 
 MAIN_PATH = opj('/','srv','projects','easymribrain')
+s_bind = ' --bind ' + opj('/', 'scratch', 'cgarin/') + ',' + MAIN_PATH
+s_path = opj(MAIN_PATH, 'code', 'singularity')
+
 # Freesurfer set up
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
@@ -297,7 +300,6 @@ opj(diratlas_orig, 'atlaslvl4_LR.nii.gz')]
 
 BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','RatWHS','templateT2.nii.gz') # sting
 BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual','RatWHS','BrainMask.nii.gz') # sting
-BASE_bet =''
 GM_mask     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual','RatWHS','CorticalMask.nii.gz') # sting
 
 ####atlases files
@@ -346,7 +348,7 @@ species = 'RatWHS'
 
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
-    BASE_SS,BASE_bet, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, template_skullstrip,
+    BASE_SS, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, template_skullstrip,
     IgotbothT1T2, list_atlases, Aseg_ref, Aseg_refLR, dir_out, FS_dir, do_surfacewith, Atemplate_to_Stemplate,
     FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, useT1T2_for_coregis, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, Align_img_to_template,
-    species, overwrite_option,MAIN_PATH)
+    species, overwrite_option,MAIN_PATH, s_bind, s_path)

@@ -21,14 +21,14 @@ spgo = subprocess.getoutput
 
 
 def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, otheranat, type_norm, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, dir_prepro, masking_img, do_manual_crop,
-    brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, BASE_bet, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, overwrite,
+    brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, overwrite,
                s_bind,afni_sif,fsl_sif,fs_sif, itk_sif):
 
 
     step_skullstrip = 1
     brain_skullstrip = 'brain_skullstrip_1'
-    output_for_mask =  anatomical.Skullstrip_method.Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
-    otheranat, ID, Session, check_visualy_final_mask, overwrite, BASE_bet, s_bind,afni_sif,fsl_sif,fs_sif, itk_sif)
+    output_for_mask =  anatomical.Skullstrip_method.Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
+    otheranat, ID, Session, check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif)
     print(listTimage)
 
     #### Apply masking to other anat images
