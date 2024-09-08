@@ -177,8 +177,6 @@ brain_skullstrip_1 ='Custum_bat' # bet2_ANTS or MachinL
 #precise
 brain_skullstrip_2 ='Custum_QWARPT2' # bet2_ANTS or MachinL
 
-useT1T2_for_coregis = False
-
 do_fMRImasks = True
 Align_img_to_template = '@Align_Centers' #3dAllineate or No or @Align_Centers
 cost3dAllineate = ''
@@ -309,5 +307,5 @@ anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique_exeption1, d
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
     BASE_SS,BASE_bet, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, template_skullstrip,
     IgotbothT1T2, list_atlases, Aseg_ref, Aseg_refLR, dir_out, FS_dir, diratlas_orig, do_surfacewith, Atemplate_to_Stemplate,
-    FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, useT1T2_for_coregis, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, Align_img_to_template,
+    FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, Align_img_to_template,
     species, overwrite_option,MAIN_PATH)

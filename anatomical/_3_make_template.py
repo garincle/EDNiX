@@ -3,9 +3,17 @@
 ##############################################################################
 import os
 import subprocess
-import shutil
 import anatomical.anat_to_common_EMB
-from nilearn.masking import compute_epi_mask
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -84,97 +92,3 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
         nonlinear_levels=[4,7],
         nonlinear_minimal_patches=[13,9])
 
-    warp_adj = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'warped_3_adjusted_mean.nii.gz')
-    #shutil.copyfile(warp_adj, opj(study_template_atlas_forlder, 'studytemplate_' + type_norm, 'study_template.nii.gz'))
-    stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_mask.nii.gz')
-    stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz')
-
-    if template_skullstrip == 'Custum_Macaque':
-        #convert to float
-        command = 'singularity run' + s_bind + fs_sif + 'mri_convert -odt float ' + warp_adj + ' ' + opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_float.nii.gz')
-        spco([command], shell=True)
-        mask_img = compute_epi_mask(opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_float.nii.gz'), lower_cutoff=0.75, upper_cutoff=0.85, connected=True, opening=3,
-            exclude_zeros=False, ensure_finite=True)
-        mask_img.to_filename(stdy_template_mask)
-        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + stdy_template_mask + \
-        ' -input ' + stdy_template_mask + ' -fill_holes'
-        spco(command, shell=True)
-
-
-    #elif template_skullstrip == 'MachinL':
-    #    spco(['python3', '/home/cgarin/Documents/0_Clement/CODE/CODE/NHP-BrainExtraction-master/UNet_Model/muSkullStrip.py',
-    #    '-in', warp_adj, '-model', '/home/cgarin/Documents/1_Macaque_MRI/4_SSwarper_muSkull/result/model-20-epoch', '-out',
-    #     opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm)])
-    #    shutil.copyfile(opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'warped_3_adjusted_mean_pre_mask.nii.gz'), stdy_template_mask)
-
-    elif template_skullstrip == 'Custum_Macaque2':
-        #convert to float
-        mask_img = compute_epi_mask(warp_adj, lower_cutoff=0.75, upper_cutoff=0.90, connected=True, opening=3,
-            exclude_zeros=False, ensure_finite=True)
-        mask_img.to_filename(stdy_template_mask)
-
-    elif template_skullstrip == 'Manual':
-        def run_command_and_wait(command):
-            print("Running command:", command)
-            result = subprocess.run(command, shell=True)
-            if result.returncode == 0:
-                print("Command completed successfully.")
-            else:
-                print("Command failed with return code:", result.returncode)
-        print('save the mask as "study_template_mask" in the template folder')
-        print(stdy_template_mask)
-        if not os.path.exists(stdy_template_mask):
-            command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + warp_adj + ' -expr "step(a)" -prefix ' + stdy_template_mask
-            spco(command, shell=True)
-        # Example usage
-        command = ('singularity run' + s_bind + itk_sif + 'itksnap -g ' + warp_adj + ' -s ' + stdy_template_mask)
-        run_command_and_wait(command)
-
-    elif template_skullstrip =='Custum_QWARPT2':
-
-        command = 'singularity run' + s_bind + afni_sif + '3dQwarp -overwrite -iwarp' + \
-        ' -base ' + BASE_SS + \
-        ' -prefix ' + stdy_template_mask + \
-        ' -source ' + warp_adj + ' -maxlev 3 -resample'
-        spco(command, shell=True)
-        command = 'singularity run' + s_bind + afni_sif + '3dNwarpApply -nwarp ' + opj(study_template_atlas_forlder,'study_template_mask_WARPINV.nii.gz') + \
-        ' -source ' + BASE_mask + ' -master ' + warp_adj + ' -interp NN' + \
-        ' -prefix ' + stdy_template_mask + ' -overwrite'
-        spco(command, shell=True)
-
-
-    elif template_skullstrip == '3dSkullStrip':
-        command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -overwrite -prefix ' + stdy_template_mask + \
-            ' -input ' + warp_adj + ' -blur_fwhm 2 -orig_vol -mask_vol -use_skull -monkey'
-        spco(command, shell=True)
-
-
-    elif template_skullstrip =='bet2':
-        #####creat an approximate brain mask
-        command = 'singularity run' + s_bind + fsl_sif + 'bet2 ' + warp_adj + ' ' + stdy_template_mask + \
-        ' -f 0.70'
-        spco([command], shell=True)
-
-        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' +stdy_template_mask + \
-        ' -input ' + stdy_template_mask + ' -fill_holes'
-        spco(command, shell=True)
-
-    ##extract brain
-    command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + stdy_template_mask + ' -b ' + warp_adj + ' -expr "(a*b)" -prefix ' + opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_not_align.nii.gz')
-    spco(command, shell=True)
-
-    ### to move in brainT to styT??? XXX
-    ##align template to BASE_SS (atlas template)
-    command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -warp shift_rotate -cmass -overwrite -base ' + BASE_SS + \
-    ' -nomask -onepass' + \
-    ' -master ' + opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_not_align.nii.gz') + \
-    ' -prefix ' + stdy_template + \
-    ' -source ' + opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_not_align.nii.gz') + ' -1Dmatrix_save ' + \
-    opj(study_template_atlas_forlder,ID + '_allign_template_to_stdy_template.1D')
-    spco(command, shell=True)
-
-    command = 'singularity run' + s_bind + afni_sif + '3dAllineate -overwrite -interp NN -1Dmatrix_apply ' + opj(study_template_atlas_forlder,ID + '_allign_template_to_stdy_template.1D') + \
-    ' -prefix ' + stdy_template_mask + \
-    ' -master ' + stdy_template + \
-    ' -input  ' + stdy_template_mask
-    spco([command], shell=True)  

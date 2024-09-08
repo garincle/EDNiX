@@ -17,7 +17,7 @@ packages = {
     "nibabel": "5.2.1",
     "math": "built-in (no version)",
     "pandas": "2.2.2",
-    "matplotlib": "3.8.4",
+    "matplotlib": "3.9.2",
     "pingouin": "0.5.4",
     "seaborn": "0.13.2",
     "bids": "0.16.5",

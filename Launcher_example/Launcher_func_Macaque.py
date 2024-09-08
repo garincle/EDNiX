@@ -150,7 +150,7 @@ removelist = []
 '''
 ######### select the indiv you want to remove !!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in ['300101']:
+    if ID in ['Elak', 'Samourai']:
         removelist.append(num)
 '''
 ############################################################## NOTHING TO DO HERE ##############################################################
@@ -379,12 +379,12 @@ do_not_correct_signal  = False # True or False
 extract_exterior_CSF = False # True or False
 
 ### you can use the White Matter as regressor
-extract_WM = False # True or False
+extract_WM = True # True or False
 #use the eroded  White Matter functional mask (produced during the anat processing)
-use_erode_WM_func_masks  = False # True or False
+use_erode_WM_func_masks  = True # True or False
 
 ### you can use the Ventricules as regressor (not advised for small species as often not enough voxels)
-extract_Vc = False # True or False
+extract_Vc = True # True or False
 #use the eroded ventricular functional mask (produced during the anat processing)
 use_erode_V_func_masks = False # True or False
 
@@ -394,7 +394,7 @@ extract_GS = False # True or False
 ### Band path filtering
 band = '0.01 0.1' # string
 #Smooth
-blur = 2 # float
+blur = 3 # float
 #Dilate the functional brain mask by n layers
 dilate_mask = 0 # int
 #retrain the analysis to the gray matter
@@ -402,7 +402,7 @@ use_cortical_mask_func = False # True or False
 
 #######for seed analysis (step 11)
 #### name of the atlases  you want to use for the seed base analysis
-selected_atlases = ['atlaslvl3.nii.gz'] #liste
+selected_atlases = ['atlaslvl3.nii.gz', 'atlaslvl4.nii.gz'] #liste
 
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 panda_files = [pd.DataFrame({'region':[
@@ -419,7 +419,13 @@ panda_files = [pd.DataFrame({'region':[
 'Basal forebrain',
 'Amygdala',
 'Hypothalamus',
-'Thalamus'],'label':[58,59,61,62,64,67,68,71,74,75,76,79,80,81]})] # liste of pandas dataframe
+'Thalamus'],'label':[58,59,61,62,64,67,68,71,74,75,76,79,80,81]}), pd.DataFrame({'region':[
+'retrosplenial',
+'BA 23',
+'BA 24',
+'BA 32',
+'BA 9',
+'OB'],'label':[162,128,114,112,107,153]})] # liste of pandas dataframe
 
 
 #### coordinate of the template plot in list form, each number will be a slice (plotting.plot_stat_map = cut_coords)
@@ -432,7 +438,7 @@ cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 threshold_val = 10 # int
 
 ##use high quality anat image as background for figures
-oversample_map = True # True or False
+oversample_map = False # True or False
 
 #######for matrix analysis (step 10)
 #### name of the atlases  you want to use for the matrix analysis
@@ -474,7 +480,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,200]
+Skip_step = [12,13,14,100,200]
 
     ############################################################
     ######################## START de pipeline #################

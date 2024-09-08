@@ -148,7 +148,7 @@ for ID in pd.unique(allinfo_study_c_formax.ID):
     listereverse.reverse()
     max_session.append(np.array(listereverse).max())
 
-    for Session in listereverse:
+    for Session in pd.unique(listereverse):
         print('session numuber ' + str(Session))
 
         # Organization of the folders
@@ -214,8 +214,6 @@ brain_skullstrip_1 ='3dSkullStrip_Rat' # bet2_ANTS or MachinL
 
 #precise
 brain_skullstrip_2 ='Custum_QWARPT2' # bet2_ANTS or MachinL
-
-useT1T2_for_coregis = False
 
 do_fMRImasks = True
 Align_img_to_template = '3dAllineate' #3dAllineate or No or @Align_Centers
@@ -345,10 +343,9 @@ Skip_step = [10,11,12,13,14,15]
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 species = 'RatWHS'
 
-
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
     BASE_SS, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, template_skullstrip,
     IgotbothT1T2, list_atlases, Aseg_ref, Aseg_refLR, dir_out, FS_dir, do_surfacewith, Atemplate_to_Stemplate,
-    FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, useT1T2_for_coregis, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, Align_img_to_template,
-    species, overwrite_option,MAIN_PATH, s_bind, s_path)
+    FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, Align_img_to_template,
+    species, type_of_transform, type_of_transform_stdyT, overwrite_option,MAIN_PATH, s_bind, s_path)

@@ -33,10 +33,9 @@ def to_common_template_space(Session, deoblique_exeption1, deoblique_exeption2, 
         if do_anat_to_func == True:
             mvt_shft_ANTs = []
             w2inv_fwd = [False, True, True]
-            for elem1, elem2 in zip([opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
-                                     opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
-                                     opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')],
-                                    [False, False, False]):
+            for elem1, elem2 in zip([  # opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
+                opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
+                opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')], [False, False]):
                 if ope(elem1):
                     mvt_shft_ANTs.append(elem1)
                     w2inv_fwd.append(elem2)

@@ -10,6 +10,16 @@ import nibabel as nib
 import subprocess
 from nilearn import plotting
 import anatomical.Skullstrip_method
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -21,7 +31,7 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, otheranat,
-    check_visualy_final_mask, useT1T2_for_coregis, bids_dir, s_bind,afni_sif,fsl_sif,fs_sif, itk_sif):
+    check_visualy_final_mask, template_skullstrip, study_template_atlas_forlder, bids_dir, s_bind,afni_sif,fsl_sif,fs_sif, itk_sif):
 
     if ope(opj(masks_dir, ID + '_finalmask.nii.gz')):
         output_for_mask = opj(masks_dir, ID + '_finalmask.nii.gz')
@@ -29,7 +39,7 @@ def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir
     else:
         step_skullstrip = 2
         brain_skullstrip = 'brain_skullstrip_2'
-        output_for_mask =  anatomical.Skullstrip_method.Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
+        output_for_mask =  anatomical.Skullstrip_method.Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas_forlder, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
     otheranat, ID, Session, check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif)
 
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
@@ -37,21 +47,6 @@ def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir
         spco(command, shell=True)
 
         output_for_mask = opj(masks_dir, ID + masking_img + '_mask_2.nii.gz')
-
-    ####################################
-    ########### choose Ref_file ########
-    ####################################
-    if useT1T2_for_coregis == True:
-        Ref_file = opj(volumes_dir,ID + type_norm + '_' + otheranat + '_brain.nii.gz')
-        ###creat brain of the subject template
-        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(volumes_dir, ID + '_' + type_norm + '_' + otheranat + '_template.nii.gz') + \
-        ' -b ' + output_for_mask + \
-        ' -prefix ' + Ref_file + ' -expr "a*b"'
-        spco([command], shell=True)
-    else:
-    # Organization of the folders
-        Ref_file = opj(volumes_dir,ID + type_norm + '_brain.nii.gz')
-
 
     #################################### signal correction 
     for Timage in listTimage:
@@ -64,29 +59,30 @@ def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir
         ###creat brain of the subject template
         command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz') + \
                 ' -b ' + opj(masks_dir, ID + '_mask_rsp_' + Timage + '.nii.gz') + \
-                ' -expr "a*b" -prefix ' + opj(volumes_dir,ID + Timage + '_brain.nii.gz')
+                ' -expr "a*b" -prefix ' + opj(volumes_dir,ID + Timage + '_brain_step_1.nii.gz')
         spco([command], shell=True)
 
+    ## plot several QC of the first skullstriped brain (check  that it is ok)
     for Timage in listTimage:
         ####plot the Reffile
         try:
-            display = plotting.plot_anat(opj(dir_prepro, ID + '_acpc_cropped' + Timage + '.nii.gz'),
+            display = plotting.plot_anat(opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz'),
                                          display_mode='mosaic', dim=4)
-            display.add_contours(Ref_file,
+            display.add_contours(opj(volumes_dir,ID + Timage + '_brain_step_1.nii.gz'),
                                  linewidths=.2, colors=['red'])
-            display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + 'Ref_file.png')
+            display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + '_brain_step_1.png')
             # Don't forget to close the display
             display.close()
         except:
-            display = plotting.plot_anat(Ref_file,
+            display = plotting.plot_anat(opj(volumes_dir,ID + Timage + '_brain_step_1.nii.gz'),
                                          display_mode='mosaic', dim=4)
-            display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + 'Ref_file.png')
+            display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + '_brain_step_1.png')
             # Don't forget to close the display
             display.close()
 
     ###N4BiasFieldCorrection
     try:
-        BRAIN = ants.image_read(Ref_file)
+        BRAIN = ants.image_read(opj(volumes_dir,ID + type_norm + '_brain_step_1.nii.gz'))
         MSK   = ants.image_read(output_for_mask)
         N4    = ants.n4_bias_field_correction(BRAIN, mask=MSK,
                                            shrink_factor=4,
@@ -102,19 +98,19 @@ def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir
             # Check if all the data is zero
             return np.all(data == 0)
         except:
-            print("WARNING: N4BiasFieldCorrection failed, we can continue it is not the end of the world =)")
-            command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + \
+            print(bcolors.WARNING + "WARNING: N4BiasFieldCorrection failed, we can continue it is not the end of the world =)" + bcolors.ENDC)
+            command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(volumes_dir,ID + type_norm + '_brain_step_1.nii.gz') + \
                       ' -expr "a" -prefix ' + opj(dir_prepro, ID + '_' + type_norm + '_brain_N4.nii.gz')
             spco([command], shell=True)
 
         if np.all(data == 0)== True:
-            print("WARNING: N4BiasFieldCorrection failed, we can continue it is not the end of the world =)")
-            command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + \
+            print(bcolors.WARNING + "WARNING: N4BiasFieldCorrection failed, we can continue it is not the end of the world =)" + bcolors.ENDC)
+            command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(volumes_dir,ID + type_norm + '_brain_step_1.nii.gz') + \
                       ' -expr "a" -prefix ' + opj(dir_prepro, ID + '_' + type_norm + '_brain_N4.nii.gz')
             spco([command], shell=True)
 
     except:
-        print("WARNING: N4BiasFieldCorrection failed, we can continue it is not the end of the world =)")
-        command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + \
+        print(bcolors.WARNING + "WARNING: N4BiasFieldCorrection failed, we can continue it is not the end of the world =)" + bcolors.ENDC)
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(volumes_dir,ID + type_norm + '_brain_step_1.nii.gz') + \
                 ' -expr "a" -prefix ' + opj(dir_prepro,ID + '_' + type_norm + '_brain_N4.nii.gz')
         spco([command], shell=True)

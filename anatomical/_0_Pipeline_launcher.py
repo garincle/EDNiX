@@ -47,14 +47,23 @@ import anatomical._15_to_WB
 import anatomical._100_Data_Clean
 import anatomical._200_Data_QC
 
-
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
     BASE_SS, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, template_skullstrip,
     IgotbothT1T2, list_atlases, Aseg_ref, Aseg_refLR, dir_out, FS_dir, do_surfacewith, Atemplate_to_Stemplate,
-    FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, useT1T2_for_coregis, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, Align_img_to_template,
-    species, overwrite_option,MAIN_PATH, s_bind, s_path):
+    FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, Align_img_to_template,
+    species, type_of_transform, type_of_transform_stdyT, overwrite_option,MAIN_PATH, s_bind, s_path):
 
     sys.path.append(opj(MAIN_PATH + 'Code', 'EasyMRI_brain-master'))
 
@@ -87,12 +96,7 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
     ####################################################################################
 
     for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, max_sessionlist):
-        print( '###################################################### work on subject' + str(ID) + ' Session ' + str(Session) + '###############################################################' +
-        '############################################################################################################################################################################'+
-        '############################################################################################################################################################################')
-        animal_folder =   'sub-' + ID + '_ses-' + str(Session)
-
-
+        print(bcolors.HEADER + '###################################################### work on subject: ' + str(ID) + ' Session ' + str(Session) + ' BLOCK 1 ###############################################################' + bcolors.ENDC)
         # The anatomy
         path_anat     = opj(data_path,'anat')
         dir_transfo   = opj(path_anat,'matrices')
@@ -110,7 +114,7 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
         spco([command], shell=True)
 
         DIR = os.getcwd()
-        print('Working path : '+ DIR)
+        print(bcolors.OKGREEN + 'INFO: Working path : ' + DIR + bcolors.ENDC)
 
         ###########define orientation#############
         ##########################################
@@ -131,22 +135,18 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
         if ope(opj(bids_dir, 'QC')) == False:
             os.makedirs(opj(bids_dir, 'QC'))
 
-        print(str(ID) + ' ' +  str(Session) + ' ' + str(type_norm))
-
-        print('ok')
-
         if 1 in Skip_step:
-            print('skip step ' + str(1))
+            print(bcolors.OKGREEN + 'INFO: skip step ' + str(1) + bcolors.ENDC)
 
         else:
             anatomical._1_correct_orient.correct_orient(BIDStype, listTimage, path_anat, ID, Session, otheranat, type_norm, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, dir_prepro, IgotbothT1T2, overwrite,s_bind,afni_sif,fs_sif)
 
         if 2 in Skip_step:
-            print('skip step ' + str(2))
+            print(bcolors.OKGREEN + 'INFO: skip step ' + str(2) + bcolors.ENDC)
 
         else:
             anatomical._2_clean_anat.clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, otheranat, type_norm, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, dir_prepro, masking_img, do_manual_crop,
-            brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, overwrite,
+            brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, template_skullstrip, study_template_atlas_forlder, overwrite,
                                                 s_bind,afni_sif,fsl_sif,fs_sif, itk_sif)
 
     ###### STOP THE LOOP ######
@@ -154,18 +154,14 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
     if creat_study_template==True:
 
         if 3 in Skip_step:
-            print('skip step ' + str(3))
+            print(bcolors.OKGREEN + 'INFO: skip step ' + str(3) + bcolors.ENDC)
 
         else:
             anatomical._3_make_template.make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, type_norm, study_template_atlas_forlder, template_skullstrip, BASE_SS, BASE_mask, overwrite,s_bind,afni_sif,fsl_sif,fs_sif, itk_sif)
 
     ###### LOOP AGAIN ######
     for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, max_sessionlist):
-        print('###################################################### work on subject' + str(ID) + ' Session ' + str(Session) + '###############################################################' +
-            '############################################################################################################################################################################'+
-            '############################################################################################################################################################################')
-        animal_folder =   'sub-' + ID + '_ses-' + str(Session)
-
+        print(bcolors.HEADER + '###################################################### work on subject: ' + str(ID) + ' Session ' + str(Session) + ' BLOCK 2 ###############################################################' + bcolors.ENDC)
 
         # The anatomy
         path_anat     = opj(data_path,'anat/')
@@ -246,32 +242,29 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
                  opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')]
             w2inv_fwd = [False, False]
 
-            transfo_concat_inv = \ ### should the warp and affin be reverse??
+            ### should the warp and affin be reverse??
+            transfo_concat_inv = \
                 [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz'),
                  opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')]
             w2inv_inv = [False, True]
 
-        if useT1T2_for_coregis == True:
-            Ref_file = opj(volumes_dir, ID + type_norm + '_' + otheranat + '_brain.nii.gz')
-        else:
-            # Organization of the folders
-            Ref_file = opj(volumes_dir, ID + type_norm + '_brain.nii.gz')
+        Ref_file = opj(volumes_dir, ID + type_norm + '_brain_step_1.nii.gz')
 
         # creat a template for each individual (nice skulltrip corrected of each mean of anat img)
         if 4 in Skip_step:
-            print('skip step ' + str(4))
+            print(bcolors.OKGREEN + 'INFO: skip step ' + str(4) + bcolors.ENDC)
 
         else:
             anatomical._4_create_template_brain.create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir, masking_img, brain_skullstrip_1, brain_skullstrip_2, 
-                masks_dir, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, otheranat, check_visualy_final_mask, useT1T2_for_coregis, bids_dir, s_bind,afni_sif,fsl_sif,fs_sif, itk_sif)
+                masks_dir, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, otheranat, check_visualy_final_mask, template_skullstrip, study_template_atlas_forlder, bids_dir, s_bind,afni_sif,fsl_sif,fs_sif, itk_sif)
 
 
         ###### coregistration of each indiv template to the selected template (sty, atlas)
         if 5 in Skip_step:
-            print('skip step ' + str(5))
+            print(bcolors.OKGREEN + 'INFO: skip step ' + str(5) + bcolors.ENDC)
 
         else:
-            anatomical._5_brainT_to_stdyT.brainT_to_T(dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv,creat_study_template, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, otheranat, bids_dir, overwrite)
+            anatomical._5_brainT_to_stdyT.brainT_to_T(BASE_SS, creat_study_template, dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv, study_template_atlas_forlder, otheranat, bids_dir, type_of_transform, template_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, BASE_SS_mask, check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif, overwrite)
 
         if coregistration_longitudinal == True:
             if Session == max_ses:
@@ -303,16 +296,16 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
 
                 ###### coregistration of each indiv template to the selected template (sty, atlas)
                 if 5 in Skip_step:
-                    print('skip step ' + str(5))
+                    print(bcolors.OKGREEN + 'INFO: skip step ' + str(5))
 
                 else:
-                    anatomical._5_brainT_to_stdyT_max.brainT_to_T_max(dir_prepro, ID, Session, listTimage, n_for_ANTS,
-                                                                      dir_transfo, type_norm, BASE_SS_coregistr, Ref_file,
-                                                                      volumes_dir, transfo_concat_inv,w2inv_inv, creat_study_template,
-                                                                      which_on, all_ID_max, max_session, all_data_path_max,
-                                                                      all_ID, all_Session, all_data_path,
-                                                                      study_template_atlas_forlder, otheranat, bids_dir,
-                                                                      overwrite)
+                    anatomical._5_brainT_to_stdyT_max.brainT_to_T_max(BASE_SS, creat_study_template, dir_prepro, ID, Session, listTimage, n_for_ANTS,
+                    dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv,
+                    study_template_atlas_forlder, otheranat, bids_dir, type_of_transform, template_skullstrip, masking_img,
+                    brain_skullstrip_1, brain_skullstrip_2, masks_dir, BASE_SS_mask, check_visualy_final_mask,
+                    which_on, all_data_path_max, IgotbothT1T2, all_data_path,
+                    s_bind, afni_sif, fsl_sif, fs_sif, itk_sif, overwrite)
+
     ###### STOP THE LOOP ######
 
     
@@ -325,9 +318,9 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
         ###################redefine new atlases variable!!!
 
         if 6 in Skip_step:
-            print('skip step ' + str(6))
+            print(bcolors.OKGREEN + 'INFO: skip step ' + str(6) + bcolors.ENDC)
         else:
-            anatomical._6_stdyT_to_AtlasT.stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_ANTS, study_template_atlas_forlder, Atemplate_to_Stemplate, overwrite,
+            anatomical._6_stdyT_to_AtlasT.stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_ANTS, study_template_atlas_forlder, Atemplate_to_Stemplate, type_of_transform_stdyT, overwrite,
                                                           s_bind,afni_sif)
 
         ###### re-define the variable: study template atlas, etc should now be the new template !!
@@ -357,9 +350,7 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
     ###### LOOP AGAIN ######
 
     for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, max_sessionlist):
-        print( '###################################################### work on subject' + str(ID) + ' Session ' + str(Session) + '###############################################################' +
-        '############################################################################################################################################################################'+
-        '############################################################################################################################################################################' )
+        print(bcolors.HEADER + '###################################################### work on subject: ' + str(ID) + ' Session ' + str(Session) + ' BLOCK 2 ###############################################################' + bcolors.ENDC)
         animal_folder =   'sub-' + ID + '_ses-' + str(Session)
 
         # The anatomy
@@ -372,7 +363,6 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
         volumes_dir   = opj(wb_native_dir,'volumes')
         labels_dir    = opj(volumes_dir,'labels')
         masks_dir     = opj(volumes_dir,'masks')
-
 
         ####################################################################################
         ########################## Coregistration template to anat #########################
@@ -417,7 +407,6 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
                 w2inv_fwd = [False, False, False, False]
 
         ################# coregistration non longitudinal #################
-
         else:
             if creat_study_template == True:
                 stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
@@ -435,15 +424,12 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
                  opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')]
             w2inv_fwd = [False, False]
 
-        if useT1T2_for_coregis == True:
-            Ref_file = opj(volumes_dir,ID + type_norm + '_' + otheranat + '_brain.nii.gz')
-        else:
-        # Organization of the folders
-            Ref_file = opj(volumes_dir,ID + type_norm + '_brain.nii.gz')
+
+        Ref_file = opj(volumes_dir,ID + type_norm + '_brain.nii.gz')
 
 
         if 7 in Skip_step:
-            print('skip step ' + str(7))
+            print(bcolors.OKGREEN + 'INFO: skip step ' + str(7) + bcolors.ENDC)
         else:
             anatomical._7_prepar_aseg.prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref, type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, check_visualy_each_img, n_for_ANTS, overwrite,
                                                   s_bind,afni_sif,itk_sif)
@@ -451,7 +437,7 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
         if do_fMRImasks == True:
 
             if 8 in Skip_step:
-                print('skip step ' + str(8))
+                print(bcolors.OKGREEN + 'INFO: skip step ' + str(8) + bcolors.ENDC)
 
             else:
                 ########################## Building fMRI masks for EPI analysis ##############################
@@ -459,7 +445,7 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
                                                         s_bind,afni_sif,)
 
         if 9 in Skip_step:
-            print('skip step ' + str(9))
+            print(bcolors.OKGREEN + 'INFO: skip step ' + str(9) + bcolors.ENDC)
 
         else:
             ########################## White Surface construction ##############################
@@ -468,14 +454,14 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
                                                 s_bind,fs_sif)
 
         if 10 in Skip_step:
-            print('skip step ' + str(10))
+            print(bcolors.OKGREEN + 'INFO: skip step ' + str(10) + bcolors.ENDC)
 
         else:
             ########################## White Surface construction ##############################
             anatomical._10_FS_1_white.White_create(FS_dir, animal_folder,s_bind,fs_sif)
 
         if 11 in Skip_step:
-            print('skip step ' + str(11))
+            print(bcolors.OKGREEN + 'INFO: skip step ' + str(11) + bcolors.ENDC)
 
         else:
             ########################## White Surface construction ##############################
@@ -483,7 +469,7 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
             anatomical._10_FS_1_white.White_more(FS_dir, animal_folder, FS_buckner40_TIF,FS_buckner40_GCS,s_bind,fs_sif)
 
         if 12 in Skip_step:
-            print('skip step ' + str(12))
+            print(bcolors.OKGREEN + 'INFO: skip step ' + str(12) + bcolors.ENDC)
 
         else:
             anatomical._12_make_pial.make_pial(FS_dir, animal_folder, type_norm, otheranat, Hmin, Ref_file, do_surfacewith, overwrite,
@@ -492,31 +478,31 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
 
         if check_visualy_each_img == True:
             if 13 in Skip_step:
-                print('skip step ' + str(13))
+                print(bcolors.OKGREEN + 'INFO: skip step ' + str(13) + bcolors.ENDC)
 
             else:
                 anatomical._13_FS_freeview.FS_Freeview(FS_dir, animal_folder, 'pial', Lut_file,
                                                        s_bind,fs_sif)
 
         if 14 in Skip_step:
-            print('skip step ' + str(14))
+            print(bcolors.OKGREEN + 'INFO: skip step ' + str(14) + bcolors.ENDC)
 
         else:
             anatomical._14_Finalise.FS_finalise(FS_dir, animal_folder, FreeSlabel_ctab_list, list_atlases_2, labels_dir, type_norm, Ref_file,
                                                 s_bind,fs_sif)
         if 15 in Skip_step:
-            print('skip step ' + str(15))
+            print(bcolors.OKGREEN + 'INFO: skip step ' + str(15) + bcolors.ENDC)
 
         else:
             anatomical._15_to_WB.WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2,s_bind,afni_sif,fsl_sif,fs_sif,wb_sif)
 
         if 100 in Skip_step:
-                print('skip step ' + str(100))
+                print(bcolors.OKGREEN + 'INFO: skip step ' + str(100) + bcolors.ENDC)
         else:
             anatomical._100_Data_Clean.clean(all_ID, all_Session, all_data_path)
 
         if 200 in Skip_step:
-            print('skip step ' + str(200))
+            print(bcolors.OKGREEN + 'INFO: skip step ' + str(200) + bcolors.ENDC)
 
         else:
             anatomical._200_Data_QC._itk_check_masks(dir_prepro, masks_dir, ID, type_norm,s_bind, itk_sif)

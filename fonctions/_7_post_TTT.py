@@ -118,8 +118,8 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
             root_RS = extract_filename(RS[i])
             command = 'singularity run' + s_bind + afni_sif + '3dDeconvolve -input ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
             ' -mask ' + opj(dir_fMRI_Refth_RS_prepro1,'maskDilat.nii.gz') + \
-            ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1,root_RS + 'bandpass_rall.1D') + ' bandpass_rall'  + \
-            ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_demean.1D') + ' mot_demean'  + \
+            ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1,root_RS + 'bandpass_rall.1D') + ' bandpass_rall' + \
+            ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_demean.1D') + ' mot_demean' + \
             ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_deriv.1D') + ' mot_deriv' + \
             ' -censor ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_censor.1D') + \
             ' -polort A -float ' +                                                  \
@@ -146,7 +146,7 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
 
             elif extract_GS == True:
                 command = command + ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_GS.1D') + ' residual_norm_Vc '
-
+            print(command)
             spco([command], shell=True)
 
             command = 'singularity run' + s_bind + afni_sif + '3dTproject -polort 0' + overwrite + ' -input ' + \
@@ -155,7 +155,7 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
             ' -cenmode ZERO -ort ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + 'X.nocensor.xmat.1D') + \
             ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
             if blur>0:
-                command + ' -blur ' + str(blur)
+                command = command + ' -blur ' + str(blur)
             spco([command], shell=True)
 
     else:
