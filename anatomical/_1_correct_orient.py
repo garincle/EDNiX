@@ -6,7 +6,16 @@ from fonctions.extract_filename import extract_filename
 import json
 from nilearn.image import resample_to_img
 from nilearn.image import math_img
-
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -43,9 +52,11 @@ def correct_orient(BIDStype,
             list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_ses-' + str(Session) + '_*' + Timage + '.nii*')))
         elif BIDStype == 2:
             list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_' + Timage + '.nii*')))
+        else:
+            print(bcolors.FAIL + 'ERROR: BIDStype must either 1 or 2' + bcolors.ENDC)
 
         if len(list_anat)==1:
-            print('INFO: We found only one anat images for this session')
+            print(bcolors.OKGREEN + 'INFO: We found only one anat images for this session' + bcolors.ENDC)
             print(list_anat)
             #list_anat = [opj(path_anat, 'sub-' + ID + '_ses-' + str(Session) + '_' + Timage + '.nii.gz')]
             print(ope(list_anat[0]))
@@ -64,7 +75,7 @@ def correct_orient(BIDStype,
                 if ope(opj(opd(list_anat[i]), extract_filename(list_anat[i]) + '.json')):
                     read_json = opj(opd(list_anat[i]), extract_filename(list_anat[i]) + '.json')
                 else:
-                    print("WARNING: No .json associated to the the anat image !! you might want to check that!")
+                    print(bcolors.WARNING + "WARNING: No .json associated to the the anat image !! you might want to check that!"  + bcolors.ENDC)
                     ff = open(read_json)
                     anat_T1 = json.load(ff)
                     try:
@@ -75,7 +86,7 @@ def correct_orient(BIDStype,
                             list_anat.pop(i)
                             # After removing the file, no need to increment i since the next file takes the place of the removed one
                     except:
-                        print("WARNING No ImageType, could not check if NORM image was included in your BIDS, you might want to check that!")
+                        print(bcolors.WARNING + "WARNING No ImageType, could not check if NORM image was included in your BIDS, you might want to check that!" + bcolors.ENDC)
 
             if len(list_anat) > 1:
                 ANAT= ' '.join(list_anat)
@@ -89,16 +100,13 @@ def correct_orient(BIDStype,
                 ' -prefix ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz') + ' -expr "a"' + overwrite
                 spco([command], shell=True)
         else:
-            print('#############################   Error no anat img found!! Please check BIDStype variable, it might not be adapted ##############################################')
+            raise Exception(bcolors.FAIL + 'Error no anat img found!! Please check BIDStype variable, it might not be adapted' + bcolors.ENDC)
 
-        #command = 'singularity run' + s_bind + afni_sif + '3drefit -space ORIG ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz')
-        #spco([command], shell=True)
         ####################################################
         ####### creat indiv T1/T2 template if necessary ####
         ####################################################
 
     if IgotbothT1T2 == True:
-        #spco(['3dresample', '-master', opj(dir_prepro, ID + '_acpc_cropped' + type_norm + '.nii.gz'), '-prefix', opj(volumes_dir, ID + '_' + otheranat + '_template_RSPL.nii.gz'), '-input', opj(dir_prepro, ID + '_' + otheranat + '.nii.gz'), '-overwrite'])
         caca2 = resample_to_img(opj(path_anat, ID + 'template_indiv' + otheranat + '.nii.gz'),
                                 opj(path_anat, ID + 'template_indiv' + type_norm + '.nii.gz'),
                                 interpolation='nearest')
@@ -132,10 +140,6 @@ def correct_orient(BIDStype,
         print(listTimage2)
     else:
         listTimage2 = list(listTimage)
-    print(listTimage2)
-    print(listTimage)
-
-
 
     ###define if the two image have the same oblique
     if IgotbothT1T2 == True:
@@ -146,7 +150,6 @@ def correct_orient(BIDStype,
         nx = arg[-1]
     else:
         nx="b'1\\n1\\n'" #code to say "same oblique"...
-
 
     debolique_spe = ID + 'ses-' + str(Session)
     if debolique_spe in deoblique_exeption1:

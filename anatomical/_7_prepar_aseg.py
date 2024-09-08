@@ -2,6 +2,17 @@ import os
 import subprocess
 import ants
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -14,16 +25,17 @@ spgo = subprocess.getoutput
 
 def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref, type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, check_visualy_each_img, n_for_ANTS, overwrite,
                 s_bind,afni_sif,itk_sif):
-    print("BASE_SS_mask is " + BASE_SS_mask)
-    print("BASE_SS_coregistr is " + BASE_SS_coregistr)
-    print("Ref_file is " + Ref_file)
+
+    print(bcolors.OKGREEN + "INFO: template mask is " + BASE_SS_mask + bcolors.ENDC)
+    print(bcolors.OKGREEN + "INFO: template is " + BASE_SS_coregistr + bcolors.ENDC)
+    print(bcolors.OKGREEN + "INFO: anat Ref_file is " + Ref_file + bcolors.ENDC)
 
     ################################################################################################
     ########################## aseg and atlases into the native space ##############################
     ################################################################################################
-    ####test on the template (atlas or sty) to see if it works
-    ####save the old "Ref_file"
-    command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' +  Ref_file + ' -expr "a" -prefix ' + opj(volumes_dir, ID + type_norm + '_brain_coregistr_QC.nii.gz')
+
+    ####save the old "Ref_file"    ####test on the template (atlas or sty) to see if it works
+    command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(volumes_dir,ID + type_norm + '_brain_step_1.nii.gz') + ' -expr "a" -prefix ' + Ref_file
     spco([command], shell=True)
     print(command)
 
@@ -49,13 +61,13 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
                 ants.image_write(TRANS, opj(labels_dir,type_norm + opb(atlas)), ri=False)
                 command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(labels_dir,type_norm + opb(atlas)) + ' -expr "step(a)*b" -prefix ' + opj(labels_dir,type_norm + opb(atlas))
                 spco([command], shell=True)
-                print('INFO: done with atlas in subject space! you should check that')
+                print(bcolors.OKGREEN + 'INFO: done with atlas in subject space! you should check that' + bcolors.ENDC)
             else:
-                print('WARNING: no atlas found')
+                print(bcolors.WARNING + 'WARNING: no atlas found' + bcolors.ENDC)
 
     #### apply to asegLR
     if ope(Aseg_refLR):
-        print('INFO: found Aseg_refLR:' + str(Aseg_refLR))
+        print(bcolors.OKGREEN + 'INFO: found Aseg_refLR:' + str(Aseg_refLR) + bcolors.ENDC)
         IMG = ants.image_read(Aseg_refLR)
         TRANS = ants.apply_transforms(fixed=brain_img, moving=IMG,
                                       transformlist=transfo_concat, interpolator='nearestNeighbor',whichtoinvert=w2inv_fwd)
@@ -63,7 +75,7 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
         command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(labels_dir, type_norm + 'Aseg_refLR.nii.gz') + ' -expr "step(a)*b" -prefix ' + opj(labels_dir, type_norm + 'Aseg_refLR.nii.gz')
         spco([command], shell=True)
     else:
-        print('WARNING: no Aseg_refLR found')
+        print(bcolors.WARNING + 'WARNING: no Aseg_refLR found' + bcolors.ENDC)
 
     if ope(Aseg_ref):
         #### apply to aseg
@@ -74,21 +86,21 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
         command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "step(a)*b" -prefix ' + opj(labels_dir, type_norm + 'aseg.nii.gz')
         spco([command], shell=True)
     else:
-        print('WARNING: no Aseg_ref found')
+        print(bcolors.WARNING + 'WARNING: no Aseg_ref found' + bcolors.ENDC)
 
     if ope(opj(labels_dir, type_norm + 'aseg.nii.gz')):
         #### check the result if you are not a fan of auto "like Simon Clavagnier
         if check_visualy_each_img == True:
             #  Check for manual correction of the seg file!!!
             def run_command_and_wait(command):
-                print("Running command:", command)
+                print(bcolors.OKGREEN + 'INFO: Running command:', command + bcolors.ENDC)
                 result = subprocess.run(command, shell=True)
                 if result.returncode == 0:
-                    print("Command completed successfully.")
+                    print(bcolors.OKGREEN + 'INFO: Command completed successfully.' + bcolors.ENDC)
                 else:
-                    print("Command failed with return code:", result.returncode)
+                    print(bcolors.WARNING + 'WARNING: Command failed with return code:', result.returncode, bcolors.ENDC)
             # Example usage
-            print('WARNING: check aseg and if you correct it save it where it as ' + opj(labels_dir,'aseg_manual.nii.gz') + '!!!!!!!')
+            print(bcolors.WARNING + 'WARNING: check aseg and if you correct it save it where it as ' + opj(labels_dir,'aseg_manual.nii.gz') +  + bcolors.ENDC)
             command = ('singularity run' + s_bind + itk_sif + 'itksnap -g ' + Ref_file + ' -s ' + opj(labels_dir, type_norm + 'aseg.nii.gz'))
             run_command_and_wait(command)
 

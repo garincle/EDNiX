@@ -144,7 +144,7 @@ def coregist_to_norm(anat_func_same_space, dir_prepro, correction_direction, dir
         REF = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, root_RS_ref + '_xdtr_mean_deob_ref_fudge.nii.gz'))
 
 
-        if not recordings == 'very_old':  # do not process ref...
+        if not root_RS == root_RS_ref:  # do not process ref...
 
             # 1.0 calculate co-registration mean image ref to mean image func
 
@@ -163,7 +163,7 @@ def coregist_to_norm(anat_func_same_space, dir_prepro, correction_direction, dir
             # 2.0 apply to all the volume in the func (_xdtr_deob)
             FUNC = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_deob.nii.gz'))
             moved = ants.apply_transforms(fixed=REF, moving=FUNC,
-                                          transformlist=mTx1['fwdtransforms'],
+                                          transformlist=mTx['fwdtransforms'],
                                           interpolator=n_for_ANTS, imagetype=3)
             ants.image_write(moved, opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtrf_2ref.nii.gz'), ri=False)
 

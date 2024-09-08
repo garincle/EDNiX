@@ -394,8 +394,8 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                     ax1.set_ylim([-0.4, 1])
                     ax = pg.plot_paired(dv='Correlation', within='Hemisphere', ax=ax1, boxplot_in_front=True,
                                         pointplot_kwargs={'scale': 0.5, 'markers': '.'},
-                                        subject='Region', data=Correl_pd, dpi=400,
-                                        boxplot_kwargs={"palette": "Set1", 'linewidth': '2', 'width': 0.5, 'fliersize': 2.5})
+                                        subject='Region', data=Correl_pd,
+                                        boxplot_kwargs={"palette": "Set1", 'linewidth': 2, 'width': 0.5, 'fliersize': 2.5})
                     ax.grid(False)
                     ax.set(xlabel=None, ylabel=None)
                     ax.set_xticklabels(ax.get_xmajorticklabels(), fontsize=25)
@@ -411,7 +411,11 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                         s.set_color('black')
 
                     fig = ax.get_figure()
-                    fig.savefig(opj(output_results, root_RS + 'paired_ttest_results_intraH.png'), dpi=400, bbox_inches='tight')
+                    file_name = root_RS + 'paired_ttest_results_intraH.png'
+                    file_path = os.path.join(output_results, file_name)
+                    print(f"Saving figure to: {file_path}")
+                    print(f"DPI: {400}, Bbox_inches: {'tight'}")
+                    fig.savefig(file_path, dpi=400, bbox_inches='tight')
 
                     ##########################################################################
                     ###############################     LR vs Intra     ######################

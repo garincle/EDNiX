@@ -40,14 +40,13 @@ import anatomical._0_Pipeline_launcher
 
 ###where to store the BIDS data?
 species = 'Macaque'
-bids_dir = opj(MAIN_PATH,'data','MRI',species,'BIDS_BenHamed')
-
+bids_dir = opj('/scratch/cgarin/Macaque/BIDS_BenHamed')
 
 ##########################################
 ########### Subject loader################
 ##########################################
 
-layout= BIDSLayout(bids_dir,  validate=True)
+layout= BIDSLayout(bids_dir,  validate=False)
 print(layout)
 subject = layout.get_subjects()
 print(subject)
@@ -128,8 +127,8 @@ for ID in pd.unique(allinfo_study_c_formax.ID):
     listereverse.reverse()
     max_session.append(np.array(listereverse).max())
 
-    for Session in listereverse:
-        print('session numuber ' + str(Session))
+    for Session in pd.unique(listereverse):
+        print('session number ' + str(Session))
 
         # Organization of the folders
         data_path = opj(bids_dir,'sub-' + ID,'ses-' + str(Session))
@@ -149,12 +148,11 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 
 ######## select animals that have not been analyzed yet
 removelist = []
-''' 
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
     if ID in []:
         removelist.append(num)
-'''
+
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
 all_Session =  [item for i, item in enumerate(all_Session) if i not in removelist]
 all_data_path =  [item for i, item in enumerate(all_data_path) if i not in removelist]
@@ -181,6 +179,7 @@ check_visualy_final_mask = False #YES or NO
 deoblique='header' #header or WARP
 n_for_ANTS='hammingWindowedSinc'
 overwrite_option = True #YES or NO
+type_of_transform = 'SyN'
 
 ####Choose to normalize using T1 or T2
 type_norm = 'T1w' # T1 or T2
@@ -190,14 +189,13 @@ otheranat = '' #NA if none
 ###img use for masking in Skullstrip 1 'maybe this need to be change'!!!!!! because Skullstrip 2 is in auto equal to type_norm.... not sure that it will not creat problem in the futur
 masking_img = 'T1w'
 
-brain_skullstrip_1 ='Custum_Macaque' # bet2_ANTS or MachinL
+brain_skullstrip_1 ='NoSkullStrip' # bet2_ANTS or MachinL
 
 #precise
-brain_skullstrip_2 ='Custum_QWARP' # bet2_ANTS or MachinL
-
-useT1T2_for_coregis = False
+brain_skullstrip_2 ='NoSkullStrip' # bet2_ANTS or MachinL
 
 do_fMRImasks = True
+Align_img_to_template = '@Align_Centers' #3dAllineate or No or @Align_Centers
 cost3dAllineate = 'lpa'
 '''
 ls   *OR*  leastsq         = Least Squares [Pearson Correlation]
@@ -220,12 +218,13 @@ lpa+ *OR*  localPcorAbs+Others= Local Pearson Abs + Others
 creat_study_template = False
 
 #folder where you want to store the stdy template
-study_template_atlas_forlder = ''
-#then
-dir_out = study_template_atlas_forlder + ''
+study_template_atlas_forlder = bids_dir + '/sty_template'
+#then where do you want your atlases in sty template to be
+dir_out = bids_dir + '/sty_template/atlases'
 
 #do you want to use all the data or only the last one of each subject (for longitud inal co-registration)
-which_on = '' # all or max
+which_on = 'all' # all or max
+type_of_transform_stdyT = ''
 
 ###use type_norm or otheranat for atlas template to study template co-registration
 Atemplate_to_Stemplate = ''
@@ -252,10 +251,8 @@ orientation = 'LPI'
 #    list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_ses-' + str(Session) + '_run-*' + Timage + '.nii.gz')))
 #if BIDStype == 2:
 #    list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_' + Timage + '.nii.gz')))
-#if BIDStype == 3:
-#    list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_ses-' + str(Session) + '_' + Timage + '.nii.gz')))
 
-BIDStype = 3
+BIDStype = 1
 
 ####### attention!! change LPS -r based on what you can observe =====  RAI => LSP ;  LIP => LAS ; LSP => LPS (xxxchange RL?)
 #RAI
@@ -290,9 +287,7 @@ Aseg_refLR  = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',s
 
 species_list = ['Pig', 'Mouse_lemur', 'Marmoset', 'Macaque', 'Chimpanzee', 'DoginCat', 'CatinDog', 'Mouse', 'RatWHS', 'Human']
 middle_value = ['-0.929', '0.091','0.075','0.125','0.5','-0.352','-0.289','-0.05','0','0']
-s_bind        = ' --bind ' + opj('/','scratch','in_Process/') + ',' + MAIN_PATH
-s_path      = opj(MAIN_PATH,'code','singularity')
-afni_sif    = ' ' + opj(s_path , 'afni_make_build_AFNI_23.1.10.sif') + ' '
+
 ###question of Aseg_refLR
 def get_middle_value_for_species(species_list, value_list, target_species):
     for i, specie in enumerate(species_list):
@@ -330,7 +325,7 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = []
+Skip_step = [100,200]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 
@@ -338,5 +333,5 @@ anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique_exeption1, d
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
     BASE_SS, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, template_skullstrip,
     IgotbothT1T2, list_atlases, Aseg_ref, Aseg_refLR, dir_out, FS_dir, do_surfacewith, Atemplate_to_Stemplate,
-    FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, useT1T2_for_coregis, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, Align_img_to_template,
-    species, overwrite_option,MAIN_PATH, s_bind, s_path)
+    FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, Align_img_to_template,
+    species, type_of_transform, type_of_transform_stdyT, overwrite_option,MAIN_PATH, s_bind, s_path)

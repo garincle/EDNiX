@@ -13,6 +13,16 @@ from nilearn.masking import compute_epi_mask
 from nilearn.image import math_img
 import numpy as np
 import anatomical.Histrogram_mask_EMB
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -24,7 +34,7 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 
-def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
+def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas_forlder, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
     otheranat, ID, Session, check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif):
 
     if step_skullstrip == 1:
@@ -37,9 +47,17 @@ def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skul
         input_for_msk = opj(volumes_dir, ID + '_' + masking_img + '_template.nii.gz')
         output_for_mask = opj(masks_dir, ID + masking_img + '_mask_2.nii.gz')
         brain_skullstrip = brain_skullstrip_2
-    else:
-        print('no step_skullstrip ??')
 
+    elif step_skullstrip == 3:
+        masking_img = type_norm
+        input_for_msk = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'warped_3_adjusted_mean.nii.gz')
+        output_for_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_mask.nii.gz')
+        brain_skullstrip = template_skullstrip
+
+    else:
+        raise Exception('no step_skullstrip ??')
+
+    print("brain_skullstrip method is " + brain_skullstrip)
     ###########################################################################################################################################################################
     ######################################################### Brain Skullstrip Library (do your own if you need to!!!) ########################################################
     ###########################################################################################################################################################################
@@ -49,6 +67,7 @@ def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skul
     print('INFO: If you can not find a good solution for Skullstriping due to bad image quality, you can always modify it by hands and save it as: ' + \
           opj(masks_dir, ID + masking_img + 'final_mask.nii.gz') + ' for step 1' + \
           opj(masks_dir, ID + masking_img + 'final_mask_2.nii.gz') + ' for step 2' + \
+          opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask_study_template') + ' for step "sty template"' + \
           ' it will send automatically be selected for Skullstriping')
 
     if os.path.exists(opj(masks_dir, ID + masking_img + 'final_mask.nii.gz')) and step_skullstrip == 1:
@@ -56,10 +75,15 @@ def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skul
         print('INFO: please delete' + opj(masks_dir, ID + masking_img + 'final_mask.nii.gz') + ' if you want retry to create a skulstripp images')
         shutil.copyfile(opj(masks_dir, ID + masking_img + 'final_mask.nii.gz'), output_for_mask)
 
-    if os.path.exists(opj(masks_dir, ID + masking_img + 'final_mask_2.nii.gz')) and step_skullstrip == 2:
+    elif os.path.exists(opj(masks_dir, ID + masking_img + 'final_mask_2.nii.gz')) and step_skullstrip == 2:
         print("INFO: We found a final mask for Skullstrip 2!!! no Skullstrip will be calculated!!")
         print('INFO: please delete' + opj(masks_dir, ID + masking_img + 'final_mask_2.nii.gz') + ' if you want retry to create a skulstripp images')
         shutil.copyfile(opj(masks_dir, ID + masking_img + 'final_mask_2.nii.gz'), output_for_mask)
+
+    elif os.path.exists(opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask_study_template.nii.gz')) and step_skullstrip == 3:
+        print("INFO: We found a final mask for Skullstrip 'stdy template'!!! no Skullstrip will be calculated!!")
+        print('INFO: please delete' + opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask_study_template.nii.gz') + ' if you want retry to create a skulstripp images')
+        shutil.copyfile(opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask_study_template.nii.gz'), output_for_mask)
 
     else:
         if brain_skullstrip =='bet2_ANTS':
@@ -410,11 +434,6 @@ def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skul
                 ' -input ' + output_for_mask + ' -fill_holes -dilate_input 4'
                 spco(command, shell=True)
 
-        elif brain_skullstrip == 'NoSkullStrip':
-            command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + input_for_msk + \
-                      ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
-            spco(command, shell=True)
-
         elif brain_skullstrip =='sammba_rat':
             command = 'singularity run' + s_bind + fs_sif + 'mri_convert -odt float ' + input_for_msk + ' ' + input_for_msk[:-7] + '_float.nii.gz'
             spco([command], shell=True)
@@ -479,7 +498,6 @@ def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skul
                 spco(command, shell=True)
                 shutil.copyfile(Ex_Mask,output_for_mask)
 
-
         elif brain_skullstrip =='Custum_QWARPT2':
             command = 'singularity run' + s_bind + afni_sif + '3dQwarp -overwrite -lpa -iwarp' + \
             ' -base ' + BASE_SS_coregistr + \
@@ -496,8 +514,29 @@ def Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skul
             spco(command, shell=True)
 
             shutil.copyfile(Ex_Mask,output_for_mask)
+
+        elif brain_skullstrip == 'NoSkullStrip':
+            command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + input_for_msk + \
+                      ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
+            spco(command, shell=True)
+
+        elif template_skullstrip == 'Manual':
+            def run_command_and_wait(command):
+                print(bcolors.OKGREEN + 'INFO: Running command:', command + bcolors.ENDC)
+                result = subprocess.run(command, shell=True)
+                if result.returncode == 0:
+                    print(bcolors.OKGREEN + 'INFO: Command completed successfully.' + bcolors.ENDC)
+                else:
+                    print(bcolors.WARNING + 'WARNING: Command failed with return code:', result.returncode, bcolors.ENDC)
+
+            if not os.path.exists(output_for_mask):
+                command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + input_for_msk + ' -expr "step(a)" -prefix ' + output_for_mask
+                spco(command, shell=True)
+            command = ('singularity run' + s_bind + itk_sif + 'itksnap -g ' + input_for_msk + ' -s ' + output_for_mask)
+            run_command_and_wait(command)
+
         else:
-            print("ERROR: brain_skullstrip not recognized, check that brain_skullstrip_1 or brain_skullstrip_2 are correctly written!!")
+            raise Exception("ERROR: brain_skullstrip not recognized, check that brain_skullstrip_1 or brain_skullstrip_2 are correctly written!!")
 
         if check_visualy_final_mask == True:
             if step_skullstrip == 1:

@@ -22,7 +22,7 @@ ops = os.path.splitext
 #################################################
 
 
-def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_ANTS, study_template_atlas_forlder, Atemplate_to_Stemplate, overwrite,
+def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_ANTS, study_template_atlas_forlder, Atemplate_to_Stemplate, type_of_transform_stdyT, overwrite,
                     s_bind,afni_sif):
 
 
@@ -46,7 +46,6 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
     if Aseg_refLR:
         list_atlases2.extend([Aseg_refLR])
 
-
     command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + ' -overwrite' + ' -warp shift_rotate -cmass -source ' + BASE_SS + \
     ' -nomask' + \
     ' -prefix ' + opj(dir_out, 'template_in_stdy_template.nii.gz') + \
@@ -59,7 +58,7 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
     IMG = ants.image_read(opj(dir_out, 'template_in_stdy_template.nii.gz'))
 
     mTx  = ants.registration(fixed=REF,moving=IMG,
-                              type_of_transform='SyNRA',
+                              type_of_transform=type_of_transform_stdyT,
                               outprefix=opj(dir_out,'NMT_to_anat_SyN_final_'),
                               grad_step=0.1,
                               flow_sigma=3,
@@ -74,6 +73,7 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
                               reg_smoothing_sigmas=(3, 2, 1, 0),
                               reg_shrink_factors=(8, 4, 2, 1),
                               verbose=True)
+
     TRANS = ants.apply_transforms(fixed=REF, moving=IMG,
                                       transformlist=mTx['fwdtransforms'], interpolator=n_for_ANTS)
     ants.image_write(TRANS, opj(dir_out,'NMT_to_anat_SyN_final.nii.gz'), ri=False)

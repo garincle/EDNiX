@@ -119,7 +119,7 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
             spco(command, shell=True)
 
             ##########################################################################
-            NAD_masker = NiftiLabelsMasker(labels_img=opj(dir_fMRI_Refth_RS_prepro1, atlas + '_filtered.nii.gz'),
+            NAD_masker = NiftiLabelsMasker(labels_img=opj(dir_fMRI_Refth_RS_prepro1, atlas + '_run_' + str(i) + '_filtered.nii.gz'),
                                             detrend=False,
                                             smoothing_fwhm=None,
                                             standardize=False,
