@@ -2,7 +2,16 @@
 import os
 import subprocess
 import shutil
-
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 #Path to the excels files and data structure
 opj = os.path.join
 ope = os.path.exists
@@ -61,7 +70,7 @@ def White_create(FS_dir, monkey,s_bind,fs_sif):
         os.remove(opj(FS_dir,monkey,'surf', Hmin[H] + 'h.inflated'))
         os.remove(opj(FS_dir,monkey,'mri', 'filled' + str(value[H]) + '.mgz'))
         
-        print(surface[H] + ' surface done!')
+        print(bcolors.OKGREEN + surface[H] + 'INFO: surface done!' + bcolors.ENDC)
 
         
 def White_more(FS_dir, monkey, FS_buckner40_TIF, FS_buckner40_GCS,s_bind,fs_sif):
@@ -128,4 +137,4 @@ def White_more(FS_dir, monkey, FS_buckner40_TIF, FS_buckner40_GCS,s_bind,fs_sif)
         ' ' + Hmin[H] + 'h.aparc.annot'
         spco([command], shell=True)
         
-        print(surface[H] + ' surface done!')
+        print(bcolors.OKGREEN + surface[H] + 'INFO: surface done!' + bcolors.ENDC)

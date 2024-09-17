@@ -38,7 +38,6 @@ def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir
 
     else:
         step_skullstrip = 2
-        brain_skullstrip = 'brain_skullstrip_2'
         output_for_mask =  anatomical.Skullstrip_method.Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas_forlder, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
     otheranat, ID, Session, check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif)
 
@@ -63,6 +62,9 @@ def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir
         spco([command], shell=True)
 
     ## plot several QC of the first skullstriped brain (check  that it is ok)
+    if not os.path.exists(bids_dir + '/QC/skullstrip_step2'):
+        os.mkdir(bids_dir + '/QC/skullstrip_step2')
+
     for Timage in listTimage:
         ####plot the Reffile
         try:
@@ -70,15 +72,16 @@ def create_indiv_template_brain(dir_prepro, ID, Session, listTimage, volumes_dir
                                          display_mode='mosaic', dim=4)
             display.add_contours(opj(volumes_dir,ID + Timage + '_brain_step_1.nii.gz'),
                                  linewidths=.2, colors=['red'])
-            display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + '_brain_step_1.png')
+            display.savefig(bids_dir + '/QC/skullstrip_step2/' + ID + '_' + str(Session) + '_' + Timage + '_brain.png')
             # Don't forget to close the display
             display.close()
         except:
             display = plotting.plot_anat(opj(volumes_dir,ID + Timage + '_brain_step_1.nii.gz'),
                                          display_mode='mosaic', dim=4)
-            display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + '_brain_step_1.png')
+            display.savefig(bids_dir + '/QC/skullstrip_step2/' + ID + '_' + str(Session) + '_' + Timage + '_brain.png')
             # Don't forget to close the display
             display.close()
+
 
     ###N4BiasFieldCorrection
     try:

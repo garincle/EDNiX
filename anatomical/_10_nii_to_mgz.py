@@ -3,7 +3,16 @@
 ################################################
 import os
 import subprocess
-
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -47,7 +56,6 @@ def nii_to_mgz(ID, Session, FS_dir, Ref_file, labels_dir, volumes_dir, otheranat
     ';singularity run' + s_bind + fs_sif + 'mri_convert ' + fwdFS_cmd + ' ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' ' + opj(FS_dir,animal_folder,'mri','aseg.mgz') + \
     ';singularity run' + s_bind + fs_sif + 'mri_convert ' + fwdFS_cmd + ' ' + opj(labels_dir, type_norm + 'filled.nii.gz') + ' '  + opj(FS_dir,animal_folder,'mri','filled.mgz')
     spco([command], shell=True)
-    print(command)
 
 
     if IgotbothT1T2 ==True:
@@ -58,4 +66,4 @@ def nii_to_mgz(ID, Session, FS_dir, Ref_file, labels_dir, volumes_dir, otheranat
             spco([command], shell=True)
         else:
             IgotbothT1T2==False
-            print('Warning No ' + otheranat + ' found !!!!!!!!!!!! (you said yes!!)')
+            raise Exception(bcolors.FAIL + 'Warning No ' + otheranat + ' found !!!!!!!!!!!! (you said yes!!)' + bcolors.ENDC)

@@ -45,7 +45,7 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
         all_data_path_temp = all_data_path
 
     else:
-        print("ERROR: with which_on name, need to be all or max")
+        raise Exception(bcolors.FAIL + 'ERROR: with which_on name, need to be all or max' + bcolors.ENDC)
 
     template_list = []
     for ID, Session, data_path in zip(all_ID_temp, all_Session_temp, all_data_path_temp):

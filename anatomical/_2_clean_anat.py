@@ -29,19 +29,16 @@ spgo = subprocess.getoutput
 #################################################
 
 
-def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, otheranat, type_norm, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, dir_prepro, masking_img, do_manual_crop,
-    brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, template_skullstrip, study_template_atlas_forlder, overwrite,
+def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, ID, Session, otheranat, type_norm, dir_prepro, masking_img, do_manual_crop,
+    brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, template_skullstrip, study_template_atlas_forlder, overwrite,
                s_bind,afni_sif,fsl_sif,fs_sif, itk_sif):
 
     step_skullstrip = 1
-    brain_skullstrip = 'brain_skullstrip_1'
     output_for_mask =  anatomical.Skullstrip_method.Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas_forlder, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
     otheranat, ID, Session, check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif)
-    print(listTimage)
 
     #### Apply masking to other anat images
     for Timage in listTimage:
-        print(Timage)
         maskRS = opj(masks_dir, ID + Timage + '_mask_1_rsp.nii.gz')
         caca2 = resample_to_img(output_for_mask, opj(dir_prepro, ID + '_anat_reorient_NU' + Timage + '.nii.gz'), interpolation='nearest')
         caca2.to_filename(maskRS)
@@ -50,17 +47,19 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, pat
         ' -expr "a*b" -prefix ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz')
         spco([command], shell=True)
 
-    #QC replace FSL???XX
+    #QC
+    if not os.path.exists(bids_dir + '/QC/skullstrip_step1'):
+        os.mkdir(bids_dir + '/QC/skullstrip_step1')
     try:
         display = plotting.plot_anat(opj(dir_prepro, ID + '_anat_reorient_NU' + Timage + '.nii.gz'), display_mode='mosaic')
         display.add_contours(opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz'),
         linewidths=.3, colors=['red'])
-        display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + '_skullstrip.png')
+        display.savefig(bids_dir + '/QC/skullstrip_step1/' + ID + '_' + str(Session) + '_' + Timage + '_skullstriped.png')
         # Don't forget to close the display
         display.close()
     except:
         display = plotting.plot_anat(opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz'), display_mode='x', cut_coords=10)
-        display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + '_skullstrip.png')
+        display.savefig(bids_dir + '/QC/skullstrip_step1/' + ID + '_' + str(Session) + '_' + Timage + '_skullstriped.png')
         # Don't forget to close the display
         display.close()
 
@@ -73,14 +72,11 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, pat
     command = 'singularity run' + s_bind + afni_sif + '3dresample -master ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz') + ' -prefix ' + opj(masks_dir, ID + Timage + '_mask_1_rsp.nii.gz') + \
               ' -input ' + opj(masks_dir, ID + Timage + '_mask_1_rsp.nii.gz') + ' -overwrite'
     spco([command], shell=True)
-    #command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 50 -S 50 -A 50 -P 50 -L 50 -R 50 -S 50 -prefix ' + opj(masks_dir, ID + type_norm + '_mask_1_rsp.nii.gz') + ' ' + opj(masks_dir, ID + type_norm + '_mask_1_rsp.nii.gz') + ' -overwrite'
-    #spco([command], shell=True)
-    print(Timage)
 
     #### align anat img to atlas template
     if Align_img_to_template == '3dAllineate':
         command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -warp shift_rotate -cmass -base ' + BASE_SS + \
-        ' -cost ' + cost3dAllineate + \
+        ' -cost ' + cost3dAllineate + ' -interp NN' + \
         ' -source_mask ' + opj(masks_dir, ID + type_norm + '_mask_1_rsp.nii.gz') + \
         ' -prefix ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + \
         ' -source ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz') + ' -1Dmatrix_save ' + \
@@ -103,7 +99,7 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, pat
         spco([command], shell=True)
         def create_1D_matrix(filename, matrix):
             if matrix.shape != (3, 4):
-                raise ValueError("Matrix must be 3x4 for a valid AFNI transformation.")
+                raise Exception(bcolors.FAIL + 'ERROR: Matrix must be 3x4 for a valid AFNI transformation.' + bcolors.ENDC)
             # Flatten the matrix to 1D and save it
             flat_matrix = matrix.flatten()
             np.savetxt(filename, [flat_matrix], fmt='%.6f')
@@ -115,10 +111,9 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, pat
             [0.0, 1.0, 0.0, 0.0],
             [0.0, 0.0, 1.0, 0.0]])
         create_1D_matrix(filename, matrix)
-        print(f".1D matrix file saved as {filename}")
-
+        print(bcolors.OKGREEN + f"INFO: .1D matrix file saved as {filename}" + bcolors.ENDC)
     else:
-        print('ERROR: Align_img_to_template need to be define (3dAllineate, @Align_Centers, No)')
+        raise Exception(bcolors.FAIL + 'ERROR: Align_img_to_template need to be define as string (3dAllineate, @Align_Centers, No)' + bcolors.ENDC)
 
 
     command = 'export AFNI_NIFTI_TYPE_WARN=NO'
@@ -166,7 +161,6 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, pat
     if IgotbothT1T2 == True:
         listTimage2 = list(listTimage)
         listTimage2.append(str(type_norm) + '_' + str(otheranat))
-        print(listTimage2)
     else:
         listTimage2 = list(listTimage)
 
@@ -194,17 +188,18 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, pat
         IMG = ants.image_read(opj(dir_prepro,ID + '_acpc_cropped' + Timage + '.nii.gz'))
         IMG = ants.denoise_image(IMG,r=3,noise_model='Gaussian')
         ants.image_write(IMG, opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz'), ri=False)
-
+        if not os.path.exists(bids_dir + '/QC/align_rigid_to_template'):
+            os.mkdir(bids_dir + '/QC/align_rigid_to_template')
         try:
             display = plotting.plot_anat(opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz'), display_mode='mosaic', dim=4)
             display.add_contours(BASE_SS_coregistr,
             linewidths=.2, colors=['red'])
-            display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png')
+            display.savefig(bids_dir + '/QC/align_rigid_to_template' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png')
             # Don't forget to close the display
             display.close()
         except:
             display = plotting.plot_anat(opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz'), display_mode='mosaic', dim=4)
-            display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png')
+            display.savefig(bids_dir + '/QC/align_rigid_to_template' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png')
             # Don't forget to close the display
             display.close()
 

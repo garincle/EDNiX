@@ -37,7 +37,6 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
     ####save the old "Ref_file"    ####test on the template (atlas or sty) to see if it works
     command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(volumes_dir,ID + type_norm + '_brain_step_1.nii.gz') + ' -expr "a" -prefix ' + Ref_file
     spco([command], shell=True)
-    print(command)
 
     brain_img  = ants.image_read(Ref_file)
     MSK = ants.image_read(BASE_SS_mask)

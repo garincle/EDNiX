@@ -6,6 +6,16 @@
 import os
 import subprocess
 import ants
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -47,7 +57,7 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
         list_atlases2.extend([Aseg_refLR])
 
     command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + ' -overwrite' + ' -warp shift_rotate -cmass -source ' + BASE_SS + \
-    ' -nomask' + \
+    ' -nomask -final NN' + \
     ' -prefix ' + opj(dir_out, 'template_in_stdy_template.nii.gz') + \
     ' -base ' + stdy_template + ' -1Dmatrix_save ' + opj(dir_out,'Align_Center_shft.1D')
     spco(command, shell=True)
@@ -81,12 +91,11 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
 
     ####################################################################################
     ########################## seg into the native space ###################
-    print(list_atlases2)
     for atlas in list_atlases2:
-        print(atlas)
+        print(bcolors.OKGREEN + 'INFO: Working in sending ' + atlas + ' in anat space')
         if ope(atlas):
 
-            command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -interp NN -1Dmatrix_apply ' + opj(dir_out,'Align_Center_shft.1D') + \
+            command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -final NN -1Dmatrix_apply ' + opj(dir_out,'Align_Center_shft.1D') + \
             ' -prefix ' + opj(dir_out, opb(ops(ops(atlas)[0])[0]) + '_Allin.nii.gz') + \
             ' -master ' + stdy_template + \
             ' -input  ' + atlas
@@ -96,7 +105,7 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
                                           transformlist=mTx['fwdtransforms'], interpolator='nearestNeighbor')
             ants.image_write(TRANS, opj(dir_out, opb(atlas)), ri=False)
         else:
-            print('WARNING: no atlas found in list_atlases, we can continue but it might restrict several outcome of the script')
+            print(bcolors.WARNING + 'WARNING: ' + str(atlas) + ' not found in list_atlases, we can continue but it might restrict several outcome of the script' + bcolors.ENDC)
 
 
 
