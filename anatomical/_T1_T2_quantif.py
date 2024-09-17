@@ -77,7 +77,7 @@ def QuantifT1T2(all_ID, all_Session, all_data_path, IgotbothT1T2, list_atlases, 
             command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 200 -S 200 -A 200 -P 200 -L 200 -R 200 -S 200 -prefix ' + opj(wb_T1T2_dir, opb(atlas)) + ' ' + opj(labels_dir, type_norm + opb(atlas)) + ' -overwrite'
             spco([command], shell=True)
 
-            command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -overwrite -NN -1Dmatrix_apply ' + mvt_shft + \
+            command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -overwrite -final NN -1Dmatrix_apply ' + mvt_shft + \
             ' -prefix ' + opj(wb_T1T2_dir, opb(atlas)) + \
             ' -input  ' + opj(wb_T1T2_dir, opb(atlas))
             spco([command], shell=True)

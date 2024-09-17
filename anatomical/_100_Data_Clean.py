@@ -1,7 +1,16 @@
 import shutil
 import subprocess
 import os
-
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 # Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -42,6 +51,6 @@ def clean(all_ID, all_Session, all_data_path):
             for remove_data in list_to_remove:
                 if ope(remove_data):
                     os.remove(remove_data)
-                    print(remove_data + ' removed !')
+                    print(bcolors.OKGREEN + 'INFO: ' + remove_data + ' removed !' + bcolors.ENDC)
                 else:
-                    print(remove_data + ' not found')
+                    print(bcolors.OKGREEN + 'INFO: ' + remove_data + ' not found' + bcolors.ENDC)

@@ -160,10 +160,6 @@ all_data_path =  [item for i, item in enumerate(all_data_path) if i not in remov
 max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i not in removelist]
 
 
-###### needs to be ID + 'ses-' + str(Session)
-deoblique_exeption1 = []
-deoblique_exeption2 = animal_ID
-
 ##########################################
 ################To Do ####################
 ##########################################
@@ -177,7 +173,7 @@ do_manual_crop = False #YES or NO
 IgotbothT1T2 = False #YES or NO
 
 check_visualy_final_mask = False #YES or NO
-deoblique='WARP' #header or WARP
+deoblique='WARP_without_3drefit' #header or WARP or no_deoblique or WARP_without_3drefit
 n_for_ANTS='hammingWindowedSinc'
 overwrite_option = True #YES or NO
 
@@ -322,7 +318,7 @@ Skip_step = [10,11,12,13,14,15]
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 species = 'Dog'
 
-anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
+anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
     BASE_SS, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, template_skullstrip,
     IgotbothT1T2, list_atlases, Aseg_ref, Aseg_refLR, dir_out, FS_dir, do_surfacewith, Atemplate_to_Stemplate,

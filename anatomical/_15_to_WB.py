@@ -3,7 +3,16 @@ import os
 import subprocess
 import shutil
 import numpy as np
-
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 # Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -244,7 +253,7 @@ def WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2
                   ' ' + Hmin[h] + '_ ' + opj(dir_native_resol, opb(atlas) + '.' + Hmin[h] + '.native.label.gii')
             spco([cmd], shell=True)
 
-    print('creation of the spec files: done!')
+    print(bcolors.OKGREEN + 'INFO: creation of the spec files: done!')
 
 
     ##        1.3 Create CIFTI once both hemispheres have been proceed           #################################################################

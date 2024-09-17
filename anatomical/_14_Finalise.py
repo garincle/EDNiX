@@ -1,7 +1,16 @@
 # import
 import os
 import subprocess
-
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 opj = os.path.join
 spco = subprocess.check_output
 spgo = subprocess.getoutput
@@ -52,4 +61,4 @@ def FS_finalise(FS_dir, animal_folder, FreeSlabel_ctab_list, list_atlases_2, lab
             Hmin[H] + 'h.' + animal_folder + '_' + opb(atlas) + '.annot'
             spco([command], shell=True)
 
-        print(surface[H] + ' surface done!')
+        print(bcolors.OKGREEN + surface[H] + 'INFO: surface done!' + bcolors.ENDC)
