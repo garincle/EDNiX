@@ -106,8 +106,6 @@ filter1 = allinfo_study_c["ID"].isin([])
 
 allinfo_study_c_formax = allinfo_study_c.copy()
 
-
-
 ##############Select all the monkey of the study
 ### equal to allinfo_study_c, espcially if not longitudinal  and you have not selected specific subjects
 
@@ -175,6 +173,7 @@ deoblique='header' #header or WARP
 n_for_ANTS='hammingWindowedSinc'
 overwrite_option = True #YES or NO
 type_of_transform = 'SyN'
+aff_metric_ants = 'MI'
 
 ####Choose to normalize using T1 or T2
 type_norm = 'T1w' # T1 or T2
@@ -190,6 +189,7 @@ brain_skullstrip_1 ='NoSkullStrip' # bet2_ANTS or MachinL
 brain_skullstrip_2 ='NoSkullStrip' # bet2_ANTS or MachinL
 
 do_fMRImasks = True
+fMRImasks = 'aseg' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
 Align_img_to_template = '@Align_Centers' #3dAllineate or No or @Align_Centers
 cost3dAllineate = 'lpa'
 '''
@@ -223,12 +223,9 @@ type_of_transform_stdyT = ''
 
 ###use type_norm or otheranat for atlas template to study template co-registration
 Atemplate_to_Stemplate = ''
-
 template_skullstrip = ''
-
 stdy_template_mask = ''
 stdy_template = ''
-
 do_surfacewith = 'T1' #'T1' 'T1andT2'
 
     ##########################################
@@ -320,13 +317,13 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [100,200]
+Skip_step = [1,2,3,4,10,11,12,13,14,15,100,200]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
-    orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
+    orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
     BASE_SS, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, template_skullstrip,
     IgotbothT1T2, list_atlases, Aseg_ref, Aseg_refLR, dir_out, FS_dir, do_surfacewith, Atemplate_to_Stemplate,
     FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, Align_img_to_template,
-    species, type_of_transform, type_of_transform_stdyT, overwrite_option,MAIN_PATH, s_bind, s_path)
+    species, type_of_transform, type_of_transform_stdyT, fMRImasks, overwrite_option,MAIN_PATH, s_bind, s_path)

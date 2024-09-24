@@ -44,7 +44,7 @@ def do_fMRImasks(masks_dir, labels_dir, type_norm, fMRImasks, overwrite,s_bind,a
         eroded = ants.morphology(img, operation='erode', radius=1, mtype='binary', shape='ball')
         ants.image_write(eroded, opj(masks_dir, type_norm + 'Wmask_erod.nii.gz'), ri=False)
 
-    if fMRImasks == 'custom':
+    elif fMRImasks == 'custom':
         img = ants.image_read(opj(masks_dir, type_norm + 'Vmask.nii.gz'))
         eroded = ants.morphology(img, operation='erode', radius=1, mtype='binary', shape='ball')
         ants.image_write(eroded, opj(masks_dir, type_norm + 'Vmask_erod.nii.gz'), ri=False)
@@ -53,4 +53,4 @@ def do_fMRImasks(masks_dir, labels_dir, type_norm, fMRImasks, overwrite,s_bind,a
         ants.image_write(eroded, opj(masks_dir, type_norm + 'Wmask_erod.nii.gz'), ri=False)
 
     else:
-        raise Exception(bcolors.FAIL + str(fMRImasks) + ' must be custom or aseg' + bcolors.ENDC)
+        raise Exception(bcolors.FAIL + 'fMRImasks must be custom or aseg' + bcolors.ENDC)

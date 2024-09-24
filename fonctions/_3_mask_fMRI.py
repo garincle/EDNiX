@@ -17,7 +17,7 @@ spgo = subprocess.getoutput
 
 def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                        dir_fMRI_Refth_RS_prepro3, RS, nb_run, REF_int, ID, dir_prepro, brainmask, V_mask, W_mask, G_mask, dilate_mask,
-                       costAllin, anat_subject, doMaskingfMRI, Method_mask_func, lower_cutoff, upper_cutoff, overwrite,
+                       costAllin, anat_subject, doMaskingfMRI, Method_mask_func, lower_cutoff, upper_cutoff, overwrite, type_of_transform, aff_metric_ants,
                        s_bind,afni_sif,fs_sif, fsl_sif, itk_sif):
 
     ##### creat new variable for template space (we will need to store and downsample template img to func resolution)
@@ -132,7 +132,8 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_
             [opj(dir_fMRI_Refth_RS_prepro2,'orig_anat_for_fMRI.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'mask_ref.nii.gz'),
              opj(dir_fMRI_Refth_RS_prepro2,'maskDilat.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'Vmask.nii.gz'),
             opj(dir_fMRI_Refth_RS_prepro2,'Wmask.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'Gmask.nii.gz')]):
-
+            print(input1)
+            print(ope(input1))
             if ope(input1):
                 ##### apply the recenter fmri
 
@@ -154,15 +155,13 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_
 
                 caca2 = resample_to_img(output2, opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz'), interpolation='nearest')
                 caca2.to_filename(output2)
-
-            ####skullstrip the anat
-            command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz') + ' -b ' + opj(
-                dir_fMRI_Refth_RS_prepro2, 'orig_anat_for_fMRI.nii.gz') + \
-                      ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz') + ' -expr "a*b"'
-            spco([command], shell=True)
-        else:
-            print('WARNING:' + str(input1) + ' not found!!! this may be because you have not provided an aseg file, then no extraction of WM or Ventricules or GM will be possible... pls check that!!!!')
-
+            else:
+                print('WARNING:' + str(input1) + ' not found!!! this may be because you have not provided an aseg file, then no extraction of WM or Ventricules or GM will be possible... pls check that!!!!')
+        ####skullstrip the anat
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilat.nii.gz') + ' -b ' + opj(
+            dir_fMRI_Refth_RS_prepro2, 'orig_anat_for_fMRI.nii.gz') + \
+                  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz') + ' -expr "a*b"'
+        spco([command], shell=True)
     else:
         for input1, output2 in zip([opj(dir_fMRI_Refth_RS_prepro2, TfMRI + '_NU_denoise.nii.gz'), brainmask, opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz'), V_mask, W_mask, G_mask],
             [opj(dir_fMRI_Refth_RS_prepro2,'orig_anat_for_fMRI.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'mask_ref.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'maskDilat.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'Vmask.nii.gz'), 
@@ -212,7 +211,7 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_
 
                 print('you are using the mask from the anat img!!!')
             else:
-                fonctions.Skullstrip_func.Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, overwrite, costAllin, lower_cutoff, upper_cutoff, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif)
+                fonctions.Skullstrip_func.Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, overwrite, costAllin, lower_cutoff, upper_cutoff, type_of_transform, aff_metric_ants, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif)
 
     else:
         command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + \

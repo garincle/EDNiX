@@ -32,7 +32,7 @@ ops = os.path.splitext
 #################################################
 
 
-def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_ANTS, study_template_atlas_forlder, Atemplate_to_Stemplate, type_of_transform_stdyT, overwrite,
+def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_ANTS, aff_metric_ants, study_template_atlas_forlder, Atemplate_to_Stemplate, type_of_transform_stdyT, overwrite,
                     s_bind,afni_sif):
 
 
@@ -67,9 +67,17 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
     REF = ants.image_read(stdy_template)
     IMG = ants.image_read(opj(dir_out, 'template_in_stdy_template.nii.gz'))
 
+    mtx1 = ants.registration(fixed=IMG, moving=REF, type_of_transform='Translation',
+                             outprefix=opj(dir_out,'NMT_to_anat_SyN_final_shift_'))
+    MEAN_tr = ants.apply_transforms(fixed=IMG, moving=REF, transformlist=mtx1['fwdtransforms'],
+                                    interpolator=n_for_ANTS)
+    ants.image_write(MEAN_tr, opj(dir_out,'NMT_to_anat_SyN_final_shift.nii.gz'), ri=False)
+
     mTx  = ants.registration(fixed=REF,moving=IMG,
                               type_of_transform=type_of_transform_stdyT,
                               outprefix=opj(dir_out,'NMT_to_anat_SyN_final_'),
+                              aff_metric=aff_metric_ants,
+                              initial_transform=mtx1['fwdtransforms'],
                               grad_step=0.1,
                               flow_sigma=3,
                               total_sigma=0,

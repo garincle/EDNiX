@@ -16,27 +16,28 @@ spgo = subprocess.getoutput
 
 
 def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-    nb_run, RS, n_for_ANTS):
+    nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space):
     #########################################################################################################
     ################################### registration to anat space ##########################################
     #########################################################################################################
 
-    #### transfo to brain template space (centred) are
-    #    mvt_shft_INV_ANTs = ' -t ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_unwarped_1InverseWarp.nii.gz') + \
-    #' -t ' + str([opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_unwarped_0GenericAffine.mat'), 1])
-
     ############################### ############################### ############################### 
     ############################### apply transfo to anat space to each volume of each func image #
     ############################### ############################### ############################### 
-    mvt_shft_ANTs = []
-    w2inv_fwd = [False,True,True]
-    for elem1, elem2 in zip([#opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
-                     opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
-                     opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')], [False, False]):
-        if ope(elem1):
-            mvt_shft_ANTs.append(elem1)
-            w2inv_fwd.append(elem2)
-
+    if do_anat_to_func == True:
+        mvt_shft_ANTs = []
+        w2inv_fwd = []
+        for elem1, elem2 in zip([  # opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
+            opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
+            opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')], [False, False]):
+            if ope(elem1):
+                mvt_shft_ANTs.append(elem1)
+                w2inv_fwd.append(elem2)
+    elif do_anat_to_func == False and anat_func_same_space == True:
+        mvt_shft_ANTs = []
+        w2inv_fwd = []
+    else:
+        print('ERROR: If Anat and Func are not in the same space you need to perform that trasnformation (do_anat_to_func = True)')
 
     ## test on mean img (to see spatially that is works)
     MEAN  = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'))
@@ -45,10 +46,8 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
     TRANS = ants.apply_transforms(fixed=BRAIN, moving=MEAN,
                                   transformlist=mvt_shft_ANTs,
                                   interpolator=n_for_ANTS,
-                                  which2invert=w2inv_fwd)
-
+                                  whichtoinvert=w2inv_fwd)
     ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro2, 'Mean_Image_RcT_SS_in_anat.nii.gz'), ri=False)
-
 
     for i in range(int(nb_run)):
         root_RS = extract_filename(RS[i])
@@ -57,8 +56,8 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
 
         TRANS = ants.apply_transforms(fixed=BRAIN, moving=FUNC,
                                       transformlist=mvt_shft_ANTs,
-                                      interpolator=n_for_ANTS,
-                                      which2invert=w2inv_fwd,imagetype=3)
+                                      interpolator='nearestNeighbor',
+                                      whichtoinvert=w2inv_fwd,imagetype=3)
 
         ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro2, root_RS + '_residual_in_anat.nii.gz'), ri=False)
 

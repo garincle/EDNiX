@@ -12,12 +12,21 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-def brainT_to_T_max(BASE_SS, BASE_mask, creat_study_template, dir_prepro, ID, Session, listTimage, n_for_ANTS,
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Session, listTimage, n_for_ANTS,
                     dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv,
-                    study_template_atlas_forlder, otheranat, bids_dir, type_of_transform, template_skullstrip, masking_img,
-                    brain_skullstrip_1, brain_skullstrip_2, masks_dir, BASE_SS_mask, check_visualy_final_mask,
+                    study_template_atlas_forlder, otheranat, bids_dir, type_of_transform,
                     which_on, all_data_path_max, IgotbothT1T2, all_data_path,
-                    s_bind, afni_sif, fsl_sif, fs_sif, itk_sif, overwrite):
+                    s_bind, afni_sif):
 
     #################################################################### coregistration with ANTs ####################################################################
     ######Coregistration!!!! (template to anat)
@@ -28,9 +37,17 @@ def brainT_to_T_max(BASE_SS, BASE_mask, creat_study_template, dir_prepro, ID, Se
     print(bcolors.OKGREEN + 'INFO: WE WILL COREGISTER: ' + Ref_file + '(the anat img)' + ' to ' + BASE_SS_coregistr + '(the template)' + bcolors.ENDC)
     print(bcolors.OKGREEN + 'INFO: type_of_transform=' + type_of_transform + bcolors.ENDC)
 
+    mtx1 = ants.registration(fixed=IMG, moving=REF, type_of_transform='Translation',
+                             outprefix=opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_shift_'))
+    MEAN_tr = ants.apply_transforms(fixed=IMG, moving=REF, transformlist=mtx1['fwdtransforms'],
+                                    interpolator=n_for_ANTS)
+    ants.image_write(MEAN_tr, opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_shift.nii.gz'), ri=False)
+
     mTx  = ants.registration(fixed=IMG,moving=REF,
-                              type_of_transform=type_of_transform,
                               outprefix=opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_'),
+                             type_of_transform=type_of_transform,
+                              aff_metric=aff_metric_ants,
+                              initial_transform=mtx1['fwdtransforms'],
                               grad_step=0.1,
                               flow_sigma=3,
                               total_sigma=0,

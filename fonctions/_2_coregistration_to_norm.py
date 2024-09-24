@@ -16,8 +16,7 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 
-def coregist_to_norm(anat_func_same_space, dir_prepro, correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map, nb_run, recordings, REF_int, list_map, study_fMRI_Refth, IgotbothT1T2, path_anat, otheranat,
-    ID, Session, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, DwellT, n_for_ANTS, overwrite,s_bind,afni_sif,fsl_sif,dmap,dbold,config_f):
+def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map, nb_run, recordings, REF_int, list_map, study_fMRI_Refth, deoblique, orientation, DwellT, n_for_ANTS, overwrite,s_bind,afni_sif,fsl_sif,dmap,dbold,config_f):
 
     import fonctions._2a_correct_img
     import fonctions._2a_correct_img_newP
@@ -49,9 +48,8 @@ def coregist_to_norm(anat_func_same_space, dir_prepro, correction_direction, dir
         imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
         imgI = '_xdtrf_mean_preWARP.nii.gz'
         ###start fix_orient
-        fonctions._2b_fix_orient.fix_orient(anat_func_same_space, imgO, imgI, dir_prepro, IgotbothT1T2, path_anat,
-                                            otheranat, dir_fMRI_Refth_RS_prepro1, root_RS, ID, Session,
-                                            deoblique_exeption1, deoblique_exeption2, deoblique, orientation, overwrite,s_bind,afni_sif)
+        fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation,
+                                            overwrite, s_bind, afni_sif)
 
     elif recordings == '2_mapdir':
         i = 0
@@ -76,9 +74,7 @@ def coregist_to_norm(anat_func_same_space, dir_prepro, correction_direction, dir
         imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
         imgI = '_xdtrf_mean_preWARP.nii.gz'
         ###start fix_orient
-        fonctions._2b_fix_orient.fix_orient(anat_func_same_space, imgO, imgI, dir_prepro, IgotbothT1T2, path_anat,
-                                            otheranat, dir_fMRI_Refth_RS_prepro1, root_RS, ID, Session,
-                                            deoblique_exeption1, deoblique_exeption2, deoblique, orientation, overwrite,s_bind,afni_sif)
+        fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind,afni_sif)
 
     elif recordings == 'new':
 
@@ -106,8 +102,7 @@ def coregist_to_norm(anat_func_same_space, dir_prepro, correction_direction, dir
             imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
             imgI = '_xdtrf_mean_preWARP.nii.gz'
             ###start fix_orient
-            fonctions._2b_fix_orient.fix_orient(anat_func_same_space, imgO, imgI, dir_prepro, IgotbothT1T2, path_anat, otheranat, dir_fMRI_Refth_RS_prepro1, root_RS, ID, Session, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, overwrite,
-                                                s_bind,afni_sif)
+            fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif)
 
     elif recordings == 'very_old':
         # norm between runs
@@ -118,9 +113,7 @@ def coregist_to_norm(anat_func_same_space, dir_prepro, correction_direction, dir
         imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
         imgI = '_xdtrf_mean_preWARP.nii.gz'
         ###start fix_orient
-        fonctions._2b_fix_orient.fix_orient(anat_func_same_space, imgO, imgI, dir_prepro, IgotbothT1T2, path_anat,
-                                            otheranat, dir_fMRI_Refth_RS_prepro1, root_RS, ID, Session,
-                                            deoblique_exeption1, deoblique_exeption2, deoblique, orientation, overwrite,s_bind,afni_sif)
+        fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif)
 
     ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### 
     ### ### #### ###### ### #### ###### ### #### ### fix header problems ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ##
@@ -131,8 +124,7 @@ def coregist_to_norm(anat_func_same_space, dir_prepro, correction_direction, dir
             for r in range(0, int(nb_run)):
                 root_RS = extract_filename(RS[r])
                 ###start fix_orient
-                fonctions._2b_fix_orient.fix_orient(anat_func_same_space, imgO, imgI, dir_prepro, IgotbothT1T2, path_anat, otheranat, dir_fMRI_Refth_RS_prepro1, root_RS, ID, Session, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, overwrite,s_bind,afni_sif)
-
+                fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif)
     ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### 
     ### ### #### ### coregistration of each run to the norm ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ##
     ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ###
@@ -142,7 +134,6 @@ def coregist_to_norm(anat_func_same_space, dir_prepro, correction_direction, dir
         root_RS = extract_filename(RS[r])
         root_RS_ref = extract_filename(RS[REF_int])
         REF = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, root_RS_ref + '_xdtr_mean_deob_ref_fudge.nii.gz'))
-
 
         if not root_RS == root_RS_ref:  # do not process ref...
 

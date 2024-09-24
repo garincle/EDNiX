@@ -23,6 +23,7 @@ sys.path.append(os.path.join(MAIN_PATH,'code','EasyMRI_brain-master'))
 import anatomical._0_Pipeline_launcher
 import fonctions._0_Pipeline_launcher
 
+MAIN_PATH = opj('/','srv','projects','easymribrain')
 s_bind = ' --bind ' + opj('/', 'scratch', 'cgarin/') + ',' + MAIN_PATH
 s_path = opj(MAIN_PATH, 'code', 'singularity')
 afni_sif    = ' ' + opj(s_path , 'afni_make_build_AFNI_23.1.10.sif') + ' '
@@ -40,8 +41,8 @@ FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 #https://bids-standard.github.io/pybids/reports/index.html
 
 ###where to store the BIDS data?
-species = 'Mouse'
-bids_dir = opj('/scratch/cgarin/'+ species + '/BIDS_Gd')
+species = 'Marmoset'
+bids_dir = opj('/scratch/cgarin/'+ species + '/BIDS_NIH')
 
 ##########################################
 ########### Subject loader################
@@ -61,19 +62,17 @@ report = BIDSReport(layout)
 #main_report = counter.most_common()[0][0]
 #print(main_report)
 
-
-# Ask get() to return the ids of subjects that have acq-RARE_T2w files #return_type='filename
+# Ask get() to return the ids of subjects that have T1w files #return_type='filename
 T1 = layout.get(return_type='filename', target='subject', suffix='T1w', extension='nii.gz')
 print(T1)
 ###question
 
-
 # Ask get() to return the ids of subjects that have T2w files
-T2 = layout.get(return_type='filename', target='subject', suffix='T2w', extension='nii')
+T2 = layout.get(return_type='filename', target='subject', suffix='T2w', extension='nii.gz')
 print(T2)
 
 # Ask get() to return the ids of subjects that have T1w files
-Bold = layout.get(return_type='filename', target='subject', suffix='bold', extension='nii')
+Bold = layout.get(return_type='filename', target='subject', task='rest', extension='nii.gz')
 
 # Ask get() to return the ids of subjects that have T1w files
 #topup_dir = layout.get(return_type='filename', target='subject', suffix='epi', extension='nii.gz')
@@ -82,20 +81,15 @@ Bold = layout.get(return_type='filename', target='subject', suffix='bold', exten
 df = layout.to_df()
 df.head()
 
-
 ##############################################################  TO DO !! ##############################################################
 
 #### Create a pandas sheet for the dataset (I like it, it help to know what you are about to process
-allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii')]
+allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
 allinfo_study_c.rename(columns={'session': 'Session'}, inplace=True)
 allinfo_study_c.rename(columns={'subject': 'ID'}, inplace=True)
 allinfo_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
-
 filter1 = allinfo_study_c["ID"].isin([])
-
 allinfo_study_c_formax = allinfo_study_c.copy()
-
-
 
 ##############Select all the monkey of the study
 ### equal to allinfo_study_c, espcially if not longitudinal  and you have not selected specific subjects
@@ -142,11 +136,12 @@ removelist = []
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
     if ID in []:
         removelist.append(num)
-print("you removed: " + str(removelist))
+
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
 all_Session =  [item for i, item in enumerate(all_Session) if i not in removelist]
 all_data_path =  [item for i, item in enumerate(all_data_path) if i not in removelist]
 max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i not in removelist]
+
 ##############################################################  TO DO !!!! ##############################################################
                                 ##############################################################
                                 ########### 2. variable specific of you dataset ##############
@@ -172,8 +167,8 @@ G_mask = opj(folderforTemplate_Anat,'G_mask.nii.gz') # string
 
 #### find the good fmri image: as it is not always standart, look in you BIDS and help use to know how you fmri dataset end by ?:
 ### specify the suffix to be used by glob.glob to select all fmri image (or map) in their respective folders
-endfmri = '*_task-rest_*.nii' # string
-endjson = '*_task-rest_*.json' # string
+endfmri = '*_rest_*.nii.gz' # string
+endjson = '*_rest_*.json' # string
 
 ####find on image in the opposite direction of th BOLD aquistion either one per run or one per session or none !!!
 ### if the pipeline doesn't find the image it will continue anyway so be carefull!
@@ -184,7 +179,7 @@ endmap = '*_map.nii.gz' # string
 anat_func_same_space = False # True or False
 
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
-TfMRI = 'acq-RARE_T2w' # string
+TfMRI = 'T2w' # string
 
 #### Specify if you have a T1 and T2 image in the same space
 IgotbothT1T2 = False # True or False
@@ -248,7 +243,7 @@ study_fMRI_Refth = opj(MAIN_PATH,'code','4topup.txt') #string (path)
 SED = 'Auto' #  "i", "i-", "j", "j-", "k", "k-", 'Auto', 'None'
 
 ### YOU NEED TO PROVIDE A TR if not in .json, otherwise it will fail
-TR = '1.2'  # 'value du calculate in s', 'Auto', 'None'
+TR = '2'  # 'value du calculate in s', 'Auto', 'None'
 
 ##### masking steps SUPER IMPORTANT!!
 # you can choose to not do it (not advised)
@@ -262,10 +257,10 @@ doMaskingfMRI = True # True or False
 #### 3dAllineate is based ont the linerar alignment of the anat to the func to send the anat mask to the func
 
 #### nilearn is a theshold based method (you can play with the threshold level)
-Method_mask_func = 'NoSkullStrip' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = 'Vol_sammba_7000' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 
 ### if Method_mask_func=="3dAllineate" choose a method a alignment
-costAllin = 'lpa' # string
+costAllin = '' # string
 
 ### if Method_mask_func=="nilearn" choose a cutoff
 lower_cutoff = 0.05 # int
@@ -275,7 +270,7 @@ upper_cutoff = 0.5 # int
 ############################################### coregistration steps ##########################################
 ###############################################################################################################
 ########### define orientation############
-orientation = 'LSP' # string
+orientation = 'LAI' # string
 ###############################################################################################################
 ######################## Probably the most "obscure part of the script" ########################
 ###############################################################################################################
@@ -292,6 +287,7 @@ deoblique='header' #header or WARP
 
 ###### needs to be ID + 'ses-' + str(Session)
 #no deoblique will be applied
+deoblique_exeption1 = [] # list
 
 # it is like WARP, but add the option gridset in the 3dWarp AFNI function. Not sure why but it did help for some dataset, again, this is only if you have
 # anat and func in the same space and you want to use the anat mask
@@ -301,9 +297,10 @@ deoblique_exeption2 = [] # list
 n_for_ANTS = 'hammingWindowedSinc' # string
 type_of_transform = 'SyNBoldAff'
 aff_metric_ants = 'MI'
+
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
 ### define the acronyme/suffix of the anat as in the BIDS
-type_norm = 'acq-RARE_T2w' # T1 or T2
+type_norm = 'T2w' # T1 or T2
 ### define the acronyme/suffix of the other anat as in the BIDS
 otheranat = '' # sting
 
@@ -324,9 +321,9 @@ creat_study_template = True # True or False
 
 ########## if creat_study_template = True ##########
 
-######no need to answer this question if you have created a study template
+######no need to answer this question if you are not doing a study template
 #folder where you stored the stdy template
-study_template_atlas_forlder = '/scratch/cgarin/Mouse/BIDS_Gd/sty_template/'  # sting
+study_template_atlas_forlder = '/scratch/cgarin/Marmoset/BIDS_NIH/sty_template/'  # sting
 stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_mask.nii.gz') # sting
 stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
 GM_mask_studyT = opj(study_template_atlas_forlder, 'atlases', 'Gmask.nii.gz') # sting
@@ -380,7 +377,7 @@ extract_GS = False # True or False
 ### Band path filtering
 band = '0.01 0.1' # string
 #Smooth
-blur = 0.4 # float
+blur = 1 # float
 #Dilate the functional brain mask by n layers
 dilate_mask = 0 # int
 #retrain the analysis to the gray matter

@@ -61,7 +61,7 @@ def correct_orient(BIDStype,
             print(bcolors.OKGREEN + 'list of the anat found is:' + str(list_anat) + bcolors.ENDC)
 
             command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + list_anat[0] + \
-            ' -prefix ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz') + ' -expr "a"' + overwrite
+            ' -prefix ' + opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz') + ' -expr "a"' + overwrite
             spco([command], shell=True)
 
             ###################################
@@ -90,13 +90,13 @@ def correct_orient(BIDStype,
             if len(list_anat) > 1:
                 ANAT= ' '.join(list_anat)
                 command = 'singularity run' + s_bind + fs_sif + 'mri_robust_template --mov ' + ANAT + \
-                ' --template ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz') + \
+                ' --template ' + opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz') + \
                 ' --satit --inittp 1 --fixtp --noit --iscale --average 0'
                 spco([command], shell=True)
             else:
-                #shutil.copyfile(list_anat[0], opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz'))
+                #shutil.copyfile(list_anat[0], opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz'))
                 command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + list_anat[0] + \
-                ' -prefix ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz') + ' -expr "a"' + overwrite
+                ' -prefix ' + opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz') + ' -expr "a"' + overwrite
                 spco([command], shell=True)
         else:
             print(bcolors.WARNING + 'HELP: anat is detected with BIDStype=' + str(BIDStype) + ' the command: ' + bcolors.ENDC)
@@ -113,32 +113,61 @@ def correct_orient(BIDStype,
         ####################################################
 
     if IgotbothT1T2 == True:
-        caca2 = resample_to_img(opj(path_anat, ID + 'template_indiv' + otheranat + '.nii.gz'),
-                                opj(path_anat, ID + 'template_indiv' + type_norm + '.nii.gz'),
+        caca2 = resample_to_img(opj(dir_prepro, ID + 'template_indiv' + otheranat + '.nii.gz'),
+                                opj(dir_prepro, ID + 'template_indiv' + type_norm + '.nii.gz'),
                                 interpolation='nearest')
-        caca2.to_filename(opj(path_anat, ID + 'template_indiv' + otheranat + 'rsp_TO_Tnorm.nii.gz'))
+        caca2.to_filename(opj(dir_prepro, ID + 'template_indiv' + otheranat + 'rsp_TO_Tnorm.nii.gz'))
+        command = 'singularity run' + s_bind + afni_sif + '3dcopy ' + opj(dir_prepro, ID + 'template_indiv' + otheranat + '.nii.gz') + ' ' + opj(dir_prepro, ID + 'template_indiv' + type_norm + 'rsp_TO_Tnorm.nii.gz') + overwrite
+        spco([command], shell=True)
 
-        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' +  opj(path_anat, ID + 'template_indiv' + type_norm + '.nii.gz') +  \
-        ' -b ' + opj(path_anat, ID + 'template_indiv' + otheranat + 'rsp_TO_Tnorm.nii.gz') + \
-        ' -expr b*(step(a)) -prefix ' + opj(path_anat, ID + 'template_indiv' + otheranat + 'rsp_TO_Tnorm.nii.gz') + \
-        '-overwrite'
+        for Timage in listTimage:
+            BRAIN = ants.image_read(opj(dir_prepro, ID + 'template_indiv' + Timage + 'rsp_TO_Tnorm.nii.gz'))
+            image_shape = BRAIN.shape
+            if len(image_shape) == 3:
+                # The image is 3D, no need for averaging
+                print(bcolors.OKGREEN + "The input image is 3D. No averaging needed." + bcolors.ENDC)
+            elif len(image_shape) == 4:
+                # The image is 4D (multi-echo or time series), average across the 4th dimension
+                print(f"The input image is 4D with {image_shape[3]} volumes. Averaging across the 4th dimension.")
+                BRAINnumpy = BRAIN.numpy()
+                averaged_array = np.mean(BRAINnumpy, axis=3)
+                averaged_image = ants.from_numpy(
+                    averaged_array,
+                    origin=BRAIN.origin[:3],
+                    spacing=BRAIN.spacing[:3],
+                    direction=np.eye(3)  # Set direction matrix to identity to avoid dimensionality issues
+                )
+                print('Averaged 4D image to 3D')
+                ants.image_write(averaged_image, opj(dir_prepro, ID + 'template_indiv' + Timage + 'rsp_TO_Tnorm.nii.gz'),
+                                 ri=False)
+        for Timage in listTimage:
+            if 'T1' in Timage:
+                T1 = Timage
+            elif 'T2' in Timage:
+                T2 = Timage
+
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' +  opj(dir_prepro, ID + 'template_indiv' + T1 + 'rsp_TO_Tnorm.nii.gz') +  \
+        ' -b ' + opj(dir_prepro, ID + 'template_indiv' + T2 + 'rsp_TO_Tnorm.nii.gz') + \
+        ' -expr "b*(step(a))" -prefix ' + opj(dir_prepro, ID + 'template_indiv' + T2 + 'rsp_TO_Tnorm.nii.gz') + \
+        ' -overwrite'
         spco([command], shell=True)
         
         
         log_img = math_img("np.where((img1 > 1) & (img2 > 1), img2, 0)", 
-                           img1=opj(path_anat, ID + 'template_indiv' + type_norm + '.nii.gz'),
-                           img2=opj(path_anat, ID + 'template_indiv' + otheranat + 'rsp_TO_Tnorm.nii.gz'))
-        log_img.to_filename(opj(path_anat, ID + 'template_indiv' + otheranat + 'rsp_T1T2.nii.gz'))
+                           img1=opj(dir_prepro, ID + 'template_indiv' + T1 + 'rsp_TO_Tnorm.nii.gz'),
+                           img2=opj(dir_prepro, ID + 'template_indiv' + T2 + 'rsp_TO_Tnorm.nii.gz'))
+        log_img.to_filename(opj(dir_prepro, ID + 'template_indiv' + otheranat + 'rsp_T1T2.nii.gz'))
 
         log_img = math_img("np.where((img1 > 1) & (img2 > 1), img1, 0)", 
-                           img1=opj(path_anat, ID + 'template_indiv' + type_norm + '.nii.gz'), 
-                           img2=opj(path_anat, ID + 'template_indiv' + otheranat + 'rsp_TO_Tnorm.nii.gz'))
-        log_img.to_filename(opj(path_anat, ID + 'template_indiv' + type_norm + 'rsp_T1T2.nii.gz'))
+                           img1=opj(dir_prepro, ID + 'template_indiv' + T1 + 'rsp_TO_Tnorm.nii.gz'),
+                           img2=opj(dir_prepro, ID + 'template_indiv' + T2 + 'rsp_TO_Tnorm.nii.gz'))
+        log_img.to_filename(opj(dir_prepro, ID + 'template_indiv' + T1 + 'rsp_T1T2.nii.gz'))
 
-        command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(path_anat, ID + 'template_indiv' + type_norm + 'rsp_T1T2.nii.gz') + \
-                  ' -b ' + opj(path_anat, ID + 'template_indiv' + otheranat + 'rsp_T1T2.nii.gz') + \
-                  ' -expr "a/b" -datum float  -prefix ' + opj(path_anat, ID + 'template_indiv' + type_norm + '_' + otheranat + '.nii.gz')
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(dir_prepro, ID + 'template_indiv' + T1 + 'rsp_T1T2.nii.gz') + \
+                  ' -b ' + opj(dir_prepro, ID + 'template_indiv' + T2 + 'rsp_T1T2.nii.gz') + \
+                  ' -expr "a/b" -datum float  -prefix ' + opj(dir_prepro, ID + 'template_indiv' + T1 + '_' + T2 + '.nii.gz')
         spco([command], shell=True)
+
 
     if IgotbothT1T2 == True:
         listTimage2 = list(listTimage)
@@ -149,8 +178,8 @@ def correct_orient(BIDStype,
     ###define if the two image have the same oblique
     if IgotbothT1T2 == True:
         command = 'singularity run' + s_bind + afni_sif + '3dinfo -same_obl ' + \
-        opj(path_anat, ID + 'template_indiv' + otheranat + '.nii.gz') + ' ' + \
-        opj(path_anat, ID + 'template_indiv' + type_norm + '.nii.gz')
+        opj(dir_prepro, ID + 'template_indiv' + otheranat + '.nii.gz') + ' ' + \
+        opj(dir_prepro, ID + 'template_indiv' + type_norm + '.nii.gz')
         arg = spgo(command).split('\n')
         nx = arg[-1]
     else:
@@ -160,28 +189,28 @@ def correct_orient(BIDStype,
         ## add option for if oblique = 0 !! XX
         if deoblique=='header':
             command = 'singularity run' + s_bind + afni_sif + '3drefit -deoblique' + overwrite + ' -orient ' + orientation + \
-            ' ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz')
+            ' ' + opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz')
             spco([command], shell=True)
 
-            shutil.copyfile(opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz'), 
+            shutil.copyfile(opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz'), 
                             opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz'))
         #work
         elif deoblique=='WARP':
             if str(nx)=="b'1\\n1\\n'":
                 command = 'singularity run' + s_bind + afni_sif + '3drefit' + overwrite + ' -orient ' + orientation + \
-                ' ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz')
+                ' ' + opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz')
                 spco([command], shell=True)
                 # reorient the fiedls according to the json file
                 command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + \
                 ' -deoblique -NN -prefix ' +  opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz') + \
-                ' ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz')
+                ' ' + opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz')
                 spco([command], shell=True)
 
             else:
                 # reorient the fiedls according to the json file
                 command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + \
                 ' -deoblique -NN -prefix ' +  opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz') + \
-                ' ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz')
+                ' ' + opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz')
                 spco([command], shell=True)
                 
                 command = 'singularity run' + s_bind + afni_sif + '3drefit' + overwrite + ' -keepcen -orient ' + orientation + \
@@ -191,13 +220,13 @@ def correct_orient(BIDStype,
 
         elif deoblique=='no_deoblique': #do nothing
             print('exeption1')
-            shutil.copyfile(opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz'), 
+            shutil.copyfile(opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz'), 
                             opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz'))
 
         elif deoblique=='WARP_without_3drefit': #re-alineate
             print('exeption2') ### add something else not usefull!! XX
             command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix ' +  opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz') + \
-            ' ' + opj(path_anat, ID + 'template_indiv' + Timage + '.nii.gz')
+            ' ' + opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz')
             spco([command], shell=True)
             print('need to realinate or use just one')
 
@@ -205,27 +234,39 @@ def correct_orient(BIDStype,
         ###N4BiasFieldCorrection
         BRAIN = ants.image_read(opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz'))
         image_shape = BRAIN.shape
+
+        # Apply N4 bias field correction
         N4 = ants.n4_bias_field_correction(BRAIN, shrink_factor=2, convergence={'iters': [50, 50, 30, 20], 'tol': 1e-7})
+        print('N4 Bias Field Correction done')
 
         if len(image_shape) == 3:
             # The image is 3D, no need for averaging
-            print(bcolors.OKGREEN + "The input image 1411is 3D. No averaging needed." + bcolors.ENDC)
+            print(bcolors.OKGREEN + "The input image is 3D. No averaging needed." + bcolors.ENDC)
             averaged_image = N4
         elif len(image_shape) == 4:
             # The image is 4D (multi-echo or time series), average across the 4th dimension
             print(f"The input image is 4D with {image_shape[3]} volumes. Averaging across the 4th dimension.")
+
             # Convert the 4D image to a NumPy array
             n4_array = N4.numpy()
+
             # Average across the 4th dimension
             averaged_array = np.mean(n4_array, axis=3)
+
             # Convert the averaged NumPy array back to an ANTsImage
             # Use metadata from the original image but adjust for 3D
-            origin = N4.origin[:3]  # Keep only the first 3 dimensions
-            spacing = N4.spacing[:3]
-            direction = N4.direction[:3, :3]  # Keep the first 3x3 matrix for 3D
-            averaged_image = ants.from_numpy(averaged_array, origin=origin, spacing=spacing, direction=direction)
+            averaged_image = ants.from_numpy(
+                averaged_array,
+                origin=N4.origin[:3],
+                spacing=N4.spacing[:3],
+                direction=np.eye(3)  # Set direction matrix to identity to avoid dimensionality issues
+            )
+            print('Averaged 4D image to 3D')
+
         else:
             raise ValueError(bcolors.FAIL + f"Unsupported image dimensions: {image_shape}" + bcolors.ENDC)
+
+        # Write the output image
         ants.image_write(averaged_image, opj(dir_prepro, ID + '_anat_reorient_NU' + Timage + '.nii.gz'), ri=False)
 
 
