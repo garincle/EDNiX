@@ -31,8 +31,8 @@ spgo = subprocess.getoutput
 ################################
 
 
-def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, type_norm, study_template_atlas_forlder, template_skullstrip, BASE_SS, BASE_mask, overwrite,
-                  s_bind, afni_sif, fsl_sif, fs_sif, itk_sif):
+def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, type_norm, study_template_atlas_forlder,
+                  s_bind, afni_sif):
 
     if which_on == 'max': # all or max
         all_ID_temp = all_ID_max

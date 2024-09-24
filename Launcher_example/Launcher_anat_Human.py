@@ -155,29 +155,29 @@ check_visualy_each_img = False #YES or NO
 do_manual_crop = False #YES or NO
 
 #### only use this option if T1 and T2 are in the same space!!!!!
-IgotbothT1T2 = False #YES or NO
+IgotbothT1T2 = True #YES or NO
 
 check_visualy_final_mask = False #YES or NO
-deoblique='WARP' #header or WARP or no_deoblique or WARP_without_3drefit
+deoblique='WARP_without_3drefit' #header or WARP or no_deoblique or WARP_without_3drefit
 n_for_ANTS='hammingWindowedSinc'
 overwrite_option = True #YES or NO
-type_of_transform = 'SyN'
+type_of_transform = 'SyNRA'
 
 ####Choose to normalize using T1 or T2
 type_norm = 'T1w' # T1 or T2
-otheranat = '' #NA if none
+otheranat = 'T2w' #NA if none
 ###masking
 #ruf XXX!!!!!!
 ###img use for masking in Skullstrip 1 'maybe this need to be change'!!!!!! because Skullstrip 2 is in auto equal to type_norm.... not sure that it will not creat problem in the futur
-masking_img = 'T1w'
+masking_img = 'T2w'
 
-brain_skullstrip_1 ='bet2_high' # bet2_ANTS or MachinL
+brain_skullstrip_1 ='_bet0.45' # bet2_ANTS or MachinL
 
 #precise
-brain_skullstrip_2 ='Custum_ANTS_Garin' # bet2_ANTS or MachinL
+brain_skullstrip_2 ='synthstrip' # bet2_ANTS or MachinL
 
 #template
-template_skullstrip = 'Custum_ANTS_Garin'
+template_skullstrip = 'muSkullStrip_Human'
 
 do_fMRImasks = True
 Align_img_to_template = '@Align_Centers' #3dAllineate or No or @Align_Centers
@@ -200,7 +200,7 @@ lpa+ *OR*  localPcorAbs+Others= Local Pearson Abs + Others
 #######################################################################
 
 #creat_study_template with type_norm img
-creat_study_template = True
+creat_study_template = False
 
 #folder where you want to store the stdy template
 study_template_atlas_forlder = bids_dir + '/sty_template'
@@ -261,7 +261,7 @@ opj(diratlas_orig, 'atlaslvl4_LR.nii.gz')]
 
 fMRImasks = 'aseg' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
 
-BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'templateT2.nii.gz') # sting
+BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'template.nii.gz') # sting
 BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'brain_mask.nii.gz') # sting # sting
 
 ####atlases files

@@ -34,7 +34,7 @@ def skullstrip_T(BASE_SS, BASE_mask, dir_prepro, ID, Session,
                  dir_transfo, type_norm, volumes_dir,
                  study_template_atlas_forlder, otheranat, template_skullstrip,
                  masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir,
-                 check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif, overwrite):
+                 check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif, strip_sif, overwrite):
 
     warp_adj = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'warped_3_adjusted_mean.nii.gz')
     stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz')
@@ -42,7 +42,7 @@ def skullstrip_T(BASE_SS, BASE_mask, dir_prepro, ID, Session,
     step_skullstrip = 3
     stdy_template_mask = anatomical.Skullstrip_method.Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas_forlder, masking_img, brain_skullstrip_1,
                                                                         brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, dir_transfo, BASE_SS, BASE_mask,
-                                                                        otheranat, ID, Session, check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif)
+                                                                        otheranat, ID, Session, check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif, strip_sif)
 
     ##extract brain
     command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + stdy_template_mask + ' -b ' + warp_adj + ' -expr "(a*b)" -prefix ' + opj \

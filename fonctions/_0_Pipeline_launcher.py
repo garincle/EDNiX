@@ -24,7 +24,16 @@ ops = os.path.splitext
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 import fonctions._1_fMRI_preTTT_in_fMRIspace
 import fonctions._2_coregistration_to_norm
@@ -47,9 +56,9 @@ import fonctions._100_Data_Clean
 ##### to ask or find solution ####
 ##### if change the orientation should we change the  phase encoding direction as well? ####
 def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, anat_func_same_space, 
-    correction_direction, REF_int, study_fMRI_Refth, IgotbothT1T2, otheranat, deoblique_exeption1, deoblique_exeption2, deoblique, orientation,
+    correction_direction, REF_int, study_fMRI_Refth, IgotbothT1T2, otheranat, deoblique, orientation,
     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
-    extract_exterior_CSF, extract_WM, n_for_ANTS, list_atlases, selected_atlases, panda_files, useT1T2_for_coregis, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
+    extract_exterior_CSF, extract_WM, n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
     cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
     folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff, selected_atlases_matrix,
     specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH, DwellT, SED, TR, TRT, type_of_transform, s_bind, s_path):
@@ -61,8 +70,6 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
     fsl_sif = ' ' + opj(s_path, 'fsl_6.0.5.1-cuda9.1.sif') + ' '
     fs_sif = ' ' + opj(s_path, 'freesurfer_NHP.sif') + ' '
     itk_sif = ' ' + opj(s_path, 'itksnap_5.0.9.sif') + ' '
-    wb_sif = ' ' + opj(s_path, 'connectome_workbench_1.5.0-freesurfer-update.sif') + ' '
-
     config_f = opj(MAIN_PATH, 'code', 'config', 'b02b0.cnf')
 
     ###########################################################################################################################################################
@@ -75,12 +82,6 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
     else:
         overwrite = ''
 
-    listTimage = []
-    if IgotbothT1T2 == True:
-        listTimage = [otheranat, type_norm]
-    else: 
-        listTimage = [type_norm]
-
     ####################################################################################
     ########################## Start the pipeline !!!!!!!!!!!!!!!!!!!!!!   #############
     ####################################################################################
@@ -90,23 +91,17 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
 
         if IhaveanANAT==False:
             # The anatomy
-            path_anat    = ''
             dir_transfo  = ''
-
-            dir_native    = ''
             dir_prepro    = ''
-            wb_native_dir = ''
             volumes_dir   = ''
             labels_dir    = ''
             masks_dir     = ''
 
         else:
             if anat_func_same_space == True:
-
                 # The anatomy
                 path_anat    = opj(data_path,'anat/')
                 dir_transfo  = opj(path_anat,'matrices')
-
                 dir_native    = opj(path_anat,'native')
                 dir_prepro    = opj(dir_native,'01_preprocess')
                 wb_native_dir = opj(dir_native,'02_Wb')
@@ -114,13 +109,9 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 labels_dir    = opj(volumes_dir,'labels')
                 masks_dir     = opj(volumes_dir,'masks')
 
-                max_ses_anat = max_ses
-                Session_anat = Session
-
-
             else:
-                template_anat_for_fmri = glob.glob(opj(opd(data_path),'**','anat','native','02_Wb', 'volumes', '*' + TfMRI + '_brain.nii*'))
-                print(opj(opd(data_path),'**','anat','native','02_Wb', 'volumes', '*' + TfMRI + '_brain.nii*'))
+                template_anat_for_fmri = glob.glob(opj(opd(data_path),'ses-' + str(Session),'anat','native','02_Wb', 'volumes', '*' + TfMRI + '_brain.nii*'))
+                print(opj(opd(data_path),'ses-' + str(Session),'anat','native','02_Wb', 'volumes', '*' + TfMRI + '_brain.nii*'))
                 print(template_anat_for_fmri)
 
                 if len(template_anat_for_fmri) == 1:
@@ -143,98 +134,56 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 labels_dir    = opj(volumes_dir,'labels')
                 masks_dir     = opj(volumes_dir,'masks')
 
-
         ####################################################################################
         ########################## Coregistration template to anat #########################
         ####################################################################################
 
         ################# coregistration longitudinal ???? #################
 
-        if coregistration_longitudinal==True:
-            if Session_anat == max_ses_anat:
-
-                transfo_concat = \
-                    [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
-                    opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
-                    opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),
-                    opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz')]
-                w2inv_fwd = [False,False,False,False]
-
-                ####
-                transfo_concat_inv = \
-                    [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1InverseWarp.nii.gz'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')]
-                w2inv_inv = [False, True, False, True]
-
-            else:
-                data_path_max = opj(bids_dir,'sub-' + ID,'ses-' + str(max_ses_anat))
-                path_anat_max    = opj(data_path_max,'anat')
-                dir_transfo_max  = opj(path_anat_max,'matrices')
-                dir_native_max    = opj(path_anat_max,'native')
-                wb_native_dir_max = opj(dir_native_max,'02_Wb')
-                volumes_dir_max   = opj(wb_native_dir_max,'volumes')
-                masks_dir_max     = opj(volumes_dir_max,'masks')
-
-                transfo_concat = \
-                    [opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
-                     opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
-                     opj(dir_transfo_max, 'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),
-                     opj(dir_transfo_max, 'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz')]
-
-                w2inv_fwd = [False,False,False,False]
-
-                #### if doesn't work change the order
-                transfo_concat_inv = \
-                    [opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_1InverseWarp.nii.gz'),
-                     opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')]
-                w2inv_inv = [False, True, False, True]
-
-
+        if coregistration_longitudinal == True:
             if creat_study_template == True:
-                BASE_SS_coregistr     = stdy_template
+                BASE_SS_coregistr = stdy_template
                 BASE_SS_mask = stdy_template_mask
             else:
-                BASE_SS_coregistr     = BASE_SS
+                BASE_SS_coregistr = BASE_SS
                 BASE_SS_mask = BASE_mask
 
+            if Session == max_ses:
+                transfo_concat_Anat = \
+                    [opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
+                     opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
+                     opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz'),
+                     opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat')]
+                w2inv_Anat = [False, False, False, False]
+
+            else:
+                data_path_max = opj(bids_dir, 'sub-' + ID, 'ses-' + str(max_ses))
+                path_anat_max = opj(data_path_max, 'anat/')
+                dir_transfo_max = opj(path_anat_max, 'matrices')
+
+                transfo_concat_Anat = \
+                    [opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
+                     opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
+                     opj(dir_transfo_max, 'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz'),
+                     opj(dir_transfo_max, 'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat')]
+                w2inv_Anat = [False, False, False, False]
 
         ################# coregistration non longitudinal #################
-
         else:
             if creat_study_template == True:
-                BASE_SS_coregistr     = stdy_template
+                BASE_SS_coregistr = stdy_template
                 BASE_SS_mask = stdy_template_mask
             else:
-                BASE_SS_coregistr     = BASE_SS
+                BASE_SS_coregistr = BASE_SS
                 BASE_SS_mask = BASE_mask
 
-            transfo_concat = \
-                [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
-                 opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz')]
-            w2inv_fwd = [False, False]
-
-            transfo_concat_inv = \
-                [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz'),
-                 opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat')]
-            w2inv_inv = [False, True]
+            transfo_concat_Anat = [opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
+                                   opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz')]
+            w2inv_Anat = [True, False]
 
         ####################################
         ########### choose Ref_file ########
         ####################################
-        if useT1T2_for_coregis == True:
-            Ref_file = opj(volumes_dir,ID + type_norm + '_' + otheranat + '_brain.nii.gz')
-            ###creat brain of the subject template
-            command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(volumes_dir, ID + '_' + type_norm + '_' + otheranat + '_template.nii.gz') + \
-            ' -b ' + output_for_mask + \
-            ' -prefix ' + Ref_file + ' -expr "a*b"'
-            spco([command], shell=True)
-        else:
-        # Organization of the folders
-            Ref_file = opj(volumes_dir,ID + type_norm + '_brain.nii.gz')
 
         if IhaveanANAT == True:
             anat_subject =  opj(dir_prepro, ID + '_acpc_cropped' + TfMRI + '.nii.gz')
@@ -261,37 +210,25 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
         dir_fMRI_Refth_RS_prepro1  = opj(dir_fMRI_Refth_RS_prepro,'01_funcspace')
         dir_fMRI_Refth_RS_prepro2  = opj(dir_fMRI_Refth_RS_prepro,'02_anatspace')
         dir_fMRI_Refth_RS_prepro3  = opj(dir_fMRI_Refth_RS_prepro,'03_atlas_space')
-
         dir_fMRI_Refth_RS_residual = opj(dir_fMRI_Refth_RS,'02_residual')
         dir_RS_ICA_native    = opj(dir_fMRI_Refth_RS_residual,'01_ICA_native')
         dir_RS_ICA_native_PreTT    = opj(dir_fMRI_Refth_RS_residual,'01_ICA_native_PreTT')
-        dir_RS_norm          = opj(dir_fMRI_Refth_RS_residual,'02_ICA_Norm')
-
         dir_fMRI_Refth_map          = opj(data_path,'fmap')
-
-
-        ############################################
-        ####find an auto way to defin it XXX #######
-        ############################################
 
         # get useful informations
         list_RS = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endfmri)))
 
         if len(list_RS) == 0:
-            print('ERROR : No func image found')
             print(opj(dir_fMRI_Refth_RS, endfmri))
             print(list_RS)
+            raise ValueError(bcolors.FAIL + 'ERROR : No func image found' + bcolors.ENDC)
 
-        nb_run  = len(list_RS)
-        RS      = [os.path.basename(i) for i in list_RS]
-
+        nb_run = len(list_RS)
+        RS = [os.path.basename(i) for i in list_RS]
         list_map = sorted(glob.glob(opj(dir_fMRI_Refth_map, endmap))) #[]
 
         if len(list_RS)>0:
             RS_map   = [os.path.basename(i) for i in list_map]
-
-            ref_nom_IRMf = list_RS[REF_int]
-
             ############################################
             #### choose TOPUP stragtegy ################
             ############################################
@@ -321,7 +258,6 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 if not len(list_map) == len(list_RS):
                    raise NameError('WARNING : Check the runs there is probably one broken file that has been repeated and that you should remove !')
 
-
             print('######################################################## recordings type detected: ' + str(recordings) + '##############################################')
 
             list_json = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endjson)))
@@ -332,7 +268,6 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             else:
                 f = open(list_json[0])
                 info_RS = json.load(f)
-
 
             if TR == 'Auto':
                 ## TR
@@ -506,9 +441,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print('##########   Working on step ' + str(2) + ' _2_coregistration_to_norm  ###############')
                 print(str(ID) + ' Session ' + str(Session))
 
-                fonctions._2_coregistration_to_norm.coregist_to_norm(anat_func_same_space, dir_prepro, correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map, nb_run, recordings,
-                    REF_int, list_map, study_fMRI_Refth, IgotbothT1T2, path_anat, otheranat, ID, Session, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, DwellT, n_for_ANTS, overwrite,
-                                                                     s_bind,afni_sif,fsl_sif,dmap,dbold,config_f)
+                fonctions._2_coregistration_to_norm.coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map, nb_run, recordings, REF_int, list_map, study_fMRI_Refth, deoblique,
+                                                                     orientation, DwellT, n_for_ANTS, overwrite,s_bind,afni_sif,fsl_sif,dmap,dbold,config_f)
 
             if 3 in Skip_step:
                 print('skip step ' + str(3))
@@ -517,7 +451,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print(str(ID) + ' Session ' + str(Session))
                 fonctions._3_mask_fMRI.Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                        dir_fMRI_Refth_RS_prepro3, RS, nb_run, REF_int, ID, dir_prepro, brainmask, V_mask, W_mask, G_mask, dilate_mask,
-                       costAllin, anat_subject, doMaskingfMRI, Method_mask_func, lower_cutoff, upper_cutoff, overwrite,
+                       costAllin, anat_subject, doMaskingfMRI, Method_mask_func, lower_cutoff, upper_cutoff, overwrite, type_of_transform, aff_metric_ants,
                        s_bind,afni_sif,fs_sif,  fsl_sif, itk_sif)
             if 4 in Skip_step:
                 print('skip step ' + str(4))
@@ -531,7 +465,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             else:
                 print('##########   Working on step ' + str(5) + ' _5_anat_to_fMRI  ###############')
                 print(str(ID) + ' Session ' + str(Session))
-                fonctions._5_anat_to_fMRI.Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run, ID, dir_prepro, n_for_ANTS, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform, overwrite, s_bind, afni_sif)
+                fonctions._5_anat_to_fMRI.Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run, ID, dir_prepro, n_for_ANTS, aff_metric_ants, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform, overwrite, s_bind, afni_sif)
             if 6 in Skip_step:
                 print('skip step ' + str(6))
             else:
@@ -555,15 +489,16 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print('##########   Working on step ' + str(8) + ' _8_fMRI_to_anat  ###############')
                 print(str(ID) + ' Session ' + str(Session))
                 fonctions._8_fMRI_to_anat.to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                nb_run, RS, n_for_ANTS)
+                nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space)
 
             if 9 in Skip_step:
                 print('skip step ' + str(9))
             else:
                 print('##########   Working on step ' + str(9) + ' _9_coregistration_to_template_space  ###############')
                 print(str(ID) + ' Session ' + str(Session))
-                fonctions._9_coregistration_to_template_space.to_common_template_space(Session, deoblique_exeption1, deoblique_exeption2, deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, BASE_SS_coregistr,
-                    nb_run, RS, transfo_concat,w2inv_fwd,do_anat_to_func, n_for_ANTS, list_atlases, TfMRI, BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template, anat_func_same_space, orientation, path_anat, ID, REF_int, IhaveanANAT, overwrite,s_bind,afni_sif)
+                fonctions._9_coregistration_to_template_space.to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3,
+                nb_run, RS, transfo_concat_Anat,w2inv_Anat,do_anat_to_func, n_for_ANTS, list_atlases, TfMRI, BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template,
+                anat_func_same_space, orientation, dir_prepro, ID, REF_int, IhaveanANAT, overwrite,s_bind,afni_sif)
 
             if 10 in Skip_step:
                 print('skip step ' + str(10))

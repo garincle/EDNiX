@@ -15,7 +15,7 @@ spgo = subprocess.getoutput
 
 
 
-def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run, ID, dir_prepro, n_for_ANTS, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform, overwrite, s_bind, afni_sif):
+def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run, ID, dir_prepro, n_for_ANTS, aff_metric_ants, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform, overwrite, s_bind, afni_sif):
 
     command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
     ADI = spgo(command).split('\n')
@@ -47,7 +47,6 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepr
     if anat_func_same_space == True and do_anat_to_func == False:
         print('No anat to func step required')
     else:
-
         if 'i' in SED:
             restrict = (1,0.1,0.1)
         elif 'j' in SED:
@@ -76,24 +75,32 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepr
                                  reg_smoothing_sigmas=(3, 2, 1, 0),
                                  reg_shrink_factors=(8, 4, 2, 1),
                                  verbose=True,
+                                 aff_metric=aff_metric_ants,
                                  restrict_transformation=restrict)
-        MEAN_tr = ants.apply_transforms(fixed=ANAT, moving=MEAN_tr,transformlist=mTx2['fwdtransforms'],interpolator=n_for_ANTS)
-        ants.image_write(MEAN_tr, opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped.nii.gz'), ri=False)
 
+        transfo_concat = \
+            [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
+             opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')]
 
+        MEAN_trAff = ants.apply_transforms(fixed=ANAT, moving=MEAN,transformlist=transfo_concat, interpolator='nearestNeighbor')
+        ants.image_write(MEAN_trAff, opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped.nii.gz'), ri=False)
 
-    mvt_shft_INV_ANTs = []
-    w2inv_inv = []
-    for elem1, elem2 in zip([#opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
-                             opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat'),
-                             opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz')],
-                            [True,True]):
-        if ope(elem1):
-            mvt_shft_INV_ANTs.append(elem1)
-            w2inv_inv.append(elem2)
+    if do_anat_to_func == True:
+        mvt_shft_INV_ANTs = []
+        w2inv_inv = []
+        for elem1, elem2 in zip([  # opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
+            opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat'),
+            opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1InverseWarp.nii.gz')],
+                [True, False]):
+            if ope(elem1):
+                mvt_shft_INV_ANTs.append(elem1)
+                w2inv_inv.append(elem2)
+    elif do_anat_to_func == False and anat_func_same_space == True:
+        mvt_shft_INV_ANTs = []
+        w2inv_inv = []
+    else:
+        print('ERROR: If Anat and Func are not in the same space you need to perform that trasnformation (do_anat_to_func = True)')
 
-    print(mvt_shft_INV_ANTs)
-    print(w2inv_inv)
 
     ########## ########## help for antsRegistration ########## ########## ########## ##########
     # -f -s -c X1 x X2 x X3 x X4 from large mvt to small si 4 prend toujours 4
@@ -115,9 +122,8 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepr
             TRANS = ants.apply_transforms(fixed=MEAN, moving=IMG,
                                           transformlist=mvt_shft_INV_ANTs,
                                           interpolator='nearestNeighbor',
-                                          which2invert=w2inv_inv)
+                                          whichtoinvert=w2inv_inv)
             ants.image_write(TRANS,output2,ri=False)
-
 
             command = 'singularity run' + s_bind + afni_sif + '3dmask_tool' + overwrite + ' -prefix ' + output2 + \
             ' -input ' + output2 + ' -fill_holes'
@@ -133,17 +139,14 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepr
     TRANS = ants.apply_transforms(fixed=MEAN, moving=BRAIN,
                                   transformlist=mvt_shft_INV_ANTs,
                                   interpolator=n_for_ANTS,
-                                  which2invert=w2inv_inv)
+                                  whichtoinvert=w2inv_inv)
     ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro1, 'Ref_anat_in_fMRI.nii.gz'), ri=False)
 
     #### apply to all atlases
-
     if len(list_atlases) > 0:
         for atlas in list_atlases:
-            ## in anat space resample to func
-
+            ## in anat space resample to funcdo_anat_to_func
             if anat_func_same_space == True:
-
                 mvt_shft = opj(dir_prepro, ID + '_brain_for_Align_Center_inv.1D')
                 command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 200 -S 200 -A 200 -P 200 -L 200 -R 200 -S 200 -prefix ' + opj(dir_fMRI_Refth_RS_prepro2, opb(atlas)) + ' ' + opj(labels_dir, TfMRI + opb(atlas)) + ' -overwrite'
                 spco([command], shell=True)
@@ -173,12 +176,11 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepr
                 spco([command], shell=True)
 
             ## in func space resample to func
-
             ATLAS = ants.image_read(opj(dir_fMRI_Refth_RS_prepro2, opb(atlas)))
             TRANS = ants.apply_transforms(fixed=MEAN, moving=ATLAS,
                                           transformlist=mvt_shft_INV_ANTs,
                                           interpolator='nearestNeighbor',
-                                          which2invert=w2inv_inv)
+                                          whichtoinvert=w2inv_inv)
             ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro1, opb(atlas)), ri=False)
     else:
         print('WARNING: list_atlases is empty!')
@@ -199,7 +201,6 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepr
     ' -rmode Cu -input  ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
     spco([command], shell=True)
 
-
     #### creat a nice anat in func space
     if anat_func_same_space == True:
         mvt_shft = opj(dir_prepro, ID + '_brain_for_Align_Center_inv.1D')
@@ -212,9 +213,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepr
         ' -prefix ' + anatstd + \
         ' -input  ' + anatstd + \
         ' -master ' + opj(dir_prepro, ID + '_mprage_reorient' + TfMRI + '.nii.gz')
-
         spco([command], shell=True)
-
     else:
         anatstd = anat_subject
         command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + anatstd + \
@@ -222,16 +221,14 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepr
         spco([command], shell=True)
 
 
-    ## in func space resample to func 
-
+    ## in func space resample to func
     ANAT = ants.image_read(anatstd)
     MEAN_RES = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_RcT_SS_anat_resolution.nii.gz'))
     TRANS = ants.apply_transforms(fixed=MEAN_RES, moving=ANAT,
                                   transformlist=mvt_shft_INV_ANTs,
-                                  interpolator=n_for_ANTS,
-                                  which2invert=w2inv_inv)
+                                  interpolator='nearestNeighbor',
+                                  whichtoinvert=w2inv_inv)
     ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro1, 'Ref_anat_in_fMRI_anat_resolution.nii.gz'), ri=False)
-
 
     ###finaly mask the func with mask
     for i in range(0, int(nb_run)):

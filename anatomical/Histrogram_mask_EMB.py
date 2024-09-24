@@ -101,7 +101,7 @@ class HistogramMask(BaseInterface):
             upper_cutoff=self.inputs.upper_cutoff,
             connected=self.inputs.connected,
             opening=self.inputs.opening)
-        mask_data = mask_img.get_data()
+        mask_data = mask_img.get_fdata()
         n_voxels_mask = np.sum(mask_data > 0)
 
         # Find the optimal lower cutoff
@@ -116,7 +116,7 @@ class HistogramMask(BaseInterface):
                 upper_cutoff=self.inputs.upper_cutoff,
                 connected=self.inputs.connected,
                 opening=self.inputs.opening)
-            mask_data = mask_img.get_data()
+            mask_data = mask_img.get_fdata()
             n_voxels_mask = np.sum(mask_data > 0)
             if self.inputs.verbose:
                 print('volume {0}, lower_cutoff {1}'.format(
@@ -135,7 +135,7 @@ class HistogramMask(BaseInterface):
                 upper_cutoff=self.inputs.upper_cutoff,
                 connected=self.inputs.connected,
                 opening=self.inputs.opening)
-            mask_data = mask_img.get_data()
+            mask_data = mask_img.get_fdata()
             n_voxels_mask = np.sum(mask_data > 0)
             if self.inputs.verbose:
                 print('volume {0}, lower_cutoff {1}'.format(
@@ -150,7 +150,7 @@ class HistogramMask(BaseInterface):
                     upper_cutoff=self.inputs.upper_cutoff,
                     connected=self.inputs.connected,
                     opening=self.inputs.opening)
-                mask_data = mask_img.get_data()
+                mask_data = mask_img.get_fdata()
                 n_voxels_mask = np.sum(mask_data > 0)
                 if self.inputs.verbose:
                     print('volume {0}, lower_cutoff {1}'.format(
@@ -167,7 +167,7 @@ class HistogramMask(BaseInterface):
                 upper_cutoff=self.inputs.upper_cutoff,
                 connected=self.inputs.connected,
                 opening=opening)
-            mask_data = mask_img.get_data()
+            mask_data = mask_img.get_fdata()
             n_voxels_mask = np.sum(mask_data > 0)
             if self.inputs.verbose:
                 print('volume {0}, lower_cutoff {1}, opening {2}'.format(

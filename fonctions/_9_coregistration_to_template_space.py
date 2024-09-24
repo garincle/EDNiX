@@ -17,10 +17,9 @@ spgo = subprocess.getoutput
 ####################################################################################
 ########################## Step 3 normalisation to template atlas space ############
 ####################################################################################
-def to_common_template_space(Session, deoblique_exeption1, deoblique_exeption2, deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, BASE_SS_coregistr,
-                nb_run, RS, transfo_concat,w2inv_Anat,do_anat_to_func, n_for_ANTS, list_atlases, TfMRI, BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template,
-                anat_func_same_space, orientation, path_anat, ID, REF_int, IhaveanANAT, overwrite,s_bind,afni_sif):
-
+def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3,
+                nb_run, RS, transfo_concat_Anat, w2inv_Anat,do_anat_to_func, n_for_ANTS, list_atlases, TfMRI, BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template,
+                anat_func_same_space, orientation, dir_prepro, ID, REF_int, IhaveanANAT, overwrite,s_bind,afni_sif):
 
     if IhaveanANAT == False:
         for i in range(0, int(nb_run)):
@@ -28,11 +27,10 @@ def to_common_template_space(Session, deoblique_exeption1, deoblique_exeption2, 
             command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro2, root_RS + '_residual_in_anat.nii.gz') + \
                       ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz') + ' -expr "a"'
             spco([command], shell=True)
-
     else:
         if do_anat_to_func == True:
             mvt_shft_ANTs = []
-            w2inv_fwd = [False, True, True]
+            w2inv_fwd = []
             for elem1, elem2 in zip([  # opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
                 opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
                 opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')], [False, False]):
@@ -42,188 +40,177 @@ def to_common_template_space(Session, deoblique_exeption1, deoblique_exeption2, 
         elif do_anat_to_func == False and anat_func_same_space == True:
             mvt_shft_ANTs = []
             w2inv_fwd = []
-
         else : print('ERROR: If Anat and Func are not in the same space you need to perform that trasnformation (do_anat_to_func = True)')
 
-        print('INFO: mvt_shft_ANTs = ' + str(mvt_shft_ANTs))
-        ##### creat new variable  for template space
-        if ope(dir_fMRI_Refth_RS_prepro3) == False:
-            os.makedirs(dir_fMRI_Refth_RS_prepro3)
-            os.makedirs(opj(dir_fMRI_Refth_RS_prepro3,'tmp'))
+    ##### creat new variable  for template space
+    if ope(dir_fMRI_Refth_RS_prepro3) == False:
+        os.makedirs(dir_fMRI_Refth_RS_prepro3)
+        os.makedirs(opj(dir_fMRI_Refth_RS_prepro3,'tmp'))
 
-            #########################################################################################################
-            ################################### registration to anat space ##########################################
-            #########################################################################################################
+        ###############################################################################################
+        ################################### registration to anat space ################################
+        ###############################################################################################
+        ############################### ############################### ###############################
+        ############################### apply transfo to anat space to Mean_Image image for test ######
+        ############################### ############################### ###############################
 
+    for input2, output2, output3 in zip([opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, 'Ref_anat_in_fMRI.nii.gz')],
+                               [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_SS_pre.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, 'Ref_anat_in_fMRI_test_pre.nii.gz')],
+                                [opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz'), opj(dir_fMRI_Refth_RS_prepro3, 'Ref_anat_in_fMRI_test_in_template.nii.gz')]):
 
-            ############################### ############################### ###############################
-            ############################### apply transfo to anat space to Mean_Image image for test ######
-            ############################### ############################### ###############################
-        for input2, output2 in zip([opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz')],
-                                   [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_SS_pre.nii.gz')]):
-            command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + input2 + \
-                      ' -prefix ' + output2 + ' -expr "a"'
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + input2 + \
+        ' -prefix ' + output2 + ' -expr "a"'
+        spco([command], shell=True)
+
+        if anat_func_same_space == True:
+            r = REF_int
+            root_RS = extract_filename(RS[r])
+            command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -orient ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP' + '.nii.gz') + ' ' +  output2
+            orientation_orig = spgo(command).split('\n')[-1]
+            print(orientation_orig)
+            ##### apply the recenter fmri
+            #######!!!!!! I don't know why if deobblique1=WARP no gridset if exeption2 require gridset!!!!!
+            if deoblique == 'header':
+                command = 'singularity run' + s_bind + afni_sif + '3drefit -deoblique ' + overwrite + ' -orient ' + orientation + ' ' + output2
+                spco([command], shell=True)
+
+            elif deoblique == 'WARP' or deoblique == 'WARP_without_3drefit':
+                # reorient the fiedls according to the json file
+                command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix ' + output2 + \
+                ' ' +  output2
+                spco([command], shell=True)
+
+            elif deoblique == 'WARP_Gridset':  # do nothing
+                print('WARP_Gridset')
+                # reorient the fiedls according to the json file
+                command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix ' + output2 + ' -gridset ' + output2 + \
+                          ' ' + output2
+                spco([command], shell=True)
+
+            elif deoblique == 'header_WO_deob':
+                print('header_WO_deob')
+                command = 'singularity run' + s_bind + afni_sif + '3drefit ' + overwrite + ' -orient ' + orientation + ' ' + output2
+                spco([command], shell=True)
+
+            elif deoblique == 'no_deoblique':  # do nothing
+                print('no_deoblique')
+
+            command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 50 -S 50 -A 50 -P 50 -L 50 -R 50 -S 50 -prefix ' +  output2 + ' ' +  output2 + ' -overwrite'
             spco([command], shell=True)
 
-            if anat_func_same_space == True:
-                debolique_spe = ID + 'ses-' + str(Session)
-                if debolique_spe in deoblique_exeption1:
-                    deoblique_1 = 'exeption1'
-                    print(deoblique_1)
-                elif debolique_spe in deoblique_exeption2:
-                    deoblique_1 = 'exeption2'
-                else:
-                    deoblique_1 = deoblique
-                    print(deoblique_1)
-
-                command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -same_obl ' + opj(path_anat, ID + 'template_indiv' + TfMRI + '.nii.gz') + ' ' +  output2
-                nx = spgo(command).split('\n')[-1]
-
-
-                r = REF_int
-                root_RS = extract_filename(RS[r])
-                command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -orient ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP' + '.nii.gz') + ' ' +  output2
-                orientation_orig = spgo(command).split('\n')[-1]
-                print(orientation_orig)
-                ##### apply the recenter fmri
-                #######!!!!!! I don't know why if deobblique1=WARP no gridset if exeption2 require gridset!!!!!
-                if deoblique_1 == 'header':
-                    command = 'singularity run' + s_bind + afni_sif + '3drefit -deoblique ' + overwrite + ' -orient ' + orientation + ' ' + output2
-                    spco([command], shell=True)
-
-                elif deoblique_1 == 'WARP':
-                    # reorient the fiedls according to the json file
-                    command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix ' + output2 + \
-                    ' ' +  output2
-                    spco([command], shell=True)
-
-                elif deoblique_1 == 'exeption1':  # do nothing
-                    print('exeption1: nothing to do hear')
-
-                elif deoblique_1 == 'exeption2':  # re-alineate
-                    # reorient the fiedls according to the json file
-                    command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix ' + output2 + ' -gridset ' + output2 + \
-                              ' ' + output2
-                    spco([command], shell=True)
-
-                command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 50 -S 50 -A 50 -P 50 -L 50 -R 50 -S 50 -prefix ' +  output2 + ' ' +  output2 + ' -overwrite'
-                spco([command], shell=True)
-
-                command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -overwrite -interp NN -1Dmatrix_apply ' + opj(dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D') + \
-                ' -prefix ' + output2 + \
-                ' -input  ' + output2
-
-                #' -master ' + opj(dir_prepro, ID + '_acpc_cropped' + TfMRI + '.nii.gz')
-                spco([command], shell=True)
-                '''
-                command = '3dinfo -di ' + input2
-                delta_x = str(abs(round(float(spgo([command])[-8:]), 10)))
-                command = '3dinfo -dj ' + input2
-                delta_y = str(abs(round(float(spgo([command])[-8:]), 10)))
-                command = '3dinfo -dk ' + input2
-                delta_z = str(abs(round(float(spgo([command])[-8:]), 10)))
-
-                command = '3dresample' + overwrite + \
-                          ' -prefix ' + output2 + \
-                          ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' + \
-                          ' -input  ' + output2
-                spco([command], shell=True)
+            command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -overwrite -interp NN -1Dmatrix_apply ' + opj(dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D') + \
+            ' -prefix ' + output2 + \
+            ' -input  ' + output2
+            #' -master ' + opj(dir_prepro, ID + '_acpc_cropped' + TfMRI + '.nii.gz')
+            spco([command], shell=True)
             '''
-            else:
-                print("nothing to do")
+            command = '3dinfo -di ' + input2
+            delta_x = str(abs(round(float(spgo([command])[-8:]), 10)))
+            command = '3dinfo -dj ' + input2
+            delta_y = str(abs(round(float(spgo([command])[-8:]), 10)))
+            command = '3dinfo -dk ' + input2
+            delta_z = str(abs(round(float(spgo([command])[-8:]), 10)))
 
+            command = '3dresample' + overwrite + \
+                      ' -prefix ' + output2 + \
+                      ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' + \
+                      ' -input  ' + output2
+            spco([command], shell=True)
+        '''
+        else:
+            print('nothing to do')
 
-            ## test on mean img (to see spatially that is works)
-
-            MEAN = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_SS_pre.nii.gz'))
-            REF  = ants.image_read(opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz'))
-            print(transfo_concat + mvt_shft_ANTs)
-            print(w2inv_Anat + w2inv_fwd)
-            TRANS = ants.apply_transforms(fixed=REF, moving=MEAN,
-                                          transformlist=transfo_concat + mvt_shft_ANTs,
-                                          interpolator=n_for_ANTS,
-                                          which2invert=w2inv_Anat + w2inv_fwd)
-            ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz'), ri=False)
-
+        ## test on mean img (to see spatially that is works)
+        print("starting est on mean image and anat test to standart space")
+        MEAN = ants.image_read(output2)
+        REF  = ants.image_read(opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz'))
+        print(mvt_shft_ANTs + transfo_concat_Anat)
+        print(w2inv_Anat + w2inv_fwd)
+        TRANS = ants.apply_transforms(fixed=REF, moving=MEAN,
+                                      transformlist=mvt_shft_ANTs + transfo_concat_Anat,
+                                      interpolator='nearestNeighbor',
+                                      whichtoinvert=w2inv_fwd + w2inv_Anat)
+        ants.image_write(TRANS, output3, ri=False)
+        print(str(output3) + ' done!')
 
             ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
             ## ## ## ## ## ## ## ## ## ## ## ## ## ##  Work on all FUNC ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
             ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
+    for i in range(0, int(nb_run)):
+        ##### go for BOLD img preTTT
+        root_RS = extract_filename(RS[i])
+        for f in os.listdir(opj(dir_fMRI_Refth_RS_prepro3, 'tmp')):
+            if ope(os.path.join(opj(dir_fMRI_Refth_RS_prepro3, 'tmp'), f)):
+                os.remove(os.path.join(opj(dir_fMRI_Refth_RS_prepro3, 'tmp'), f))
 
+        output3 = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_anat_sfht.nii.gz')
+        output2 = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_anat_reorient.nii.gz')
+        input2  = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
 
-            for i in range(0, int(nb_run)):
-                ##### go for BOLD img preTTT
-                root_RS = extract_filename(RS[i])
-                for f in os.listdir(opj(dir_fMRI_Refth_RS_prepro3, 'tmp')):
-                    if ope(os.path.join(opj(dir_fMRI_Refth_RS_prepro3, 'tmp'), f)):
-                        os.remove(os.path.join(opj(dir_fMRI_Refth_RS_prepro3, 'tmp'), f))
+        if anat_func_same_space == True:
+            command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + input2 + \
+                      ' -prefix ' + output2 + ' -expr "a"'
+            spco([command], shell=True)
 
-                output3 = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_anat_sfht.nii.gz')
-                output2 = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_anat_reorient.nii.gz')
-                input2  = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
+            command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -same_obl ' + opj(dir_prepro, ID + 'template_indiv' + TfMRI + '.nii.gz') + ' ' +  output2
+            nx = spgo(command).split('\n')[-1]
 
-                if anat_func_same_space == True:
-                    command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + input2 + \
-                              ' -prefix ' + output2 + ' -expr "a"'
-                    spco([command], shell=True)
+            r = REF_int
+            root_RS = extract_filename(RS[r])
+            command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -orient ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP' + '.nii.gz') + ' ' +  output2
+            orientation_orig = spgo(command).split('\n')[-1]
+            print(orientation_orig)
 
-                    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -same_obl ' + opj(path_anat, ID + 'template_indiv' + TfMRI + '.nii.gz') + ' ' +  output2
-                    nx = spgo(command).split('\n')[-1]
+            ##### apply the recenter fmri
+            #######!!!!!! I don't know why if deobblique1=WARP no gridset if exeption2 require gridset!!!!!
+            if deoblique == 'header':
+                command = 'singularity run' + s_bind + afni_sif + '3drefit -deoblique ' + overwrite + ' -orient ' + orientation + ' ' + output2
+                spco([command], shell=True)
 
-                    r = REF_int
-                    root_RS = extract_filename(RS[r])
-                    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -orient ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP' + '.nii.gz') + ' ' +  output2
-                    orientation_orig = spgo(command).split('\n')[-1]
-                    print(orientation_orig)
+            elif deoblique == 'WARP' or deoblique == 'WARP_without_3drefit':
+                # reorient the fiedls according to the json file
+                command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix ' + output2 + \
+                          ' ' + output2
+                spco([command], shell=True)
 
-                    ##### apply the recenter fmri
-                    #######!!!!!! I don't know why if deobblique1=WARP no gridset if exeption2 require gridset!!!!!
-                    if deoblique_1 == 'header':
-                        command = 'singularity run' + s_bind + afni_sif + '3drefit -deoblique ' + overwrite + ' -orient ' + orientation + ' ' + output2
-                        spco([command], shell=True)
+            elif deoblique == 'WARP_Gridset':  # do nothing
+                print('WARP_Gridset')
+                # reorient the fiedls according to the json file
+                command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix ' + output2 + ' -gridset ' + output2 + \
+                          ' ' + output2
+                spco([command], shell=True)
 
-                    elif deoblique_1 == 'WARP':
-                        # reorient the fiedls according to the json file
-                        command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix ' + output2 + \
-                                  ' ' + output2
-                        spco([command], shell=True)
+            elif deoblique == 'header_WO_deob':
+                print('header_WO_deob')
+                command = 'singularity run' + s_bind + afni_sif + '3drefit ' + overwrite + ' -orient ' + orientation + ' ' + output2
+                spco([command], shell=True)
 
-                    elif deoblique_1 == 'exeption1':  # do nothing
-                        print('exeption1: nothing to do hear')
+            elif deoblique == 'no_deoblique':  # do nothing
+                print('no_deoblique')
 
-                    elif deoblique_1 == 'exeption2':  # re-alineate
-                        # reorient the fiedls according to the json file
-                        command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix ' + output2 + ' -gridset ' + output2 + \
-                                  ' ' + output2
-                        spco([command], shell=True)
+            command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 50 -S 50 -A 50 -P 50 -L 50 -R 50 -S 50 -prefix ' + output3 + ' ' + output2 + ' -overwrite'
+            spco([command], shell=True)
 
-                    command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 50 -S 50 -A 50 -P 50 -L 50 -R 50 -S 50 -prefix ' + output3 + ' ' + output2 + ' -overwrite'
-                    spco([command], shell=True)
+            command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -overwrite -interp NN -1Dmatrix_apply ' + opj(
+                dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D') + \
+                      ' -prefix ' + output3 + \
+                      ' -input  ' + output3
+                      # ' -master ' + opj(dir_prepro, ID + '_acpc_cropped' + TfMRI + '.nii.gz')
+            spco([command], shell=True)
+            ## apply on pre-processed imgs
+            FUNC = ants.image_read(output3)
 
-                    command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -overwrite -interp NN -1Dmatrix_apply ' + opj(
-                        dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D') + \
-                              ' -prefix ' + output3 + \
-                              ' -input  ' + output3
-                              # ' -master ' + opj(dir_prepro, ID + '_acpc_cropped' + TfMRI + '.nii.gz')
-                    spco([command], shell=True)
+        else:
+            ## apply on pre-processed imgs
+            FUNC = ants.image_read(input2)
+        #####transfo
 
-                    ## apply on pre-processed imgs
-
-                    FUNC = ants.image_read(output3)
-
-                else:
-                    ## apply on pre-processed imgs
-                    FUNC = ants.image_read(input2)
-
-
-                #####transfo
-
-                TRANS = ants.apply_transforms(fixed=REF, moving=FUNC,
-                                              transformlist=transfo_concat + mvt_shft_ANTs,
-                                              interpolator=n_for_ANTS,
-                                              which2invert=w2inv_Anat + w2inv_fwd,imagetype=3)
-                ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz'),
-                                 ri=False)
+        TRANS = ants.apply_transforms(fixed=REF, moving=FUNC,
+                                      transformlist=transfo_concat_Anat + mvt_shft_ANTs,
+                                      interpolator='nearestNeighbor',
+                                      whichtoinvert=w2inv_Anat + w2inv_fwd,imagetype=3)
+        ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz'),
+                         ri=False)
 
 
     command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz')

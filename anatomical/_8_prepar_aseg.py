@@ -42,10 +42,10 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
     MSK = ants.image_read(BASE_SS_mask)
     IMG  = ants.image_read(BASE_SS_coregistr)
     TRANS = ants.apply_transforms(fixed=brain_img, moving=MSK,
-                                  transformlist=transfo_concat, interpolator='nearestNeighbor',which2invert=w2inv_fwd)
+                                  transformlist=transfo_concat, interpolator='nearestNeighbor',whichtoinvert=w2inv_fwd)
     ants.image_write(TRANS, opj(masks_dir,'brain_mask_in_anat_DC.nii.gz'), ri=False)
     TRANS = ants.apply_transforms(fixed=brain_img, moving=IMG,
-                                  transformlist=transfo_concat, interpolator=n_for_ANTS,which2invert=w2inv_fwd)
+                                  transformlist=transfo_concat, interpolator=n_for_ANTS,whichtoinvert=w2inv_fwd)
     ants.image_write(TRANS, opj(dir_prepro,'template_in_anat_DC.nii.gz'), ri=False)
     command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(dir_prepro,'template_in_anat_DC.nii.gz') + ' -expr "step(a)*b" -prefix ' + opj(dir_prepro,'template_in_anat_DC.nii.gz')
     spco([command], shell=True)

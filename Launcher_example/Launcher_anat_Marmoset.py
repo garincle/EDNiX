@@ -60,12 +60,10 @@ report = BIDSReport(layout)
 #main_report = counter.most_common()[0][0]
 #print(main_report)
 
-
 # Ask get() to return the ids of subjects that have T1w files #return_type='filename
 T1 = layout.get(return_type='filename', target='subject', suffix='T1w', extension='nii.gz')
 print(T1)
 ###question
-
 
 # Ask get() to return the ids of subjects that have T2w files
 T2 = layout.get(return_type='filename', target='subject', suffix='T2w', extension='nii.gz')
@@ -81,7 +79,6 @@ Bold = layout.get(return_type='filename', target='subject', task='rest', extensi
 df = layout.to_df()
 df.head()
 
-
 ##############################################################  TO DO !! ##############################################################
 
 #### Create a pandas sheet for the dataset (I like it, it help to know what you are about to process
@@ -89,12 +86,8 @@ allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
 allinfo_study_c.rename(columns={'session': 'Session'}, inplace=True)
 allinfo_study_c.rename(columns={'subject': 'ID'}, inplace=True)
 allinfo_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
-
 filter1 = allinfo_study_c["ID"].isin([])
-
 allinfo_study_c_formax = allinfo_study_c.copy()
-
-
 
 ##############Select all the monkey of the study
 ### equal to allinfo_study_c, espcially if not longitudinal  and you have not selected specific subjects
@@ -126,7 +119,6 @@ for ID in pd.unique(allinfo_study_c_formax.ID):
         all_ID.append(ID)
         max_sessionlist.append(np.array(listereverse).max())
         animal_ID.append(ID + 'ses-' + str(Session))
-
 
 for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
     # Organization of the folders
@@ -173,7 +165,7 @@ otheranat = '' #NA if none
 ###img use for masking in Skullstrip 1 'maybe this need to be change'!!!!!! because Skullstrip 2 is in auto equal to type_norm.... not sure that it will not creat problem in the futur
 masking_img = 'T2w'
 
-brain_skullstrip_1 ='3dSkullStrip_marmoset' # bet2_ANTS or MachinL
+brain_skullstrip_1 ='CustumThreshold_50' # bet2_ANTS or MachinL
 
 #precise
 brain_skullstrip_2 ='Custum_ANTS_Garin' # bet2_ANTS or MachinL
@@ -212,6 +204,7 @@ dir_out = bids_dir + '/sty_template/atlases'
 #do you want to use all the data or only the last one of each subject (for longitud inal co-registration)
 which_on = 'all' # all or max
 type_of_transform_stdyT = 'SyN'
+aff_metric_ants = 'MI'
 
 ###use type_norm or otheranat for atlas template to study template co-registration
 Atemplate_to_Stemplate = 'T2w'
@@ -264,10 +257,12 @@ opj(diratlas_orig, 'atlaslvl2_LR.nii.gz'),
 opj(diratlas_orig, 'atlaslvl3_LR.nii.gz'),
 opj(diratlas_orig, 'atlaslvl4_LR.nii.gz')]
 
-fMRImasks = 'aseg' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
+BASE_SS     = opj(diratlas_orig,'templateT2.nii.gz') # sting
+BASE_mask   = opj(diratlas_orig,'brain_mask.nii.gz') # sting # sting
 
-BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'templateT2.nii.gz') # sting
-BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'brain_mask.nii.gz') # sting # sting
+#### if you want to work with functional add to the list_atlases:
+list_atlases.append(opj(diratlas_orig,'Gmask.nii.gz'))
+list_atlases.append(opj(diratlas_orig,'Wmask.nii.gz'))
 
 ####atlases files
 Aseg_ref    = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',species,'atlas_forSEG_final.nii.gz')
@@ -275,6 +270,8 @@ Aseg_refLR  = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',s
 
 species_list = ['Pig', 'Mouse_lemur', 'Marmoset', 'Macaque', 'Chimpanzee', 'DoginCat', 'CatinDog', 'Mouse', 'RatWHS', 'Human']
 middle_value = ['-0.929', '0.091','0.075','0.125','0.5','-0.352','-0.289','-0.05','0','0']
+
+fMRImasks = 'aseg' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
 
 ###question of Aseg_refLR
 def get_middle_value_for_species(species_list, value_list, target_species):
@@ -313,13 +310,13 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [100,200]
+Skip_step = [1,2,3,4,10,11,12,13,14,15,100,200]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
-    orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
+    orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
     BASE_SS, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, template_skullstrip,
     IgotbothT1T2, list_atlases, Aseg_ref, Aseg_refLR, dir_out, FS_dir, do_surfacewith, Atemplate_to_Stemplate,
     FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, Align_img_to_template,
-    species, type_of_transform, type_of_transform_stdyT, fMRImasks, overwrite_option, MAIN_PATH, s_bind, s_path)
+    species, type_of_transform, type_of_transform_stdyT, fMRImasks, overwrite_option,MAIN_PATH, s_bind, s_path)
