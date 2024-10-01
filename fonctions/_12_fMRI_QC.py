@@ -78,51 +78,51 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                         func_filename = opj(direction, root_RS + '_residual_in_anat.nii.gz')
                     if direction == dir_fMRI_Refth_RS_prepro3:
                         func_filename = opj(direction, root_RS + '_residual_in_template.nii.gz')
-
                     output_results = opj(direction, '10_Results')
                     if not os.path.exists(output_results): os.mkdir(output_results)
                     output_results = opj(direction, '10_Results/fMRI_QC')
                     if os.path.exists(output_results): shutil.rmtree(output_results)
                     if not os.path.exists(output_results): os.mkdir(output_results)
 
+                    if ope(func_filename):
+                        # Load the NIfTI images
+                        img1 = nib.load(atlas_filename)
+                        img2 = nib.load(func_filename)
 
-                    # Load the NIfTI images
-                    img1 = nib.load(atlas_filename)
-                    img2 = nib.load(func_filename)
+                        # Extract headers
+                        header1 = img1.header
+                        header2 = img2.header
 
-                    # Extract headers
-                    header1 = img1.header
-                    header2 = img2.header
+                        # Compare specific fields
+                        fields_to_compare = ['dim', 'pixdim']
+                        tolerance = 0.0000006
+                        differences = {}
+                        for field in fields_to_compare:
+                            value1 = header1[field][:4]
+                            value2 = header2[field][:4]
+                            if not np.allclose(value1, value2, atol=tolerance):
+                                differences[field] = (value1, value2)
 
-                    # Compare specific fields
-                    fields_to_compare = ['dim', 'pixdim']
-                    tolerance = 0.0000006
-                    differences = {}
-                    for field in fields_to_compare:
-                        value1 = header1[field][:4]
-                        value2 = header2[field][:4]
-                        if not np.allclose(value1, value2, atol=tolerance):
-                            differences[field] = (value1, value2)
-
-                    # Print differences
-                    if differences:
-                        print("Differences found in the following fields:")
-                        for field, values in differences.items():
-                            print(f"{field}:")
-                            print(f"  Image 1: {values[0]}")
-                            print(f"  Image 2: {values[1]}")
-                            caca = nilearn.image.resample_to_img(atlas_filename, func_filename, interpolation='nearest')
-                            caca.to_filename(atlas_filename)
-                            extracted_data = nib.load(atlas_filename).get_fdata()
-                            labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
-                            labeled_img2.to_filename(atlas_filename)
+                        # Print differences
+                        if differences:
+                            print("Differences found in the following fields:")
+                            for field, values in differences.items():
+                                print(f"{field}:")
+                                print(f"  Image 1: {values[0]}")
+                                print(f"  Image 2: {values[1]}")
+                                caca = nilearn.image.resample_to_img(atlas_filename, func_filename, interpolation='nearest')
+                                caca.to_filename(atlas_filename)
+                                extracted_data = nib.load(atlas_filename).get_fdata()
+                                labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
+                                labeled_img2.to_filename(atlas_filename)
+                        else:
+                            print("No differences found in the specified fields.")
                     else:
-                        print("No differences found in the specified fields.")
-
-                ##########################################################################
-                ############     WORK in QC 1: Adapted Grandean's method:     ############
-                ############     correlations LR somatoSenory compare to ACC  ############
-                ##########################################################################
+                        print('WARNING: ' + str(func_filename) + ' not found!!')
+                    ##########################################################################
+                    ############     WORK in QC 1: Adapted Grandean's method:     ############
+                    ############     correlations LR somatoSenory compare to ACC  ############
+                    ##########################################################################
             for i in range(0, int(nb_run)):
                 root_RS = extract_filename(RS[i])
                 if direction == dir_fMRI_Refth_RS_prepro1:
@@ -131,110 +131,99 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                     func_filename = opj(direction, root_RS + '_residual_in_anat.nii.gz')
                 if direction == dir_fMRI_Refth_RS_prepro3:
                     func_filename = opj(direction, root_RS + '_residual_in_template.nii.gz')
-
-                output_results = opj(direction, '10_Results')
-                if not os.path.exists(output_results): os.mkdir(output_results)
-                output_results = opj(direction, '10_Results/fMRI_QC')
-                if not os.path.exists(output_results): os.mkdir(output_results)
-
-                NAD_masker = NiftiLabelsMasker(labels_img=atlas_filenameQC,
-                                                detrend=False,
-                                                smoothing_fwhm=None,
-                                                standardize=False,
-                                                low_pass=None,
-                                                high_pass=None,
-                                                t_r=None,
-                                                memory=None, verbose=5)
-
-                time_series = NAD_masker.fit_transform(func_filename)
-
-                correlation_measure = ConnectivityMeasure(
-                    kind="correlation"
-                )
-                correlation_matrix = correlation_measure.fit_transform([time_series])[0]
-
-                # Plot the correlation matrix
-
-                # Make a large figure
-                # Mask the main diagonal for visualization:
-                np.fill_diagonal(correlation_matrix, 0)
-                # The labels we have start with the background (0), hence we skip the
-                # first label
-                # matrices are ordered for block-like representation
-                print(correlation_matrix.shape)
-                print(correlation_matrix)
-
-                specific_roi = correlation_matrix[0][1]
-                unspecific_ROI = correlation_matrix[0][2]
-
-                cat = specific_FC(specific_roi, unspecific_ROI)
-
-                line_specificity = ['QC result', 'specific_roi:', str(specific_roi), 'unspecific_ROI:', str(unspecific_ROI), 'Result:', str(cat)]
-                print(line_specificity)
-
-                ##########################################################################
-                ############                      WORK on QC 2:               ############
-                ############     correlation matrix for the entire lvl 3      ############
-                ##########################################################################
-
-                panda_file = segmentation_name_list[2]
-
-                panda_file_right = panda_file.copy()
-                panda_file_right['label'] += 1000
-                # Combine both DataFrames
-                panda_file_combined = pd.concat([panda_file, panda_file_right], ignore_index=True)
-
-                # Create combined region labels with side information
-                labels_with_side = ['L-' + region for region in panda_file['region']] + ['R-' + region for region in panda_file['region']]
-                # Combine the original regions twice (once for left, once for right)
-
-                # Create a new pandas DataFrame with the labels_with_side
-                # Create a new pandas DataFrame with the labels_with_side and original region names
-                panda_file_combined['region'] = labels_with_side
-
-                # Load your brain atlas data
-                atlas_img = nib.load(atlas_filenamelvl3LR)
-                atlas_data = atlas_img.get_fdata()
-
-                # Flatten the atlas data for easy comparison
-                atlas_flat = np.unique(atlas_data.flatten().astype(int))
-                atlas_flat[atlas_flat != 0]
-
-                # Check if labels in the segmentation DataFrame are in the atlas data
-                filtered_labels = panda_file_combined[panda_file_combined['label'].isin(atlas_flat)]
-                atlas_filtered_list = list(filtered_labels['region'])
-
-                ### creat a new list of label with zero if not in the new label list (for 3dcalc)
-                filtered_labels_list = list(filtered_labels['label'])
-                list_old_label = []
-                for lab in atlas_flat:
-                    if lab in np.array(filtered_labels_list):
-                        list_old_label.append(lab)
-                    else:
-                        list_old_label.append(0)
-
-                string_build_atlas = str('')
-                for new_label, old_label in zip(list_old_label, list(atlas_flat)):
-                    string_build_atlas = string_build_atlas + '(' + str(int(new_label)) + '*(equals(a,' + str(
-                        int(old_label)) + ')))+'
-                string_build_atlas2 = "'" + string_build_atlas[:-1] + "'"
-
-                command = 'singularity run' + s_bind + afni_sif + '3dcalc' + ' -a ' + atlas_filename + ' -expr ' + string_build_atlas2 + ' -prefix ' + atlas_filename[                                                                              :-7] + '_filtered.nii.gz' + ' -overwrite'
-                spco(command, shell=True)
-
-                for i in range(0, int(nb_run)):
-                    root_RS = extract_filename(RS[i])
-                    if direction == dir_fMRI_Refth_RS_prepro1:
-                        func_filename = opj(direction, root_RS + '_residual.nii.gz')
-                    if direction == dir_fMRI_Refth_RS_prepro2:
-                        func_filename = opj(direction, root_RS + '_residual_in_anat.nii.gz')
-                    if direction == dir_fMRI_Refth_RS_prepro3:
-                        func_filename = opj(direction, root_RS + '_residual_in_template.nii.gz')
-
+                if ope(func_filename):
                     output_results = opj(direction, '10_Results')
                     if not os.path.exists(output_results): os.mkdir(output_results)
                     output_results = opj(direction, '10_Results/fMRI_QC')
                     if not os.path.exists(output_results): os.mkdir(output_results)
+
+                    NAD_masker = NiftiLabelsMasker(labels_img=atlas_filenameQC,
+                                                    detrend=False,
+                                                    smoothing_fwhm=None,
+                                                    standardize=False,
+                                                    low_pass=None,
+                                                    high_pass=None,
+                                                    t_r=None,
+                                                    memory=None, verbose=5)
+
+                    time_series = NAD_masker.fit_transform(func_filename)
+
+                    correlation_measure = ConnectivityMeasure(
+                        kind="correlation"
+                    )
+                    correlation_matrix = correlation_measure.fit_transform([time_series])[0]
+
+                    # Plot the correlation matrix
+
+                    # Make a large figure
+                    # Mask the main diagonal for visualization:
+                    np.fill_diagonal(correlation_matrix, 0)
+                    # The labels we have start with the background (0), hence we skip the
+                    # first label
+                    # matrices are ordered for block-like representation
+                    print(correlation_matrix.shape)
+                    print(correlation_matrix)
+
+                    specific_roi = correlation_matrix[0][1]
+                    unspecific_ROI = correlation_matrix[0][2]
+
+                    cat = specific_FC(specific_roi, unspecific_ROI)
+
+                    line_specificity = ['QC result', 'specific_roi:', str(specific_roi), 'unspecific_ROI:', str(unspecific_ROI), 'Result:', str(cat)]
+                    print(line_specificity)
+
+                    ##########################################################################
+                    ############                      WORK on QC 2:               ############
+                    ############     correlation matrix for the entire lvl 3      ############
+                    ##########################################################################
+
+                    panda_file = segmentation_name_list[2]
+
+                    panda_file_right = panda_file.copy()
+                    panda_file_right['label'] += 1000
+                    # Combine both DataFrames
+                    panda_file_combined = pd.concat([panda_file, panda_file_right], ignore_index=True)
+
+                    # Create combined region labels with side information
+                    labels_with_side = ['L-' + region for region in panda_file['region']] + ['R-' + region for
+                                                                                             region in
+                                                                                             panda_file['region']]
+                    # Combine the original regions twice (once for left, once for right)
+
+                    # Create a new pandas DataFrame with the labels_with_side
+                    # Create a new pandas DataFrame with the labels_with_side and original region names
+                    panda_file_combined['region'] = labels_with_side
+
+                    # Load your brain atlas data
+                    atlas_img = nib.load(atlas_filenamelvl3LR)
+                    atlas_data = atlas_img.get_fdata()
+
+                    # Flatten the atlas data for easy comparison
+                    atlas_flat = np.unique(atlas_data.flatten().astype(int))
+                    atlas_flat[atlas_flat != 0]
+
+                    # Check if labels in the segmentation DataFrame are in the atlas data
+                    filtered_labels = panda_file_combined[panda_file_combined['label'].isin(atlas_flat)]
+                    atlas_filtered_list = list(filtered_labels['region'])
+
+                    ### creat a new list of label with zero if not in the new label list (for 3dcalc)
+                    filtered_labels_list = list(filtered_labels['label'])
+                    list_old_label = []
+                    for lab in atlas_flat:
+                        if lab in np.array(filtered_labels_list):
+                            list_old_label.append(lab)
+                        else:
+                            list_old_label.append(0)
+
+                    string_build_atlas = str('')
+                    for new_label, old_label in zip(list_old_label, list(atlas_flat)):
+                        string_build_atlas = string_build_atlas + '(' + str(int(new_label)) + '*(equals(a,' + str(
+                            int(old_label)) + ')))+'
+                    string_build_atlas2 = "'" + string_build_atlas[:-1] + "'"
+
+                    command = 'singularity run' + s_bind + afni_sif + '3dcalc' + ' -a ' + atlas_filename + ' -expr ' + string_build_atlas2 + ' -prefix ' + atlas_filename[
+                                                                                                                                                           :-7] + '_filtered.nii.gz' + ' -overwrite'
+                    spco(command, shell=True)
 
 
                     ##########################################################################
@@ -631,9 +620,8 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                         for line in lines:
                             f.write(line)
                             f.write('\n')
-
-
-
+                else:
+                    print('WARNING: ' + str(func_filename) + ' not found!!')
 
 
 

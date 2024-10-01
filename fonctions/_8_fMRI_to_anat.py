@@ -42,7 +42,6 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
     ## test on mean img (to see spatially that is works)
     MEAN  = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'))
     BRAIN = ants.image_read(opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz'))
-
     TRANS = ants.apply_transforms(fixed=BRAIN, moving=MEAN,
                                   transformlist=mvt_shft_ANTs,
                                   interpolator=n_for_ANTS,
@@ -51,13 +50,17 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
 
     for i in range(int(nb_run)):
         root_RS = extract_filename(RS[i])
+        if ope(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')) == False:
+            FUNC_path = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_3dDeconvolve_failed.nii.gz')
+            OUTPUT = opj(dir_fMRI_Refth_RS_prepro2, root_RS + '_3dDeconvolve_failed_in_anat.nii.gz')
+        else:
+            FUNC_path = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
+            OUTPUT = opj(dir_fMRI_Refth_RS_prepro2, root_RS + '_residual_in_anat.nii.gz')
 
-        FUNC = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz'))
-
+        FUNC = ants.image_read(FUNC_path)
         TRANS = ants.apply_transforms(fixed=BRAIN, moving=FUNC,
                                       transformlist=mvt_shft_ANTs,
                                       interpolator='nearestNeighbor',
                                       whichtoinvert=w2inv_fwd,imagetype=3)
-
-        ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro2, root_RS + '_residual_in_anat.nii.gz'), ri=False)
+        ants.image_write(TRANS, OUTPUT, ri=False)
 

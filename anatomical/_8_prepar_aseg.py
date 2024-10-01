@@ -23,7 +23,7 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 
-def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref, type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, check_visualy_each_img, n_for_ANTS, overwrite,
+def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref, type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, check_visualy_each_img, n_for_ANTS, otheranat,overwrite,
                 s_bind,afni_sif,itk_sif):
 
     print(bcolors.OKGREEN + "INFO: template mask is " + BASE_SS_mask + bcolors.ENDC)
@@ -37,6 +37,10 @@ def prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_
     ####save the old "Ref_file"    ####test on the template (atlas or sty) to see if it works
     command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(volumes_dir,ID + type_norm + '_brain_step_1.nii.gz') + ' -expr "a" -prefix ' + Ref_file
     spco([command], shell=True)
+
+    if IgotbothT1T2 == True:
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(volumes_dir,ID + otheranat + '_brain_step_1.nii.gz') + ' -expr "a" -prefix ' + opj(volumes_dir,ID + otheranat + '_brain.nii.gz')
+        spco([command], shell=True)
 
     brain_img  = ants.image_read(Ref_file)
     MSK = ants.image_read(BASE_SS_mask)

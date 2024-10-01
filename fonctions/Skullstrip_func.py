@@ -270,38 +270,8 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         tmp_mask1 = ants.apply_transforms(fixed=IMG, moving=REF_MASK,
                                           transformlist=mtx1['fwdtransforms'], interpolator='nearestNeighbor')
         tmp_mask1 = ants.threshold_image(tmp_mask1, 0.5, 1, 1, 0, True)
-        tmp_mask1 = ants.morphology(tmp_mask1, operation='dilate', radius=2, mtype='binary', shape='ball')
+        tmp_mask1 = ants.morphology(tmp_mask1, operation='dilate', radius=1, mtype='binary', shape='ball')
         tmp_mask1 = ants.iMath(tmp_mask1, operation='GetLargestComponent')
-        seg_tmp = ants.atropos(a=IMG, m='[0.1,1x1x1]', c='[3,0]', i='kmeans[3]', x=tmp_mask1)
-        #  Clean up:
-        seg_tmp2 = ants.iMath(seg_tmp['segmentation'], 'Pad', 10)
-        W = ants.threshold_image(seg_tmp2, 3, 3, 1, 0, True)
-        W = ants.iMath(W, operation='GetLargestComponent')
-        W = W * 3
-        G = ants.threshold_image(seg_tmp2, 2, 2, 1, 0, True)
-        G = ants.iMath(G, operation='GetLargestComponent')
-        TMP1 = ants.iMath(G, 'FillHoles', 2)
-        G = G * TMP1
-        C = ants.threshold_image(seg_tmp2, 1, 1, 1, 0, True)
-        TMP2 = ants.morphology(C, operation='erode', radius=10, mtype='binary', shape='ball')
-        G[G == 0] = TMP2[G == 0]
-        G = G * 2
-        seg_tmp2 = W
-        seg_tmp2[W == 0] = G[W == 0]
-        #  clean the Brainmask
-        tmp_mask3 = ants.threshold_image(seg_tmp2, 3, 3, 1, 0, True)
-        TMP3 = ants.threshold_image(seg_tmp2, 2, 2, 1, 0, True)
-        tmp_mask3[tmp_mask3 == 0] = TMP3[tmp_mask3 == 0]
-        tmp_mask3 = ants.morphology(tmp_mask3, operation='erode', radius=2, mtype='binary', shape='ball')
-        tmp_mask3 = ants.iMath(tmp_mask3, operation='GetLargestComponent')
-        tmp_mask3 = ants.morphology(tmp_mask3, operation='dilate', radius=4, mtype='binary', shape='ball')
-        tmp_mask3 = ants.iMath(tmp_mask3, 'FillHoles', 2)
-        # tmp_mask1 = ants.iMath(tmp_mask1,'Pad',10)
-        # tmp_mask3[tmp_mask3==0]=tmp_mask1[tmp_mask3==0]
-        tmp_mask3 = ants.morphology(tmp_mask3, operation='dilate', radius=5, mtype='binary', shape='ball')
-        tmp_mask3 = ants.morphology(tmp_mask3, operation='erode', radius=5, mtype='binary', shape='ball')
-        tmp_mask3 = ants.iMath(tmp_mask3, 'Pad', -10)
-        ants.image_write(tmp_mask3, output_for_mask, ri=False)
 
     elif brain_skullstrip == 'Custum_ANTS_Garin':
         IMG = ants.image_read(input_for_msk)
@@ -331,9 +301,14 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
                                 reg_smoothing_sigmas=(3, 2, 1, 0),
                                 reg_shrink_factors=(8, 4, 2, 1),
                                 verbose=True)
+
+        transfo_concat = \
+            [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask_1Warp.nii.gz'),
+             opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask_0GenericAffine.mat')]
+
         REF_MASK = ants.image_read(opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz'))
         tmp_mask1 = ants.apply_transforms(fixed=IMG, moving=REF_MASK,
-                                          transformlist=mTx['fwdtransforms'], interpolator='nearestNeighbor')
+                                          transformlist=transfo_concat, interpolator='nearestNeighbor')
 
         spacing = tmp_mask1.spacing  # This will give you the voxel size in x, y, z (e.g., (1.0, 1.0, 1.2) mm)
         # Use voxel size as sigma for Gaussian smoothing
@@ -344,9 +319,10 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         binary_smoothed_mask = ants.threshold_image(smoothed_mask, low_thresh=0.5, high_thresh=1)
         binary_smoothed_mask = ants.iMath(binary_smoothed_mask, operation='GetLargestComponent')
         ants.image_write(binary_smoothed_mask, output_for_mask, ri=False)
-
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
                   ' -input ' + output_for_mask + ' -fill_holes'
+        spco(command, shell=True)
+        command = f'singularity run {s_bind}{afni_sif} 3dresample -master {input_for_msk} -prefix {output_for_mask} -input {output_for_mask} -overwrite -bound_type SLAB'
         spco(command, shell=True)
 
     elif brain_skullstrip == 'NoSkullStrip':

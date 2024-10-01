@@ -54,19 +54,16 @@ print(subject)
 tasks = layout.get_tasks()
 print(tasks)
 
-
 ###report
 report = BIDSReport(layout)
 #counter = report.generate()
 #main_report = counter.most_common()[0][0]
 #print(main_report)
 
-
 # Ask get() to return the ids of subjects that have acq-RARE_T2w files #return_type='filename
 T1 = layout.get(return_type='filename', target='subject', suffix='T1w', extension='nii.gz')
 print(T1)
 ###question
-
 
 # Ask get() to return the ids of subjects that have T2w files
 T2 = layout.get(return_type='filename', target='subject', suffix='T2w', extension='nii')
@@ -82,7 +79,6 @@ Bold = layout.get(return_type='filename', target='subject', suffix='bold', exten
 df = layout.to_df()
 df.head()
 
-
 ##############################################################  TO DO !! ##############################################################
 
 #### Create a pandas sheet for the dataset (I like it, it help to know what you are about to process
@@ -90,16 +86,11 @@ allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii')]
 allinfo_study_c.rename(columns={'session': 'Session'}, inplace=True)
 allinfo_study_c.rename(columns={'subject': 'ID'}, inplace=True)
 allinfo_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
-
 filter1 = allinfo_study_c["ID"].isin([])
-
 allinfo_study_c_formax = allinfo_study_c.copy()
-
-
 
 ##############Select all the monkey of the study
 ### equal to allinfo_study_c, espcially if not longitudinal  and you have not selected specific subjects
-
 #########creat lists of indiv and usefull variables
 all_data_path = []
 all_ID = []
@@ -119,7 +110,6 @@ for ID in pd.unique(allinfo_study_c_formax.ID):
 
     for Session in pd.unique(listereverse):
         print('session number ' + str(Session))
-
         # Organization of the folders
         data_path = opj(bids_dir,'sub-' + ID,'ses-' + str(Session))
         all_data_path.append(data_path)
@@ -147,6 +137,12 @@ all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
 all_Session =  [item for i, item in enumerate(all_Session) if i not in removelist]
 all_data_path =  [item for i, item in enumerate(all_data_path) if i not in removelist]
 max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i not in removelist]
+
+
+#all_ID =  []
+#all_Session =  [1]
+#all_data_path =  [opj(bids_dir,'sub-' + 'jgrAesAWc1NT','ses-' + str(1))]
+#max_sessionlist =  [1]
 ##############################################################  TO DO !!!! ##############################################################
                                 ##############################################################
                                 ########### 2. variable specific of you dataset ##############
@@ -299,8 +295,8 @@ deoblique_exeption2 = [] # list
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
-type_of_transform = 'SyNBoldAff'
-aff_metric_ants = 'MI'
+type_of_transform = 'SyNBold'
+aff_metric_ants = 'mattes'
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
 ### define the acronyme/suffix of the anat as in the BIDS
 type_norm = 'acq-RARE_T2w' # T1 or T2
@@ -466,7 +462,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,10,11,12,13,14,100,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,12,13,100,200]
     ############################################################
     ######################## START de pipeline #################
     ############################################################
