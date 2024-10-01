@@ -205,6 +205,9 @@ def correct_orient(BIDStype,
                 ' -deoblique -NN -prefix ' +  opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz') + \
                 ' ' + opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz')
                 spco([command], shell=True)
+                #command = 'singularity run' + s_bind + afni_sif + '3drefit' + overwrite + ' -deoblique -orient ' + orientation + \
+                #' ' + opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz')
+                #spco([command], shell=True)
 
             else:
                 # reorient the fiedls according to the json file

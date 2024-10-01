@@ -161,7 +161,7 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
             print(bcolors.OKGREEN + 'INFO: skip step ' + str(4) + bcolors.ENDC)
         else:
             anatomical._4_skullstrip_template.skullstrip_T(BASE_SS, BASE_mask, dir_prepro, ID, Session,
-                 dir_transfo, type_norm, volumes_dir,
+                 dir_transfo, type_norm, volumes_dir, BASE_SS_coregistr, BASE_SS_mask, type_of_transform, aff_metric_ants,
                  study_template_atlas_forlder, otheranat, template_skullstrip,
                  masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir,
                  check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif, strip_sif, overwrite)
@@ -394,8 +394,8 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
         if 8 in Skip_step:
             print(bcolors.OKGREEN + 'INFO: skip step ' + str(8) + bcolors.ENDC)
         else:
-            anatomical._8_prepar_aseg.prepar_aseg(Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref, type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, check_visualy_each_img, n_for_ANTS, overwrite,
-                                                  s_bind,afni_sif,itk_sif)
+            anatomical._8_prepar_aseg.prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref, type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, check_visualy_each_img, n_for_ANTS, otheranat,overwrite,
+                s_bind,afni_sif,itk_sif)
         
         if do_fMRImasks == True:
             if 9 in Skip_step:

@@ -304,8 +304,11 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
                                     reg_shrink_factors=(8, 4, 2, 1),
                                     verbose=True)
 
+            transfo_concat = [opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_1Warp.nii.gz'),
+                 opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_0GenericAffine.mat')]
+
             tmp_mask1 = ants.apply_transforms(fixed=tmp_bet, moving=REF_MASK,
-                                              transformlist=mTx['fwdtransforms'], interpolator='nearestNeighbor')
+                                              transformlist=transfo_concat, interpolator='nearestNeighbor')
             tmp_mask1 = ants.threshold_image(tmp_mask1, 0.5, 1, 1, 0, True)
             tmp_mask1 = ants.morphology(tmp_mask1, operation='dilate', radius=2, mtype='binary', shape='ball')
             tmp_mask1 = ants.iMath(tmp_mask1, operation='GetLargestComponent')
@@ -409,10 +412,13 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
                                     reg_smoothing_sigmas=(3, 2, 1, 0),
                                     reg_shrink_factors=(8, 4, 2, 1),
                                     verbose=True)
+
+            transfo_concat = [opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_1Warp.nii.gz'),
+                 opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_0GenericAffine.mat')]
+
             REF_MASK = ants.image_read(BASE_SS_mask)
             tmp_mask1 = ants.apply_transforms(fixed=IMG, moving=REF_MASK,
-                                              transformlist=mTx['fwdtransforms'], interpolator='nearestNeighbor')
-
+                                              transformlist=transfo_concat, interpolator='nearestNeighbor')
             spacing = tmp_mask1.spacing  # This will give you the voxel size in x, y, z (e.g., (1.0, 1.0, 1.2) mm)
             # Use voxel size as sigma for Gaussian smoothing
             sigma = spacing  # Set sigma to voxel size for each dimension
@@ -494,7 +500,6 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
             # Convert to float
             command = f'singularity run {s_bind}{fs_sif} mri_convert -odt float {input_for_msk} {opj(process_dir, extract_filename(input_for_msk))}_float.nii.gz'
             spco([command], shell=True)
-
             # Compute the EPI mask using nilearn with the given cutoff values
             mask_img = compute_epi_mask(f"{opj(process_dir, extract_filename(input_for_msk))}_float.nii.gz", lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff, connected=True, opening=3,
                                         exclude_zeros=True, ensure_finite=True)
@@ -520,15 +525,12 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
         elif brain_skullstrip.startswith('CustumThreshold_'):
             # Extract the percentile from the string
             percentile = int(brain_skullstrip.split('_')[1])
-
             # Load the image and calculate the threshold at the given percentile
             loadimg = nib.load(input_for_msk).get_fdata()
             loadimgsort = np.percentile(np.abs(loadimg)[np.abs(loadimg) > 0], percentile)
-
             # Threshold the image using nilearn
             mask_imag = nilearn.image.threshold_img(input_for_msk, threshold=loadimgsort, cluster_threshold=10)
             mask_imag.to_filename(output_for_mask)
-
             # Use AFNI to process the mask
             command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 1'
             spco(command, shell=True)
@@ -548,7 +550,6 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
 
         elif brain_skullstrip.startswith('Vol_sammba_'):
             volume = int(brain_skullstrip.split('_')[2])
-
             command = 'singularity run' + s_bind + fs_sif + 'mri_convert -odt float ' + input_for_msk + ' ' + input_for_msk[:-7] + '_float.nii.gz'
             spco([command], shell=True)
             nichols_masker = Histrogram_mask_EMB.HistogramMask()

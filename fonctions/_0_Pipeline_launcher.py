@@ -47,10 +47,9 @@ import fonctions._9_coregistration_to_template_space
 import fonctions._10_Correl_matrix
 import fonctions._11_Seed_base_many_regionsatlas
 import fonctions._12_fMRI_QC
-import fonctions._13_spatial_QC
-import fonctions._14_fMRI_QC_SBA
+import fonctions._13_fMRI_QC_SBA
 import fonctions._100_Data_Clean
-
+import fonctions._200_Data_QC
 
 
 ##### to ask or find solution ####
@@ -272,7 +271,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             if TR == 'Auto':
                 ## TR
                 try:
-                    TR     = info_RS["RepetitionTime"]
+                    TR_val     = info_RS["RepetitionTime"]
                 except:
                     # nslice?
                     try:
@@ -282,18 +281,16 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                             nslice = int(len(info_RS["SlicePosition"]))
                         except:
                             print('INFO: nslice not found')
-                            raise Exception("ERROR: TR was set to auto, but we were unable to find it with the .json file, I know that's crazy but something might be wrong with it. Either it was not avaialble in this file or our auto technic didn't work. Restart and provide the TR value as str should solve this issue")
-                try:
-                    # Calculate the time difference
-                    slice_timing = info_RS["SliceTiming"]
-                    slice_timing.sort()
-                    slice_intervals = [slice_timing[i + 1] - slice_timing[i] for i in range(len(slice_timing) - 1)]
-
-                    # Calculate the TR
-                    TR = ((sum(slice_intervals)/(nslice-1))*1000)*nslice
-                    print('WARNING: TR not found in Header file!!!!! Repetition  Time (TR) calculated: {TR} seconds. YOU ABSOLUTELY NEED TO DOUBLE CHECK THAT!')
-                except:
-                    raise Exception("ERROR: TR was set to auto, but we were unable to find it with the .json file, I know that's crazy but something might be wrong with it. Either it was not avaialble in this file or our auto technic didn't work. Restart and provide the TR value as str should solve this issue")
+                            try:
+                                # Calculate the time difference
+                                slice_timing = info_RS["SliceTiming"]
+                                slice_timing.sort()
+                                slice_intervals = [slice_timing[i + 1] - slice_timing[i] for i in range(len(slice_timing) - 1)]
+                                # Calculate the TR
+                                TR_val = ((sum(slice_intervals)/(nslice-1))*1000)*nslice
+                                print('WARNING: TR not found in Header file!!!!! Repetition  Time (TR) calculated: {TR} seconds. YOU ABSOLUTELY NEED TO DOUBLE CHECK THAT!')
+                            except:
+                                raise Exception("ERROR: TR was set to auto, but we were unable to find it with the .json file, I know that's crazy but something might be wrong with it. Either it was not avaialble in this file or our auto technic didn't work. Restart and provide the TR value as str should solve this issue")
 
 
             ## find metrics in header (for fun)
@@ -316,13 +313,13 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
 
             if TRT == 'Auto':
                 try:
-                    TRT = info_RS['TotalReadoutTime']
-                    print("INFO: Total Readout Time = " + str(TRT))
+                    TRT_val = info_RS['TotalReadoutTime']
+                    print("INFO: Total Readout Time = " + str(TRT_val))
                 except:
                     print("INFO: Total Readout Time not found in header")
-                    TRT = 'None'
+                    TRT_val = 'None'
             else:
-                print('TRT = ' + str(TRT))
+                print('TRT = ' + str(TRT_val))
 
             #Find correction_direction
             if correction_direction == 'Auto':
@@ -336,29 +333,29 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                     print("WARNING :Phase Encoding Direction not found in header and you didn't provided any")
                     recordings = 'very_old'
                     print('WARNING : recordings = very_old no distortion correction will be applied with fugue')
-                    correction_direction = 'None'
+                    correction_direction_val = 'None'
                     PE_d2 = 'None'
             else :
                 ('INFO: input correction_direction is the launcher was determined as' + str(correction_direction))
                 PE_d2 = 'None'
 
-            if TRT != 'None':
+            if TRT_val != 'None':
                 if PE_d2 == 'j' or correction_direction == 'y-':
-                    dmap = '0 1 0 ' + str(TRT)
-                    dbold = '0 -1 0 ' + str(TRT)
-                    correction_direction = 'y-'
+                    dmap = '0 1 0 ' + str(TRT_val)
+                    dbold = '0 -1 0 ' + str(TRT_val)
+                    correction_direction_val = 'y-'
                 elif PE_d2 == 'j-' or correction_direction == 'y':
-                    dmap = '0 -1 0 ' + str(TRT)
-                    dbold = '0 1 0 ' + str(TRT)
-                    correction_direction = 'y'
+                    dmap = '0 -1 0 ' + str(TRT_val)
+                    dbold = '0 1 0 ' + str(TRT_val)
+                    correction_direction_val = 'y'
                 elif PE_d2 == 'i' or correction_direction == 'x-':
-                    dmap = '1 0 0 ' + str(TRT)
-                    dbold = '-1 0 0 ' + str(TRT)
-                    correction_direction = 'x-'
+                    dmap = '1 0 0 ' + str(TRT_val)
+                    dbold = '-1 0 0 ' + str(TRT_val)
+                    correction_direction_val = 'x-'
                 elif PE_d2 == 'i-' or correction_direction == 'x':
-                    dmap = '-1 0 0 ' + str(TRT)
-                    dbold = '1 0 0 ' + str(TRT)
-                    correction_direction = 'x'
+                    dmap = '-1 0 0 ' + str(TRT_val)
+                    dbold = '1 0 0 ' + str(TRT_val)
+                    correction_direction_val = 'x'
                 else:
                     print('ERROR: correction_direction not fit with requirement')
                     recordings = 'very_old'
@@ -375,18 +372,18 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             #Find SliceEncodingDirection
             if SED == 'Auto':
                 try:
-                    SED = info_RS["SliceEncodingDirection"]
+                    SED_val = info_RS["SliceEncodingDirection"]
                 except KeyError:
                     try:
                         IOPD = info_RS["ImageOrientationPatientDICOM"]
-                        if info_RS["ImageOrientationPatientDICOM"][0]   == 1:  SED = "i"
-                        elif info_RS["ImageOrientationPatientDICOM"][0] == -1: SED = "i-"
-                        elif info_RS["ImageOrientationPatientDICOM"][1] == 1:  SED = "j"
-                        elif info_RS["ImageOrientationPatientDICOM"][1] == -1: SED = "j-"
-                        elif info_RS["ImageOrientationPatientDICOM"][2] == 1:  SED = "k"
-                        elif info_RS["ImageOrientationPatientDICOM"][2] == -1: SED = "k-"
+                        if info_RS["ImageOrientationPatientDICOM"][0]   == 1:  SED_val = "i"
+                        elif info_RS["ImageOrientationPatientDICOM"][0] == -1: SED_val = "i-"
+                        elif info_RS["ImageOrientationPatientDICOM"][1] == 1:  SED_val = "j"
+                        elif info_RS["ImageOrientationPatientDICOM"][1] == -1: SED_val = "j-"
+                        elif info_RS["ImageOrientationPatientDICOM"][2] == 1:  SED_val = "k"
+                        elif info_RS["ImageOrientationPatientDICOM"][2] == -1: SED_val = "k-"
                     except KeyError:
-                        SED = 'None'
+                        SED_val = 'None'
                         print('WARNING !!!! Can not find SliceEncodingDirection in the DICOM, no restriction of deformation will be applied (not a big deal)')
 
                         '''
@@ -402,25 +399,13 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             ####Find Dwell time (to double check)
             if DwellT=='Auto':
                 try:
-                    DwellT    = "%.16f" % (float(info_RS["DwellTime"]))
+                    DwellT_val    = "%.16f" % (float(info_RS["DwellTime"]))
                 except:
                     try:
-                        DwellT   = "%.16f" % (float(info_RS["TotalReadOutTimeEPI"] / nslice))
+                        DwellT_val   = "%.16f" % (float(info_RS["TotalReadOutTimeEPI"] / nslice))
                     except:
-                        DwellT = 'None'
+                        DwellT_val = 'None'
                         print('WARNING: couldn t find Dwell time, will not apply TOPUP correction !!! if you want to do it, then provide a DwellT value manually as str!!!!')
-
-
-            ############################################
-            ####marche pas XXX #######
-            ############################################
-            '''
-            if info_RS["PatientPosition"]   == 'FFS':
-                    orientation = 'RSA'
-            elif info_RS["PatientPosition"] == 'HFS':
-                    orientation = 'RSP'
-            print('Orientation : ' + orientation)
-            '''
 
 
             DIR = os.getcwd()
@@ -441,8 +426,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print('##########   Working on step ' + str(2) + ' _2_coregistration_to_norm  ###############')
                 print(str(ID) + ' Session ' + str(Session))
 
-                fonctions._2_coregistration_to_norm.coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map, nb_run, recordings, REF_int, list_map, study_fMRI_Refth, deoblique,
-                                                                     orientation, DwellT, n_for_ANTS, overwrite,s_bind,afni_sif,fsl_sif,dmap,dbold,config_f)
+                fonctions._2_coregistration_to_norm.coregist_to_norm(correction_direction_val, dir_fMRI_Refth_RS_prepro1, RS, RS_map, nb_run, recordings, REF_int, list_map, study_fMRI_Refth, deoblique,
+                                                                     orientation, DwellT_val, n_for_ANTS, overwrite,s_bind,afni_sif,fsl_sif,dmap,dbold,config_f)
 
             if 3 in Skip_step:
                 print('skip step ' + str(3))
@@ -465,7 +450,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             else:
                 print('##########   Working on step ' + str(5) + ' _5_anat_to_fMRI  ###############')
                 print(str(ID) + ' Session ' + str(Session))
-                fonctions._5_anat_to_fMRI.Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run, ID, dir_prepro, n_for_ANTS, aff_metric_ants, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform, overwrite, s_bind, afni_sif)
+                fonctions._5_anat_to_fMRI.Refimg_to_meanfMRI(SED_val, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run, ID, dir_prepro, n_for_ANTS, aff_metric_ants, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform, overwrite, s_bind, afni_sif)
             if 6 in Skip_step:
                 print('skip step ' + str(6))
             else:
@@ -473,7 +458,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                     print('##########   Working on step ' + str(6) + ' Melodic_correct  ###############')
                     print(str(ID) + ' Session ' + str(Session))
                     fonctions._6_Melodic.Melodic_correct(dir_RS_ICA_native_PreTT, dir_RS_ICA_native, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                nb_ICA_run, nb_run, RS, TfMRI, overwrite,s_bind,fsl_sif,itk_sif,TR)
+                nb_ICA_run, nb_run, RS, TfMRI, overwrite,s_bind,fsl_sif,itk_sif,TR_val)
 
             if 7 in Skip_step:
                 print('skip step ' + str(7))
@@ -481,7 +466,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print('##########   Working on step ' + str(7) + ' _7_post_TTT  ###############')
                 print(str(ID) + ' Session ' + str(Session))
                 fonctions._7_post_TTT.signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_RS_ICA_native,
-                nb_run, RS, blur, TR, melodic_prior_post_TTT, extract_exterior_CSF, extract_WM, do_not_correct_signal, band, extract_Vc, extract_GS, overwrite,s_bind,afni_sif)
+                nb_run, RS, blur, TR_val, melodic_prior_post_TTT, extract_exterior_CSF, extract_WM, do_not_correct_signal, band, extract_Vc, extract_GS, overwrite,s_bind,afni_sif)
 
             if 8 in Skip_step:
                 print('skip step ' + str(8))
@@ -525,14 +510,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             if 13 in Skip_step:
                 print('skip step ' + str(13))
             else:
-                print('##########   Working on step ' + str(13) + ' _itk_check_masks  ###############')
-                print(str(ID) + ' Session ' + str(Session))
-                fonctions._13_spatial_QC._itk_check_spatial_co(dir_fMRI_Refth_RS_prepro3,s_bind,itk_sif)
-
-            if 14 in Skip_step:
-                print('skip step ' + str(14))
-            else:
-                fonctions._14_fMRI_QC_SBA.fMRI_QC_SBA(Seed_name, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+                fonctions._13_fMRI_QC_SBA.fMRI_QC_SBA(Seed_name, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                             dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files, oversample_map,
                             use_cortical_mask_func)
 
@@ -540,3 +518,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print('skip step ' + str(100))
             else:
                 fonctions._100_Data_Clean.clean(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, RS, nb_run)
+
+            if 200 in Skip_step:
+                print('skip step ' + str(200))
+            else:
+                fonctions._200_Data_QC._itk_check_coregistr(dir_fMRI_Refth_RS_prepro3, BASE_SS_coregistr,s_bind,itk_sif)

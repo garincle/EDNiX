@@ -3,6 +3,7 @@ import copy
 import numpy as np
 import nibabel
 from nilearn import image, masking
+import nipype
 from scipy.ndimage.morphology import (generate_binary_structure,
                                       binary_closing,
                                       binary_fill_holes,

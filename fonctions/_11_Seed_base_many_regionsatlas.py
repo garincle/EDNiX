@@ -27,7 +27,7 @@ opb = os.path.basename
 opn = os.path.normpath
 spco = subprocess.check_output
 opd = os.path.dirname
-
+ope = os.path.exists
 #################################################################################################
 ####Seed base analysis
 ################################################################################################# 
@@ -96,151 +96,150 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                     if not os.path.exists(output_results): os.mkdir(output_results)
                     output_results = opj(dir_fMRI_Refth_RS_prepro3, '10_Results/SBA')
                     if not os.path.exists(output_results): os.mkdir(output_results)
-                
-                ##########################################################################
-                def format_seed_name(seed_name):
-                    # Define characters to be replaced with underscores
-                    replace_chars = [' ', '(', ')', ',', '/', ':', ';', '.', '-']
 
-                    # Replace each character in replace_chars with underscores
-                    for char in replace_chars:
-                        seed_name = seed_name.replace(char, '_')
+                if ope(func_filename):
+                    ##########################################################################
+                    def format_seed_name(seed_name):
+                        # Define characters to be replaced with underscores
+                        replace_chars = [' ', '(', ')', ',', '/', ':', ';', '.', '-']
 
-                    # Remove any other non-alphanumeric characters except for underscores
-                    formatted_name = ''.join(char for char in seed_name if char.isalnum() or char == '_')
+                        # Replace each character in replace_chars with underscores
+                        for char in replace_chars:
+                            seed_name = seed_name.replace(char, '_')
 
-                    # Remove any leading or trailing underscores (optional)
-                    formatted_name = formatted_name.strip('_')
+                        # Remove any other non-alphanumeric characters except for underscores
+                        formatted_name = ''.join(char for char in seed_name if char.isalnum() or char == '_')
 
-                    return formatted_name
+                        # Remove any leading or trailing underscores (optional)
+                        formatted_name = formatted_name.strip('_')
 
-                for colomn, row in panda_file.T.items():
-                    Seed_name = row['region']
-                    Seed_name = format_seed_name(Seed_name)
-                    Seed_label = row['label']
+                        return formatted_name
 
-                    output_folder = opj(output_results, Seed_name + '/')
-                    if not os.path.exists(output_folder): os.mkdir(output_folder)
+                    for colomn, row in panda_file.T.items():
+                        Seed_name = row['region']
+                        Seed_name = format_seed_name(Seed_name)
+                        Seed_label = row['label']
 
-                    command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + atlas_filename  + ' -expr "ispositive(a)*(iszero(ispositive((a-' + str(Seed_label) + ')^2)))" -prefix ' + output_folder + '/' + Seed_name + '.nii.gz'
-                    spco([command], shell=True)
+                        output_folder = opj(output_results, Seed_name + '/')
+                        if not os.path.exists(output_folder): os.mkdir(output_folder)
 
-                    # Load the NIfTI image
-                    nifti_image = nib.load(output_folder + '/' + Seed_name + '.nii.gz')
-                    # Get the image data as a NumPy array
-                    image_data = nifti_image.get_fdata()
-                    # Check if all the values in the image are zero
-                    if np.all(image_data == 0):
-                        print(bcolors.WARNING + "The NIfTI image is empty (all voxel values are zero)." + bcolors.ENDC)
-                    else:
+                        command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + atlas_filename  + ' -expr "ispositive(a)*(iszero(ispositive((a-' + str(Seed_label) + ')^2)))" -prefix ' + output_folder + '/' + Seed_name + '.nii.gz'
+                        spco([command], shell=True)
 
-                        labels_img = resample_to_img(output_folder + '/' + Seed_name + '.nii.gz', func_filename, interpolation='nearest')
-                        labels_img.to_filename(output_folder + '/' + Seed_name + 'rsp.nii.gz')
-                        # Plot the generated mask using the mask_img_ attribute
-                        extracted_data2 = nib.load(output_folder + '/' + Seed_name + 'rsp.nii.gz').get_fdata()
-                        labeled_img2 = image.new_img_like(func_filename,
-                            extracted_data2, copy_header=True)
-                        labeled_img2.to_filename(output_folder + '/' + Seed_name + 'rsp.nii.gz')
-                        seed_masker = NiftiLabelsMasker(labels_img=output_folder + '/' + Seed_name + 'rsp.nii.gz', standardize='zscore', resampling_target= 'data', smoothing_fwhm=None,
-                            memory_level=1, verbose=1)
+                        # Load the NIfTI image
+                        nifti_image = nib.load(output_folder + '/' + Seed_name + '.nii.gz')
+                        # Get the image data as a NumPy array
+                        image_data = nifti_image.get_fdata()
+                        # Check if all the values in the image are zero
+                        if np.all(image_data == 0):
+                            print(bcolors.WARNING + "The NIfTI image is empty (all voxel values are zero)." + bcolors.ENDC)
+                        else:
 
-                        ##########################################################################
+                            labels_img = resample_to_img(output_folder + '/' + Seed_name + '.nii.gz', func_filename, interpolation='nearest')
+                            labels_img.to_filename(output_folder + '/' + Seed_name + 'rsp.nii.gz')
+                            # Plot the generated mask using the mask_img_ attribute
+                            extracted_data2 = nib.load(output_folder + '/' + Seed_name + 'rsp.nii.gz').get_fdata()
+                            labeled_img2 = image.new_img_like(func_filename,
+                                extracted_data2, copy_header=True)
+                            labeled_img2.to_filename(output_folder + '/' + Seed_name + 'rsp.nii.gz')
+                            seed_masker = NiftiLabelsMasker(labels_img=output_folder + '/' + Seed_name + 'rsp.nii.gz', standardize='zscore', resampling_target= 'data', smoothing_fwhm=None,
+                                memory_level=1, verbose=1)
 
-                        seed_time_serie = seed_masker.fit_transform(func_filename)
-                        resampled_cortical_mask_func = resample_to_img(cortical_mask_func, func_filename, interpolation='nearest')
-                        resampled_cortical_mask_func.to_filename(output_folder + '/' + Seed_name + 'cortical_mask_funcrsp.nii.gz')
-                        # Plot the generated mask using the mask_img_ attribute
-                        extracted_data2 = nib.load(output_folder + '/' + Seed_name + 'cortical_mask_funcrsp.nii.gz').get_fdata()
-                        labeled_img2 = image.new_img_like(func_filename,
-                            extracted_data2, copy_header=True)
-                        labeled_img2.to_filename(output_folder + '/' + Seed_name + 'cortical_mask_funcrsp.nii.gz')
+                            ##########################################################################
 
-                        ##########################################################################
-                        brain_masker = NiftiMasker(standardize='zscore', smoothing_fwhm=None,
-                            memory_level=1, verbose=1, mask_img=output_folder + '/' + Seed_name + 'cortical_mask_funcrsp.nii.gz')
+                            seed_time_serie = seed_masker.fit_transform(func_filename)
+                            resampled_cortical_mask_func = resample_to_img(cortical_mask_func, func_filename, interpolation='nearest')
+                            resampled_cortical_mask_func.to_filename(output_folder + '/' + Seed_name + 'cortical_mask_funcrsp.nii.gz')
+                            # Plot the generated mask using the mask_img_ attribute
+                            extracted_data2 = nib.load(output_folder + '/' + Seed_name + 'cortical_mask_funcrsp.nii.gz').get_fdata()
+                            labeled_img2 = image.new_img_like(func_filename,
+                                extracted_data2, copy_header=True)
+                            labeled_img2.to_filename(output_folder + '/' + Seed_name + 'cortical_mask_funcrsp.nii.gz')
 
-                        ##########################################################################
+                            ##########################################################################
+                            brain_masker = NiftiMasker(standardize='zscore', smoothing_fwhm=None,
+                                memory_level=1, verbose=1, mask_img=output_folder + '/' + Seed_name + 'cortical_mask_funcrsp.nii.gz')
 
-                        brain_time_series = brain_masker.fit_transform(func_filename)
+                            ##########################################################################
 
-                        ##########################################################################
-                        # Performing the seed-to-voxel correlation analysis
-                        seed_to_voxel_correlations = (np.dot(brain_time_series.T, seed_time_serie) /
-                                                      seed_time_serie.shape[0])
+                            brain_time_series = brain_masker.fit_transform(func_filename)
 
-                        ################################################
+                            ##########################################################################
+                            # Performing the seed-to-voxel correlation analysis
+                            seed_to_voxel_correlations = (np.dot(brain_time_series.T, seed_time_serie) /
+                                                          seed_time_serie.shape[0])
 
-                        seed_to_voxel_correlations_img = brain_masker.inverse_transform(
-                            seed_to_voxel_correlations.T)
+                            ################################################
 
-                        seed_to_voxel_correlations_img.to_filename(output_folder + '/' + root_RS + '_correlations.nii.gz')
+                            seed_to_voxel_correlations_img = brain_masker.inverse_transform(
+                                seed_to_voxel_correlations.T)
+                            seed_to_voxel_correlations_img.to_filename(output_folder + '/' + root_RS + '_correlations.nii.gz')
 
-                        ##########################################################################
-                        # Fisher-z transformation and save nifti
+                            ##########################################################################
+                            # Fisher-z transformation and save nifti
+                            seed_to_voxel_correlations_fisher_z = np.arctanh(seed_to_voxel_correlations)
+                            print("Seed-to-voxel correlation Fisher-z transformed: min = %.3f; max = %.3f"
+                                  % (seed_to_voxel_correlations_fisher_z.min(),
+                                     seed_to_voxel_correlations_fisher_z.max()))
 
-                        seed_to_voxel_correlations_fisher_z = np.arctanh(seed_to_voxel_correlations)
-                        print("Seed-to-voxel correlation Fisher-z transformed: min = %.3f; max = %.3f"
-                              % (seed_to_voxel_correlations_fisher_z.min(),
-                                 seed_to_voxel_correlations_fisher_z.max()))
+                            seed_to_voxel_correlations_img_fish = brain_masker.inverse_transform(
+                                seed_to_voxel_correlations_fisher_z.T)
+                            seed_to_voxel_correlations_img_fish.to_filename(output_folder + '/' + root_RS + '_correlations_fish.nii.gz')
 
-                        seed_to_voxel_correlations_img_fish = brain_masker.inverse_transform(
-                            seed_to_voxel_correlations_fisher_z.T)
-                        seed_to_voxel_correlations_img_fish.to_filename(output_folder + '/' + root_RS + '_correlations_fish.nii.gz')
+                            ##########################################################################
+                            # Fisher-z transformation and save nifti
+                            ####remove a percentage of the zmap
+                            threshold_val99 = 99
+                            loadimg = nib.load(output_folder + '/' + root_RS + '_correlations_fish.nii.gz').get_fdata()
+                            loadimgsort99 =  np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val99)
 
+                            loadimg = nib.load(output_folder + '/' + root_RS + '_correlations_fish.nii.gz').get_fdata()
+                            custom_thresh =  np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val)
 
-                        ##########################################################################
-                        # Fisher-z transformation and save nifti
+                            mask_imag = nilearn.image.threshold_img(output_folder + '/' + root_RS + '_correlations.nii.gz', custom_thresh)
+                            mask_imag.to_filename(output_folder + 'higher_thresold.nii.gz')
 
-                        ####remove a percentage of the zmap
+                            labels_img = resample_to_img(output_folder + 'higher_thresold.nii.gz', studytemplatebrain, interpolation='nearest')
+                            labels_img.to_filename(output_folder + 'higher_thresold_res.nii.gz')
+                            extracted_data2 = nib.load(output_folder + 'higher_thresold_res.nii.gz').get_fdata()
+                            labeled_img2 = image.new_img_like(studytemplatebrain,
+                                extracted_data2, copy_header=True)
+                            labeled_img2.to_filename( output_folder + 'higher_thresold_res.nii.gz')
 
-                        threshold_val99 = 99
-                        loadimg = nib.load(output_folder + '/' + root_RS + '_correlations_fish.nii.gz').get_fdata()
-                        loadimgsort99 =  np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val99)
+                            thresholded_map1 = output_folder + 'higher_thresold_res.nii.gz'
 
-                        loadimg = nib.load(output_folder + '/' + root_RS + '_correlations_fish.nii.gz').get_fdata()
-                        custom_thresh =  np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val)
+                            if direction_results == dir_fMRI_Refth_RS_prepro1:
+                                display = plotting.plot_stat_map(thresholded_map1, threshold=custom_thresh, vmax=loadimgsort99,
+                                    colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
+                                display.savefig(output_folder + '/' + root_RS + '_.jpg')
+                                display.close()
 
-                        mask_imag = nilearn.image.threshold_img(output_folder + '/' + root_RS + '_correlations.nii.gz', custom_thresh)
-                        mask_imag.to_filename(output_folder + 'higher_thresold.nii.gz')
+                            elif direction_results == dir_fMRI_Refth_RS_prepro2:
+                                display = plotting.plot_stat_map(thresholded_map1, threshold=custom_thresh, vmax=loadimgsort99,
+                                    colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
+                                display.savefig(output_folder + '/' + root_RS + '_.jpg')
+                                display.close()
 
-                        labels_img = resample_to_img(output_folder + 'higher_thresold.nii.gz', studytemplatebrain, interpolation='nearest')
-                        labels_img.to_filename(output_folder + 'higher_thresold_res.nii.gz')
-                        extracted_data2 = nib.load(output_folder + 'higher_thresold_res.nii.gz').get_fdata()
-                        labeled_img2 = image.new_img_like(studytemplatebrain,
-                            extracted_data2, copy_header=True)
-                        labeled_img2.to_filename( output_folder + 'higher_thresold_res.nii.gz')
+                            elif direction_results == dir_fMRI_Refth_RS_prepro3:
+                                display = plotting.plot_stat_map(thresholded_map1, threshold=custom_thresh, vmax=loadimgsort99,
+                                    colorbar=True, bg_img=studytemplatebrain, display_mode='x', cut_coords=cut_coordsX)
+                                display.savefig(output_folder + '/' + root_RS + '_x_.jpg')
+                                display.close()
 
-                        thresholded_map1 = output_folder + 'higher_thresold_res.nii.gz'
+                                display = plotting.plot_stat_map(thresholded_map1, threshold=custom_thresh, vmax=loadimgsort99,
+                                    colorbar=True, bg_img=studytemplatebrain, display_mode='y', cut_coords=cut_coordsY)
+                                display.savefig(output_folder + '/' + root_RS + '_y_.jpg')
+                                display.close()
 
-                        if direction_results == dir_fMRI_Refth_RS_prepro1:
-                            display = plotting.plot_stat_map(thresholded_map1, threshold=custom_thresh, vmax=loadimgsort99,
-                                colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
-                            display.savefig(output_folder + '/' + root_RS + '_.jpg')
-                            display.close()
+                                display = plotting.plot_stat_map(thresholded_map1, threshold=custom_thresh, vmax=loadimgsort99,
+                                    colorbar=True, bg_img=studytemplatebrain, display_mode='z', cut_coords=cut_coordsZ)
+                                display.savefig(output_folder + '/' + root_RS + '_z_.jpg')
+                                display.close()
 
-                        elif direction_results == dir_fMRI_Refth_RS_prepro2:
-                            display = plotting.plot_stat_map(thresholded_map1, threshold=custom_thresh, vmax=loadimgsort99,
-                                colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
-                            display.savefig(output_folder + '/' + root_RS + '_.jpg')
-                            display.close()
+                                display = plotting.plot_stat_map(thresholded_map1, threshold=custom_thresh, vmax=loadimgsort99,
+                                    colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
+                                display.savefig(output_folder + '/' + root_RS + '_.jpg')
+                                display.close()
+                else:
+                    print('WARNING: ' + str(func_filename) + ' not found!!')
 
-                        elif direction_results == dir_fMRI_Refth_RS_prepro3:
-                            display = plotting.plot_stat_map(thresholded_map1, threshold=custom_thresh, vmax=loadimgsort99,
-                                colorbar=True, bg_img=studytemplatebrain, display_mode='x', cut_coords=cut_coordsX)
-                            display.savefig(output_folder + '/' + root_RS + '_x_.jpg')
-                            display.close()
-
-                            display = plotting.plot_stat_map(thresholded_map1, threshold=custom_thresh, vmax=loadimgsort99,
-                                colorbar=True, bg_img=studytemplatebrain, display_mode='y', cut_coords=cut_coordsY)
-                            display.savefig(output_folder + '/' + root_RS + '_y_.jpg')
-                            display.close()
-
-                            display = plotting.plot_stat_map(thresholded_map1, threshold=custom_thresh, vmax=loadimgsort99,
-                                colorbar=True, bg_img=studytemplatebrain, display_mode='z', cut_coords=cut_coordsZ)
-                            display.savefig(output_folder + '/' + root_RS + '_z_.jpg')
-                            display.close()
-
-                            display = plotting.plot_stat_map(thresholded_map1, threshold=custom_thresh, vmax=loadimgsort99,
-                                colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
-                            display.savefig(output_folder + '/' + root_RS + '_.jpg')
-                            display.close()

@@ -113,7 +113,6 @@ for ID in pd.unique(allinfo_study_c_formax.ID):
 
     for Session in pd.unique(listereverse):
         print('session number ' + str(Session))
-
         # Organization of the folders
         data_path = opj(bids_dir,'sub-' + ID,'ses-' + str(Session))
         all_data_path.append(data_path)
@@ -134,7 +133,8 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 removelist = []
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in []:
+    if ID in ['m10',
+ 'm11']:
         removelist.append(num)
 
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
@@ -142,6 +142,11 @@ all_Session =  [item for i, item in enumerate(all_Session) if i not in removelis
 all_data_path =  [item for i, item in enumerate(all_data_path) if i not in removelist]
 max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i not in removelist]
 
+
+#all_ID =  ['m26']
+#all_Session =  [1]
+#all_data_path =  [opj(bids_dir,'sub-' + 'm26','ses-' + str(1))]
+#max_sessionlist =  [1]
 ##############################################################  TO DO !!!! ##############################################################
                                 ##############################################################
                                 ########### 2. variable specific of you dataset ##############
@@ -257,7 +262,7 @@ doMaskingfMRI = True # True or False
 #### 3dAllineate is based ont the linerar alignment of the anat to the func to send the anat mask to the func
 
 #### nilearn is a theshold based method (you can play with the threshold level)
-Method_mask_func = 'Vol_sammba_7000' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = 'Custum_ANTS_Garin' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 
 ### if Method_mask_func=="3dAllineate" choose a method a alignment
 costAllin = '' # string
@@ -295,8 +300,8 @@ deoblique_exeption2 = [] # list
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
-type_of_transform = 'SyNBoldAff'
-aff_metric_ants = 'MI'
+type_of_transform = 'SyNBold'
+aff_metric_ants = 'mattes'
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
 ### define the acronyme/suffix of the anat as in the BIDS
@@ -462,8 +467,9 @@ specific_roi_tresh = 0.4
 unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
+
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,10,11,12,13,14,100,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,12,13,100,200]
     ############################################################
     ######################## START de pipeline #################
     ############################################################

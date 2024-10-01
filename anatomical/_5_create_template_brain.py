@@ -82,7 +82,6 @@ def create_indiv_template_brain(dir_prepro, type_of_transform, ID, aff_metric_an
             # Don't forget to close the display
             display.close()
 
-
     ###N4BiasFieldCorrection
     try:
         BRAIN = ants.image_read(opj(volumes_dir,ID + type_norm + '_brain_step_1.nii.gz'))

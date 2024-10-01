@@ -37,7 +37,7 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
     output_for_mask =  anatomical.Skullstrip_method.Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas_forlder, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, BASE_SS_coregistr, BASE_SS_mask,
     type_of_transform, ID, aff_metric_ants, check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif, strip_sif)
 
-    #### Apply masking to other anat images
+    #### Apply masking to other anat imagesother
 
     for Timage in listTimage:
         maskRS = opj(masks_dir, ID + Timage + '_mask_1_rsp.nii.gz')
@@ -150,14 +150,6 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
         ##########################################
         ########## correct anat images ###########
         ##########################################
-
-    for Timage in listTimage:
-        ####### optional manual acpc center #######
-        if check_visualy_each_img == True:
-            #Check the result and do manually the finest correction save the file as "ID_acpc_tmp.nii.gz"
-            command = 'singularity run' + s_bind + fs_sif + 'freeview -v ' + BASE_SS + ' ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + ':opacity=0.6:visible=1'
-            spco([command], shell=True)
-
     if IgotbothT1T2 == True:
         listTimage2 = list(listTimage)
         listTimage2.append(str(type_norm) + '_' + str(otheranat))
@@ -165,19 +157,17 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
         listTimage2 = list(listTimage)
 
     ##### Apply transfo to other anat images
-    for enu, Timage in enumerate(listTimage2):
-        if enu<1:
-            command = 'singularity run' + s_bind + afni_sif + '3dAllineate -overwrite -interp NN -1Dmatrix_apply ' + opj(dir_prepro,ID + '_brain_for_Align_Center.1D') + \
-            ' -prefix ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + \
-            ' -master ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + \
-            ' -input  ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz')
-            spco([command], shell=True)
+    for Timage in listTimage2:
+        if Timage == str(type_norm) + '_' + str(otheranat):
+            input_Allin = opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz')
         else:
-            command = 'singularity run' + s_bind + afni_sif + '3dAllineate -overwrite -interp NN -1Dmatrix_apply ' + opj(dir_prepro,ID + '_brain_for_Align_Center.1D') + \
-            ' -prefix ' + opj(dir_prepro, ID + '_acpc_64' + str(type_norm) + '_' + str(otheranat) + '.nii.gz') + \
-            ' -master ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + \
-            ' -input  ' + opj(dir_prepro, ID + '_mprage_reorient' + str(type_norm) + '_' + str(otheranat) + '.nii.gz')
-            spco([command], shell=True)
+            input_Allin = opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz')
+
+        command = 'singularity run' + s_bind + afni_sif + '3dAllineate -overwrite -interp NN -1Dmatrix_apply ' + opj(dir_prepro,ID + '_brain_for_Align_Center.1D') + \
+        ' -prefix ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + \
+        ' -master ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + \
+        ' -input  ' + input_Allin
+        spco([command], shell=True)
 
         ####### optional crop !! save as "ID_acpc_cropped.nii.gz" #######
         if do_manual_crop == True:
@@ -186,6 +176,12 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
             command = 'singularity run' + s_bind + afni_sif + '3dAutobox' + overwrite + ' -input ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + ' -prefix ' + opj(dir_prepro, ID + '_acpc_cropped' + Timage + '.nii.gz') + ' -noclust  -overwrite'
             spco(command, shell=True)
 
+    for Timage in listTimage:
+        ####### optional manual acpc center #######
+        if check_visualy_each_img == True:
+            #Check the result and do manually the finest correction save the file as "ID_acpc_tmp.nii.gz"
+            command = 'singularity run' + s_bind + fs_sif + 'freeview -v ' + BASE_SS + ' ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + ':opacity=0.6:visible=1'
+            spco([command], shell=True)
         ######################################################################
         ####### B0 correction ####### ==> creat INDIV template !!!!!!!!!!!####
         ######################################################################

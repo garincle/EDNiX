@@ -127,9 +127,9 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         print(mvt_shft_ANTs + transfo_concat_Anat)
         print(w2inv_Anat + w2inv_fwd)
         TRANS = ants.apply_transforms(fixed=REF, moving=MEAN,
-                                      transformlist=mvt_shft_ANTs + transfo_concat_Anat,
+                                      transformlist=transfo_concat_Anat + mvt_shft_ANTs,
                                       interpolator='nearestNeighbor',
-                                      whichtoinvert=w2inv_fwd + w2inv_Anat)
+                                      whichtoinvert=w2inv_Anat + w2inv_fwd)
         ants.image_write(TRANS, output3, ri=False)
         print(str(output3) + ' done!')
 
@@ -146,6 +146,13 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         output3 = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_anat_sfht.nii.gz')
         output2 = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_anat_reorient.nii.gz')
         input2  = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
+
+        if ope(input2) == False:
+            output3 = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_3dDeconvolve_failed_in_anat_sfht.nii.gz')
+            output2 = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_3dDeconvolve_failed_in_anat_reorient.nii.gz')
+            input2 = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_3dDeconvolve_failed.nii.gz')
+        else:
+            print('ERROR: corrected func image in func space not found')
 
         if anat_func_same_space == True:
             command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + input2 + \

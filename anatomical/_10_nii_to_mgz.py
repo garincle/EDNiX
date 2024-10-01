@@ -59,7 +59,7 @@ def nii_to_mgz(ID, Session, FS_dir, Ref_file, labels_dir, volumes_dir, otheranat
 
 
     if IgotbothT1T2 ==True:
-        otheranatimg  = opj(volumes_dir,ID + otheranat + '_brain.nii.gz')
+        otheranatimg  = opj(volumes_dir, ID + otheranat + '_brain.nii.gz')
         if os.path.exists(otheranatimg):
             ####### attention!! change LPS 
             command = 'singularity run' + s_bind + fs_sif + 'mri_convert ' + fwdFS_cmd + ' ' + otheranatimg + ' ' + opj(FS_dir,animal_folder, 'mri', otheranat + 'brain.mgz')

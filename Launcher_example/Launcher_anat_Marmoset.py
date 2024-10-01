@@ -168,13 +168,13 @@ masking_img = 'T2w'
 brain_skullstrip_1 ='CustumThreshold_50' # bet2_ANTS or MachinL
 
 #precise
-brain_skullstrip_2 ='Custum_ANTS_Garin' # bet2_ANTS or MachinL
+brain_skullstrip_2 ='Vol_sammba_10000' # bet2_ANTS or MachinL
 
 #template
 template_skullstrip = 'Custum_ANTS_Garin'
 
 do_fMRImasks = True
-Align_img_to_template = '@Align_Centers' #3dAllineate or No or @Align_Centers
+Align_img_cto_template = '@Align_Centers' #3dAllineate or No or @Align_Centers
 cost3dAllineate = 'lpa'
 '''
 ls   *OR*  leastsq         = Least Squares [Pearson Correlation]
@@ -310,7 +310,7 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [1,2,3,4,10,11,12,13,14,15,100,200]
+Skip_step = [1,2,3,4,5,6,7,10,11,12,13,14,15,100,200]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 
