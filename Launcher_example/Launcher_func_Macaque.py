@@ -472,7 +472,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,100,200]
 
     ############################################################
     ######################## START de pipeline #################

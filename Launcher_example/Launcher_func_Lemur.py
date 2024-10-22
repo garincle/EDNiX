@@ -42,7 +42,7 @@ FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 
 ###where to store the BIDS data?
 species = 'Mouse_lemur'
-bids_dir = opj('/scratch/cgarin/'+ species + '/BIDS_CG')
+bids_dir = opj('/scratch/cgarin/'+ species + '/BIDS_Garin')
 
 ##########################################
 ########### Subject loader################
@@ -341,7 +341,7 @@ creat_study_template = True # True or False
 
 ######no need to answer this question if you are not doing a study template
 #folder where you stored the stdy template
-study_template_atlas_forlder = '/scratch/cgarin/Mouse_lemur/BIDS_CG/sty_template/'  # sting
+study_template_atlas_forlder = '/scratch/cgarin/Mouse_lemur/BIDS_Garin/sty_template/'  # sting
 stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_mask.nii.gz') # sting
 stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
 GM_mask_studyT = opj(study_template_atlas_forlder, 'atlases', 'Gmask.nii.gz') # sting
@@ -402,10 +402,24 @@ use_cortical_mask_func = False # True or False
 
 #######for seed analysis (step 11)
 #### name of the atlases  you want to use for the seed base analysis
-selected_atlases = ['atlaslvl4.nii.gz'] #liste
+selected_atlases = ['atlaslvl3.nii.gz', 'atlaslvl4.nii.gz'] #liste
 
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 panda_files = [pd.DataFrame({'region':[
+'Somatosensory cortex',
+'Posterior parietal cortex',
+'Visual pre and extra striate cortex',
+'Visual striate cortex',
+'Auditory cortex (Superior temporal)',
+'Insula and others in lateral sulcus',
+'Septum',
+'Hippocampal formation',
+'Periarchicortex',
+'Striatum',
+'Basal forebrain',
+'Amygdala',
+'Hypothalamus',
+'Thalamus'],'label':[58,59,61,62,64,67,68,71,74,75,76,79,80,81]}), pd.DataFrame({'region':[
 'retrosplenial',
 'BA 23',
 'BA 24',
@@ -467,7 +481,6 @@ Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
 Skip_step = [100,200]
-
     ############################################################
     ######################## START de pipeline #################
     ############################################################

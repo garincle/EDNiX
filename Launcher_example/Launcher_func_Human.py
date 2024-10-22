@@ -384,12 +384,25 @@ dilate_mask = 0 # int
 #retrain the analysis to the gray matter
 use_cortical_mask_func = False # True or False
 
+selected_atlases = ['atlaslvl3.nii.gz', 'atlaslvl4.nii.gz'] #liste
+
 #######for seed analysis (step 11)
 #### name of the atlases  you want to use for the seed base analysis
-selected_atlases = ['atlaslvl4.nii.gz'] #liste
-
-# for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 panda_files = [pd.DataFrame({'region':[
+'Somatosensory cortex',
+'Posterior parietal cortex',
+'Visual pre and extra striate cortex',
+'Visual striate cortex',
+'Auditory cortex (Superior temporal)',
+'Insula and others in lateral sulcus',
+'Septum',
+'Hippocampal formation',
+'Periarchicortex',
+'Striatum',
+'Basal forebrain',
+'Amygdala',
+'Hypothalamus',
+'Thalamus'],'label':[58,59,61,62,64,67,68,71,74,75,76,79,80,81]}), pd.DataFrame({'region':[
 'retrosplenial',
 'BA 23',
 'BA 24',
