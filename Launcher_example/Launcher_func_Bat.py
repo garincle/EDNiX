@@ -151,7 +151,7 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 removelist = []
 ######### select the indiv you want to remove !!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in ['1', '11']:
+    if ID in []:
         removelist.append(num)
 
 ############################################################## NOTHING TO DO HERE ##############################################################

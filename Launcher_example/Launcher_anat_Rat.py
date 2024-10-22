@@ -169,8 +169,8 @@ check_visualy_final_mask = False #YES or NO
 deoblique='WARP_without_3drefit' #header or WARP
 n_for_ANTS='hammingWindowedSinc'
 overwrite_option = True #YES or NO
-type_of_transform = 'SyNBold'
-aff_metric_ants = 'CC'
+type_of_transform = 'SyNCC'
+aff_metric_ants = 'MI'
 
 ####Choose to normalize using T1 or T2
 type_norm = 'T2w' # T1 or T2
