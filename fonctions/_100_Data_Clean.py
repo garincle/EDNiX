@@ -2,7 +2,16 @@ import shutil
 import subprocess
 import os
 from fonctions.extract_filename import extract_filename
-
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 # Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -40,22 +49,22 @@ def clean(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_R
                 for remove_data in list_to_remove:
                     if ope(remove_data):
                         os.remove(remove_data)
-                        print(remove_data + ' removed !')
+                        print(bcolors.OKGREEN + 'INFO: ' + remove_data + ' removed !' + bcolors.ENDC)
                     else:
-                        print(remove_data + ' not found')
+                        print(bcolors.OKGREEN + 'INFO: ' +remove_data + ' not found' + bcolors.ENDC)
 
                 if ope(opj(direction_results, 'tmp')):
                     shutil.rmtree(opj(direction_results, 'tmp'))
-                    print(opj(direction_results, 'tmp')+ ' removed !')
+                    print(bcolors.OKGREEN + 'INFO: ' + opj(direction_results, 'tmp')+ ' removed !' + bcolors.ENDC)
                 else:
-                    print(opj(direction_results, 'tmp') + ' not found')
+                    print(bcolors.OKGREEN + 'INFO: ' + opj(direction_results, 'tmp') + ' not found' + bcolors.ENDC)
 
             if direction_results == dir_fMRI_Refth_RS_prepro2:
                 if ope(opj(direction_results, 'tmp')):
                     shutil.rmtree(opj(direction_results, 'tmp'))
-                    print(opj(direction_results, 'tmp')+ ' removed !')
+                    print(bcolors.OKGREEN + 'INFO: ' + opj(direction_results, 'tmp')+ ' removed !' + bcolors.ENDC)
                 else:
-                    print(opj(direction_results, 'tmp') + ' not found')
+                    print(bcolors.OKGREEN + 'INFO: ' + opj(direction_results, 'tmp') + ' not found' + bcolors.ENDC)
 
 
             if direction_results == dir_fMRI_Refth_RS_prepro3:
@@ -66,12 +75,12 @@ def clean(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_R
                 for remove_data in list_to_remove:
                     if ope(remove_data):
                         os.remove(remove_data)
-                        print(remove_data + ' removed !')
+                        print(bcolors.OKGREEN + 'INFO: ' + remove_data + ' removed !' + bcolors.ENDC)
                     else:
-                        print(remove_data + ' not found')
+                        print(bcolors.OKGREEN + 'INFO: ' + remove_data + ' not found' + bcolors.ENDC)
 
                 if ope(opj(direction_results, 'tmp')):
                     shutil.rmtree(opj(direction_results, 'tmp'))
-                    print(opj(direction_results, 'tmp') + ' removed !')
+                    print(bcolors.OKGREEN + 'INFO: ' + opj(direction_results, 'tmp') + ' removed !' + bcolors.ENDC)
                 else:
-                    print(opj(direction_results, 'tmp') + ' not found')
+                    print(bcolors.OKGREEN + 'INFO: ' + opj(direction_results, 'tmp') + ' not found' + bcolors.ENDC)

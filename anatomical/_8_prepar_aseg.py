@@ -59,10 +59,15 @@ def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_
         for atlas in list_atlases:
             if ope(atlas):
                 IMG = ants.image_read(atlas)
+                if opb(atlas) in ['Vmask.nii.gz', 'Wmask.nii.gz', 'Gmask.nii.gz']:
+                    dir_out = masks_dir
+                else:
+                    dir_out = masks_dir
+
                 TRANS = ants.apply_transforms(fixed=brain_img, moving=IMG,
                                               transformlist=transfo_concat, interpolator='nearestNeighbor',whichtoinvert=w2inv_fwd)
-                ants.image_write(TRANS, opj(labels_dir,type_norm + opb(atlas)), ri=False)
-                command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(labels_dir,type_norm + opb(atlas)) + ' -expr "step(a)*b" -prefix ' + opj(labels_dir,type_norm + opb(atlas))
+                ants.image_write(TRANS, opj(dir_out,type_norm + opb(atlas)), ri=False)
+                command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(dir_out,type_norm + opb(atlas)) + ' -expr "step(a)*b" -prefix ' + opj(labels_dir,type_norm + opb(atlas))
                 spco([command], shell=True)
                 print(bcolors.OKGREEN + 'INFO: done with atlas in subject space! you should check that' + bcolors.ENDC)
             else:

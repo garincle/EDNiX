@@ -2,6 +2,17 @@ import os
 import subprocess
 import ants
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -16,27 +27,22 @@ from fonctions.extract_filename import extract_filename
 ##### XXX add ICA or DL to visualize pre-processing effect
 
 def preprocess_data(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, list_RS, nb_run, T1_eq, overwrite,s_bind,afni_sif):
-
-
     if ope(dir_fMRI_Refth_RS_prepro1) == False:
         os.makedirs(dir_fMRI_Refth_RS_prepro1)
 
     if ope(os.path.join(dir_fMRI_Refth_RS_prepro1, 'tmp')) == False:
         os.makedirs(os.path.join(dir_fMRI_Refth_RS_prepro1, 'tmp'))
 
-
     for i in range(0, int(nb_run)):
-
-        print('work on ' + str(dir_fMRI_Refth_RS_prepro1) + ' run ' + str(i))
-
+        print(bcolors.OKGREEN + 'work on ' + str(dir_fMRI_Refth_RS_prepro1) + ' run ' + str(i) + bcolors.ENDC)
         root = extract_filename(RS[i])
         #copy func imag
+
         command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + list_RS[i] + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '.nii.gz') + ' -expr "a"' + overwrite
         spco([command], shell=True)
 
         #command = '3drefit -space ORIG ' + opj(dir_fMRI_Refth_RS_prepro1, root + '.nii.gz')
         #spco([command], shell=True)
-
         base_fMRI = opj(dir_fMRI_Refth_RS_prepro1, root + '.nii.gz')
         # Clean bad volumes
         if ope(opj(opd(list_RS[i]), root, '.txt'))==True:
@@ -93,7 +99,7 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, li
         command = 'singularity run' + s_bind + fsl_sif + 'fsl_tsplot -i ' + opj(dir_fMRI_Refth_RS_prepro1,root + '_xdtr.nii.gz_abs.rms') + \
         ',' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr.nii.gz_rel.rms') + \
         ' -t "MCFLIRT estimated mean displacement (mm)" -u 1 -w 640 -h 144 -a absolute,relative' + \
-        ' -o ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr.png')
+        ' -o ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr.png') 
         spco([command], shell=True)
 
         '''

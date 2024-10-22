@@ -3,6 +3,16 @@ import subprocess
 import glob
 from fonctions.extract_filename import extract_filename
 import ants
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -12,8 +22,6 @@ opd = os.path.dirname
 ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
-
-
 
 def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
     nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space):
@@ -37,7 +45,7 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
         mvt_shft_ANTs = []
         w2inv_fwd = []
     else:
-        print('ERROR: If Anat and Func are not in the same space you need to perform that trasnformation (do_anat_to_func = True)')
+        raise Exception(bcolors.FAIL + 'ERROR: If Anat and Func are not in the same space you need to perform that trasnformation (do_anat_to_func = True)' + bcolors.ENDC)
 
     ## test on mean img (to see spatially that is works)
     MEAN  = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'))

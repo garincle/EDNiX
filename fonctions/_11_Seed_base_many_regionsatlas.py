@@ -9,7 +9,8 @@ import nibabel as nib
 from nilearn.input_data import NiftiLabelsMasker
 from nilearn.image import resample_to_img
 from fonctions.extract_filename import extract_filename
-
+import scipy.ndimage as ndimage
+import ants
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -36,9 +37,7 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
 
     for panda_file, atlas in zip(panda_files, selected_atlases):
         for i in range(0, int(nb_run)):
-            print(i)
             root_RS = extract_filename(RS[i])
-            print(root_RS)
             for direction_results in [dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3]:
                 if direction_results == dir_fMRI_Refth_RS_prepro1:
                     if oversample_map == True:
@@ -46,9 +45,7 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                         studytemplatebrain = opj(dir_fMRI_Refth_RS_prepro1, 'Ref_anat_in_fMRI_anat_resolution.nii.gz')
                     else:
                         studytemplatebrain = opj(dir_fMRI_Refth_RS_prepro1, 'Ref_anat_in_fMRI.nii.gz')
-
                     func_filename = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
-                    print(func_filename)
                     if use_cortical_mask_func == True:
                         cortical_mask_func = opj(dir_fMRI_Refth_RS_prepro1,'Gmask.nii.gz')
                     else:
@@ -102,17 +99,13 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                     def format_seed_name(seed_name):
                         # Define characters to be replaced with underscores
                         replace_chars = [' ', '(', ')', ',', '/', ':', ';', '.', '-']
-
                         # Replace each character in replace_chars with underscores
                         for char in replace_chars:
                             seed_name = seed_name.replace(char, '_')
-
                         # Remove any other non-alphanumeric characters except for underscores
                         formatted_name = ''.join(char for char in seed_name if char.isalnum() or char == '_')
-
                         # Remove any leading or trailing underscores (optional)
                         formatted_name = formatted_name.strip('_')
-
                         return formatted_name
 
                     for colomn, row in panda_file.T.items():
@@ -132,10 +125,55 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                         image_data = nifti_image.get_fdata()
                         # Check if all the values in the image are zero
                         if np.all(image_data == 0):
-                            print(bcolors.WARNING + "The NIfTI image is empty (all voxel values are zero)." + bcolors.ENDC)
-                        else:
+                            print(bcolors.WARNING + "WARNING: The NIfTI image is empty (all voxel values are zero)." + bcolors.ENDC)
 
-                            labels_img = resample_to_img(output_folder + '/' + Seed_name + '.nii.gz', func_filename, interpolation='nearest')
+                        else:
+                            ################## EROD the seed if possible ##################
+                            # Load your atlas image
+                            atlas_path = output_folder + '/' + Seed_name + '.nii.gz'
+                            atlas_img = ants.image_read(atlas_path)
+                            # Get the unique region labels in the atlas
+                            labels = np.unique(atlas_img.numpy())  # Assumes label 0 is background
+
+                            # Erosion function
+                            def erode_region(region, iterations=1):
+                                binary_mask = region > 0  # Create a binary mask of the region
+                                eroded_mask = ndimage.binary_erosion(binary_mask, iterations=iterations)
+                                return eroded_mask.astype(np.uint8)
+                            # Create an empty array to store the final results
+                            final_result = np.zeros_like(atlas_img.numpy())
+
+                            # Iterate over each label in the atlas, skipping background (0)
+                            for label in labels:
+                                if label == 0:
+                                    continue  # Skip background
+                                print(f"Processing label: {label}")
+                                # Isolate the current region (region is 1 where label matches, else 0)
+                                region_mask = (atlas_img.numpy() == label).astype(np.uint8)
+                                # Try erosion by 1 voxel
+                                eroded_region_1 = erode_region(region_mask, iterations=1)
+                                if np.sum(eroded_region_1) > 5:  # Check if the region still has voxels
+                                    print(f"Label {label}: Eroded by 1 voxel, still has voxels.")
+                                    final_result[eroded_region_1 > 0] = label
+                                else:
+                                    print(f"Label {label}: Eroding by 1 voxel removes all voxels, keeping original region.")
+                                    final_result[region_mask > 0] = label  # Keep the original mask
+                                # Try erosion by 2 voxels
+                                eroded_region_2 = erode_region(region_mask, iterations=2)
+                                if np.sum(eroded_region_2) > 5:  # Check if the region still has voxels
+                                    print(f"Label {label}: Eroded by 2 voxels, still has voxels.")
+                                    final_result[eroded_region_2 > 0] = label
+                                else:
+                                    print(f"Label {label}: Eroding by 2 voxels removes all voxels, keeping 1 voxel erosion or original region.")
+                                    # No need to change, we keep the previously applied erosion or original region.
+                            # Save the final eroded atlas
+                            print(final_result)
+                            final_atlas = ants.from_numpy(final_result, spacing=atlas_img.spacing, origin=atlas_img.origin, direction=atlas_img.direction)
+                            output_path = output_folder + '/' + Seed_name + 'eroded.nii.gz'
+                            ants.image_write(final_atlas, output_path)
+                            print(f"Eroded atlas saved to: {output_path}")
+
+                            labels_img = resample_to_img(output_path, func_filename, interpolation='nearest')
                             labels_img.to_filename(output_folder + '/' + Seed_name + 'rsp.nii.gz')
                             # Plot the generated mask using the mask_img_ attribute
                             extracted_data2 = nib.load(output_folder + '/' + Seed_name + 'rsp.nii.gz').get_fdata()
@@ -146,7 +184,6 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                                 memory_level=1, verbose=1)
 
                             ##########################################################################
-
                             seed_time_serie = seed_masker.fit_transform(func_filename)
                             resampled_cortical_mask_func = resample_to_img(cortical_mask_func, func_filename, interpolation='nearest')
                             resampled_cortical_mask_func.to_filename(output_folder + '/' + Seed_name + 'cortical_mask_funcrsp.nii.gz')
@@ -178,9 +215,9 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                             ##########################################################################
                             # Fisher-z transformation and save nifti
                             seed_to_voxel_correlations_fisher_z = np.arctanh(seed_to_voxel_correlations)
-                            print("Seed-to-voxel correlation Fisher-z transformed: min = %.3f; max = %.3f"
+                            print(bcolors.OKGREEN + "Seed-to-voxel correlation Fisher-z transformed: min = %.3f; max = %.3f"
                                   % (seed_to_voxel_correlations_fisher_z.min(),
-                                     seed_to_voxel_correlations_fisher_z.max()))
+                                     seed_to_voxel_correlations_fisher_z.max()) + bcolors.ENDC)
 
                             seed_to_voxel_correlations_img_fish = brain_masker.inverse_transform(
                                 seed_to_voxel_correlations_fisher_z.T)
@@ -241,5 +278,5 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                                 display.savefig(output_folder + '/' + root_RS + '_.jpg')
                                 display.close()
                 else:
-                    print('WARNING: ' + str(func_filename) + ' not found!!')
+                    print(bcolors.WARNING + 'WARNING: ' + str(func_filename) + ' not found!!' + bcolors.ENDC)
 

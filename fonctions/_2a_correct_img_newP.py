@@ -4,7 +4,16 @@ import nibabel as nb
 import numpy as np
 from math import pi
 from fonctions.extract_filename import extract_filename
-
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 # Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -61,10 +70,9 @@ def correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, study_fMRI_Reft
     for b, d in enumerate(s):
         if b < 3:
             if (d % 2) == 0:
-                print("{0} est paire")
-
+                print(bcolors.OKGREEN + "{0} est paire, no need to remove a slice" + bcolors.ENDC)
             else:
-                print("{0} est impaire")
+                print(bcolors.OKGREEN + "{0} est impaire, we will have to remove a slice" + bcolors.ENDC)
                 imdata = imdata.take(range(d - 1), axis=b)
     nb.Nifti1Image(imdata, im.affine, hdr).to_filename(opj(dir_fMRI_Refth_RS_prepro1, root + '_se1.nii.gz'))
 

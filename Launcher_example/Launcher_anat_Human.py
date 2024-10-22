@@ -135,38 +135,10 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 
 ######## select animals that have not been analyzed yet
 removelist = []
+#sub-NDARHK987WDZ to ckeck
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in ['NDARAB678VYW',
- 'NDARAB683CYD',
- 'NDARAC296UCB',
- 'NDARAC589YMB',
- 'NDARAJ182PTB',
- 'NDARAJ401AX3',
- 'NDARAJ674WJT',
- 'NDARAK772VFJ',
- 'NDARAM177DKJ',
- 'NDARAM383UYD',
- 'NDARAM946HJE',
- 'NDARAN525BVK',
- 'NDARAP283ZBW',
- 'NDARAP748AWX',
- 'NDARAU517MC6',
- 'NDARAW427GWK',
- 'NDARAW558WUT',
- 'NDARAW620GJ8',
- 'NDARAX431KJ2',
- 'NDARAY977BZT',
- 'NDARBD582TDT',
- 'NDARBH789CUP',
- 'NDARBT780KVC',
- 'NDARBW320UFW',
- 'NDARBX076DCX',
- 'NDARBY041JPE',
- 'NDARBZ523GB7',
- 'NDARCA214DMT',
- 'NDARCL201KJZ',
- 'NDARCM638LMA']:
+    if ID in []:
         removelist.append(num)
 
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
@@ -243,7 +215,6 @@ type_of_transform_stdyT = 'SyN'
 
 ###use type_norm or otheranat for atlas template to study template co-registration
 Atemplate_to_Stemplate = 'acq-VNav_T1w'
-
 do_surfacewith = 'T1andT2' #'T1' 'T1andT2'
 
     ##########################################
@@ -288,6 +259,8 @@ opj(diratlas_orig, 'atlaslvl1_LR.nii.gz'),
 opj(diratlas_orig, 'atlaslvl2_LR.nii.gz'),
 opj(diratlas_orig, 'atlaslvl3_LR.nii.gz'),
 opj(diratlas_orig, 'atlaslvl4_LR.nii.gz')]
+list_atlases.append(opj(diratlas_orig,'Gmask.nii.gz'))
+list_atlases.append(opj(diratlas_orig,'Wmask.nii.gz'))
 
 fMRImasks = 'aseg' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
 
@@ -338,7 +311,7 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [1,2,3,4,100,200]
+Skip_step = [1,2,3,4,5,6,11,12,13,14,15,100,200]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 

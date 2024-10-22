@@ -3,7 +3,16 @@ import subprocess
 from nilearn.image import resample_to_img
 from fonctions.extract_filename import extract_filename
 import ants
-
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -12,8 +21,6 @@ opd = os.path.dirname
 ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
-
-
 
 def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run, ID, dir_prepro, n_for_ANTS, aff_metric_ants, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform, overwrite, s_bind, afni_sif):
 
@@ -40,12 +47,8 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepr
     ####################################################################################
     ########################## use template and transfo to anat (average indiv anat)  ##
     ####################################################################################
-    #average indiv anat =>coreg_ref
-    # mean of all func SS => opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_RcT_SS.nii.gz')
-
-
     if anat_func_same_space == True and do_anat_to_func == False:
-        print('No anat to func step required')
+        print(bcolors.OKGREEN + 'No anat to func step required' + bcolors.ENDC)
     else:
         if 'i' in SED:
             restrict = (1,0.1,0.1)
@@ -99,8 +102,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepr
         mvt_shft_INV_ANTs = []
         w2inv_inv = []
     else:
-        print('ERROR: If Anat and Func are not in the same space you need to perform that trasnformation (do_anat_to_func = True)')
-
+        raise Exception(bcolors.FAIL + 'ERROR: If Anat and Func are not in the same space you need to perform that trasnformation (do_anat_to_func = True)' + bcolors.ENDC)
 
     ########## ########## help for antsRegistration ########## ########## ########## ##########
     # -f -s -c X1 x X2 x X3 x X4 from large mvt to small si 4 prend toujours 4
@@ -132,7 +134,9 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepr
             command = 'singularity run' + s_bind + afni_sif + '3dclust -NN1 10 -prefix ' + output2 + output2
             spco(command, shell=True)
         else:
-            print('WARNING:' + str(input1) + ' not found!!! this may be because you have not provided an aseg file, then no extraction of WM or Ventricules or GM will be possible... pls check that!!!!')
+            print(bcolors.WARNING + 'WARNING:' + str(input1)
+                  + ' not found!!! this may be because you have not provided an aseg file, then no extraction '
+                    'of WM or Ventricules or GM will be possible... pls check that!' + bcolors.ENDC)
 
     ## in func space resample to func
     BRAIN = ants.image_read(opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz'))
@@ -183,7 +187,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepr
                                           whichtoinvert=w2inv_inv)
             ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro1, opb(atlas)), ri=False)
     else:
-        print('WARNING: list_atlases is empty!')
+        print(bcolors.WARNING + 'WARNING: list_atlases is empty!' + bcolors.ENDC)
 
     command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + anat_subject
     ADI = spgo(command).split('\n')[-1]

@@ -51,7 +51,7 @@ class HistogramMaskInputSpec(BaseInterfaceInputSpec):
         desc="keep only the largest connect component",
         usedefault=True)
     opening = traits.Int(
-        5,
+        2,
         desc="Order of the morphological opening to perform, to keep only "
              "large structures. This step is useful to remove parts of the "
              "skull that might have been included. If the opening order is "
@@ -63,7 +63,7 @@ class HistogramMaskInputSpec(BaseInterfaceInputSpec):
              "the image during the mask computation. [default: 2]",
         usedefault=True)
     closing = traits.Int(
-        0,
+        10,
         desc="Number of binary closing iterations to post-process the mask. "
              "[default: 10]",
         usedefault=True)
@@ -104,7 +104,7 @@ class HistogramMask(BaseInterface):
             opening=self.inputs.opening)
         mask_data = mask_img.get_fdata()
         n_voxels_mask = np.sum(mask_data > 0)
-
+        print("volume of the brain is " + str(self.inputs.volume_threshold))
         # Find the optimal lower cutoff
         affine_det = np.abs(np.linalg.det(mask_img.affine[:3, :3]))
         n_voxels_min = int(self.inputs.volume_threshold * .9 / affine_det)

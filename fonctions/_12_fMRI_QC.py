@@ -1,6 +1,7 @@
 import nilearn
 import subprocess
 import os
+from nilearn import image
 from nilearn.input_data import NiftiLabelsMasker
 import numpy as np
 import nibabel as nib
@@ -17,7 +18,16 @@ from sklearn.cluster import KMeans, SpectralClustering
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 from scipy.spatial.distance import pdist, squareform
 from fonctions.extract_filename import extract_filename
-
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 # Path to the excels files and data structure
 opj = os.path.join
@@ -31,7 +41,6 @@ ope = os.path.exists
 ####Seed base analysis
 #################################################################################################
 def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, bids_dir,s_bind,afni_sif):
-
     # This is a function to estimate functional connectivity specificity. See Grandjean 2020 for details on the reasoning
     def specific_FC(specific_roi, unspecific_ROI):
         if (specific_roi >= specific_roi_tresh) and (unspecific_ROI < unspecific_ROI_thresh):
@@ -55,8 +64,8 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
 
 
         if ope(atlas_filenamelvl3LR)==False:
-            print('ERROR: no altlas lvl 3 LR found, this is a requirement for QC analysis')
-            print('ERROR: If this analysis is nto performed Step 14 will failed too!')
+            raise Exception(bcolors.FAIL + 'ERROR: no altlas lvl 3 LR found, this is a requirement for QC analysis')
+            raise Exception(bcolors.FAIL + 'ERROR: If this analysis is nto performed Step 14 will failed too!')
         else:
             #### Build the atlas for LR somato ant anterior cingulate
             string_build_atlas = str('')
@@ -98,27 +107,27 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                         tolerance = 0.0000006
                         differences = {}
                         for field in fields_to_compare:
-                            value1 = header1[field][:4]
-                            value2 = header2[field][:4]
+                            value1 = header1[field][1:4]
+                            value2 = header2[field][1:4]
                             if not np.allclose(value1, value2, atol=tolerance):
                                 differences[field] = (value1, value2)
 
                         # Print differences
                         if differences:
-                            print("Differences found in the following fields:")
+                            print(bcolors.OKGREEN + "Differences found in the following fields:" + bcolors.ENDC)
                             for field, values in differences.items():
-                                print(f"{field}:")
-                                print(f"  Image 1: {values[0]}")
-                                print(f"  Image 2: {values[1]}")
+                                print(bcolors.OKGREEN + f"{field}:" + bcolors.ENDC)
+                                print(bcolors.OKGREEN + f"  Image 1: {values[0]}" + bcolors.ENDC)
+                                print(bcolors.OKGREEN + f"  Image 2: {values[1]}" + bcolors.ENDC)
                                 caca = nilearn.image.resample_to_img(atlas_filename, func_filename, interpolation='nearest')
                                 caca.to_filename(atlas_filename)
                                 extracted_data = nib.load(atlas_filename).get_fdata()
                                 labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
                                 labeled_img2.to_filename(atlas_filename)
                         else:
-                            print("No differences found in the specified fields.")
+                            print(bcolors.OKGREEN + "No differences found in the specified fields." + bcolors.ENDC)
                     else:
-                        print('WARNING: ' + str(func_filename) + ' not found!!')
+                        print(bcolors.WARNING + 'WARNING: ' + str(func_filename) + ' not found!!' + bcolors.ENDC)
                     ##########################################################################
                     ############     WORK in QC 1: Adapted Grandean's method:     ############
                     ############     correlations LR somatoSenory compare to ACC  ############
@@ -147,22 +156,13 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                                                     memory=None, verbose=5)
 
                     time_series = NAD_masker.fit_transform(func_filename)
-
-                    correlation_measure = ConnectivityMeasure(
-                        kind="correlation"
-                    )
+                    correlation_measure = ConnectivityMeasure(kind="correlation")
                     correlation_matrix = correlation_measure.fit_transform([time_series])[0]
-
-                    # Plot the correlation matrix
-
-                    # Make a large figure
                     # Mask the main diagonal for visualization:
                     np.fill_diagonal(correlation_matrix, 0)
-                    # The labels we have start with the background (0), hence we skip the
-                    # first label
                     # matrices are ordered for block-like representation
-                    print(correlation_matrix.shape)
-                    print(correlation_matrix)
+                    print(bcolors.OKGREEN + str(correlation_matrix.shape)  + bcolors.ENDC)
+                    print(bcolors.OKGREEN + str(correlation_matrix)  + bcolors.ENDC)
 
                     specific_roi = correlation_matrix[0][1]
                     unspecific_ROI = correlation_matrix[0][2]
@@ -170,7 +170,7 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                     cat = specific_FC(specific_roi, unspecific_ROI)
 
                     line_specificity = ['QC result', 'specific_roi:', str(specific_roi), 'unspecific_ROI:', str(unspecific_ROI), 'Result:', str(cat)]
-                    print(line_specificity)
+                    print(bcolors.OKGREEN + str(line_specificity) + bcolors.ENDC)
 
                     ##########################################################################
                     ############                      WORK on QC 2:               ############
@@ -204,16 +204,38 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
 
                     # Check if labels in the segmentation DataFrame are in the atlas data
                     filtered_labels = panda_file_combined[panda_file_combined['label'].isin(atlas_flat)]
+                    filtered_labels_list = list(filtered_labels['label'])
                     atlas_filtered_list = list(filtered_labels['region'])
 
+                    # Create new lists to store the filtered values
+                    final_labels_list = []
+                    final_atlas_list = []
+
+                    # Loop through the filtered_labels_list and filter both the labels and corresponding regions in atlas_filtered_list
+                    for idx, num in enumerate(filtered_labels_list):
+                        if int(num) < 1000:
+                            # Check if num + 1000 exists in the list
+                            if (int(num) + 1000) in filtered_labels_list:
+                                final_labels_list.append(num)
+                                final_atlas_list.append(atlas_filtered_list[idx])  # Add the corresponding region
+                        else:
+                            # Check if num - 1000 exists in the list
+                            if (int(num) - 1000) in filtered_labels_list:
+                                final_labels_list.append(num)
+                                final_atlas_list.append(atlas_filtered_list[idx])  # Add the corresponding region
+
+                    # Output the final filtered lists
+                    print(bcolors.OKGREEN + "Filtered labels list: " + str(final_labels_list) + bcolors.ENDC)
+                    print(bcolors.OKGREEN + "Filtered atlas regions list:" + str(final_atlas_list) + bcolors.ENDC)
+
                     ### creat a new list of label with zero if not in the new label list (for 3dcalc)
-                    filtered_labels_list = list(filtered_labels['label'])
                     list_old_label = []
                     for lab in atlas_flat:
-                        if lab in np.array(filtered_labels_list):
+                        if lab in np.array(final_labels_list):
                             list_old_label.append(lab)
                         else:
                             list_old_label.append(0)
+                    print(bcolors.OKGREEN + str(list_old_label) + bcolors.ENDC)
 
                     string_build_atlas = str('')
                     for new_label, old_label in zip(list_old_label, list(atlas_flat)):
@@ -221,10 +243,8 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                             int(old_label)) + ')))+'
                     string_build_atlas2 = "'" + string_build_atlas[:-1] + "'"
 
-                    command = 'singularity run' + s_bind + afni_sif + '3dcalc' + ' -a ' + atlas_filename + ' -expr ' + string_build_atlas2 + ' -prefix ' + atlas_filename[
-                                                                                                                                                           :-7] + '_filtered.nii.gz' + ' -overwrite'
+                    command = 'singularity run' + s_bind + afni_sif + '3dcalc' + ' -a ' + atlas_filename + ' -expr ' + string_build_atlas2 + ' -prefix ' + atlas_filename[:-7] + '_filtered.nii.gz' + ' -overwrite'
                     spco(command, shell=True)
-
 
                     ##########################################################################
                     NAD_masker = NiftiLabelsMasker(
@@ -271,14 +291,14 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                     # The labels we have start with the background (0), hence we skip the
                     # first label
                     # matrices are ordered for block-like representation
-                    print(correlation_matrix.shape)
-                    print(len(panda_file['region']))
-                    print(correlation_matrix)
+                    print(bcolors.OKGREEN + str(correlation_matrix.shape) + bcolors.ENDC)
+                    print(bcolors.OKGREEN + str(len(panda_file['region'])) + bcolors.ENDC)
+                    print(bcolors.OKGREEN + str(correlation_matrix)  + bcolors.ENDC)
 
                     plotting.plot_matrix(
                         correlation_matrix,
                         figure=(10, 8),
-                        labels=atlas_filtered_list,
+                        labels=final_atlas_list,
                         vmax=0.8,
                         vmin=-0.8)
 
@@ -289,14 +309,14 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                     np.save(matrix_filename, correlation_matrix)
 
                     # Convert correlation matrix to a DataFrame
-                    corr_df = pd.DataFrame(correlation_matrix, index=atlas_filtered_list, columns=atlas_filtered_list)
+                    corr_df = pd.DataFrame(correlation_matrix, index=final_atlas_list, columns=final_atlas_list)
 
                     connection = []
                     value = []
                     # Iterate through the matrix to populate the list
-                    for i in range(len(atlas_filtered_list)):
-                        for j in range(i + 1, len(atlas_filtered_list)):
-                            connection.append(f"{atlas_filtered_list[i]} to {atlas_filtered_list[j]}")
+                    for i in range(len(final_atlas_list)):
+                        for j in range(i + 1, len(final_atlas_list)):
+                            connection.append(f"{final_atlas_list[i]} to {final_atlas_list[j]}")
                             value.append(correlation_matrix[i, j])
 
                     # Create DataFrame from the list
@@ -305,7 +325,7 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                     flattened_df['Session'] = Session
 
                     # Display the flattened DataFrame
-                    print(flattened_df)
+                    print(bcolors.OKGREEN + str(flattened_df) + bcolors.ENDC)
 
                     # Optionally, save the flattened DataFrame to a CSV file
                     flattened_df.to_csv(output_results + '/' + root_RS + 'lvl3LR_correlation__correlation_matrix.csv',
@@ -317,9 +337,8 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                     ##########################################################################
 
                     # Extract the labels
-
-                    left_labels = panda_file[panda_file['label'].isin(filtered_labels_list)]['label'].values
-                    right_labels = panda_file_right[panda_file_right['label'].isin(filtered_labels_list)]['label'].values
+                    left_labels = panda_file[panda_file['label'].isin(final_labels_list)]['label'].values
+                    right_labels = panda_file_right[panda_file_right['label'].isin(final_labels_list)]['label'].values
 
                     # Initialize lists to store connectivity values
                     left_connectivity = []
@@ -342,11 +361,10 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                             # Ensure that correlations between the same region are excluded
                             if i < j:  # This condition ensures that only unique pairs are considered
                                 right_connectivity.append(correlation_matrix[left_index_A, left_index_B])
-
                     right_connectivity = np.array(right_connectivity)
 
-                    print(len(right_connectivity))
-                    print(len(left_connectivity))
+                    print(bcolors.OKGREEN + str(len(right_connectivity)) + bcolors.ENDC)
+                    print(bcolors.OKGREEN + str(len(left_connectivity)) + bcolors.ENDC)
 
                     # Ensure the arrays are of the same length
                     assert left_connectivity.shape == right_connectivity.shape, "Arrays must be of the same shape"
@@ -362,18 +380,18 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                     # Create the DataFrame
                     Correl_pd = pd.DataFrame(data)
 
-                    print(Correl_pd)
+                    print(bcolors.OKGREEN + str(Correl_pd) + bcolors.ENDC)
 
                     # Now you can use this DataFrame with pairwise_ttests
                     posthocs = pairwise_ttests(dv='Correlation', within='Hemisphere', return_desc=True, interaction=True,
                                                within_first=False, subject='Region', data=Correl_pd, parametric=False)
-                    print(posthocs)
+                    print(bcolors.OKGREEN + str(posthocs) + bcolors.ENDC)
 
-                    print(f"T-statistic: {float(posthocs['W-val'])}")
-                    print(f"P-value: {float(posthocs['p-unc'])}")
+                    print(bcolors.OKGREEN + f"T-statistic: {float(posthocs['W-val'])}" + bcolors.ENDC)
+                    print(bcolors.OKGREEN + f"P-value: {float(posthocs['p-unc'])}" + bcolors.ENDC)
 
                     line_withinH_result = [f"W-statistic: {float(posthocs['W-val'])}", f"P-value: {float(posthocs['p-unc'])}"]
-                    print(line_withinH_result)
+                    print(bcolors.OKGREEN + str(line_withinH_result) + bcolors.ENDC)
 
 
                     ################## Figure
@@ -402,8 +420,8 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                     fig = ax.get_figure()
                     file_name = root_RS + 'paired_ttest_results_intraH.png'
                     file_path = os.path.join(output_results, file_name)
-                    print(f"Saving figure to: {file_path}")
-                    print(f"DPI: {400}, Bbox_inches: {'tight'}")
+                    print(bcolors.OKGREEN + f"Saving figure to: {file_path}" + bcolors.ENDC)
+                    print(bcolors.OKGREEN + f"DPI: {400}, Bbox_inches: {'tight'}" + bcolors.ENDC)
                     fig.savefig(file_path, dpi=400, bbox_inches='tight')
 
                     ##########################################################################
@@ -438,8 +456,8 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                     # Convert the lists to numpy arrays
                     LR_connectivity = np.array(right_to_left_connectivity)
                     LR_labels = np.array(right_to_left_labels)
-                    print(right_to_left_connectivity)
-                    print(right_to_left_labels)
+                    print(bcolors.OKGREEN + str(right_to_left_connectivity) + bcolors.ENDC)
+                    print(bcolors.OKGREEN + str(right_to_left_labels) + bcolors.ENDC)
 
                     # Combine left and right connectivity values for plotting
                     combined_connectivity = np.concatenate([np.concatenate((left_connectivity, right_connectivity), axis=None), LR_connectivity])
@@ -466,11 +484,11 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                     # perform independent two sample t-test
                     posthocs = ttest(group1['Correlation'], group2['Correlation'])
 
-                    print(f"T-statistic: {float(posthocs['T'])}")
-                    print(f"P-value: {float(posthocs['p-val'])}")
+                    print(bcolors.OKGREEN + f"T-statistic: {float(posthocs['T'])}" + bcolors.ENDC)
+                    print(bcolors.OKGREEN + f"P-value: {float(posthocs['p-val'])}" + bcolors.ENDC)
 
                     lines_withinH_vs_LR = [f"T-statistic: {float(posthocs['T'])}", f"P-value: {float(posthocs['p-val'])}"]
-                    print(lines_withinH_vs_LR)
+                    print(bcolors.OKGREEN + str(lines_withinH_vs_LR) + bcolors.ENDC)
 
                     ################## Figure
 
@@ -558,29 +576,26 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                     # Eigenvalue analysis
                     #Eigenvalue Analysis: Provides insights into the structure of the matrix.
                     eigenvalues = eigenvalue_analysis(correlation_matrix)
-                    print(f"  Top 5 Eigenvalues: {eigenvalues[:5]}")
+                    print(bcolors.OKGREEN + f"  Top 5 Eigenvalues: {eigenvalues[:5]}" + bcolors.ENDC)
 
                     # Clustering stability
                     #Clustering Stability: Measures how consistent the clustering results are when clustering multiple times with different initial conditions. Here we choose 7 as in Yeo et al.
                     stability = clustering_stability(correlation_matrix, n_clusters)
-                    print(f"  Clustering Stability: {stability}")
+                    print(bcolors.OKGREEN + f"  Clustering Stability: {stability}" + bcolors.ENDC)
 
                     # Spectral clustering evaluation
                     silhouette, davies_bouldin, calinski_harabasz, dunn = spectral_clustering(correlation_matrix, n_clusters)
 
-                    print(f"  Silhouette Score: {silhouette}")
-
-                    print(f"  Davies-Bouldin Index: {davies_bouldin}")
-
-                    print(f"  Calinski-Harabasz Index: {calinski_harabasz}")
+                    print(bcolors.OKGREEN + f"  Silhouette Score: {silhouette}" + bcolors.ENDC)
+                    print(bcolors.OKGREEN + f"  Davies-Bouldin Index: {davies_bouldin}" + bcolors.ENDC)
+                    print(bcolors.OKGREEN + f"  Calinski-Harabasz Index: {calinski_harabasz}" + bcolors.ENDC)
 
                     #Dunn Index: Helps in identifying compact and well-separated clusters.
                     #The Dunn Index evaluates clustering quality by considering the ratio between the minimum inter-cluster distance and the maximum intra-cluster distance.
-                    print(f"  Dunn Index: {dunn}")
+                    print(bcolors.OKGREEN + f"  Dunn Index: {dunn}" + bcolors.ENDC)
 
                     line_network = [f"  Top 5 Eigenvalues: {eigenvalues[:5]}", f"  Clustering Stability: {stability}", f"  Silhouette Score: {silhouette}",
                                         f"  Davies-Bouldin Index: {davies_bouldin}", f"  Calinski-Harabasz Index: {calinski_harabasz}", f"  Dunn Index: {dunn}"]
-
                     # Function to calculate distribution statistics
                     def calculate_distribution_stats(matrix):
                         flattened = matrix.flatten()
@@ -598,30 +613,82 @@ def fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_
                         density_pos = np.sum((flattened > 0.05) & (flattened <= 1)) / len(flattened)
                         return density_neg, density_zero, density_pos
 
+                    ####### motion metrics #####
+                    # Step 1: Load the motion metrics
+                    motion_enorm = np.loadtxt(opj(dir_fMRI_Refth_RS_prepro1, root_RS + 'motion_enorm.1D'))  # Euclidean norm values
+                    derivatives = np.loadtxt(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_deriv.1D'))  # Derivatives (velocity)
+                    censor_1d = np.loadtxt(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_censor.1D'))  # Censored time points
+                    outcount = np.loadtxt(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdt_outcount.r.1D'), skiprows=2)  # Censored time points
+
+                    # Step 2: Calculate Average Euclidean Norm
+                    avg_enorm = np.mean(motion_enorm)
+                    # Step 3: Calculate the Censor Fraction
+                    # The censor file has 1s for good time points and 0s for censored ones
+                    censor_fraction = 1 - np.mean(censor_1d)  # Censored fraction is the inverse of the mean (1 means kept)
+                    # Step 4: Calculate Average Absolute Velocity (from the derivatives)
+                    # The derivatives file has six columns (3 translations, 3 rotations), we average their absolute values
+                    avg_outcount = np.mean(outcount)
+                    avg_velocity = np.mean(np.abs(derivatives), axis=0).mean()
+
+                    print(bcolors.OKGREEN + f"  avg motion velocity: {avg_velocity}" + bcolors.ENDC)
+                    print(bcolors.OKGREEN + f"  avg motion magnitude: {avg_enorm}" + bcolors.ENDC)
+                    print(bcolors.OKGREEN + f"  censor_fraction: {censor_fraction}" + bcolors.ENDC)
+                    print(bcolors.OKGREEN + f"  outlier proportions: {avg_outcount}" + bcolors.ENDC)
+
+                    line_motion = [f"  avg motion velocity: {avg_velocity}", f"  avg motion magnitude: {avg_enorm}", f"  censor_fraction: {censor_fraction}", f"  outlier proportions: {avg_outcount}"]
+
+                    ##### extract signal of TNSR values in the test regions
+                    # Step 1: Load the NIfTI image (functional or structural)
+
+                    for imageQC, QCexplain in zip([opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_stdev.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_tsnr1.nii.gz')],['stdev', 'TSNR']):
+                        nifti_img = image.load_img(imageQC)
+                        masker = NiftiLabelsMasker(
+                            labels_img=atlas_filenameQC,
+                            detrend=False,
+                            smoothing_fwhm=None,
+                            standardize=False,
+                            low_pass=None,
+                            high_pass=None,
+                            t_r=None,
+                            memory=None, verbose=5)
+                        # Step 4: Extract the time series from the image
+                        time_series = masker.fit_transform(nifti_img)
+                        # Step 5: The result is a 2D array (time points x regions)
+                        print(bcolors.OKGREEN + "Time series shape (time points x regions): " + str(time_series.shape) + bcolors.ENDC)
+
+                        mean_signal_per_region = np.mean(time_series, axis=1)
+                        print(bcolors.OKGREEN + "Mean signal per region: " + str(mean_signal_per_region) + bcolors.ENDC)
+
+                        if QCexplain == 'stdev':
+                            stdev = mean_signal_per_region
+                        elif QCexplain == 'TSNR':
+                            TSNR = mean_signal_per_region
+
+                    line_TSNR = [f"  stdev signal: {stdev}", f" TSNR signal: {TSNR}"]
+
                     # Distribution statistics
                     median, variance, min_val, max_val = calculate_distribution_stats(correlation_matrix)
-                    print(f"  Median: {median}")
-                    print(f"  Variance: {variance}")
-                    print(f"  Min: {min_val}")
-                    print(f"  Max: {max_val}")
+                    print(bcolors.OKGREEN + f"  Median: {median}" + bcolors.ENDC)
+                    print(bcolors.OKGREEN + f"  Variance: {variance}" + bcolors.ENDC)
+                    print(bcolors.OKGREEN + f"  Min: {min_val}" + bcolors.ENDC)
+                    print(bcolors.OKGREEN + f"  Max: {max_val}" + bcolors.ENDC)
 
                     # Density analysis
                     density_neg, density_zero, density_pos = calculate_density(correlation_matrix)
-                    print(f"  Density (Negative Correlations): {density_neg}")
-                    print(f"  Density (Around Zero): {density_zero}")
-                    print(f"  Density (Positive Correlations): {density_pos}")
+                    print(bcolors.OKGREEN + f"  Density (Negative Correlations): {density_neg}" + bcolors.ENDC)
+                    print(bcolors.OKGREEN + f"  Density (Around Zero): {density_zero}" + bcolors.ENDC)
+                    print(bcolors.OKGREEN + f"  Density (Positive Correlations): {density_pos}" + bcolors.ENDC)
 
                     line_descriptive = [f"  Median: {median}", f"  Variance: {variance}", f"  Min: {min_val}",
                                         f"  Max: {max_val}", f"  Density (Negative Correlations): {density_neg}", f"  Density (Around Zero): {density_zero}", f"  Density (Positive Correlations): {density_pos}"]
-
-                    lines = line_descriptive + line_withinH_result + lines_withinH_vs_LR + line_specificity + line_network
+                    lines = line_descriptive + line_withinH_result + lines_withinH_vs_LR + line_specificity + line_network + line_motion + line_TSNR
 
                     with open(output_results + '/'+ root_RS + 'QC_result.txt', 'w') as f:
                         for line in lines:
                             f.write(line)
                             f.write('\n')
                 else:
-                    print('WARNING: ' + str(func_filename) + ' not found!!')
+                    print(bcolors.OKGREEN + 'WARNING: ' + str(func_filename) + ' not found!!' + bcolors.ENDC)
 
 
 

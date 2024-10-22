@@ -128,12 +128,32 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
     all_data_path_max.append(data_path)
     all_ID_max.append(ID)
 
-
+#285D
 ######## select animals that have not been analyzed yet
 removelist = []
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in []:
+    if ID in ['119BBB',
+ '147BCBA',
+ '147BCBB',
+ '153FBA',
+ '169BAB',
+ '184CB',
+ '208CBF'
+ '216B',
+ '263BCE',
+ '263BCE',
+ '276BC',
+ '276BC',
+ '283CA',
+ '283CA',
+ '283CCA',
+ '283CCA',
+ '283EA',
+ '283EA',
+ '285AAA',
+ '285AB',
+ '285AB']:
         removelist.append(num)
 
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
@@ -238,7 +258,7 @@ study_fMRI_Refth = opj(MAIN_PATH,'code','4topup.txt') #string (path)
 ########################################################################################################################
 
 ### Slice encoding direction (SED) (necessery only if you want to restrict the transfo for anat to func)
-SED = 'Auto' #  "i", "i-", "j", "j-", "k", "k-", 'Auto', 'None'
+SED = 'Auto'   #  "i", "i-", "j", "j-", "k", "k-", 'Auto', 'None'
 
 ### YOU NEED TO PROVIDE A TR if not in .json, otherwise it will fail
 TR = 'Auto'  # 'value du calculate in s', 'Auto', 'None'
@@ -263,19 +283,19 @@ costAllin = '' # string
 ### if Method_mask_func=="nilearn" choose a cutoff
 lower_cutoff = 0.05 # int
 upper_cutoff = 0.5 # int
-
+ntimepoint_treshold = 100
 ###############################################################################################################
 ############################################### coregistration steps ##########################################
 ###############################################################################################################
 ########### define orientation############
-orientation = 'RSP' # string
+orientation = 'LIA' # string
 ###############################################################################################################
 ######################## Probably the most "obscure part of the script" ########################
 ###############################################################################################################
 #### If your anat and func are not in the same space, then, it is easy, just put deoblique='header'
 # another option is to put all of several animals in deoblique_exeption1, and no deoblique will be applied
 
-#### if they are, and you want to make your life easy by using the anatomical mask, you need to have the anat and func in the space after deoblique
+#### if they are, and you want to make youLIAr life easy by using the anatomical mask, you need to have the anat and func in the space after deoblique
 #### their is two way to do it deoblique='header': if the oblique is not too crazy and the center of the FOV similar it should work, but often, it is not the case.
 ## deoblique='WARP' BOLD images will be warped to fix the deoblique difference, you can use it ONLY if you have done the same thing of the anatomical images.
 # It will have for unfortunate consequence to warp the func multiple times to go in the atlas space and one time in the original space.
@@ -293,8 +313,8 @@ deoblique_exeption2 = [] # list
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
-type_of_transform = 'SyNBoldAff'
-aff_metric_ants = 'MI'
+type_of_transform = 'SyNBold'
+aff_metric_ants = 'mattes'
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
 ### define the acronyme/suffix of the anat as in the BIDS
@@ -382,7 +402,7 @@ use_cortical_mask_func = False # True or False
 
 #######for seed analysis (step 11)
 #### name of the atlases  you want to use for the seed base analysis
-selected_atlases = ['atlaslvl3.nii.gz', 'atlaslvl4.nii.gz'] #liste
+selected_atlases = ['atlaslvl4.nii.gz'] #liste
 
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 panda_files = [pd.DataFrame({'region':[
@@ -458,4 +478,4 @@ fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_pat
     extract_exterior_CSF, extract_WM, n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
     cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
     folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff, selected_atlases_matrix,
-    specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH, DwellT, SED, TR, TRT, type_of_transform, s_bind, s_path)
+    specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH, DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, s_bind, s_path)

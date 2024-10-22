@@ -39,13 +39,14 @@ def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Sessi
 
     mtx1 = ants.registration(fixed=IMG, moving=REF, type_of_transform='Translation',
                              outprefix=opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_shift_'))
+
     MEAN_tr = ants.apply_transforms(fixed=IMG, moving=REF, transformlist=mtx1['fwdtransforms'],
                                     interpolator=n_for_ANTS)
     ants.image_write(MEAN_tr, opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_shift.nii.gz'), ri=False)
 
     mTx  = ants.registration(fixed=IMG,moving=REF,
                               outprefix=opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_'),
-                             type_of_transform=type_of_transform,
+                            type_of_transform=type_of_transform,
                               aff_metric=aff_metric_ants,
                               initial_transform=mtx1['fwdtransforms'],
                               grad_step=0.1,
@@ -73,7 +74,7 @@ def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Sessi
         IMG = ants.image_read(img_ref)
         TRANS = ants.apply_transforms(fixed=REF, moving=IMG,
                                       transformlist=transfo_concat_inv,
-                                      interpolator=n_for_ANTS,whichtoinvert=w2inv_inv)
+                                      interpolator=n_for_ANTS, whichtoinvert=w2inv_inv)
         ants.image_write(TRANS, opj(dir_prepro, Timage + '_to_template_SyN_final_max.nii.gz'), ri=False)
 
         ####plot the QC
@@ -109,9 +110,13 @@ def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Sessi
             dir_prepro = opj(dir_native, '01_preprocess')
             second_template.append(opj(dir_prepro, Timage + '_to_template_test_matrix_max.nii.gz'))
 
-        TEMP = ' '.join(second_template)
-        if not ope(opj(study_template_atlas_forlder, 'studytemplate2_' + otheranat)): os.mkdir(
-            opj(study_template_atlas_forlder, 'studytemplate2_' + otheranat))
+        # Check if all paths exist
+        all_paths_exist = all(os.path.exists(path) for path in second_template)
 
-        command = 'singularity run' + s_bind + afni_sif + '3dMean -prefix ' + opj(study_template_atlas_forlder, 'studytemplate2_' + otheranat, 'study_template.nii.gz') + ' ' + TEMP
-        spco([command], shell=True)
+        if all_paths_exist:
+            TEMP = ' '.join(second_template)
+            if not ope(opj(study_template_atlas_forlder, 'studytemplate2_' + otheranat)): os.mkdir(
+                opj(study_template_atlas_forlder, 'studytemplate2_' + otheranat))
+
+            command = 'singularity run' + s_bind + afni_sif + '3dMean -prefix ' + opj(study_template_atlas_forlder, 'studytemplate2_' + otheranat, 'study_template.nii.gz') + ' ' + TEMP
+            spco([command], shell=True)

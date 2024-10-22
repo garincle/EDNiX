@@ -119,19 +119,17 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
 
         ###########define orientation#############
         ##########################################
-
         #creat path
         if ope(dir_prepro) == False:
             os.makedirs(dir_prepro)
-
         if ope(dir_transfo) == False:
             os.makedirs(dir_transfo)
-
         #creat path
-        if ope(wb_native_dir) == False:
+        if ope(labels_dir) == False:
             os.makedirs(labels_dir)
-            os.makedirs(masks_dir)
-
+        # creat path
+        if ope(masks_dir) == False:
+                os.makedirs(masks_dir)
         #creat path
         if ope(opj(bids_dir, 'QC')) == False:
             os.makedirs(opj(bids_dir, 'QC'))
@@ -144,7 +142,7 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
         if 2 in Skip_step:
             print(bcolors.OKGREEN + 'INFO: skip step ' + str(2) + bcolors.ENDC)
         else:
-            anatomical._2_clean_anat.clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, aff_metric_ants, ID, aff_metric_ants, Session, otheranat, type_norm, dir_prepro, masking_img, do_manual_crop,
+            anatomical._2_clean_anat.clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, type_of_transform, ID, aff_metric_ants, Session, otheranat, type_norm, dir_prepro, masking_img, do_manual_crop,
             brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, template_skullstrip, study_template_atlas_forlder, overwrite,
             s_bind,afni_sif,fsl_sif,fs_sif, itk_sif, strip_sif)
 
@@ -178,40 +176,65 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
         wb_native_dir = opj(dir_native,'02_Wb')
         volumes_dir   = opj(wb_native_dir,'volumes')
         masks_dir     = opj(volumes_dir,'masks')
-
+        Ref_file = opj(volumes_dir, ID + type_norm + '_brain_step_1.nii.gz')
         ####################################################################################
         ########################## Coregistration template to anat #########################
         ####################################################################################
+        if (coregistration_longitudinal and Session != max_ses) or coregistration_longitudinal==False:
+            if coregistration_longitudinal:
+                data_path_max     = opj(bids_dir,'sub-' + ID,'ses-' + str(max_ses))
+                path_anat_max     = opj(data_path_max,'anat')
+                dir_transfo_max   = opj(path_anat_max,'matrices')
+                dir_native_max    = opj(path_anat_max,'native')
+                wb_native_dir_max = opj(dir_native_max,'02_Wb')
+                volumes_dir_max   = opj(wb_native_dir_max,'volumes')
+                masks_dir_max     = opj(volumes_dir_max,'masks')
 
-        if coregistration_longitudinal==True:
-            data_path_max     = opj(bids_dir,'sub-' + ID,'ses-' + str(max_ses))
-            path_anat_max     = opj(data_path_max,'anat')
-            dir_transfo_max   = opj(path_anat_max,'matrices')
-            dir_native_max    = opj(path_anat_max,'native')
-            wb_native_dir_max = opj(dir_native_max,'02_Wb')
-            volumes_dir_max   = opj(wb_native_dir_max,'volumes')
-            masks_dir_max     = opj(volumes_dir_max,'masks')
+                #####!!! use the last image as template
+                BASE_SS_coregistr     = opj(volumes_dir_max,ID + type_norm + '_brain_step_1.nii.gz')
+                masking_img = type_norm
+                BASE_SS_mask = opj(masks_dir_max, ID + masking_img + '_mask_2.nii.gz')
 
-            #####!!! use the last image as template
-            BASE_SS_coregistr     = opj(volumes_dir_max,ID + type_norm + '_brain.nii.gz')
-            masking_img = type_norm
-            BASE_SS_mask = opj(masks_dir_max, ID + masking_img + '_mask_2.nii.gz')
+                transfo_concat_inv = \
+                [opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),
+                 opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_1InverseWarp.nii.gz'),
+                 opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
+                 opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz')]
+                w2inv_inv = [True, False, True, False]
 
-            transfo_concat_inv = \
-            [opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),
-             opj(dir_transfo_max,'template_to_' + type_norm + '_SyN_final_max_1InverseWarp.nii.gz'),
-             opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
-             opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz')]
-            w2inv_inv = [True, False, True, False]
+            ################# coregistration non longitudinal #################
+            else:
+                if creat_study_template == True:
+                    stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
+                                             'study_template_mask.nii.gz')
+                    stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
+                                        'study_template.nii.gz')
+                    BASE_SS_coregistr     = stdy_template
+                    BASE_SS_mask = stdy_template_mask
+                else:
+                    BASE_SS_coregistr     = BASE_SS
+                    BASE_SS_mask = BASE_mask
 
-            if Session == max_ses:
                 transfo_concat_inv = \
                     [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
-                     opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz')]
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz')]
                 w2inv_inv = [True, False]
 
-        ################# coregistration non longitudinal #################
-        else:
+            # creat a template for each individual (nice skulltrip corrected of each mean of anat img)
+            if 5 in Skip_step:
+                print(bcolors.OKGREEN + 'INFO: skip step ' + str(5) + bcolors.ENDC)
+            else:
+                anatomical._5_create_template_brain.create_indiv_template_brain(dir_prepro, type_of_transform, ID, aff_metric_ants, Session, listTimage, volumes_dir, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, type_norm, BASE_SS_coregistr, BASE_SS_mask, otheranat,
+                check_visualy_final_mask, template_skullstrip, study_template_atlas_forlder, bids_dir, s_bind,afni_sif,fsl_sif,fs_sif, itk_sif, strip_sif)
+
+            ######## resistration to template
+            if 6 in Skip_step:
+                print(bcolors.OKGREEN + 'INFO: skip step ' + str(6) + bcolors.ENDC)
+            else:
+                anatomical._6_brainT_to_stdyT.brainT_to_T(dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv,bids_dir, type_of_transform, aff_metric_ants)
+
+        ######## ADD max img resistration to template
+        if coregistration_longitudinal == True and Session == max_ses:
             if creat_study_template == True:
                 stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
                                          'study_template_mask.nii.gz')
@@ -224,63 +247,22 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
                 BASE_SS_mask = BASE_mask
 
             transfo_concat_inv = \
-                [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
-                 opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz')]
+                [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),
+                 opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1InverseWarp.nii.gz')]
             w2inv_inv = [True, False]
 
-        Ref_file = opj(volumes_dir, ID + type_norm + '_brain_step_1.nii.gz')
-
-        # creat a template for each individual (nice skulltrip corrected of each mean of anat img)
-        if 5 in Skip_step:
-            print(bcolors.OKGREEN + 'INFO: skip step ' + str(5) + bcolors.ENDC)
-        else:
-            anatomical._5_create_template_brain.create_indiv_template_brain(dir_prepro, type_of_transform, ID, aff_metric_ants, Session, listTimage, volumes_dir, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, type_norm, BASE_SS_coregistr, BASE_SS_mask, otheranat,
-    check_visualy_final_mask, template_skullstrip, study_template_atlas_forlder, bids_dir, s_bind,afni_sif,fsl_sif,fs_sif, itk_sif, strip_sif)
-
-        ###### coregistration of each indiv template to the selected template (sty, atlas)
-        if coregistration_longitudinal == True:
-            if Session == max_ses:
-                print(bcolors.OKGREEN + 'INFO: do not registre max image to itslef')
+            # creat a template for each individual (nice skulltrip corrected of each mean of anat img)
+            if 5 in Skip_step:
+                print(bcolors.OKGREEN + 'INFO: skip step ' + str(5) + bcolors.ENDC)
             else:
-                ######## resistration to max img
-                if 6 in Skip_step:
-                    print(bcolors.OKGREEN + 'INFO: skip step ' + str(6) + bcolors.ENDC)
-                else:
-                    anatomical._6_brainT_to_stdyT.brainT_to_T(BASE_SS, BASE_mask, creat_study_template, dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv, study_template_atlas_forlder, otheranat, bids_dir, type_of_transform, template_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, BASE_SS_mask, check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif, overwrite)
-        else:
-            ######## resistration to template
+                anatomical._5_create_template_brain.create_indiv_template_brain(dir_prepro, type_of_transform, ID, aff_metric_ants, Session, listTimage, volumes_dir, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, type_norm, BASE_SS_coregistr, BASE_SS_mask, otheranat,
+                check_visualy_final_mask, template_skullstrip, study_template_atlas_forlder, bids_dir, s_bind,afni_sif,fsl_sif,fs_sif, itk_sif, strip_sif)
+
+            ###### coregistration of each indiv template to the selected template (sty, atlas)
             if 6 in Skip_step:
                 print(bcolors.OKGREEN + 'INFO: skip step ' + str(6) + bcolors.ENDC)
             else:
-                anatomical._6_brainT_to_stdyT.brainT_to_T(dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv,bids_dir, type_of_transform, aff_metric_ants)
-
-        ######## ADD max img resistration to template
-        if coregistration_longitudinal == True:
-            if Session == max_ses:
-                if creat_study_template == True:
-                    stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
-                                             'study_template_mask.nii.gz')
-                    stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
-                                        'study_template.nii.gz')
-                    BASE_SS_coregistr     = stdy_template
-                    BASE_SS_mask = stdy_template_mask
-                else:
-                    BASE_SS_coregistr     = BASE_SS
-                    BASE_SS_mask = BASE_mask
-
-                ####
-                transfo_concat_inv = \
-                    [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1InverseWarp.nii.gz'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz')]
-                w2inv_inv = [True, False, True, False]
-
-                ###### coregistration of each indiv template to the selected template (sty, atlas)
-                if 6 in Skip_step:
-                    print(bcolors.OKGREEN + 'INFO: skip step ' + str(6))
-                else:
-                    anatomical._6_brainT_to_stdyT_max.brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Session, listTimage, n_for_ANTS,
+                anatomical._6_brainT_to_stdyT_max.brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Session, listTimage, n_for_ANTS,
                     dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv,
                     study_template_atlas_forlder, otheranat, bids_dir, type_of_transform,
                     which_on, all_data_path_max, IgotbothT1T2, all_data_path,
@@ -321,7 +303,7 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
     ###### LOOP AGAIN ######
 
     for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, max_sessionlist):
-        print(bcolors.HEADER + '###################################################### work on subject: ' + str(ID) + ' Session ' + str(Session) + ' BLOCK 2 ###############################################################' + bcolors.ENDC)
+        print(bcolors.HEADER + '###################################################### work on subject: ' + str(ID) + ' Session ' + str(Session) + ' BLOCK 3 ###############################################################' + bcolors.ENDC)
         animal_folder = 'sub-' + ID + '_ses-' + str(Session)
 
         # The anatomy
@@ -352,11 +334,9 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
                 
             if Session == max_ses:
                 transfo_concat = \
-                    [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
-                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz'),
+                    [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz'),
                      opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat')]
-                w2inv_fwd = [False, False, False, False]
+                w2inv_fwd = [False, False]
 
             else:
                 data_path_max = opj(bids_dir,'sub-' + ID,'ses-' + str(max_ses))
@@ -389,7 +369,6 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
             w2inv_fwd = [False, False]
 
         Ref_file = opj(volumes_dir,ID + type_norm + '_brain.nii.gz')
-
 
         if 8 in Skip_step:
             print(bcolors.OKGREEN + 'INFO: skip step ' + str(8) + bcolors.ENDC)

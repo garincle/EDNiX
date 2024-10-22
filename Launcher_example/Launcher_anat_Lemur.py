@@ -38,7 +38,7 @@ import anatomical._0_Pipeline_launcher
 
 ###where to store the BIDS data?
 species = 'Mouse_lemur'
-bids_dir = opj('/scratch/cgarin/'+ species + '/BIDS_CG')
+bids_dir = opj('/scratch/cgarin/'+ species + '/BIDS_Garin')
 
 ##########################################
 ########### Subject loader################
@@ -155,25 +155,24 @@ deoblique='header' #header or WARP or no_deoblique or WARP_without_3drefit
 ###question
 ####WITH deoblique='WARP'
 ##orig RAI
-orientation = 'RIP'
+orientation = 'LIA'
 ####WITH deoblique='header'
 #orientation = 'LSP'
 
 
 n_for_ANTS='hammingWindowedSinc'
 overwrite_option = True #YES or NO
-type_of_transform = 'SyN'
+type_of_transform = 'SyNBold'
 aff_metric_ants = 'MI'
 
 ####Choose to normalize using T1 or T2
 type_norm = 'T2w' # T1 or T2
 otheranat = '' #NA if none
 ###masking
-#ruf XXX!!!!!!
 ###img use for masking in Skullstrip 1 'maybe this need to be change'!!!!!! because Skullstrip 2 is in auto equal to type_norm.... not sure that it will not creat problem in the futur
 masking_img = 'T2w'
 
-brain_skullstrip_1 ='Vol_sammba_2500' # bet2_ANTS or MachinL
+brain_skullstrip_1 ='Custum_ANTS_Garin' # bet2_ANTS or MachinL
 
 #precise
 brain_skullstrip_2 ='Custum_ANTS_Garin' # bet2_ANTS or MachinL
@@ -305,10 +304,10 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [1,100,200]
+Skip_step = [1,10,11,12,13,14,15,100,200]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
-
+print(type_of_transform)
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
     BASE_SS, which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, study_template_atlas_forlder, template_skullstrip,

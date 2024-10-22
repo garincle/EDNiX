@@ -1,9 +1,15 @@
 import os
 import subprocess
-import glob
-import shutil
-import sys
-
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -12,10 +18,7 @@ opd = os.path.dirname
 ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
-
 from fonctions.extract_filename import extract_filename
-
-
 
 def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_RS_ICA_native,
     nb_run, RS, blur, TR, melodic_prior_post_TTT, extract_exterior_CSF, extract_WM, do_not_correct_signal, band, extract_Vc, extract_GS, overwrite,
@@ -54,8 +57,6 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                 command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dROIstats -nomeanout -nzvoxels -mask ' + \
                           opj(dir_fMRI_Refth_RS_prepro1,'Vmask.nii.gz') + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,'Vmask.nii.gz')
                 count = spgo(command).split('\n')[-1].split('\t')
-                print(command)
-                print(count)
                 # check if ok....
                 if count[-1] == '0[?]':
                     countVmask = 0
@@ -128,11 +129,9 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                 ' -bucket ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + 'statssubj')
 
                 if extract_exterior_CSF == True:
-                    print('t')
                     command = command + ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_NonB.1D') + ' residual_norm_NonB '
 
                 elif extract_WM == True:
-                    print('t')
                     command = command + ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_Wc.1D') + ' residual_norm_Wc '
 
                 elif extract_Vc == True:
@@ -140,7 +139,7 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
 
                 elif extract_GS == True:
                     command = command + ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_GS.1D') + ' residual_norm_Vc '
-                print(command)
+                print(bcolors.OKGREEN + 'INFO: 3dDeconvolve command is ' + command + bcolors.ENDC)
                 spco([command], shell=True)
 
                 command = 'singularity run' + s_bind + afni_sif + '3dTproject -polort 0' + overwrite + ' -input ' + \
