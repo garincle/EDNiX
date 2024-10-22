@@ -179,8 +179,9 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                                             'and here it is ' + str(opj(dir_fMRI_Refth_RS, endfmri)) + ' I would check how you define "endfmri"' + bcolors.ENDC)
         print(bcolors.OKGREEN + "INFO: now let's check that this is a real a 4D fMRI image with enough time point as in define with the variable ntimepoint_treshold="
               + str(ntimepoint_treshold) + bcolors.ENDC)
+        list_RS_list = list_RS.copy()
         list_pop_index = []
-        for imageF in list_RS:
+        for imageF in list_RS_list:
             # Load the fMRI NIfTI image
             fmri_image = nib.load(imageF)
             # Get the shape of the image (x, y, z, t)
@@ -191,6 +192,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print(bcolors.OKGREEN + "INFO: " + f"Number of time points: {ntimepoint}" + bcolors.ENDC)
                 if int(ntimepoint) < ntimepoint_treshold:
                     index_of_imageF = list_RS.index(imageF)
+                    print(bcolors.OKGREEN + "INFO: We will not analyze " + str(imageF) + " because not enough time point" + bcolors.ENDC)
                     list_RS.pop(index_of_imageF)
                     list_pop_index.append(index_of_imageF)
             else:
@@ -198,6 +200,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
 
         nb_run = len(list_RS)
         RS = [os.path.basename(i) for i in list_RS]
+        print(bcolors.OKGREEN + "INFO: We will analyse run " + str(list_RS) + bcolors.ENDC)
+
         list_map = sorted(glob.glob(opj(dir_fMRI_Refth_map, endmap))) #[]
         print(bcolors.OKGREEN + "looking for fmap image with the command glob.glob(" + str(opj(dir_fMRI_Refth_map, endmap)) + bcolors.ENDC)
         print(bcolors.OKGREEN + "We found " + str(list_map) + bcolors.ENDC)
