@@ -113,11 +113,9 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 BASE_SS_mask = BASE_mask
             if Session == max_ses:
                 transfo_concat_Anat = \
-                    [opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_1Warp.nii.gz'),
-                     opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
-                     opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz'),
-                     opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat')]
-                w2inv_Anat = [False, False, False, False]
+                    [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz'),
+                     opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat')]
+                w2inv_fwd = [False, False]
             else:
                 data_path_max = opj(bids_dir, 'sub-' + ID, 'ses-' + str(max_ses))
                 path_anat_max = opj(data_path_max, 'anat/')
