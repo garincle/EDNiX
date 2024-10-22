@@ -4,7 +4,16 @@ import numpy as np
 import nibabel as nib
 from sklearn.cluster import KMeans
 from fonctions.extract_filename import extract_filename
-
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 # Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -20,7 +29,6 @@ def fMRI_QC_SBA(Seed_name, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMR
     dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func):
 
     for panda_file, atlas in zip(panda_files, selected_atlases):
-        print(panda_file)
         for i in range(0, int(nb_run)):
             root_RS = extract_filename(RS[i])
 
@@ -69,6 +77,12 @@ def fMRI_QC_SBA(Seed_name, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMR
                             image = image[:, :, :, 0]
 
                         voxels = image.reshape(-1, 1)
+                        # Replace inf and -inf with NaN
+                        voxels = np.where(np.isinf(voxels), np.nan, voxels)
+                        # Compute the mean of the non-NaN values in each column
+                        mean_values = np.nanmean(voxels, axis=0)
+                        # Replace NaN values with the mean of each column
+                        voxels = np.where(np.isnan(voxels), mean_values, voxels)
 
                         # Apply K-means clustering
                         num_clusters = 5
@@ -109,9 +123,9 @@ def fMRI_QC_SBA(Seed_name, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMR
                                     file.write('\n')  # Add a newline if the last character is not a newline
                             # Write the new content
                             file.write("Global Clustering Index SBA " + Seed_name + " :" + str(global_clustering_index) + '\n')
-                            print("Global Clustering Index SBA " + Seed_name + " :" + str(global_clustering_index))
+                            print(bcolors.OKGREEN + "Global Clustering Index SBA " + Seed_name + " :" + str(global_clustering_index) + bcolors.ENDC)
                     else:
-                        print("correlation file of the seed does not exists, please check that")
+                        print(bcolors.WARNING + "WARNING: correlation file of the seed does not exists, please check that" + bcolors.ENDC)
 
 
 

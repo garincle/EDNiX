@@ -35,10 +35,14 @@ def nii_to_mgz(ID, Session, FS_dir, Ref_file, labels_dir, volumes_dir, otheranat
     elif orient_raw == 'LSA': reorient = ' -r 1 -2 3 '
     elif orient_raw == 'RIA': reorient = ' -r -1 2 3 '
     elif orient_raw == 'LIA': reorient = ' -r 1 2 3 '
+    elif orient_raw == 'LAI': reorient = ' -r 1 3 2 '
+    elif orient_raw == 'RAI': reorient = ' -r -1 3 2 '
     elif orient_raw == 'RSP': reorient = ' -r -1 -2 -3 '
     elif orient_raw == 'LSP': reorient = ' -r 1 -2 -3 '
     elif orient_raw == 'RPS': reorient = ' -r -1 -3 -2 '
     elif orient_raw == 'LPS': reorient = ' -r 1 -3 -2 '
+    else:
+        print(bcolors.FAIL + 'ERROR: ' + orient_raw + ' not found in the list' + bcolors.ENDC)
 
     fwdFS_cmd = ' --in_orientation ' + orient_raw + reorient
 

@@ -163,7 +163,7 @@ check_visualy_final_mask = False #YES or NO
 deoblique='WARP' #header or WARP or no_deoblique or WARP_without_3drefit
 n_for_ANTS='hammingWindowedSinc'
 overwrite_option = True #YES or NO
-type_of_transform = 'SyNRA'
+type_of_transform = 'SyN'
 
 ####Choose to normalize using T1 or T2
 type_norm = 'acq-RARE_T2w' # T1 or T2

@@ -133,8 +133,7 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 removelist = []
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in ['m10',
- 'm11']:
+    if ID in []:
         removelist.append(num)
 
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
@@ -270,7 +269,7 @@ costAllin = '' # string
 ### if Method_mask_func=="nilearn" choose a cutoff
 lower_cutoff = 0.05 # int
 upper_cutoff = 0.5 # int
-
+ntimepoint_treshold = 100
 ###############################################################################################################
 ############################################### coregistration steps ##########################################
 ###############################################################################################################
@@ -469,7 +468,7 @@ Seed_name = 'Periarchicortex'
 
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,5,6,7,8,9,12,13,100,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,200]
     ############################################################
     ######################## START de pipeline #################
     ############################################################
@@ -480,4 +479,4 @@ fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_pat
     extract_exterior_CSF, extract_WM, n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
     cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
     folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff, selected_atlases_matrix,
-    specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH, DwellT, SED, TR, TRT, type_of_transform, s_bind, s_path)
+    specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH, DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, s_bind, s_path)

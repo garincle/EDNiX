@@ -117,7 +117,7 @@ def correct_orient(BIDStype,
                                 opj(dir_prepro, ID + 'template_indiv' + type_norm + '.nii.gz'),
                                 interpolation='nearest')
         caca2.to_filename(opj(dir_prepro, ID + 'template_indiv' + otheranat + 'rsp_TO_Tnorm.nii.gz'))
-        command = 'singularity run' + s_bind + afni_sif + '3dcopy ' + opj(dir_prepro, ID + 'template_indiv' + otheranat + '.nii.gz') + ' ' + opj(dir_prepro, ID + 'template_indiv' + type_norm + 'rsp_TO_Tnorm.nii.gz') + overwrite
+        command = 'singularity run' + s_bind + afni_sif + '3dcopy ' + opj(dir_prepro, ID + 'template_indiv' + type_norm + '.nii.gz') + ' ' + opj(dir_prepro, ID + 'template_indiv' + type_norm + 'rsp_TO_Tnorm.nii.gz') + overwrite
         spco([command], shell=True)
 
         for Timage in listTimage:
@@ -138,8 +138,9 @@ def correct_orient(BIDStype,
                     direction=np.eye(3)  # Set direction matrix to identity to avoid dimensionality issues
                 )
                 print('Averaged 4D image to 3D')
-                ants.image_write(averaged_image, opj(dir_prepro, ID + 'template_indiv' + Timage + 'rsp_TO_Tnorm.nii.gz'),
-                                 ri=False)
+                ants.image_write(averaged_image, opj(dir_prepro, ID + 'template_indiv' + Timage + 'rsp_TO_Tnorm.nii.gz'), ri=False)
+
+        #### if T2 or T1 not mentionned in the name then it's a mess... XXX
         for Timage in listTimage:
             if 'T1' in Timage:
                 T1 = Timage

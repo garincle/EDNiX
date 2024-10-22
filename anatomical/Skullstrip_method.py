@@ -79,7 +79,7 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
     ######################################################### Brain Skullstrip Library (do your own if you need to!!!) ########################################################
     ###########################################################################################################################################################################
 
-    # This Brain Skullstrip Library will be evovlving and can/should be personalized, don't hesitate to propose other efficient solution of GIT!!!
+    # This Brain Skullstrip Library will be evovlving and can/should be personalized, don't hesitate to propose other efficient solution on GIT!!!
     if os.path.exists(opj(masks_dir, ID + masking_img + 'final_mask.nii.gz')) and step_skullstrip == 1:
         print(bcolors.WARNING + 'WARNING: We found a final mask for Skullstrip 1!!! no Skullstrip will be calculated!' + bcolors.ENDC)
         print(bcolors.OKGREEN + 'INFO: please delete' + opj(masks_dir, ID + masking_img + 'final_mask.nii.gz') + ' if you want retry to create a skulstripp images' + bcolors.ENDC)
@@ -385,6 +385,7 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
             ants.image_write(tmp_mask3, output_for_mask, ri=False)
 
         elif brain_skullstrip == 'Custum_ANTS_Garin':
+            print(bcolors.OKGREEN + 'INFO: type_of_transform is ' + str(type_of_transform) + bcolors.ENDC)
             IMG = ants.image_read(input_for_msk)
             REF_IMG = ants.image_read(BASE_SS_coregistr)
 
@@ -394,9 +395,10 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
                                             interpolator='nearestNeighbor')
             ants.image_write(MEAN_tr, opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_shift.nii.gz'),
                              ri=False)
+            print(bcolors.OKGREEN + 'INFO: type_of_transform is ' + str(type_of_transform) + bcolors.ENDC)
             mTx = ants.registration(fixed=IMG, moving=REF_IMG,
                                     outprefix=opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_'),
-                                    type_of_transform=type_of_transform,
+                                    type_of_transform= type_of_transform,
                                     initial_transform=mtx1['fwdtransforms'],
                                     aff_metric=aff_metric_ants,
                                     grad_step=0.1,
@@ -412,7 +414,7 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
                                     reg_smoothing_sigmas=(3, 2, 1, 0),
                                     reg_shrink_factors=(8, 4, 2, 1),
                                     verbose=True)
-
+            print(mTx)
             transfo_concat = [opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_1Warp.nii.gz'),
                  opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_0GenericAffine.mat')]
 
@@ -431,6 +433,59 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
 
             command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
                       ' -input ' + output_for_mask + ' -fill_holes'
+            spco(command, shell=True)
+
+        elif brain_skullstrip.startswith('CustumANTSGarin_'):
+            # Extract the percentile from the string
+            dilate_b = int(brain_skullstrip.split('_')[1])
+            print(bcolors.OKGREEN + 'INFO: type_of_transform is ' + str(type_of_transform) + bcolors.ENDC)
+            IMG = ants.image_read(input_for_msk)
+            REF_IMG = ants.image_read(BASE_SS_coregistr)
+
+            mtx1 = ants.registration(fixed=IMG, moving=REF_IMG, type_of_transform='Translation',
+                                     outprefix=opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_shift_'))
+            MEAN_tr = ants.apply_transforms(fixed=IMG, moving=REF_IMG, transformlist=mtx1['fwdtransforms'],
+                                            interpolator='nearestNeighbor')
+            ants.image_write(MEAN_tr, opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_shift.nii.gz'),
+                             ri=False)
+            print(bcolors.OKGREEN + 'INFO: type_of_transform is ' + str(type_of_transform) + bcolors.ENDC)
+            mTx = ants.registration(fixed=IMG, moving=REF_IMG,
+                                    outprefix=opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_'),
+                                    type_of_transform= type_of_transform,
+                                    initial_transform=mtx1['fwdtransforms'],
+                                    aff_metric=aff_metric_ants,
+                                    grad_step=0.1,
+                                    flow_sigma=3,
+                                    total_sigma=0,
+                                    aff_sampling=32,
+                                    aff_random_sampling_rate=0.2,
+                                    syn_sampling=32,
+                                    aff_iterations=(1000, 500, 250, 100),
+                                    aff_shrink_factors=(8, 4, 2, 1),
+                                    aff_smoothing_sigmas=(3, 2, 1, 0),
+                                    reg_iterations=(1000, 500, 250, 100),
+                                    reg_smoothing_sigmas=(3, 2, 1, 0),
+                                    reg_shrink_factors=(8, 4, 2, 1),
+                                    verbose=True)
+            print(mTx)
+            transfo_concat = [opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_1Warp.nii.gz'),
+                 opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_0GenericAffine.mat')]
+
+            REF_MASK = ants.image_read(BASE_SS_mask)
+            tmp_mask1 = ants.apply_transforms(fixed=IMG, moving=REF_MASK,
+                                              transformlist=transfo_concat, interpolator='nearestNeighbor')
+            spacing = tmp_mask1.spacing  # This will give you the voxel size in x, y, z (e.g., (1.0, 1.0, 1.2) mm)
+            # Use voxel size as sigma for Gaussian smoothing
+            sigma = spacing  # Set sigma to voxel size for each dimension
+            # Apply Gaussian smoothing (sigma controls the amount of smoothing)
+            smoothed_mask = ants.smooth_image(tmp_mask1, sigma=sigma)  # Adjust sigma for more or less smoothing
+            # Threshold to return to binary mask
+            binary_smoothed_mask = ants.threshold_image(smoothed_mask, low_thresh=0.5, high_thresh=1)
+            binary_smoothed_mask = ants.iMath(binary_smoothed_mask, operation='GetLargestComponent')
+            ants.image_write(binary_smoothed_mask, output_for_mask, ri=False)
+
+            command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
+                      ' -input ' + output_for_mask + ' -fill_holes -dilate_input ' + str(dilate_b) + ' -' + str(dilate_b)
             spco(command, shell=True)
 
         elif brain_skullstrip == '3dSkullStrip_noDilate':
@@ -565,7 +620,6 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
             nichols_masker.inputs.out_file = output_for_mask
             res = nichols_masker.run()  # doctest: +SKIP
 
-
         elif brain_skullstrip =='QWARP':
             command = 'singularity run' + s_bind + afni_sif + '3dQwarp -overwrite -iwarp' + \
             ' -base ' + BASE_SS_coregistr + \
@@ -593,9 +647,49 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
             command = 'python3 ' + opd(afni_sif) + '/NHP-BrainExtraction/UNet_Model/muSkullStrip.py ' + \
                   ' -in ' + input_for_msk + ' -model ' + \
                   opd(afni_sif) + '/NHP-BrainExtraction/UNet_Model/models/Site-Human-epoch_08.model -out ' + \
-                  masks_dir
+                  process_dir
             spco(command, shell=True)
-            shutil.copyfile(opj(masks_dir, opb(ID + '_' + masking_img + '_template_pre_mask.nii.gz')), output_for_mask)
+            shutil.copyfile(opj(opd(output_for_mask),extract_filename(input_for_msk) + '_pre_mask.nii.gz'), output_for_mask)
+
+        elif brain_skullstrip == 'Custum_Macaque2':
+            import re
+            # Use a regular expression to find the session number (ses-XX)
+            match = re.search(r'/ses-(\d+)/', process_dir)
+            if match:
+                Session = match.group(1)
+                print(f"Session number: {Session}")
+            else:
+                print("No session number found.")
+
+            if ID == 'Pickle' and Session == 5:
+                command = 'python3 ' + opd(afni_sif) + '/NHP-BrainExtraction/UNet_Model/muSkullStrip.py ' + \
+                          ' -in ' + input_for_msk + ' -model ' + \
+                          opd(afni_sif) + '/NHP-BrainExtraction/UNet_Model/models/model-20_macaque-epoch -out ' + \
+                          process_dir
+                spco(command, shell=True)
+                shutil.copyfile(opj(opd(output_for_mask),extract_filename(input_for_msk) + '_pre_mask.nii.gz'), output_for_mask)
+                command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 10'
+                spco(command, shell=True)
+
+            elif ID == 'Trinity' and Session == 6:
+                command = 'python3 ' + opd(afni_sif) + '/NHP-BrainExtraction/UNet_Model/muSkullStrip.py ' + \
+                          ' -in ' + input_for_msk + ' -model ' + \
+                          opd(afni_sif) + '/NHP-BrainExtraction/UNet_Model/models/model-20_macaque-epoch -out ' + \
+                          process_dir
+                spco(command, shell=True)
+                shutil.copyfile(opj(opd(output_for_mask),extract_filename(input_for_msk) + '_pre_mask.nii.gz'), output_for_mask)
+                command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 10'
+                spco(command, shell=True)
+
+            else:
+                command = 'python3 ' + opd(afni_sif) + '/NHP-BrainExtraction/UNet_Model/muSkullStrip.py ' + \
+                          ' -in ' + input_for_msk + ' -model ' + \
+                          opd(afni_sif) + '/NHP-BrainExtraction/UNet_Model/models/model-20_macaque-epoch -out ' + \
+                          process_dir
+                spco(command, shell=True)
+                shutil.copyfile(opj(opd(output_for_mask),extract_filename(input_for_msk) + '_pre_mask.nii.gz'), output_for_mask)
+                command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 3'
+                spco(command, shell=True)
 
 
         elif brain_skullstrip =='Custum_QWARP':
@@ -627,6 +721,22 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
             Ex_Mask    = opj(opj(process_dir, extract_filename(input_for_msk)) + 'mask_tmp' + masking_img + '.nii.gz')
             command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + Ex_Mask + \
             ' -input ' + opj(opj(process_dir, extract_filename(input_for_msk)) + masking_img + 'template_brainmask.nii.gz') + ' -fill_holes'
+            spco(command, shell=True)
+            shutil.copyfile(Ex_Mask, output_for_mask)
+
+        elif brain_skullstrip =='Custum_QWARPT2_dil':
+            command = 'singularity run' + s_bind + afni_sif + '3dQwarp -overwrite -lpa -iwarp' + \
+            ' -base ' + BASE_SS_coregistr + \
+            ' -prefix ' + opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_AFNIQ.nii.gz') + \
+            ' -source ' + input_for_msk + ' -maxlev 3 -resample'
+            spco(command, shell=True)
+            command = 'singularity run' + s_bind + afni_sif + '3dNwarpApply -nwarp ' + opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_AFNIQ_WARPINV.nii.gz') + \
+            ' -source ' + BASE_SS_mask + ' -master ' + input_for_msk + ' -interp NN' + \
+            ' -prefix ' + opj(opj(process_dir, extract_filename(input_for_msk)) + masking_img + 'template_brainmask.nii.gz') + ' -overwrite'
+            spco(command, shell=True)
+            Ex_Mask    = opj(opj(process_dir, extract_filename(input_for_msk)) + 'mask_tmp' + masking_img + '.nii.gz')
+            command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + Ex_Mask + \
+            ' -input ' + opj(opj(process_dir, extract_filename(input_for_msk)) + masking_img + 'template_brainmask.nii.gz') + ' -fill_holes -dilate_input 2'
             spco(command, shell=True)
 
             shutil.copyfile(Ex_Mask,output_for_mask)

@@ -26,15 +26,15 @@ sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
 import fonctions._0_Pipeline_launcher
 
 ###where are stored the BIDS data?
-species = 'Rat'
+species = 'RatWHS'
 
-bids_dir = opj(MAIN_PATH,'data','MRI',species,'BIDS_rat')
+bids_dir = opj('/scratch/cgarin/Rat/BIDS_Gd/')
 
 ##### If your BIDS dataset is correct, I strongly advise  to use BIDSLayout,
 # it allows very quicly to build the architecture of your dataset to analyse all subjects of your dataset
 
 ### singularity set up
-s_bind        = ' --bind ' + opj('/','scratch','in_Process/') + ',' + MAIN_PATH
+s_bind = ' --bind ' + opj('/', 'scratch', 'cgarin/') + ',' + MAIN_PATH
 s_path      = opj(MAIN_PATH,'code','singularity')
 afni_sif    = ' ' + opj(s_path , 'afni_make_build_AFNI_23.1.10.sif') + ' '
 fsl_sif     = ' ' + opj(s_path , 'fsl_6.0.5.1-cuda9.1.sif') + ' '
@@ -148,7 +148,7 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 removelist = []
 ######### select the indiv you want to remove !!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in ['300101']:
+    if ID in []:
         removelist.append(num)
 
 ############################################################## NOTHING TO DO HERE ##############################################################
@@ -268,7 +268,7 @@ SED = 'Auto' #  "i", "i-", "j", "j-", "k", "k-", 'Auto', 'None'
 
 ### YOU NEED TO PROVIDE A TR if not in .json, otherwise it will fail
 TR = 'Auto'  # 'value du calculate in s', 'Auto', 'None'
-
+ntimepoint_treshold = 100
 ##### masking steps SUPER IMPORTANT!!
 # you can choose to not do it (not advised)
 doMaskingfMRI = True # True or False
@@ -307,7 +307,7 @@ orientation = 'RIP' # string
 # It will have for unfortunate consequence to warp the func multiple times to go in the atlas space and one time in the original space.
 # However, this function can help to solve common space problem.....
 
-deoblique='WARP' #header or WARP
+deoblique='WARP_without_3drefit' #header or WARP
 
 ###### needs to be ID + 'ses-' + str(Session)
 #no deoblique will be applied
@@ -320,6 +320,7 @@ deoblique_exeption2 = animal_ID # list
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
 type_of_transform = 'SyNRA'
+aff_metric_ants = 'MI'
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
 ### define the acronyme/suffix of the anat as in the BIDS
@@ -347,9 +348,9 @@ creat_study_template = False # True or False
 ######no need to answer this question if you are not doing a study template
 #folder where you stored the stdy template
 study_template_atlas_forlder = ''  # sting
-stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_mask.nii.gz') # sting
-stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
-GM_mask_studyT = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'GM_mask.nii.gz') # sting
+stdy_template_mask = ''  # sting
+stdy_template = ''  # sting
+GM_mask_studyT = ''  # sting
 
 ########## if creat_study_template = False ##########
 diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual', species)
@@ -406,26 +407,17 @@ dilate_mask = 0 # int
 #retrain the analysis to the gray matter
 use_cortical_mask_func = False # True or False
 
-#######for seed analysis (step 11)
 #### name of the atlases  you want to use for the seed base analysis
-selected_atlases = ['atlaslvl3.nii.gz'] #liste
+selected_atlases = ['atlaslvl4.nii.gz'] #liste
 
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 panda_files = [pd.DataFrame({'region':[
-'Somatosensory cortex',
-'Posterior parietal cortex',
-'Visual pre and extra striate cortex',
-'Visual striate cortex',
-'Auditory cortex (Superior temporal)',
-'Insula and others in lateral sulcus',
-'Septum',
-'Hippocampal formation',
-'Periarchicortex',
-'Striatum',
-'Basal forebrain',
-'Amygdala',
-'Hypothalamus',
-'Thalamus'],'label':[58,59,61,62,64,67,68,71,74,75,76,79,80,81]})] # liste of pandas dataframe
+'retrosplenial',
+'BA 23',
+'BA 24',
+'BA 32',
+'BA 9',
+'OB'],'label':[162,128,114,112,107,153]})] # liste of pandas dataframe
 
 
 
@@ -481,16 +473,16 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [10, 200]
+Skip_step = [100, 200]
 
 #################################################
     ######################## START de pipeline #################
     ############################################################
 
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, anat_func_same_space,
-    correction_direction, REF_int, study_fMRI_Refth, IgotbothT1T2, otheranat, deoblique_exeption1, deoblique_exeption2, deoblique, orientation,
+    correction_direction, REF_int, study_fMRI_Refth, IgotbothT1T2, otheranat, deoblique, orientation,
     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
-    extract_exterior_CSF, extract_WM, n_for_ANTS, list_atlases, selected_atlases, panda_files, useT1T2_for_coregis, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
+    extract_exterior_CSF, extract_WM, n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
     cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
     folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff, selected_atlases_matrix,
-    specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH, DwellT, SED, TR, TRT, type_of_transform, s_bind, s_path)
+    specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH, DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, s_bind, s_path)

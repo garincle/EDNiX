@@ -259,8 +259,7 @@ FS_buckner40_GCS = opj(FS_dir,'MacaqueYerkes19')
     ##########################################
     ##### define atlases and tempates ########
     ##########################################
-
-diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual','Macaque') # sting # sting
+diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual','RatWHS') # sting # sting
 list_atlases = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
 opj(diratlas_orig, 'atlaslvl2.nii.gz'),
 opj(diratlas_orig, 'atlaslvl3.nii.gz'),
@@ -269,6 +268,10 @@ opj(diratlas_orig, 'atlaslvl1_LR.nii.gz'),
 opj(diratlas_orig, 'atlaslvl2_LR.nii.gz'),
 opj(diratlas_orig, 'atlaslvl3_LR.nii.gz'),
 opj(diratlas_orig, 'atlaslvl4_LR.nii.gz')]
+list_atlases.append(opj(diratlas_orig,'Gmask.nii.gz'))
+list_atlases.append(opj(diratlas_orig,'Wmask.nii.gz'))
+
+fMRImasks = 'aseg' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
 
 BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'template.nii.gz') # sting
 BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'brain_mask.nii.gz') # sting # sting
@@ -277,24 +280,14 @@ BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','
 Aseg_ref    = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',species,'atlas_forSEG_final.nii.gz')
 Aseg_refLR  = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',species,'atlas_forSEG_final_LR.nii.gz')
 
-species_list = ['Pig', 'Mouse_lemur', 'Marmoset', 'Macaque', 'Chimpanzee', 'DoginCat', 'CatinDog', 'Mouse', 'RatWHS', 'Human']
-middle_value = ['-0.929', '0.091','0.075','0.125','0.5','-0.352','-0.289','-0.05','0','0']
-
 ###question of Aseg_refLR
-def get_middle_value_for_species(species_list, value_list, target_species):
-    for i, specie in enumerate(species_list):
-        if specie == target_species:
-            return value_list[i]
-    return None
+define_center = '0'
 
-define_center = get_middle_value_for_species(species_list, middle_value, species)
 ### if it doesn't exists let's make it!!! but you need an Aseg_ref!!
 if not ope(Aseg_refLR):
-    command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + Aseg_ref + ' -expr "step(ispositive(x-' + define_center + ')*a)" -prefix ' + opd(
-        Aseg_refLR) + '/Aseg_ref_L.nii.gz'
+    command = '3dcalc -a ' + Aseg_ref + ' -expr "step(ispositive(x-' + define_center + ')*a)" -prefix ' + opd(Aseg_refLR) + '/Aseg_ref_L.nii.gz'
     spco([command], shell=True)
-    command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opd(
-        Aseg_refLR) + '/Aseg_ref_L.nii.gz -b ' + Aseg_ref + ' -expr "ifelse(a, a*255,step(b)*127)" -prefix ' + Aseg_refLR
+    command = '3dcalc -a ' + opd(Aseg_refLR) + '/Aseg_ref_L.nii.gz -b ' + Aseg_ref + ' -expr "ifelse(a, a*255,step(b)*127)" -prefix ' + Aseg_refLR
     spco([command], shell=True)
 
 #### for 14 ####
@@ -307,7 +300,6 @@ FreeSlabel_ctab_list = [opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_fil
 opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt'),
 opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt'),
 opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')]
-
 
 ######### define other usefull paramater automatically (do no touch)#########
 Hmin     = ['l','r']

@@ -9,7 +9,19 @@ from nilearn import plotting
 import nibabel as nib
 from nilearn.connectome import ConnectivityMeasure
 from fonctions.extract_filename import extract_filename
+import scipy.ndimage as ndimage
+import ants
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 # Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -40,7 +52,7 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                 if not os.path.exists(output_results): os.mkdir(output_results)
                 output_results = opj(dir_fMRI_Refth_RS_prepro1, '10_Results/correl_matrix')
                 if not os.path.exists(output_results): os.mkdir(output_results)
-                print(panda_file['region'])
+                print(bcolors.OKGREEN + 'working on matrix for ' + str(panda_file['region']) + bcolors.ENDC)
 
                 # Load the NIfTI images
                 img1 = nib.load(atlas_filename)
@@ -62,18 +74,18 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
 
                 # Print differences
                 if differences:
-                    print("Differences found in the following fields:")
+                    print(bcolors.OKGREEN + "INFO: Differences between images:" + bcolors.ENDC)
                     for field, values in differences.items():
-                        print(f"{field}:")
-                        print(f"  Image 1: {values[0]}")
-                        print(f"  Image 2: {values[1]}")
+                        print(bcolors.OKGREEN + f"{field}:" + bcolors.ENDC)
+                        print(bcolors.OKGREEN + f"  Image 1: {values[0]}" + bcolors.ENDC)
+                        print(bcolors.OKGREEN + f"  Image 2: {values[1]}" + bcolors.ENDC)
                         caca = nilearn.image.resample_to_img(atlas_filename, func_filename, interpolation='nearest')
                         caca.to_filename(atlas_filename)
                         extracted_data = nib.load(atlas_filename).get_fdata()
                         labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
                         labeled_img2.to_filename(atlas_filename)
                 else:
-                    print("No differences found in the specified fields.")
+                    print(bcolors.OKGREEN + "INFO: No differences found in the specified fields." + bcolors.ENDC)
 
                 # Load your brain atlas data
                 atlas_img = nib.load(atlas_filename)
@@ -86,18 +98,17 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                 # Check if labels in the segmentation DataFrame are in the atlas data
                 filtered_labels = panda_file[panda_file['label'].isin(atlas_flat)]
                 atlas_filtered_list = list(filtered_labels['region'])
-                print("label that you provided")
-                print(panda_file)
-
-                print("label found in the atlas after extraction of the signal :" + str(atlas))
-                print(atlas_flat)
-
-                print("if we combine them (analyse similarity we ware able to keep:")
-                print(filtered_labels)
-                print("corresponding to the labels")
-                print(atlas_filtered_list)
-
-                print("if they are different from the one you provided, you should investigate why!: region too small for fMRI? error in the labeling? error in the coregistration?, this is not always a big dill but you should know what happend!!")
+                print(bcolors.OKGREEN + "INFO: label that you provided" + bcolors.ENDC)
+                print(bcolors.OKGREEN + str(panda_file) + bcolors.ENDC)
+                print(bcolors.OKGREEN + "INFO: label found in the atlas after extraction of the signal :" + str(atlas) + bcolors.ENDC)
+                print(bcolors.OKGREEN + str(atlas_flat) + bcolors.ENDC)
+                print(bcolors.OKGREEN + "INFO: if we combine them (analyse similarity we ware able to keep:" + bcolors.ENDC)
+                print(bcolors.OKGREEN + str(filtered_labels) + bcolors.ENDC)
+                print(bcolors.OKGREEN + "INFO: corresponding to the labels" + bcolors.ENDC)
+                print(bcolors.OKGREEN + str(atlas_filtered_list) + bcolors.ENDC)
+                print(bcolors.OKGREEN + "INFO: if they are different from the one you provided, you should investigate why!: region too small "
+                                        "for fMRI? error in the labeling? error in the coregistration?, this is not always "
+                                        "a big dill but you should know what happend!!" + bcolors.ENDC)
 
 
 
@@ -119,8 +130,56 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                 command = 'singularity run' + s_bind + afni_sif + '3dcalc' + ' -a ' + atlas_filename + ' -expr ' + string_build_atlas2 + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, atlas + '_run_' + str(i) + '_filtered.nii.gz') + ' -overwrite'
                 spco(command, shell=True)
 
+                ################## EROD the seed if possible ##################
+                # Load your atlas image
+                atlas_path = opj(dir_fMRI_Refth_RS_prepro1, atlas + '_run_' + str(i) + '_filtered.nii.gz')
+                atlas_img = ants.image_read(atlas_path)
+                # Get the unique region labels in the atlas
+                labels = np.unique(atlas_img.numpy())  # Assumes label 0 is background
+
+                # Erosion function
+                def erode_region(region, iterations=1):
+                    binary_mask = region > 0  # Create a binary mask of the region
+                    eroded_mask = ndimage.binary_erosion(binary_mask, iterations=iterations)
+                    return eroded_mask.astype(np.uint8)
+
+                # Create an empty array to store the final results
+                final_result = np.zeros_like(atlas_img.numpy())
+
+                # Iterate over each label in the atlas, skipping background (0)
+                for label in labels:
+                    if label == 0:
+                        continue  # Skip background
+                    print(f"Processing label: {label}")
+                    # Isolate the current region (region is 1 where label matches, else 0)
+                    region_mask = (atlas_img.numpy() == label).astype(np.uint8)
+                    # Try erosion by 1 voxel
+                    eroded_region_1 = erode_region(region_mask, iterations=1)
+                    if np.sum(eroded_region_1) > 0:  # Check if the region still has voxels
+                        print(f"Label {label}: Eroded by 1 voxel, still has voxels.")
+                        final_result[eroded_region_1 > 0] = label
+                    else:
+                        print(f"Label {label}: Eroding by 1 voxel removes all voxels, keeping original region.")
+                        final_result[region_mask > 0] = label  # Keep the original mask
+                    # Try erosion by 2 voxels
+                    eroded_region_2 = erode_region(region_mask, iterations=2)
+                    if np.sum(eroded_region_2) > 0:  # Check if the region still has voxels
+                        print(f"Label {label}: Eroded by 2 voxels, still has voxels.")
+                        final_result[eroded_region_2 > 0] = label
+                    else:
+                        print(
+                            f"Label {label}: Eroding by 2 voxels removes all voxels, keeping 1 voxel erosion or original region.")
+                        # No need to change, we keep the previously applied erosion or original region.
+                # Save the final eroded atlas
+                print(final_result)
+                final_atlas = ants.from_numpy(final_result, spacing=atlas_img.spacing, origin=atlas_img.origin,
+                                              direction=atlas_img.direction)
+                output_path = opj(dir_fMRI_Refth_RS_prepro1, atlas + '_run_' + str(i) + '_filtered_eroded.nii.gz')
+                ants.image_write(final_atlas, output_path)
+                print(f"Eroded atlas saved to: {output_path}")
+
                 ##########################################################################
-                NAD_masker = NiftiLabelsMasker(labels_img=opj(dir_fMRI_Refth_RS_prepro1, atlas + '_run_' + str(i) + '_filtered.nii.gz'),
+                NAD_masker = NiftiLabelsMasker(labels_img=opj(dir_fMRI_Refth_RS_prepro1, atlas + '_run_' + str(i) + '_filtered_eroded.nii.gz'),
                                                 detrend=False,
                                                 smoothing_fwhm=None,
                                                 standardize=False,
@@ -138,7 +197,7 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                     labeled_img2.to_filename(opj(dir_fMRI_Refth_RS_prepro1, atlas + '_filtered.nii.gz'))
 
                     NAD_masker = NiftiLabelsMasker(
-                        labels_img=opj(dir_fMRI_Refth_RS_prepro1, atlas + '_run_' + str(i) + '_filtered.nii.gz'),
+                        labels_img=opj(dir_fMRI_Refth_RS_prepro1, atlas + '_run_' + str(i) + '_filtered_eroded.nii.gz'),
                         detrend=False,
                         smoothing_fwhm=None,
                         standardize=False,
@@ -160,18 +219,16 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                 # The labels we have start with the background (0), hence we skip the
                 # first label
                 # matrices are ordered for block-like representation
-                print(correlation_matrix.shape)
-                print(len(panda_file['region']))
-                print(correlation_matrix)
+                print(bcolors.OKGREEN + str(correlation_matrix.shape) + bcolors.ENDC)
+                print(bcolors.OKGREEN + str(len(panda_file['region'])) + bcolors.ENDC)
+                print(bcolors.OKGREEN + str(correlation_matrix) + bcolors.ENDC)
 
                 plotting.plot_matrix(
                     correlation_matrix,
                     figure=(10, 8),
                     labels=atlas_filtered_list,
                     vmax=0.8,
-                    vmin=-0.8,
-                )
-
+                    vmin=-0.8)
                 plt.savefig(output_results + '/' + atlas + '_run_' + str(i) + 'matrix.png')
 
                 # Convert correlation matrix to a DataFrame
@@ -185,22 +242,19 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                         connection.append(f"{atlas_filtered_list[i]} to {atlas_filtered_list[j]}")
                         value.append(correlation_matrix[i, j])
 
-                print(connection)
-                print(value)
-                print(len(connection))
-                print(len(value))
+                print(bcolors.OKGREEN + str(connection) + bcolors.ENDC)
+                print(bcolors.OKGREEN + str(value) + bcolors.ENDC)
+                print(bcolors.OKGREEN + str(len(connection)) + bcolors.ENDC)
+                print(bcolors.OKGREEN + str(len(value)) + bcolors.ENDC)
                 # Create DataFrame from the list
                 flattened_df = pd.DataFrame([value], columns=connection)
                 flattened_df['ID'] = ID
                 flattened_df['Session'] = Session
-
                 # Display the flattened DataFrame
                 print(flattened_df)
-
                 # Optionally, save the flattened DataFrame to a CSV file
                 flattened_df.to_csv(output_results + '/' + atlas + '_run_' + str(i) + '_flattened_correlation_matrix.csv', index=False)
-
             else:
-                print('WARNING: ' + str(func_filename) + ' not found!!')
+                print(bcolors.WARNING + 'WARNING: ' + str(func_filename) + ' not found!!' + bcolors.ENDC)
 
 

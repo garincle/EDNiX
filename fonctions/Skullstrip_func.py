@@ -83,13 +83,21 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
 
     elif brain_skullstrip == '3dSkullStrip':
         command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
+            '-input ' + input_for_msk + ' -blur_fwhm 2 -orig_vol -mask_vol'
+        spco(command, shell=True)
+        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
+        ' -input ' + output_for_mask + ' -fill_holes -dilate_input -1 1'
+        spco(command, shell=True)
+
+    elif brain_skullstrip == '3dSkullStrip_monkey':
+        command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
             '-input ' + input_for_msk + ' -blur_fwhm 2 -orig_vol -mask_vol -monkey'
         spco(command, shell=True)
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
         ' -input ' + output_for_mask + ' -fill_holes -dilate_input 2'
         spco(command, shell=True)
 
-    elif brain_skullstrip == '3dSkullStrip_nodil':
+    elif brain_skullstrip == '3dSkullStrip_monkeynodil':
         command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
             '-input ' + input_for_msk + ' -blur_fwhm 2 -orig_vol -mask_vol -monkey'
         spco(command, shell=True)
