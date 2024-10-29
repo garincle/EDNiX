@@ -383,9 +383,9 @@ do_not_correct_signal  = False # True or False
 extract_exterior_CSF = False # True or False
 
 ### you can use the White Matter as regressor
-extract_WM = False # True or False
+extract_WM = True # True or False
 #use the eroded  White Matter functional mask (produced during the anat processing)
-use_erode_WM_func_masks  = False # True or False
+use_erode_WM_func_masks  = True # True or False
 
 ### you can use the Ventricules as regressor (not advised for small species as often not enough voxels)
 extract_Vc = False # True or False

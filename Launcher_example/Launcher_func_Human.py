@@ -1,7 +1,7 @@
+
 #import
 import os
 import subprocess
-import glob
 import numpy as np
 import pandas as pd
 import sys
@@ -18,7 +18,6 @@ spco = subprocess.check_output
 
 MAIN_PATH = opj('/','srv','projects','easymribrain')
 sys.path.append(os.path.join(MAIN_PATH,'code','EasyMRI_brain-master'))
-import anatomical._0_Pipeline_launcher
 import fonctions._0_Pipeline_launcher
 
 s_bind = ' --bind ' + opj('/', 'scratch', 'cgarin/') + ',' + MAIN_PATH
@@ -256,7 +255,7 @@ doMaskingfMRI = True # True or False
 #### 3dAllineate is based ont the linerar alignment of the anat to the func to send the anat mask to the func
 
 #### nilearn is a theshold based method (you can play with the threshold level)
-Method_mask_func = '3dSkullStrip' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = 'nilearn' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 
 ### if Method_mask_func=="3dAllineate" choose a method a alignment
 costAllin = 'lpc+' # string
@@ -294,7 +293,7 @@ deoblique_exeption2 = [] # list
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
-type_of_transform = 'SyNBoldAff'
+type_of_transform = 'SyNRA'
 aff_metric_ants = 'MI'
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
@@ -384,7 +383,7 @@ dilate_mask = 0 # int
 #retrain the analysis to the gray matter
 use_cortical_mask_func = False # True or False
 
-selected_atlases = ['atlaslvl3.nii.gz', 'atlaslvl4.nii.gz'] #liste
+selected_atlases = ['atlaslvl3_LR.nii.gz', 'atlaslvl4_LR.nii.gz'] #liste
 
 #######for seed analysis (step 11)
 #### name of the atlases  you want to use for the seed base analysis
@@ -462,7 +461,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,5,6,7,8,9,100,200]
+Skip_step = [100,200]
 
     ############################################################
     ######################## START de pipeline #################

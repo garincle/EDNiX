@@ -386,9 +386,9 @@ do_not_correct_signal  = False # True or False
 extract_exterior_CSF = False # True or False
 
 ### you can use the White Matter as regressor
-extract_WM = False # True or False
+extract_WM = True # True or False
 #use the eroded  White Matter functional mask (produced during the anat processing)
-use_erode_WM_func_masks  = False # True or False
+use_erode_WM_func_masks  = True # True or False
 
 ### you can use the Ventricules as regressor (not advised for small species as often not enough voxels)
 extract_Vc = False # True or False
@@ -407,19 +407,32 @@ dilate_mask = 0 # int
 #retrain the analysis to the gray matter
 use_cortical_mask_func = False # True or False
 
+#######for seed analysis (step 11)
 #### name of the atlases  you want to use for the seed base analysis
-selected_atlases = ['atlaslvl4.nii.gz'] #liste
+selected_atlases = ['atlaslvl3_LR.nii.gz', 'atlaslvl4_LR.nii.gz'] #liste
 
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 panda_files = [pd.DataFrame({'region':[
+'Somatosensory cortex',
+'Posterior parietal cortex',
+'Visual pre and extra striate cortex',
+'Visual striate cortex',
+'Auditory cortex (Superior temporal)',
+'Insula and others in lateral sulcus',
+'Septum',
+'Hippocampal formation',
+'Periarchicortex',
+'Striatum',
+'Basal forebrain',
+'Amygdala',
+'Hypothalamus',
+'Thalamus'],'label':[58,59,61,62,64,67,68,71,74,75,76,79,80,81]}), pd.DataFrame({'region':[
 'retrosplenial',
 'BA 23',
 'BA 24',
 'BA 32',
 'BA 9',
 'OB'],'label':[162,128,114,112,107,153]})] # liste of pandas dataframe
-
-
 
 #### coordinate of the template plot in list form, each number will be a slice (plotting.plot_stat_map = cut_coords)
 cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int

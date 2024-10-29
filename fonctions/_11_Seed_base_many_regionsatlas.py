@@ -116,7 +116,9 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                         output_folder = opj(output_results, Seed_name + '/')
                         if not os.path.exists(output_folder): os.mkdir(output_folder)
 
-                        command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + atlas_filename  + ' -expr "ispositive(a)*(iszero(ispositive((a-' + str(Seed_label) + ')^2)))" -prefix ' + output_folder + '/' + Seed_name + '.nii.gz'
+                        command = ('singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + atlas_filename  +
+                                   ' -expr "ispositive(a)*(iszero(ispositive((a-' + str(Seed_label) + ')^2)))" -prefix '
+                                   + output_folder + '/' + Seed_name + '.nii.gz')
                         spco([command], shell=True)
 
                         # Load the NIfTI image
@@ -152,20 +154,12 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                                 region_mask = (atlas_img.numpy() == label).astype(np.uint8)
                                 # Try erosion by 1 voxel
                                 eroded_region_1 = erode_region(region_mask, iterations=1)
-                                if np.sum(eroded_region_1) > 5:  # Check if the region still has voxels
+                                if np.sum(eroded_region_1) > 10:  # Check if the region still has voxels
                                     print(f"Label {label}: Eroded by 1 voxel, still has voxels.")
                                     final_result[eroded_region_1 > 0] = label
                                 else:
                                     print(f"Label {label}: Eroding by 1 voxel removes all voxels, keeping original region.")
                                     final_result[region_mask > 0] = label  # Keep the original mask
-                                # Try erosion by 2 voxels
-                                eroded_region_2 = erode_region(region_mask, iterations=2)
-                                if np.sum(eroded_region_2) > 5:  # Check if the region still has voxels
-                                    print(f"Label {label}: Eroded by 2 voxels, still has voxels.")
-                                    final_result[eroded_region_2 > 0] = label
-                                else:
-                                    print(f"Label {label}: Eroding by 2 voxels removes all voxels, keeping 1 voxel erosion or original region.")
-                                    # No need to change, we keep the previously applied erosion or original region.
                             # Save the final eroded atlas
                             print(final_result)
                             final_atlas = ants.from_numpy(final_result, spacing=atlas_img.spacing, origin=atlas_img.origin, direction=atlas_img.direction)

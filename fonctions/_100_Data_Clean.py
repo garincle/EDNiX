@@ -39,7 +39,7 @@ def clean(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_R
                 opj(direction_results, root_RS + '_xdtr.nii.gz'),
                 opj(direction_results, root_RS + '_xdtr_deob.nii.gz'),
                 opj(direction_results, root_RS + '_xdtrf_2ref.nii.gz'),
-                opj(direction_results, root_RS + '_xdtrf_2ref_RcT_masked.nii.gz'),
+                #opj(direction_results, root_RS + '_xdtrf_2ref_RcT_masked.nii.gz'),
                 opj(direction_results, root_RS + '_xdtrf_mean_preWARP.nii.gz'),
                 opj(direction_results, root_RS + '_xdtr_mean.nii.gz'),
                 opj(direction_results, root_RS + '_xdtr_mean_deob.nii.gz'),

@@ -26,7 +26,7 @@ spgo = subprocess.getoutput
 #################################################################################################
 
 ##################################################################find the values that are droped because too small
-def extractVol(Pd_allinfo_study, regressor_list, all_ID, all_Session, all_data_path, type_norm, segmentation_name_list, segmentation_ID_list, atlas_names_Seg_list, atlas_ref_list, bids_dir):
+def extractVol(s_bind, afni_sif, Pd_allinfo_study, regressor_list, all_ID, all_Session, all_data_path, type_norm, segmentation_name_list, segmentation_ID_list, atlas_names_Seg_list, atlas_ref_list, bids_dir):
 
     for segmentation, IDSEG, atlas_ref, atlas_names_Seg in zip(atlas_names_Seg_list, segmentation_ID_list, atlas_ref_list, segmentation_name_list):
 
@@ -54,7 +54,9 @@ def extractVol(Pd_allinfo_study, regressor_list, all_ID, all_Session, all_data_p
             label_img = opj(labels_dir ,type_norm + segmentation)
             txtfile = opj(labels_dir ,type_norm + segmentation[:-7] + '.txt')
 
-            table = spco(['3dhistog', '-int', label_img])
+            command = 'singularity run' + s_bind + afni_sif + '3dhistog -int ' + label_img
+            table = spgo(command)
+
             with open(txtfile, 'wb') as myfile:
                 myfile.write(table)
 

@@ -3,6 +3,7 @@ import subprocess
 from nilearn.image import resample_to_img
 from fonctions.extract_filename import extract_filename
 import ants
+from nilearn import plotting
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -22,7 +23,7 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run, ID, dir_prepro, n_for_ANTS, aff_metric_ants, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform, overwrite, s_bind, afni_sif):
+def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run, ID, dir_prepro, n_for_ANTS, aff_metric_ants, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform, overwrite, s_bind, afni_sif):
 
     command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
     ADI = spgo(command).split('\n')
@@ -237,9 +238,47 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepr
     ###finaly mask the func with mask
     for i in range(0, int(nb_run)):
         root_RS = extract_filename(RS[i])
+        root_RS_ref = extract_filename(RS[REF_int])
+
         ### take opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
         
         command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' +   opj(dir_fMRI_Refth_RS_prepro1,'maskDilat.nii.gz') + \
                   ' -b ' + opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtrf_2ref.nii.gz') + \
                   ' -prefix ' +  opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_2ref_RcT_masked.nii.gz') + ' -expr "a*b"'
         spco([command], shell=True)
+
+        if not root_RS == root_RS_ref:  # do not process ref...
+            #### send mask the bold "not in norm", essentially for QC
+            mvt_shft_ANTs_func_to_norm = [opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_warp_0GenericAffine.mat'),
+                opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_warp_1InverseWarp.nii.gz')]
+            w2inv_fwd_func_to_norm = [True, False]
+
+            mask = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1,'maskDilat.nii.gz'))
+            MEAN = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_deob.nii.gz'))
+            TRANS = ants.apply_transforms(fixed=MEAN, moving=mask,
+                                          transformlist=mvt_shft_ANTs_func_to_norm,
+                                          interpolator='nearestNeighbor',
+                                          whichtoinvert=w2inv_fwd_func_to_norm)
+            ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'), ri=False)
+        else:
+            command = 'singularity run' + s_bind + afni_sif + '3dcopy ' + opj(dir_fMRI_Refth_RS_prepro1,'maskDilat.nii.gz') + \
+                      ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz') + overwrite
+            spco([command], shell=True)
+
+        bids_dir = opd(opd(opd(opd(opd(dir_fMRI_Refth_RS_prepro1)))))
+        if not os.path.exists(bids_dir + '/QC/mask_to_fMRI_orig/'): os.mkdir(bids_dir + '/QC/mask_to_fMRI_orig/')
+        ####plot the QC
+        try:
+            display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_deob.nii.gz'), threshold='auto',
+                                         display_mode='mosaic', dim=4)
+            display.add_contours(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'),
+                                 linewidths=.2, colors=['red'])
+            display.savefig(bids_dir + '/QC/mask_to_fMRI_orig/' + root_RS + '_mask_final_in_fMRI_orig.png')
+            # Don't forget to close the display
+            display.close()
+        except:
+            display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_deob.nii.gz'), threshold='auto',
+                                         display_mode='mosaic', dim=4)
+            display.savefig(bids_dir + '/QC/mask_to_fMRI_orig/' + root_RS + '_mask_final_in_fMRI_orig.png')
+            # Don't forget to close the display
+            display.close()

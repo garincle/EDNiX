@@ -3,6 +3,7 @@ import os
 import numpy as np
 import nibabel as nib
 from sklearn.cluster import KMeans
+import shutil
 from fonctions.extract_filename import extract_filename
 class bcolors:
     HEADER = '\033[95m'
@@ -29,27 +30,27 @@ def fMRI_QC_SBA(Seed_name, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMR
     dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func):
 
     for panda_file, atlas in zip(panda_files, selected_atlases):
-        for i in range(0, int(nb_run)):
-            root_RS = extract_filename(RS[i])
+        for direction_results in [dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3]:
 
-            for direction_results in [dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3]:
-                if direction_results == dir_fMRI_Refth_RS_prepro1:
-                    direction = opj(dir_fMRI_Refth_RS_prepro1, '10_Results')
-                    if not os.path.exists(direction): os.mkdir(direction)
-                    output_results = opj(dir_fMRI_Refth_RS_prepro1, '10_Results/SBA')
-                    if not os.path.exists(output_results): os.mkdir(output_results)
+            if direction_results == dir_fMRI_Refth_RS_prepro1:
+                direction = opj(dir_fMRI_Refth_RS_prepro1, '10_Results')
+                output_results = opj(dir_fMRI_Refth_RS_prepro1, '10_Results/SBA')
+            elif direction_results == dir_fMRI_Refth_RS_prepro2:
+                direction = opj(dir_fMRI_Refth_RS_prepro2, '10_Results')
+                output_results = opj(dir_fMRI_Refth_RS_prepro2, '10_Results/SBA')
+            elif direction_results == dir_fMRI_Refth_RS_prepro3:
+                direction = opj(dir_fMRI_Refth_RS_prepro3, '10_Results')
+                output_results = opj(dir_fMRI_Refth_RS_prepro3, '10_Results/SBA')
+            print(direction)
 
-                if direction_results == dir_fMRI_Refth_RS_prepro2:
-                    direction = opj(dir_fMRI_Refth_RS_prepro2, '10_Results')
-                    if not os.path.exists(direction): os.mkdir(direction)
-                    output_results = opj(dir_fMRI_Refth_RS_prepro2, '10_Results/SBA')
-                    if not os.path.exists(output_results): os.mkdir(output_results)
+            if not os.path.exists(direction): os.mkdir(direction)
+            output_results_result = opj(direction, 'fMRI_QC_SBA')
+            print(output_results_result)
+            if os.path.exists(output_results_result): shutil.rmtree(output_results_result)
+            if not os.path.exists(output_results_result): os.mkdir(output_results_result)
 
-                if direction_results == dir_fMRI_Refth_RS_prepro3:
-                    direction = opj(dir_fMRI_Refth_RS_prepro3, '10_Results')
-                    if not os.path.exists(direction): os.mkdir(direction)
-                    output_results = opj(dir_fMRI_Refth_RS_prepro3, '10_Results/SBA')
-                    if not os.path.exists(output_results): os.mkdir(output_results)
+            for i in range(0, int(nb_run)):
+                root_RS = extract_filename(RS[i])
                 ##########################################################################
                 def format_seed_name(seed_name):
                     # Define characters to be replaced with underscores
@@ -114,7 +115,7 @@ def fMRI_QC_SBA(Seed_name, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMR
 
 
                         # Open the file in 'r+' mode (read and write) and add the new line
-                        with open(direction + '/fMRI_QC/' + root_RS + 'QC_result.txt', 'r+') as file:
+                        with open(direction + '/fMRI_QC_SBA/' + root_RS + 'QC_result.txt', 'w') as file:
                             file.seek(0, 2)  # Move the pointer to the end of the file
                             if file.tell() > 0:  # Ensure the file is not empty
                                 file.seek(file.tell() - 1)  # Move to the last character
