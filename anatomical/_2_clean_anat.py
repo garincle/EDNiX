@@ -117,10 +117,8 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
     else:
         raise Exception(bcolors.FAIL + 'ERROR: Align_img_to_template need to be define as string (3dAllineate, @Align_Centers, No)' + bcolors.ENDC)
 
-
     command = 'export AFNI_NIFTI_TYPE_WARN=NO'
     spco([command], shell=True)
-
     command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz')
     dummy = spgo(command).split('\n')
     delta_x = str(round(abs(float(dummy[-1])), 2))
@@ -136,17 +134,6 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
               ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' + \
               ' -input  ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz')
     spco([command], shell=True)
-
-    '''
-    spco(['singularity run' + s_bind + afni_sif + '3dresample', '-master', opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz'), '-prefix', opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz'),
-          '-input', opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz'), '-overwrite'])
-
-    caca2 = resample_to_img(opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz'),
-                            opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz'),
-                            interpolation='nearest')
-    
-    caca2.to_filename(opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz'))
-    '''
 
         ##########################################
         ########## correct anat images ###########
@@ -169,6 +156,13 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
         ' -master ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + \
         ' -input  ' + input_Allin
         spco([command], shell=True)
+
+        if Timage != str(type_norm) + '_' + str(otheranat):
+            command = 'singularity run' + s_bind + afni_sif + '3dAllineate -overwrite -interp NN -1Dmatrix_apply ' + opj(dir_prepro, ID + '_brain_for_Align_Center.1D') + \
+                      ' -prefix ' + opj(dir_prepro, ID + '_acpc_test_QC' + Timage + '.nii.gz') + \
+                      ' -master ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + \
+                      ' -input  ' + opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz')
+            spco([command], shell=True)
 
         ####### optional crop !! save as "ID_acpc_cropped.nii.gz" #######
         if do_manual_crop == True:

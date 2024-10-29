@@ -433,6 +433,9 @@ cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
 cut_coordsY = [-7, -6, -5, -3, -2, 0, 1, 3, 4, 5] #list of int
 cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 
+SBAspace = ['func'] #list containing at least on of the string 'func', 'anat', 'atlas'
+erod_seed  = True
+
 #Threshold the correlation image np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val)
 # threshold_val is the percentage of the correlation image that will be removed
 threshold_val = 10 # int
@@ -486,7 +489,7 @@ Skip_step = [100, 200]
     ############################################################
 
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, anat_func_same_space,
-    correction_direction, REF_int, study_fMRI_Refth, IgotbothT1T2, otheranat, deoblique, orientation,
+    correction_direction, REF_int, study_fMRI_Refth, SBAspace, erod_seed, deoblique, orientation,
     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
     extract_exterior_CSF, extract_WM, n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
     cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,

@@ -32,14 +32,15 @@ ope = os.path.exists
 #################################################################################################
 ####Seed base analysis
 ################################################################################################# 
-def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, 
-    dir_fMRI_Refth_RS_prepro3, RS, nb_run, ID, selected_atlases, panda_files, oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, overwrite,s_bind,afni_sif):
+def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+    dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func,
+        cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, s_bind, afni_sif):
 
     for panda_file, atlas in zip(panda_files, selected_atlases):
-        for i in range(0, int(nb_run)):
-            root_RS = extract_filename(RS[i])
-            for direction_results in [dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3]:
-                if direction_results == dir_fMRI_Refth_RS_prepro1:
+        for direction_results in [dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3]:
+            for i in range(0, int(nb_run)):
+                root_RS = extract_filename(RS[i])
+                if direction_results == dir_fMRI_Refth_RS_prepro1 and 'func' in SBAspace:
                     if oversample_map == True:
                         ###not possible yet
                         studytemplatebrain = opj(dir_fMRI_Refth_RS_prepro1, 'Ref_anat_in_fMRI_anat_resolution.nii.gz')
@@ -57,7 +58,7 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                     output_results = opj(dir_fMRI_Refth_RS_prepro1, '10_Results/SBA')
                     if not os.path.exists(output_results): os.mkdir(output_results)
 
-                if direction_results == dir_fMRI_Refth_RS_prepro2:
+                elif direction_results == dir_fMRI_Refth_RS_prepro2 and 'anat' in SBAspace:
                     if oversample_map == True:
                         ###to test
                         studytemplatebrain = opj(dir_fMRI_Refth_RS_prepro2,'orig_anat_for_plot.nii.gz')
@@ -76,8 +77,7 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                     output_results = opj(dir_fMRI_Refth_RS_prepro2, '10_Results/SBA')
                     if not os.path.exists(output_results): os.mkdir(output_results)
 
-
-                if direction_results == dir_fMRI_Refth_RS_prepro3:
+                elif direction_results == dir_fMRI_Refth_RS_prepro3 and 'atlas' in SBAspace:
                     if oversample_map == True:
                         studytemplatebrain = BASE_SS_coregistr
                     else:
@@ -93,6 +93,8 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                     if not os.path.exists(output_results): os.mkdir(output_results)
                     output_results = opj(dir_fMRI_Refth_RS_prepro3, '10_Results/SBA')
                     if not os.path.exists(output_results): os.mkdir(output_results)
+                else:
+                    raise ValueError(bcolors.FAIL + 'ERROR: SBAspace must be a list containing at least on of atlas, anat, func' + bcolors.ENDC)
 
                 if ope(func_filename):
                     ##########################################################################
@@ -128,7 +130,6 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                         # Check if all the values in the image are zero
                         if np.all(image_data == 0):
                             print(bcolors.WARNING + "WARNING: The NIfTI image is empty (all voxel values are zero)." + bcolors.ENDC)
-
                         else:
                             ################## EROD the seed if possible ##################
                             # Load your atlas image
@@ -152,13 +153,16 @@ def SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fM
                                 print(f"Processing label: {label}")
                                 # Isolate the current region (region is 1 where label matches, else 0)
                                 region_mask = (atlas_img.numpy() == label).astype(np.uint8)
-                                # Try erosion by 1 voxel
-                                eroded_region_1 = erode_region(region_mask, iterations=1)
-                                if np.sum(eroded_region_1) > 10:  # Check if the region still has voxels
-                                    print(f"Label {label}: Eroded by 1 voxel, still has voxels.")
-                                    final_result[eroded_region_1 > 0] = label
+                                if erod_seed == True:
+                                    # Try erosion by 1 voxel
+                                    eroded_region_1 = erode_region(region_mask, iterations=1)
+                                    if np.sum(eroded_region_1) > 10:  # Check if the region still has voxels
+                                        print(f"Label {label}: Eroded by 1 voxel, still has voxels.")
+                                        final_result[eroded_region_1 > 0] = label
+                                    else:
+                                        print(f"Label {label}: Eroding by 1 voxel removes all voxels, keeping original region.")
+                                        final_result[region_mask > 0] = label  # Keep the original mask
                                 else:
-                                    print(f"Label {label}: Eroding by 1 voxel removes all voxels, keeping original region.")
                                     final_result[region_mask > 0] = label  # Keep the original mask
                             # Save the final eroded atlas
                             print(final_result)

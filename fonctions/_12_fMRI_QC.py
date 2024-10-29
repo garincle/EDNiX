@@ -305,8 +305,8 @@ def fMRI_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_
 
                     return list(vals)[3]
 
-                fwhm_val = fwhm(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
-                                    opj(dir_fMRI_Refth_RS_prepro1, 'mask_ref.nii.gz'))
+                fwhm_val = fwhm(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdt_mean.nii.gz'),
+                                    opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
                 print(fwhm_val)
 
                 def load(func_file, mask_file, check4d=True):
