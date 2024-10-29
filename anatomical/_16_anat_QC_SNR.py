@@ -39,28 +39,19 @@ spgo = subprocess.getoutput
 #################################################################################################
 ####Seed base analysis
 #################################################################################################
-def anat_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, bids_dir,s_bind,afni_sif):
-    # This is a function to estimate functional connectivity specificity. See Grandjean 2020 for details on the reasoning
+def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, s_bind, afni_sif):
 
-    direction = dir_fMRI_Refth_RS_prepro1
-    output_results = opj(direction, '10_Results')
-    if not os.path.exists(output_results): os.mkdir(output_results)
-    output_results = opj(direction, '10_Results/fMRI_QC_SNR')
-    if os.path.exists(output_results): shutil.rmtree(output_results)
-    if not os.path.exists(output_results): os.mkdir(output_results)
-
-    atlas_filename = opj(direction, 'atlaslvl1_LR.nii.gz')
-
-    if ope(atlas_filename) == False:
-        raise Exception(bcolors.FAIL + 'ERROR: no altlas lvl 1 LR found, this is a requirement for QC analysis')
-    else:
-        for i in range(0, int(nb_run)):
-            root_RS = extract_filename(RS[i])
-            func_filename = opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtrf_2ref.nii.gz')
-            if ope(func_filename):
+    for Timage in listTimage:
+        direction = opj(labels_dir, type_norm)
+        atlas_filename = opj(direction, 'atlaslvl1_LR.nii.gz')
+        if ope(atlas_filename) == False:
+            raise Exception(bcolors.FAIL + 'ERROR: no altlas lvl 1 LR found, this is a requirement for QC analysis')
+        else:
+            anat_filename = opj(dir_prepro, ID + '_acpc_test_QC' + Timage + '.nii.gz')
+            if ope(anat_filename):
                 # Load the NIfTI images
                 img1 = nib.load(atlas_filename)
-                img2 = nib.load(func_filename)
+                img2 = nib.load(anat_filename)
 
                 # Extract headers
                 header1 = img1.header
@@ -83,14 +74,13 @@ def anat_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_
                         print(bcolors.OKGREEN + f"{field}:" + bcolors.ENDC)
                         print(bcolors.OKGREEN + f"  Image 1: {values[0]}" + bcolors.ENDC)
                         print(bcolors.OKGREEN + f"  Image 2: {values[1]}" + bcolors.ENDC)
-                        caca = nilearn.image.resample_to_img(atlas_filename, func_filename, interpolation='nearest')
+                        caca = nilearn.image.resample_to_img(atlas_filename, anat_filename, interpolation='nearest')
                         caca.to_filename(atlas_filename)
                         extracted_data = nib.load(atlas_filename).get_fdata()
-                        labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
+                        labeled_img2 = nilearn.image.new_img_like(anat_filename, extracted_data, copy_header=True)
                         labeled_img2.to_filename(atlas_filename)
                 else:
                     print(bcolors.OKGREEN + "No differences found in the specified fields." + bcolors.ENDC)
-
 
                 # Atlas labels as described by you
                 labels = {2: '3rd ventricles', 3: '4th ventricles', 7: 'Cerebellum', 5: 'Cerebellum White',
@@ -101,12 +91,12 @@ def anat_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_
                 # Load the atlas and fMRI data
                 atlas_img = nib.load(atlas_filename)
                 atlas_data = atlas_img.get_fdata()
-                fmri_img = nib.load(func_filename)
-                fmri_data = fmri_img.get_fdata()
+                anat_img = nib.load(anat_filename)
+                anat_data = anat_img.get_fdata()
 
                 # Function to calculate SNR for each region and hemisphere
-                def compute_snr(atlas_data, fmri_data, labels, hemisphere_offset=1000):
-                    time_points = fmri_data.shape[-1]
+                def compute_snr(atlas_data, anat_data, labels, hemisphere_offset=1000):
+                    time_points = anat_data.shape[-1]
                     snr_values = {}
 
                     for label, region_name in labels.items():
@@ -114,14 +104,14 @@ def anat_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_
 
                         # Left hemisphere
                         left_mask = atlas_data == label
-                        left_signal = fmri_data[left_mask]  # Shape should be (voxels, time_points)
+                        left_signal = anat_data[left_mask]  # Shape should be (voxels, time_points)
 
                         if left_signal.ndim == 1:
                             left_signal = left_signal[:, np.newaxis]  # Add a new axis if it's 1D
 
                         # Right hemisphere
                         right_mask = atlas_data == label + hemisphere_offset
-                        right_signal = fmri_data[right_mask]
+                        right_signal = anat_data[right_mask]
 
                         if right_signal.ndim == 1:
                             right_signal = right_signal[:, np.newaxis]  # Add a new axis if it's 1D
@@ -132,7 +122,7 @@ def anat_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_
                             right_signal_t = np.mean(right_signal[:, t])
 
                             # Compute noise from bottom 10% of the histogram for the whole brain at t, excluding zero values
-                            brain_values = fmri_data[:, :, :, t].flatten()
+                            brain_values = anat_data[:, :, :, t].flatten()
                             non_zero_values = brain_values[brain_values > 0]  # Exclude zeros
                             if len(non_zero_values) > 0:
                                 noise_threshold = np.percentile(non_zero_values, 10)
@@ -151,10 +141,10 @@ def anat_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_
                     return snr_values, noise
 
                 # Compute SNR for each region
-                snr_results, noise = compute_snr(atlas_data, fmri_data, labels)
+                snr_results, noise = compute_snr(atlas_data, anat_data, labels)
 
                 # Create DataFrame and save to CSV
-                data = {'Time': np.arange(fmri_data.shape[-1])}
+                data = {'Time': np.arange(anat_data.shape[-1])}
                 for region, hemispheres in snr_results.items():
                     data[f'{region}_Left'] = hemispheres['Left']
                     data[f'{region}_Right'] = hemispheres['Right']
@@ -864,4 +854,4 @@ def anat_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_
                         f.write(line)
                         f.write('\n')
             else:
-                print(bcolors.WARNING + 'WARNING: ' + str(func_filename) + ' not found!!' + bcolors.ENDC)
+                print(bcolors.WARNING + 'WARNING: ' + str(anat_filename) + ' not found!!' + bcolors.ENDC)

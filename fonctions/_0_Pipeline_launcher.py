@@ -45,7 +45,7 @@ import fonctions._100_Data_Clean
 import fonctions._200_Data_QC
 
 def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, anat_func_same_space, 
-    correction_direction, REF_int, study_fMRI_Refth, IgotbothT1T2, otheranat, deoblique, orientation,
+    correction_direction, REF_int, study_fMRI_Refth, SBAspace, erod_seed, deoblique, orientation,
     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
     extract_exterior_CSF, extract_WM, n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
     cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
@@ -474,8 +474,9 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             else:
                 print(bcolors.OKGREEN + '##########   Working on step ' + str(11) + ' _11_Seed_base_many_regionsatlas  ###############' + bcolors.ENDC)
                 print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session) + bcolors.ENDC)
-                fonctions._11_Seed_base_many_regionsatlas.SBA(volumes_dir, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                dir_fMRI_Refth_RS_prepro3, RS, nb_run, ID, selected_atlases, panda_files, oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, overwrite,s_bind,afni_sif)
+                fonctions._11_Seed_base_many_regionsatlas.SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+                dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func,
+                cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, s_bind, afni_sif)
 
             if 12 in Skip_step:
                 print(bcolors.OKGREEN + 'skip step ' + str(12) + bcolors.ENDC)

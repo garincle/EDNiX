@@ -62,7 +62,7 @@ def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_
                 if opb(atlas) in ['Vmask.nii.gz', 'Wmask.nii.gz', 'Gmask.nii.gz']:
                     dir_out = masks_dir
                 else:
-                    dir_out = masks_dir
+                    dir_out = labels_dir
 
                 TRANS = ants.apply_transforms(fixed=brain_img, moving=IMG,
                                               transformlist=transfo_concat, interpolator='nearestNeighbor',whichtoinvert=w2inv_fwd)

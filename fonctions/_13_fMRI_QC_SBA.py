@@ -26,7 +26,7 @@ ope = os.path.exists
 #################################################################################################
 ####Seed base analysis
 #################################################################################################
-def fMRI_QC_SBA(Seed_name, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+def fMRI_QC_SBA(SBAspace, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
     dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func):
 
     for panda_file, atlas in zip(panda_files, selected_atlases):
@@ -112,7 +112,6 @@ def fMRI_QC_SBA(Seed_name, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMR
 
                         # Calculate global clustering index as the average local clustering capacity
                         global_clustering_index = np.mean(capacity)
-
 
                         # Open the file in 'r+' mode (read and write) and add the new line
                         with open(direction + '/fMRI_QC_SBA/' + root_RS + 'QC_result.txt', 'w') as file:
