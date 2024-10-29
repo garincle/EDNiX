@@ -37,30 +37,22 @@ subject = layout.get_subjects()
 print(subject)
 tasks = layout.get_tasks()
 print(tasks)
-
 ###report
 report = BIDSReport(layout)
 #counter = report.generate()
 #main_report = counter.most_common()[0][0]
 #print(main_report)
-
-
 # Ask get() to return the ids of subjects that have T1w files #return_type='filename
 T1 = layout.get(return_type='filename', target='subject', suffix='T1w', extension='nii.gz')
 print(T1)
 ###question
-
-
 # Ask get() to return the ids of subjects that have T2w files
 #T2 = layout.get(return_type='filename', target='subject', suffix='T2w', extension='nii.gz')
 #print(T2)
-
 # Ask get() to return the ids of subjects that have T1w files
 Bold = layout.get(return_type='filename', target='subject', suffix='bold', extension='nii.gz')
-
 # Ask get() to return the ids of subjects that have T1w files
 #topup_dir = layout.get(return_type='filename', target='subject', suffix='epi', extension='nii.gz')
-
 # Convert the layout to a pandas dataframe
 df = layout.to_df()
 df.head()

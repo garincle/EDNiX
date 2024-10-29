@@ -78,7 +78,7 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + opj(
             dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz') + \
                   ' -input ' + opj(dir_fMRI_Refth_RS_prepro2,
-                                   'maskDilat_nilearn.nii.gz') + ' -fill_holes -dilate_input 1'
+                                   'maskDilat_nilearn.nii.gz') + ' -fill_holes -dilate_input -1 1'
         spco(command, shell=True)
 
     elif brain_skullstrip == '3dSkullStrip':
@@ -113,37 +113,10 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         ' -input ' + output_for_mask + ' -fill_holes -dilate_input 1'
         spco(command, shell=True)
 
-    elif brain_skullstrip == 'Custum_1':
-        loadimg = nib.load(input_for_msk).get_fdata()
-        loadimgsort85 =  np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], 40)
-        mask_imag = nilearn.image.threshold_img(input_for_msk, loadimgsort85, cluster_threshold=10)
-        mask_imag.to_filename(output_for_mask)
-        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
-        ' -input ' + output_for_mask + ' -fill_holes -dilate_input 1'
-        spco(command, shell=True)
-        command = 'singularity run' + s_bind + afni_sif + '3dresample -master ' + input_for_msk + ' -prefix' + output_for_mask + ' -input ' + output_for_mask + ' -overwrite -bound_type SLAB'
-
     elif brain_skullstrip =='bet2':
         #####creat an approximate brain mask
         command = 'singularity run' + s_bind + fsl_sif + 'bet2 ' + input_for_msk + ' ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz') + \
         ' -f 0.70'
-        spco([command], shell=True)
-        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz') + ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
-        spco(command, shell=True)
-
-    elif brain_skullstrip =='bet2_medium':
-        #####creat an approximate brain mask
-        command = 'singularity run' + s_bind + fsl_sif + 'bet2 ' + input_for_msk + ' ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz') + \
-        ' -f 0.45'
-        spco([command], shell=True)
-        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz') + ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
-        spco(command, shell=True)
-
-    elif brain_skullstrip =='bet2_high':
-        print('brain_skullstrip: applying ' + brain_skullstrip + ' method')
-        #####creat an approximate brain mask
-        command = 'singularity run' + s_bind + fsl_sif + 'bet2 ' + input_for_msk + ' ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz') + \
-        ' -f 0.20'
         spco([command], shell=True)
         command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz') + ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
         spco(command, shell=True)
@@ -278,7 +251,6 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         tmp_mask1 = ants.apply_transforms(fixed=IMG, moving=REF_MASK,
                                           transformlist=mtx1['fwdtransforms'], interpolator='nearestNeighbor')
         tmp_mask1 = ants.threshold_image(tmp_mask1, 0.5, 1, 1, 0, True)
-        tmp_mask1 = ants.morphology(tmp_mask1, operation='dilate', radius=1, mtype='binary', shape='ball')
         tmp_mask1 = ants.iMath(tmp_mask1, operation='GetLargestComponent')
 
     elif brain_skullstrip == 'Custum_ANTS_Garin':

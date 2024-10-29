@@ -40,6 +40,7 @@ import fonctions._10_Correl_matrix
 import fonctions._11_Seed_base_many_regionsatlas
 import fonctions._12_fMRI_QC
 import fonctions._13_fMRI_QC_SBA
+import fonctions._14_fMRI_QC_matrix
 import fonctions._100_Data_Clean
 import fonctions._200_Data_QC
 
@@ -425,7 +426,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             else:
                 print(bcolors.OKGREEN + '##########   Working on step ' + str(5) + ' _5_anat_to_fMRI  ###############' + bcolors.ENDC)
                 print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session) + bcolors.ENDC)
-                fonctions._5_anat_to_fMRI.Refimg_to_meanfMRI(SED_val, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run, ID, dir_prepro, n_for_ANTS, aff_metric_ants, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform, overwrite, s_bind, afni_sif)
+                fonctions._5_anat_to_fMRI.Refimg_to_meanfMRI(REF_int, SED_val, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run, ID, dir_prepro, n_for_ANTS, aff_metric_ants, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform, overwrite, s_bind, afni_sif)
 
             if 6 in Skip_step:
                 print(bcolors.OKGREEN + 'skip step ' + str(6) + bcolors.ENDC)
@@ -481,7 +482,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             else:
                 print(bcolors.OKGREEN + '##########   Working on step ' + str(12) + ' _12_fMRI_QC  ###############' + bcolors.ENDC)
                 print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session) + bcolors.ENDC)
-                fonctions._12_fMRI_QC.fMRI_QC(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, bids_dir,s_bind,afni_sif)
+                fonctions._12_fMRI_QC.fMRI_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, bids_dir,s_bind,afni_sif)
 
             if 13 in Skip_step:
                 print(bcolors.OKGREEN + 'skip step ' + str(13) + bcolors.ENDC)
@@ -491,6 +492,13 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 fonctions._13_fMRI_QC_SBA.fMRI_QC_SBA(Seed_name, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                             dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files, oversample_map,
                             use_cortical_mask_func)
+
+            if 14 in Skip_step:
+                print(bcolors.OKGREEN + 'skip step ' + str(14) + bcolors.ENDC)
+            else:
+                print(bcolors.OKGREEN + '##########   Working on step ' + str(12) + ' _14_fMRI_QC_matrix  ###############' + bcolors.ENDC)
+                print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session) + bcolors.ENDC)
+                fonctions._14_fMRI_QC_matrix.fMRI_QC_matrix(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, bids_dir,s_bind,afni_sif)
 
             if 100 in Skip_step:
                 print(bcolors.OKGREEN + 'skip step ' + str(100) + bcolors.ENDC)

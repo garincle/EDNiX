@@ -3,6 +3,7 @@ import subprocess
 import glob
 from fonctions.extract_filename import extract_filename
 import ants
+from nilearn import plotting
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -55,6 +56,29 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                                   interpolator=n_for_ANTS,
                                   whichtoinvert=w2inv_fwd)
     ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro2, 'Mean_Image_RcT_SS_in_anat.nii.gz'), ri=False)
+
+
+
+    bids_dir = opd(opd(opd(opd(opd(dir_fMRI_Refth_RS_prepro1)))))
+    if not os.path.exists(bids_dir + '/QC/meanIMG_in_anat/'): os.mkdir(bids_dir + '/QC/meanIMG_in_anat/')
+
+    ####plot the QC
+    try:
+        display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz'),
+                                     threshold='auto',
+                                     display_mode='mosaic', dim=4)
+        display.add_contours(opj(dir_fMRI_Refth_RS_prepro2, 'Mean_Image_RcT_SS_in_anat.nii.gz'),
+                             linewidths=.2, colors=['red'])
+        display.savefig(bids_dir + '/QC/meanIMG_in_anat/Mean_Image_RcT_SS_in_anat.png')
+        # Don't forget to close the display
+        display.close()
+    except:
+        display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz'),
+                                     threshold='auto',
+                                     display_mode='mosaic', dim=4)
+        display.savefig(bids_dir + '/QC/meanIMG_in_anat/Mean_Image_RcT_SS_in_anat.png')
+        # Don't forget to close the display
+        display.close()
 
     for i in range(int(nb_run)):
         root_RS = extract_filename(RS[i])

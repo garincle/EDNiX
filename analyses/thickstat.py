@@ -20,7 +20,7 @@ spgo = subprocess.getoutput
 #################################################################################################
 
 ##################################################################find the values that are droped because too small
-def extractThick(Pd_allinfo_study, regressor_list, all_ID, all_Session, all_data_path, segmentation_name_list, segmentation_ID_list, atlas_names_Seg_list, atlas_ref_list, bids_dir, overwrite_option):
+def extractThick(s_bind, wb_sif, Pd_allinfo_study, regressor_list, all_ID, all_Session, all_data_path, segmentation_name_list, segmentation_ID_list, atlas_names_Seg_list, atlas_ref_list, bids_dir, overwrite_option):
 
     for segmentation, IDSEG, atlas_ref, atlas_names_Seg in zip(atlas_names_Seg_list, segmentation_ID_list, atlas_ref_list, segmentation_name_list):
         all_data_volumes = pd.DataFrame()
@@ -65,17 +65,17 @@ def extractThick(Pd_allinfo_study, regressor_list, all_ID, all_Session, all_data
                     key = row['region']
                     for i in range(0, 2):
 
-                        cmd = 'wb_command -cifti-label-to-roi ' + opj(dir_native_resol, segmentation + '.dlabel.nii') + \
+                        cmd = 'singularity run' + s_bind + wb_sif + 'wb_command -cifti-label-to-roi ' + opj(dir_native_resol, segmentation + '.dlabel.nii') + \
                               ' ' + opj(Folder_ROIs, str(key) + '.' + h[i] +  '_rois.dscalar.nii') + ' -map 1 -name ' + h[i] +  '_' + str(key)
                         spco(cmd, shell=True)
 
                         print(str(key) + '.' + h[i] +  '_rois.func.gii')
-                        cmd = 'wb_command -cifti-separate ' + opj(Folder_ROIs, str(key) + '.' + h[i] +  '_rois.dscalar.nii') + ' COLUMN -metric CORTEX_' + H_SIDE[i] + ' ' + \
+                        cmd = 'singularity run' + s_bind + wb_sif + 'wb_command -cifti-separate ' + opj(Folder_ROIs, str(key) + '.' + h[i] +  '_rois.dscalar.nii') + ' COLUMN -metric CORTEX_' + H_SIDE[i] + ' ' + \
                         opj(Folder_ROIs, str(key) + '.' + h[i] +  '_rois.func.gii')
                         spco(cmd, shell=True)
                         print(str(key) + '.' + h[i] + '_rois.func.gii22')
 
-                        DATA = spco('wb_command -metric-stats ' + opj(dir_native_resol, animal_folder  + '.' + h[i] + '.thickness.shape.gii') + \
+                        DATA = spco('singularity run' + s_bind + wb_sif + 'wb_command -metric-stats ' + opj(dir_native_resol, animal_folder  + '.' + h[i] + '.thickness.shape.gii') + \
                                     ' -reduce MEAN -roi ' + opj(Folder_ROIs, str(key) + '.' + h[i] + '_rois.func.gii'), shell=True)
 
                         #DATA = spco('wb_command -metric-vertex-sum ' + opj(dir_native_resol, animal_folder  + '.' + h[i] + '.thickness.shape.gii') + \

@@ -77,19 +77,22 @@ def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Sessi
                                       interpolator=n_for_ANTS, whichtoinvert=w2inv_inv)
         ants.image_write(TRANS, opj(dir_prepro, Timage + '_to_template_SyN_final_max.nii.gz'), ri=False)
 
+        if not os.path.exists(bids_dir + '/QC/anat_to_template/'): os.mkdir(bids_dir + '/QC/anat_to_template/')
+        if not os.path.exists(bids_dir + '/QC/template_to_anat/'): os.mkdir(bids_dir + '/QC/template_to_anat/')
+
         ####plot the QC
         try:
             display = plotting.plot_anat(BASE_SS_coregistr, threshold='auto',
                                          display_mode='mosaic', dim=4)
             display.add_contours(opj(dir_prepro, Timage + '_to_template_SyN_final_max.nii.gz'),
                                  linewidths=.2, colors=['red'])
-            display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png')
+            display.savefig(bids_dir + '/QC/anat_to_template/' + ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png')
             # Don't forget to close the display
             display.close()
         except:
             display = plotting.plot_anat(opj(dir_prepro,'template_to_' + Timage + '_SyN_final_test_matrix_max.nii.gz'), threshold='auto',
                                          display_mode='mosaic', dim=4)
-            display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png')
+            display.savefig(bids_dir + '/QC/template_to_anat/' + ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png')
             # Don't forget to close the display
             display.close()
 

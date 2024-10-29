@@ -2,6 +2,7 @@ import os
 import subprocess
 from fonctions.extract_filename import extract_filename
 import ants
+from nilearn import plotting
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -123,6 +124,27 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         ants.image_write(TRANS, output3, ri=False)
         print(bcolors.OKGREEN + str(output3) + ' done!' + bcolors.ENDC)
 
+        bids_dir = opd(opd(opd(opd(opd(dir_fMRI_Refth_RS_prepro1)))))
+
+
+    if not os.path.exists(bids_dir + '/QC/meanIMG_in_template/'): os.mkdir(bids_dir + '/QC/meanIMG_in_template/')
+    ####plot the QC
+    try:
+        display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz'),
+                                     threshold='auto',
+                                     display_mode='mosaic', dim=4)
+        display.add_contours(opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz'),
+                             linewidths=.2, colors=['red'])
+        display.savefig(bids_dir + '/QC/meanIMG_in_template/Mean_Image_RcT_SS_in_anat.png')
+        # Don't forget to close the display
+        display.close()
+    except:
+        display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz'),
+                                     threshold='auto',
+                                     display_mode='mosaic', dim=4)
+        display.savefig(bids_dir + '/QC/meanIMG_in_anat/Mean_Image_RcT_SS_in_anat.png')
+        # Don't forget to close the display
+        display.close()
             ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
             ## ## ## ## ## ## ## ## ## ## ## ## ## ##  Work on all FUNC ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
             ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##

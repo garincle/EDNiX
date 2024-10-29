@@ -22,8 +22,8 @@ packages = {
     "seaborn": "0.13.2",
     "bids": "0.16.5",
     "openpyxl": "3.1.00",
-    "torch": "2.4.1"
-}
+    "torch": "2.4.1",
+    "nitime": "0.11"}
 
 def install_with_conda(package, version):
     try:

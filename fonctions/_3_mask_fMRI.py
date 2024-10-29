@@ -187,6 +187,7 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_
     ############################### ############################### ############################### 
     ############################ put anat IN Mean image space ##################################
     ############################### ############################### ###############################
+
     if doMaskingfMRI == True:
         if ope(opj(dir_fMRI_Refth_RS_prepro1,'manual_mask.nii.gz')):
                 command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro1,'manual_mask.nii.gz') + \

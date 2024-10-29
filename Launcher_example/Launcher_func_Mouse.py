@@ -130,57 +130,7 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 removelist = []
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in ['jgrAesAWc11L',
- 'jgrAesAWc11L',
- 'jgrAesAWc11R',
- 'jgrAesAWc11R',
- 'jgrAesAWc11R1L',
- 'jgrAesAWc11R1L',
- 'jgrAesAWc12R',
- 'jgrAesAWc12R',
- 'jgrAesAWc1NT',
- 'jgrAesAWc1NT',
- 'jgrAesAWc21L',
- 'jgrAesAWc21L',
- 'jgrAesAWc21R',
- 'jgrAesAWc21R',
- 'jgrAesAWc21R1L',
- 'jgrAesAWc21R1L',
- 'jgrAesAWc22R',
- 'jgrAesAWc22R',
- 'jgrAesISOc11L',
- 'jgrAesISOc11R',
- 'jgrAesISOc11R',
- 'jgrAesISOc11R1L',
- 'jgrAesISOc11R1L',
- 'jgrAesISOc12R',
- 'jgrAesISOc12R',
- 'jgrAesISOc1NT',
- 'jgrAesISOc1NT',
- 'jgrAesISOc21L',
- 'jgrAesISOc21L',
- 'jgrAesISOc21R',
- 'jgrAesISOc21R',
- 'jgrAesISOc21R1L',
- 'jgrAesISOc21R1L',
- 'jgrAesISOc22R',
- 'jgrAesISOc22R',
- 'jgrAesISOc2NT',
- 'jgrAesISOc2NT',
- 'jgrAesMEDISOc11L',
- 'jgrAesMEDISOc11L',
- 'jgrAesMEDISOc11R',
- 'jgrAesMEDISOc11R',
- 'jgrAesMEDISOc11R1L',
- 'jgrAesMEDISOc11R1L',
- 'jgrAesMEDISOc12R',
- 'jgrAesMEDISOc12R',
- 'jgrAesMEDISOc1NT',
- 'jgrAesMEDISOc1NT',
- 'jgrAesMEDISOc21L',
- 'jgrAesMEDISOc21L',
- 'jgrAesMEDISOc21R',
- 'jgrAesMEDISOc21R']:
+    if ID in []:
         removelist.append(num)
 print("you removed: " + str(removelist))
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
@@ -345,8 +295,8 @@ deoblique_exeption2 = [] # list
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
-type_of_transform = 'SyNBold'
-aff_metric_ants = 'mattes'
+type_of_transform = 'SyNRA'
+aff_metric_ants = 'MI'
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
 ### define the acronyme/suffix of the anat as in the BIDS
 type_norm = 'acq-RARE_T2w' # T1 or T2
@@ -416,7 +366,7 @@ extract_WM = True # True or False
 use_erode_WM_func_masks  = True # True or False
 
 ### you can use the Ventricules as regressor (not advised for small species as often not enough voxels)
-extract_Vc = True # True or False
+extract_Vc = False # True or False
 #use the eroded ventricular functional mask (produced during the anat processing)
 use_erode_V_func_masks = False # True or False
 
@@ -434,7 +384,7 @@ use_cortical_mask_func = False # True or False
 
 #######for seed analysis (step 11)
 #### name of the atlases  you want to use for the seed base analysis
-selected_atlases = ['atlaslvl3.nii.gz', 'atlaslvl4.nii.gz'] #liste
+selected_atlases = ['atlaslvl3_LR.nii.gz', 'atlaslvl4_LR.nii.gz'] #liste
 
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 panda_files = [pd.DataFrame({'region':[
@@ -512,7 +462,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,5,6,7,8,9,100,200]
+Skip_step = [100,200]
     ############################################################
     ######################## START de pipeline #################
     ############################################################

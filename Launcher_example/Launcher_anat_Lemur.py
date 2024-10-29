@@ -155,7 +155,7 @@ deoblique='header' #header or WARP or no_deoblique or WARP_without_3drefit
 ###question
 ####WITH deoblique='WARP'
 ##orig RAI
-orientation = 'LIA'
+orientation = 'RPS'
 ####WITH deoblique='header'
 #orientation = 'LSP'
 
@@ -304,7 +304,7 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [1,10,11,12,13,14,15,100,200]
+Skip_step = [10,11,12,13,14,15,100,200]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 print(type_of_transform)

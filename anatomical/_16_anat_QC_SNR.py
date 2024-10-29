@@ -39,19 +39,18 @@ spgo = subprocess.getoutput
 #################################################################################################
 ####Seed base analysis
 #################################################################################################
-def fMRI_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, bids_dir,s_bind,afni_sif):
+def anat_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, bids_dir,s_bind,afni_sif):
+    # This is a function to estimate functional connectivity specificity. See Grandjean 2020 for details on the reasoning
 
-    # Several fnctions are extracted from
-    # https://github.com/preprocessed-connectomes-project/quality-assessment-protocol
-    # See http://preprocessed-connectomes-project.org/quality-assessment-protocol/#installing-the-qap-package for details on the reasoning
-    # and https://hal.science/hal-02326351/file/2018_Neuron_PRIME_DE_NeuroResource_Milham.pdf
     direction = dir_fMRI_Refth_RS_prepro1
     output_results = opj(direction, '10_Results')
     if not os.path.exists(output_results): os.mkdir(output_results)
     output_results = opj(direction, '10_Results/fMRI_QC_SNR')
     if os.path.exists(output_results): shutil.rmtree(output_results)
     if not os.path.exists(output_results): os.mkdir(output_results)
+
     atlas_filename = opj(direction, 'atlaslvl1_LR.nii.gz')
+
     if ope(atlas_filename) == False:
         raise Exception(bcolors.FAIL + 'ERROR: no altlas lvl 1 LR found, this is a requirement for QC analysis')
     else:
@@ -91,6 +90,7 @@ def fMRI_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_
                         labeled_img2.to_filename(atlas_filename)
                 else:
                     print(bcolors.OKGREEN + "No differences found in the specified fields." + bcolors.ENDC)
+
 
                 # Atlas labels as described by you
                 labels = {2: '3rd ventricles', 3: '4th ventricles', 7: 'Cerebellum', 5: 'Cerebellum White',

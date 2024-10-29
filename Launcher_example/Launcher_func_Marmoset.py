@@ -371,7 +371,7 @@ extract_WM = True # True or False
 use_erode_WM_func_masks  = True # True or False
 
 ### you can use the Ventricules as regressor (not advised for small species as often not enough voxels)
-extract_Vc = True # True or False
+extract_Vc = False # True or False
 #use the eroded ventricular functional mask (produced during the anat processing)
 use_erode_V_func_masks = False # True or False
 
@@ -389,7 +389,7 @@ use_cortical_mask_func = False # True or False
 
 #######for seed analysis (step 11)
 #### name of the atlases  you want to use for the seed base analysis
-selected_atlases = ['atlaslvl3.nii.gz', 'atlaslvl4.nii.gz'] #liste
+selected_atlases = ['atlaslvl3_LR.nii.gz', 'atlaslvl4_LR.nii.gz'] #liste
 
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 panda_files = [pd.DataFrame({'region':[
@@ -468,7 +468,7 @@ Seed_name = 'Periarchicortex'
 
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,5,6,7,8,9,100,200]
+Skip_step = [100,200]
     ############################################################
     ######################## START de pipeline #################
     ############################################################
