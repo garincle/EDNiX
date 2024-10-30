@@ -1,17 +1,7 @@
 import nilearn
 import os
-from nilearn import image
-from nilearn.input_data import NiftiLabelsMasker
-import shutil
 import subprocess
 import re
-import os.path as op
-from shutil import copyfile
-import math
-import scipy
-from nitime.lazy import scipy_linalg as linalg
-import nitime.utils as utils
-from fonctions.extract_filename import extract_filename
 import nibabel as nib
 import numpy as np
 import pandas as pd
@@ -39,16 +29,21 @@ spgo = subprocess.getoutput
 #################################################################################################
 ####Seed base analysis
 #################################################################################################
-def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, s_bind, afni_sif):
+def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind, afni_sif):
 
     for Timage in listTimage:
         direction = opj(labels_dir, type_norm)
         atlas_filename = opj(direction, 'atlaslvl1_LR.nii.gz')
-        if ope(atlas_filename) == False:
-            raise Exception(bcolors.FAIL + 'ERROR: no altlas lvl 1 LR found, this is a requirement for QC analysis')
-        else:
-            anat_filename = opj(dir_prepro, ID + '_acpc_test_QC' + Timage + '.nii.gz')
-            if ope(anat_filename):
+        lines = []
+        anat_filename = opj(dir_prepro, ID + '_acpc_test_QC' + Timage + '.nii.gz')
+        brain_mask = opj(masks_dir,'brain_mask_in_anat_DC.nii.gz')
+        output_results =  opj(dir_prepro, 'QC_anat')
+        if not os.path.exists(output_results): os.mkdir(output_results)
+        
+        if ope(anat_filename):
+            if ope(atlas_filename) == False:
+                print(bcolors.WARNING + 'WARNING: no altlas lvl 1 LR found, this is a requirement for some of QC analysis')
+            else:
                 # Load the NIfTI images
                 img1 = nib.load(atlas_filename)
                 img2 = nib.load(anat_filename)
@@ -95,75 +90,68 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, s_bind, afni_sif)
                 anat_data = anat_img.get_fdata()
 
                 # Function to calculate SNR for each region and hemisphere
-                def compute_snr(atlas_data, anat_data, labels, hemisphere_offset=1000):
-                    time_points = anat_data.shape[-1]
+                def compute_snr_single_frame(atlas_data, anat_data, labels, hemisphere_offset=1000):
+                    """
+                    Computes SNR for each region in a single-frame anatomical image.
+
+                    :param atlas_data: 3D array with labeled regions
+                    :param anat_data: 3D anatomical image data array
+                    :param labels: Dictionary of region labels and names
+                    :param hemisphere_offset: Offset for right hemisphere label (not needed for single-frame gray matter)
+                    :return: SNR values per region and the calculated noise value
+                    """
                     snr_values = {}
 
                     for label, region_name in labels.items():
-                        snr_values[region_name] = {'Left': [], 'Right': []}
-
                         # Left hemisphere
                         left_mask = atlas_data == label
-                        left_signal = anat_data[left_mask]  # Shape should be (voxels, time_points)
-
-                        if left_signal.ndim == 1:
-                            left_signal = left_signal[:, np.newaxis]  # Add a new axis if it's 1D
+                        left_signal = anat_data[left_mask]
 
                         # Right hemisphere
                         right_mask = atlas_data == label + hemisphere_offset
                         right_signal = anat_data[right_mask]
 
-                        if right_signal.ndim == 1:
-                            right_signal = right_signal[:, np.newaxis]  # Add a new axis if it's 1D
+                        # Compute signal for each hemisphere
+                        left_signal_avg = np.mean(left_signal) if left_signal.size > 0 else np.nan
+                        right_signal_avg = np.mean(right_signal) if right_signal.size > 0 else np.nan
 
-                        for t in range(time_points):
-                            # Signal at time point t (mean of region)
-                            left_signal_t = np.mean(left_signal[:, t])
-                            right_signal_t = np.mean(right_signal[:, t])
+                        # Compute noise as the standard deviation of the lowest 10% values across the brain
+                        brain_values = anat_data[anat_data > 0].flatten()  # Exclude zero values
+                        noise = np.std(brain_values[brain_values <= np.percentile(brain_values, 10)]) if brain_values.size > 0 else np.nan
 
-                            # Compute noise from bottom 10% of the histogram for the whole brain at t, excluding zero values
-                            brain_values = anat_data[:, :, :, t].flatten()
-                            non_zero_values = brain_values[brain_values > 0]  # Exclude zeros
-                            if len(non_zero_values) > 0:
-                                noise_threshold = np.percentile(non_zero_values, 10)
-                                noise_values = non_zero_values[non_zero_values <= noise_threshold]
-                                noise = np.std(noise_values)
-                            else:
-                                raise ValueError(bcolors.FAIL + '10% of noise is just 0... so calculation of noise can not be calculated correctly')
-
-                            # SNR = signal / noise
-                            left_snr = left_signal_t / noise
-                            right_snr = right_signal_t / noise
-
-                            snr_values[region_name]['Left'].append(left_snr)
-                            snr_values[region_name]['Right'].append(right_snr)
+                        # SNR = signal / noise
+                        snr_values[region_name] = {
+                            'Left': left_signal_avg / noise if noise != 0 else np.nan,
+                            'Right': right_signal_avg / noise if noise != 0 else np.nan
+                        }
 
                     return snr_values, noise
 
-                # Compute SNR for each region
-                snr_results, noise = compute_snr(atlas_data, anat_data, labels)
+                # Example usage
+                atlas_data = nib.load(atlas_filename).get_fdata()
+                anat_data = nib.load(anat_filename).get_fdata()
+                snr_results, noise = compute_snr_single_frame(atlas_data, anat_data, labels)
 
-                # Create DataFrame and save to CSV
-                data = {'Time': np.arange(anat_data.shape[-1])}
-                for region, hemispheres in snr_results.items():
-                    data[f'{region}_Left'] = hemispheres['Left']
-                    data[f'{region}_Right'] = hemispheres['Right']
+                # Prepare data for CSV and plotting
+                data = {'Region': list(snr_results.keys())}
+                data['Left_SNR'] = [values['Left'] for values in snr_results.values()]
+                data['Right_SNR'] = [values['Right'] for values in snr_results.values()]
 
+                # Save SNR values to CSV
                 df = pd.DataFrame(data)
-                df.to_csv(output_results + '/' + root_RS + 'snr_regions.csv', index=False)
+                df.to_csv(opj(output_results, f'{Timage}_snr_regions_single_frame.csv'), index=False)
 
-                # Plot the results
+                # Plot SNR values per region
                 plt.figure(figsize=(10, 6))
-                for region in labels.values():
-                    plt.plot(df['Time'], df[f'{region}_Left'], label=f'{region} Left', linestyle='--')
-                    plt.plot(df['Time'], df[f'{region}_Right'], label=f'{region} Right')
-
-                plt.xlabel('Time')
+                plt.bar(df['Region'], df['Left_SNR'], label='Left Hemisphere', alpha=0.6)
+                plt.bar(df['Region'], df['Right_SNR'], label='Right Hemisphere', alpha=0.6, bottom=df['Left_SNR'])
+                plt.xlabel('Region')
                 plt.ylabel('SNR')
-                plt.title('SNR of Brain Regions Over Time')
-                plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+                plt.title('SNR of Brain Regions in Single Frame')
+                plt.xticks(rotation=45, ha='right')
+                plt.legend()
                 plt.tight_layout()
-                plt.savefig(output_results + '/' + root_RS + 'snr_plot.png')
+                plt.savefig(opj(output_results, f'{Timage}_snr_single_frame_plot.png'))
                 plt.close()
 
                 # Function to compute average SNR across all regions for gray and white matter (no left and right separation)
@@ -198,29 +186,8 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, s_bind, afni_sif)
                 df['Gray_Matter'] = avg_gray_snr
                 df['White_Matter'] = avg_white_snr
 
-                # Plot Gray and White Matter SNR over time
-                plt.figure(figsize=(10, 6))
-                plt.plot(df['Time'], df['Gray_Matter'], label='Gray Matter', color='blue')
-                plt.plot(df['Time'], df['White_Matter'], label='White Matter', color='green')
-
-                plt.xlabel('Time')
-                plt.ylabel('Average SNR')
-                plt.title('Average SNR for Gray and White Matter Over Time')
-                plt.legend()
-                plt.tight_layout()
-
-                # Save the plot to file
-                output_gray_white_plot = output_results + '/' + root_RS + 'snr_gray_white_plot.png'
-                plt.savefig(output_gray_white_plot)
-                plt.close()
-
-                # Save to a new CSV file with the averages of gray and white matter SNR
-                output_avg_csv = output_results + '/' + root_RS + 'snr_gray_white.csv'
-                df[['Time', 'Gray_Matter', 'White_Matter']].to_csv(output_avg_csv, index=False)
-
                 # Extract the average SNR across all time points for each region, including gray and white
                 average_snr_results = {}
-
                 # Compute the average SNR for each region
                 for region, hemispheres in snr_results.items():
                     avg_left_snr = np.mean(hemispheres['Left'])
@@ -256,602 +223,117 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, s_bind, afni_sif)
                 cnr_val = np.abs(average_snr_results['Gray_Matter'] - average_snr_results['White_Matter']) / noise
                 cortical_contrast = (average_snr_results['White_Matter'] - average_snr_results['Gray_Matter']) / ((average_snr_results['White_Matter'] + average_snr_results['Gray_Matter']) / 2)
 
+                line_QC_func_atlaslvl1 = [f"  cortical_contrast: {cortical_contrast}",
+                                f"  cnr: {cnr_val}",
+                                f"  average_snr_Gray_Matter: {str(average_snr_results['Gray_Matter'])}",
+                                f"  average_snr_White_Matter: {str(average_snr_results['White_Matter'])}",]
 
-                # FWHM Calculation
-                def fwhm(anat_file, mask_file):
-                    """Calculate the FWHM of the input image using AFNI's 3dFWHMx.
-                    - Uses AFNI 3dFWHMx. More details here:
-                        https://afni.nimh.nih.gov/pub/dist/doc/program_help/3dFWHMx.html
+                lines.append(line_QC_func_atlaslvl1)
+                lines.append(line_snr)
 
-                    :type anat_file: str
-                    :param anat_file: The filepath to the anatomical image NIFTI file.
-                    :type mask_file: str
-                    :param mask_file: The filepath to the binary head mask NIFTI file.
-                    :type out_vox: bool
-                    :param out_vox: (default: False) Output the FWHM as number of voxels
-                                    instead of mm (the default).
-                    :rtype: tuple
-                    :return: A tuple of the FWHM values (x, y, z, and combined).
-                    """
+            #################### QC that doesn't require atlaslvl1 ####################
 
-                    command = f'singularity run {s_bind} {afni_sif} 3dFWHMx -overwrite -combined ' \
-                              f'-mask {mask_file} ' \
-                              f'-input {anat_file}'
-                    fwhm_string_list = spgo([command])
-                    print(fwhm_string_list)
+            # FWHM Calculation
+            def fwhm(anat_file, mask_file):
+                """Calculate the FWHM of the input image using AFNI's 3dFWHMx.
+                - Uses AFNI 3dFWHMx. More details here:
+                    https://afni.nimh.nih.gov/pub/dist/doc/program_help/3dFWHMx.html
 
-                    try:
-                        # Use regex to find the line with the four numeric values
-                        match = re.search(r'(\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+)', fwhm_string_list)
-                        if match:
-                            retcode = str(match.group(1))
-                            print(retcode)
-                        vals = np.array(retcode.split(), dtype=np.float64)
+                :type anat_file: str
+                :param anat_file: The filepath to the anatomical image NIFTI file.
+                :type mask_file: str
+                :param mask_file: The filepath to the binary head mask NIFTI file.
+                :type out_vox: bool
+                :param out_vox: (default: False) Output the FWHM as number of voxels
+                                instead of mm (the default).
+                :rtype: tuple
+                :return: A tuple of the FWHM values (x, y, z, and combined).
+                """
 
-                    except Exception as e:
-                        err = "\n\n[!] Something went wrong with AFNI's 3dFWHMx. Error " \
-                              "details: %s\n\n" % e
-                        raise Exception(err)
+                command = f'singularity run {s_bind} {afni_sif} 3dFWHMx -overwrite -combined ' \
+                          f'-mask {mask_file} ' \
+                          f'-input {anat_file}'
+                fwhm_string_list = spgo([command])
+                print(fwhm_string_list)
 
-                    return list(vals)[3]
+                try:
+                    # Use regex to find the line with the four numeric values
+                    match = re.search(r'(\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+)', fwhm_string_list)
+                    if match:
+                        retcode = str(match.group(1))
+                        print(retcode)
+                    vals = np.array(retcode.split(), dtype=np.float64)
 
-                fwhm_val = fwhm(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
-                                    opj(dir_fMRI_Refth_RS_prepro1, 'mask_ref.nii.gz'))
-                print(fwhm_val)
+                except Exception as e:
+                    err = "\n\n[!] Something went wrong with AFNI's 3dFWHMx. Error " \
+                          "details: %s\n\n" % e
+                    raise Exception(err)
 
-                def load(func_file, mask_file, check4d=True):
-                    """Load the functional timeseries data from a NIFTI file into Nibabel data
-                    format, check/validate the data, and remove voxels with zero variance.
+                return list(vals)[3]
 
-                    :type func_file: str
-                    :param func_file: Filepath to the NIFTI file containing the 4D functional
-                                      timeseries.
-                    :type mask_file: str
-                    :param mask_file: Filepath to the NIFTI file containing the binary
-                                      functional brain mask.
-                    :type check4d: bool
-                    :param check4d: (default: True) Check the timeseries data to ensure it is
-                                    four dimensional.
-                    :rtype: Nibabel data
-                    :return: The validated functional timeseries data with voxels of zero
-                             variance excluded.
-                    """
+            fwhm_val = fwhm(anat_filename,
+                            atlas_filename)
+            print(fwhm_val)
 
-                    try:
-                        func_img = nib.load(func_file)
-                        mask_img = nib.load(mask_file)
-                    except:
-                        raise Exception(bcolors.FAIL + 'ERROR' + bcolors.ENDC)
+            line_QC_func = [f"  fwhm_val: {fwhm_val}"]
 
-                    mask = mask_img.get_fdata()
-                    func = func_img.get_fdata().astype(float)
+            def compute_snr_brain_mask(gray_mask_path, anat_data_path, output_path, root_name):
+                """
+                Computes SNR within a specified gray matter mask, plots the SNR over time, and saves the average SNR.
 
-                    mask_var_filtered = remove_zero_variance_voxels(func, mask)
-                    func = func[mask_var_filtered.nonzero()].T  # will have ntpts x nvoxs
+                :param gray_mask_path: Path to binary gray matter mask NIfTI file
+                :param anat_data_path: Path to 4D fMRI data NIfTI file
+                :param output_path: Directory path to save results
+                :param root_name: Root name for output files
+                """
+                # Load the data
+                gray_mask_img = nib.load(gray_mask_path)
+                fmri_img = nib.load(anat_data_path)
+                gray_mask = gray_mask_img.get_fdata().astype(bool)
+                anat_data = fmri_img.get_fdata()
 
-                    return func
+                time_points = anat_data.shape[-1]
+                snr_values = []
 
-                def remove_zero_variance_voxels(func_timeseries, mask):
-                    """Modify a head mask to exclude timeseries voxels which have zero
-                    variance.
+                for t in range(time_points):
+                    # Signal in gray matter mask at time point t
+                    mask_signal = anat_data[gray_mask, t]
 
-                    :type func_timeseries: Nibabel data
-                    :param func_timeseries: The 4D functional timeseries.
-                    :type mask: Nibabel data
-                    :param mask: The binary head mask.
-                    :rtype: Nibabel data
-                    :return: The binary head mask, but with voxels of zero variance excluded.
-                    """
+                    # Compute noise from bottom 10% of histogram values in the whole brain, excluding zeros
+                    brain_values = anat_data[..., t].flatten()
+                    non_zero_values = brain_values[brain_values > 0]
 
-                    # this needs optimization/refactoring
-                    for i in range(0, len(func_timeseries)):
-                        for j in range(0, len(func_timeseries[0])):
-                            for k in range(0, len(func_timeseries[0][0])):
-                                var = func_timeseries[i][j][k].var()
-                                if int(var) == 0:
-                                    mask[i][j][k] = mask[i][j][k] * 0
-
-                    return mask
-
-                def fd_jenkinson(in_file, rmax=80., out_file=None, out_array=True):
-                    """Calculate Jenkinson's Mean Framewise Displacement (aka RMSD) and save
-                    the Mean FD values to a file.
-
-                    - Method to calculate Framewise Displacement (FD) calculations
-                      (Jenkinson et al., 2002).
-                    - Implementation written by @ Krsna, May 2013.
-                    - Jenkinson FD from 3dvolreg's *.affmat12.1D file from -1Dmatrix_save
-                      option input: subject ID, rest_number, name of 6 parameter motion
-                      correction file (an output of 3dvolreg) output: FD_J.1D file
-                    - in_file should have one 3dvolreg affine matrix in one row - NOT the
-                      motion parameters.
-
-                    :type in_file: str
-                    :param in_file: Filepath to the coordinate transformation output vector
-                                    of AFNI's 3dvolreg (generated by running 3dvolreg with
-                                    the -1Dmatrix_save option).
-                    :type rmax: float
-                    :param rmax: (default: 80.0) The default radius of a sphere that
-                                 represents the brain.
-                    :type out_file: str
-                    :param out_file: (default: None) The filepath to where the output file
-                                     should be written.
-                    :type out_array: bool
-                    :param out_array: (default: False) Flag to return the data in a Python
-                                      NumPy array instead of an output file.
-                    :rtype: str
-                    :return: (if out_array=False) The filepath to the output file containing
-                             the Mean FD values.
-                    :rtype: NumPy array
-                    :return: (if out_array=True) An array of the output Mean FD values.
-                    """
-
-                    if out_file is None:
-                        fname, ext = op.splitext(op.basename(in_file))
-                        out_file = op.abspath('%s_fdfile%s' % (fname, ext))
-
-                    # if in_file (coordinate_transformation) is actually the rel_mean output
-                    # of the MCFLIRT command, forward that file
-                    if 'rel.rms' in in_file:
-                        copyfile(in_file, out_file)
-                        return out_file
-
-                    try:
-                        pm_ = np.genfromtxt(in_file)
-                    except:
-                        raise Exception(bcolors.FAIL + 'ERROR: ' + bcolors.ENDC)
-
-                    original_shape = pm_.shape
-                    pm = np.zeros((pm_.shape[0], pm_.shape[1] + 4))
-                    pm[:, :original_shape[1]] = pm_
-                    pm[:, original_shape[1]:] = [0.0, 0.0, 0.0, 1.0]
-
-                    # rigid body transformation matrix
-                    T_rb_prev = np.matrix(np.eye(4))
-
-                    flag = 0
-                    X = [0]  # First timepoint
-                    for i in range(0, pm.shape[0]):
-                        # making use of the fact that the order of aff12 matrix is "row-by-row"
-                        T_rb = np.matrix(pm[i].reshape(4, 4))
-
-                        if flag == 0:
-                            flag = 1
-                        else:
-                            M = np.dot(T_rb, T_rb_prev.I) - np.eye(4)
-                            A = M[0:3, 0:3]
-                            b = M[0:3, 3]
-
-                            FD_J = math.sqrt(
-                                (rmax * rmax / 5) * np.trace(np.dot(A.T, A)) + np.dot(b.T, b))
-                            X.append(FD_J)
-
-                        T_rb_prev = T_rb
-
-                    try:
-                        X = np.array(X).reshape(-1)
-                        np.savetxt(out_file, X)
-                    except:
-                        raise Exception(bcolors.FAIL + 'ERROR: ' + bcolors.ENDC)
-
-                    if out_array:
-                        return np.array(X).reshape(-1)
+                    if len(non_zero_values) > 0:
+                        noise_threshold = np.percentile(non_zero_values, 10)
+                        noise_values = non_zero_values[non_zero_values <= noise_threshold]
+                        noise = np.std(noise_values)
                     else:
-                        return out_file
-                fd_jenkinson_array = fd_jenkinson(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '.aff12.1D'), rmax=80., out_file=None, out_array=True)
-                print(fd_jenkinson_array)
-
-                # Define timepoints (assuming each value in fd_jenkinson_val represents one timepoint)
-                timepoints = np.arange(len(fd_jenkinson_array))
-
-                # Plot the Framewise Displacement values
-                plt.figure(figsize=(10, 6))
-                plt.plot(timepoints, fd_jenkinson_array, label='FD Jenkinson', linestyle='-', color='b')
-
-                # Customize the plot similar to your reference example
-                plt.xlabel('Timepoint')
-                plt.ylabel('Framewise Displacement (FD)')
-                plt.title('Jenkinson Framewise Displacement Over Time')
-                plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-                plt.grid()
-                # Optimize layout and save the plot if desired
-                plt.tight_layout()
-                plt.savefig(f"{output_results}/{root_RS}_fd_jenkinson_plot.png")
-                plt.close()
-                mean_fd = np.mean(fd_jenkinson_array)
-
-                def global_correlation(func_reorient, func_mask):
-                    """Calculate the global correlation (GCOR) of the functional timeseries.
-
-                    - From "Correcting Brain-Wide Correlation Differences in Resting-State
-                      fMRI", Ziad S. Saad et al. More info here:
-                        https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3749702
-
-                    :type func_reorient: str
-                    :param func_reorient: Filepath to the deobliqued, reoriented functional
-                                          timeseries NIFTI file.
-                    :type func_mask: str
-                    :param func_mask: Filepath to the functional brain mask NIFTI file.
-                    :rtype: float
-                    :return: The global correlation (GCOR) value.
-                    """
-
-
-                    zero_variance_func = load(func_reorient, func_mask)
-
-                    list_of_ts = zero_variance_func.transpose()
-
-                    # get array of z-scored values of each voxel in each volume of the
-                    # timeseries
-                    demeaned_normed = []
-
-                    for ts in list_of_ts:
-                        demeaned_normed.append(scipy.stats.mstats.zscore(ts))
-
-                    demeaned_normed = np.asarray(demeaned_normed)
-
-                    # make an average of the normalized timeseries, into one averaged
-                    # timeseries, a vector of N volumes
-                    volume_list = demeaned_normed.transpose()
-
-                    avg_ts = []
-
-                    for voxel in volume_list:
-                        avg_ts.append(voxel.mean())
-
-                    avg_ts = np.asarray(avg_ts)
-
-                    # calculate the global correlation
-                    gcor = (avg_ts.transpose().dot(avg_ts)) / len(avg_ts)
-
-                    return gcor
-
-                gcor_val =  global_correlation(opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtr_deob.nii.gz'),
-                                               opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
-                print(gcor_val)
-
-                def robust_stdev(func):
-                    """Compute robust estimation of standard deviation.
-
-                    :type func: Nibabel data
-                    :param func: The functional timeseries data.
-                    :rtype: float
-                    :return: The standard deviation value.
-                    """
-
-                    lower_qs = np.percentile(func, 25, axis=0)
-                    upper_qs = np.percentile(func, 75, axis=0)
-                    stdev = (upper_qs - lower_qs) / 1.349
-                    return stdev
-
-                def ar_nitime(x, order=1, center=False):
-                    """Derive a model of the noise present in the functional timeseries for
-                    the calculation of the standardized DVARS.
-
-                    - Borrowed from nipy.algorithms.AR_est_YW. aka "from nitime import
-                      algorithms as alg".
-
-                    :type x: Nibabel data
-                    :param x: The vector of one voxel's timeseries.
-                    :type order: int
-                    :param order: (default: 1) Which lag of the autocorrelation of the
-                                  timeseries to use in the calculation.
-                    :type center: bool
-                    :param center: (default: False) Whether to center the timeseries (to
-                                   demean it).
-                    :rtype: float
-                    :return: The modeled noise value for the current voxel's timeseries.
-                    """
-
-                    if center:
-                        x = x.copy()
-                        x = x - x.mean()
-                    r_m = utils.autocorr(x)[:order + 1]
-                    Tm = linalg.toeplitz(r_m[:order])
-                    y = r_m[1:]
-                    ak = linalg.solve(Tm, y)
-                    return ak[0]
-
-                def ar1(func, method=ar_nitime):
-                    """Apply the 'ar_nitime' function across the centered functional
-                    timeseries.
-
-                    :type func: Nibabel data
-                    :param func: The functional timeseries data.
-                    :type method: Python function
-                    :param method: (default: ar_nitime) The algorithm to use to calculate AR1.
-                    :rtype: NumPy array
-                    :return: The vector of AR1 values.
-                    """
-                    func_centered = func - func.mean(0)
-                    ar_vals = np.apply_along_axis(method, 0, func_centered)
-                    return ar_vals
-
-
-                def calc_dvars(func_file, mask_file, output_all=False):
-                    """Calculate the standardized DVARS metric.
-
-                    :type func_file: str
-                    :param func_file: The filepath to the NIFTI file containing the functional
-                                       timeseries.
-                    :type mask_file: str
-                    :param mask_file: The filepath to the NIFTI file containing the binary
-                                      functional brain mask.
-                    :type output_all: bool
-                    :param output_all: (default: False) Whether to output all versions of
-                                       DVARS measure (non-standardized, standardized and
-                                       voxelwise standardized).
-                    :rtype: NumPy array
-                    :return: The output DVARS values vector.
-                    """
-
-                    # load data
-                    func = load(func_file, mask_file)
-
-                    # Robust standard deviation
-                    func_sd = robust_stdev(func)
-
-                    # AR1
-                    func_ar1 = ar1(func)
-
-                    # Predicted standard deviation of temporal derivative
-                    func_sd_pd = np.sqrt(2 * (1 - func_ar1)) * func_sd
-                    diff_sd_mean = func_sd_pd.mean()
-
-                    # Compute temporal difference time series
-                    func_deriv = np.diff(func, axis=0)
-
-                    # DVARS
-                    # (no standardization)
-                    dvars_plain = func_deriv.std(1, ddof=1)  # TODO: Why are we not ^2 this & getting the sqrt?
-                    # standardization
-                    dvars_stdz = dvars_plain / diff_sd_mean
-                    # voxelwise standardization
-                    diff_vx_stdz = func_deriv / func_sd_pd
-                    dvars_vx_stdz = diff_vx_stdz.std(1, ddof=1)
-
-                    if output_all:
-                        try:
-                            out = np.vstack((dvars_stdz, dvars_plain, dvars_vx_stdz))
-                        except:
-                            raise Exception(bcolors.FAIL + 'ERROR: ' + bcolors.ENDC)
-                    else:
-                        try:
-                            out = dvars_stdz.reshape(len(dvars_stdz), 1)
-                        except:
-                            raise Exception(bcolors.FAIL + 'ERROR: ' + bcolors.ENDC)
-
-                    return out
-
-                calc_dvars_array = calc_dvars(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_deob.nii.gz'),
-                                               opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
-                print(calc_dvars_array)
-                timepoints = np.arange(len(calc_dvars_array))
-                plt.figure(figsize=(10, 6))
-                plt.plot(timepoints, calc_dvars_array, label='Dvars', linestyle='-', color='b')
-
-                # Customize the plot similar to your reference example
-                plt.xlabel('Timepoint')
-                plt.ylabel('dvars')
-                plt.title('Dvars Over Time')
-                plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-                plt.grid()
-
-                # Optimize layout and save the plot if desired
-                plt.tight_layout()
-                plt.savefig(output_results + '/' + root_RS + '_dvars_plot.png')
-                plt.close()
-                mean_dvars_val = np.mean(calc_dvars_array)
-
-                line_QC_func = [f"  gcor: {gcor_val}", f"  mean_fd: {mean_fd}", f"  mean_dvar: {mean_dvars_val}", f"  fwhm_val: {fwhm_val}",
-                                f"  cortical_contrast: {cortical_contrast}", f"  cnr: {cnr_val}"]
-
-                def plot_motion_parameters(motion_file, output_results):
-                    # Load the motion parameters
-                    motion_params = np.genfromtxt(motion_file)
-                    # Check if motion_params has the right shape (n_frames x 6)
-                    if motion_params.shape[1] != 6:
-                        raise ValueError(
-                            "Expected motion parameters file with 6 columns (3 translations, 3 rotations).")
-                    # Create time vector based on the number of frames
-                    time = np.arange(motion_params.shape[0])
-                    # Create a figure and axis
-                    plt.figure(figsize=(12, 8))
-                    # Plot each motion parameter
-                    labels = ['Translational X', 'Translational Y', 'Translational Z',
-                              'Rotational Pitch', 'Rotational Roll', 'Rotational Yaw']
-                    for i in range(6):
-                        plt.plot(time, motion_params[:, i], label=labels[i])
-                    # Customize the plot
-                    plt.xlabel('Time (frames)')
-                    plt.ylabel('Motion Parameters')
-                    plt.title('Motion Parameters Over Time')
-                    plt.axhline(y=0, color='k', linestyle='--', lw=0.5)  # Add a horizontal line at y=0
-                    plt.legend()
-                    plt.tight_layout()
-
-                    # Save the plot
-                    plt.savefig(f"{output_results}/{root_RS}_motion_parameters_plot.png")
-                    plt.close()
-
-                # Example usage
-                plot_motion_parameters(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_dfile.1D'), output_results)
-
-                def ghost_direction(epi_data_path, mask_data_path, direction="y", ref_file=None,
-                                    out_file=None):
-                    """Calculate the Ghost to Signal Ratio of EPI images.
-
-                    - GSR from Giannelli 2010. More details here:
-                        https://www.ncbi.nlm.nih.gov/pubmed/21081879
-                    - This should be used for EPI images where the phase encoding direction
-                      is known.
-
-                    :type epi_data: Nibabel data
-                    :param epi_data: The mean of the functional timeseries.
-                    :type mask_data: Nibabel data
-                    :param mask_data: The functional brain binary mask data.
-                    :type direction: str
-                    :param direction: (default: 'y') The phase encoding direction of the EPI
-                                      image.
-                    :type ref_file: str
-                    :param ref_file: (default: None) If you are saving the Nyquist ghost mask,
-                                      this is the filepath of the reference file to use to
-                                     populate the header of the ghost mask NIFTI file.
-                    :type out_file: str
-                    :param out_file: (default: None) If you are saving the Nyquist ghost mask,
-                                      this is the filepath to the ghost mask NIFTI file.
-                    :rtype: float
-                    :return: The ghost-to-signal ratio (GSR) value.
-                    """
-
-                    # first we need to make a nyquist ghost mask, we do this by circle
-                    # shifting the original mask by N/2 and then removing the intersection
-                    # with the original mask
-                    epi_img = nib.load(epi_data_path)
-                    epi_data = epi_img.get_fdata()
-
-                    mask_img = nib.load(mask_data_path)
-                    mask_data = mask_img.get_fdata()
-
-                    n2_mask_data = np.zeros_like(mask_data)
-
-                    # rotate by n/2
-                    if direction == "x":
-                        n2 = int(np.floor(mask_data.shape[0] / 2))
-                        n2_mask_data[:n2, :, :] = mask_data[n2:(n2 * 2), :, :]
-                        n2_mask_data[n2:(n2 * 2), :, :] = mask_data[:n2, :, :]
-                    elif direction == "y":
-                        n2 = int(np.floor(mask_data.shape[1] / 2))
-                        n2_mask_data[:, :n2, :] = mask_data[:, n2:(n2 * 2), :]
-                        n2_mask_data[:, n2:(n2 * 2), :] = mask_data[:, :n2, :]
-                    elif direction == "z":
-                        n2 = int(np.floor(mask_data.shape[2] / 2))
-                        n2_mask_data[:, :, :n2] = mask_data[:, :, n2:(n2 * 2)]
-                        n2_mask_data[:, :, n2:(n2 * 2)] = mask_data[:, :, :n2]
-                    else:
-                        raise Exception("Unknown direction %s, should be x, y, or z" \
-                                        % direction)
-
-                    # now remove the intersection with the original mask
-                    n2_mask_data = n2_mask_data * (1 - mask_data)
-
-                    # now create a non-ghost background region, that contains 2s
-                    n2_mask_data = n2_mask_data + 2 * (1 - n2_mask_data - mask_data)
-
-                    # Save mask
-                    if ref_file is not None and out_file is not None:
-                        ref = nib.load(ref_file)
-                        out = nib.Nifti1Image(n2_mask_data, ref.affine, ref.header)
-                        out.to_filename(out_file)
-
-                    # now we calculate the Ghost to signal ratio, but here we define signal
-                    # as the entire foreground image
-                    gsr = (epi_data[n2_mask_data == 1].mean() - epi_data[n2_mask_data == 2].mean()) / epi_data[
-                        n2_mask_data == 0].mean()
-
-                    return gsr
-
-                if correction_direction in ['y', 'y-', 'z', 'z-', 'x', 'x-']:
-                    if correction_direction in ['y', 'y-']:
-                        direct_aqc = 'y'
-                    elif correction_direction in ['z', 'z-']:
-                        direct_aqc = 'z'
-                    elif correction_direction in ['x', 'x-']:
-                        direct_aqc = 'x'
-
-                    ghost_direction_val = ghost_direction(opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtr_deob.nii.gz'),
-                                            opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'), direction=direct_aqc,
-                                             ref_file=opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtr_deob.nii.gz'),
-                                              out_file=opj(output_results,root_RS + '_ghost_mask.nii.gz'))
-
-                    line_QC_func.append(f"  ghost_acq_direction: {ghost_direction_val}")
-                    print(line_QC_func)
-                    print(ghost_direction_val)
-
-                def ghost_all(epi_data, mask_data):
-                    """Call the 'ghost_direction' function on all possible phase encoding
-                    directions.
-
-                    :type epi_data: Nibabel data
-                    :param epi_data: The mean of the functional timeseries.
-                    :type mask_data: Nibabel data
-                    :param mask_data: The functional brain binary mask data.
-                    :rtype: tuple
-                    :return: The ghost-to-signal ratios (GSR) of each phase encoding direction.
-                    """
-
-                    directions = ["x", "y"]
-                    gsrs = [ghost_direction(epi_data, mask_data, d) for d in directions]
-
-                    return tuple(gsrs + [None])
-
-                ghost_all_val = ghost_all(opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtr_deob.nii.gz'),
-                                        opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
-
-                line_QC_func.append(f"  ghost_all_direction: {ghost_all_val}")
-                print(line_QC_func)
-                print(ghost_all_val)
-
-                ####### motion metrics #####
-                # Step 1: Load the motion metrics
-                motion_enorm = np.loadtxt(opj(dir_fMRI_Refth_RS_prepro1, root_RS + 'motion_enorm.1D'))  # Euclidean norm values
-                derivatives = np.loadtxt(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_deriv.1D'))  # Derivatives (velocity)
-                censor_1d = np.loadtxt(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_censor.1D'))  # Censored time points
-                outcount = np.loadtxt(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdt_outcount.r.1D'), skiprows=2)  # Censored time points
-
-                # Step 2: Calculate Average Euclidean Norm
-                avg_enorm = np.mean(motion_enorm)
-                # Step 3: Calculate the Censor Fraction
-                # The censor file has 1s for good time points and 0s for censored ones
-                censor_fraction = 1 - np.mean(censor_1d)  # Censored fraction is the inverse of the mean (1 means kept)
-                # Step 4: Calculate Average Absolute Velocity (from the derivatives)
-                # The derivatives file has six columns (3 translations, 3 rotations), we average their absolute values
-                avg_outcount = np.mean(outcount)
-                avg_velocity = np.mean(np.abs(derivatives), axis=0).mean()
-
-                print(bcolors.OKGREEN + f"  avg motion velocity: {avg_velocity}" + bcolors.ENDC)
-                print(bcolors.OKGREEN + f"  avg motion magnitude: {avg_enorm}" + bcolors.ENDC)
-                print(bcolors.OKGREEN + f"  censor_fraction: {censor_fraction}" + bcolors.ENDC)
-                print(bcolors.OKGREEN + f"  outlier proportions: {avg_outcount}" + bcolors.ENDC)
-
-                line_motion = [f"  avg motion velocity: {avg_velocity}", f"  avg motion magnitude: {avg_enorm}", f"  censor_fraction: {censor_fraction}", f"  outlier proportions: {avg_outcount}"]
-
-                ##### extract signal of TNSR values in the test regions
-                # Step 1: Load the NIfTI image (functional or structural)
-
-                for imageQC, QCexplain in zip([opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_stdev.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_tsnr1.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_tsnr2.nii.gz')],['stdev', 'TSNRcvarinv', 'TSNR']):
-                    nifti_img = image.load_img(imageQC)
-                    masker = NiftiLabelsMasker(
-                        labels_img=atlas_filename,
-                        detrend=False,
-                        smoothing_fwhm=None,
-                        standardize=False,
-                        low_pass=None,
-                        high_pass=None,
-                        t_r=None,
-                        memory=None, verbose=5)
-                    # Step 4: Extract the time series from the image
-                    time_series = masker.fit_transform(nifti_img)
-                    # Step 5: The result is a 2D array (time points x regions)
-                    print(bcolors.OKGREEN + "Time series shape (time points x regions): " + str(time_series.shape) + bcolors.ENDC)
-
-                    mean_signal_per_region = np.mean(time_series, axis=1)
-                    print(bcolors.OKGREEN + "Mean signal per region: " + str(mean_signal_per_region) + bcolors.ENDC)
-
-                    if QCexplain == 'stdev':
-                        stdev = mean_signal_per_region
-                    elif QCexplain == 'TSNRcvarinv':
-                        TSNRcvarinv = mean_signal_per_region
-                    elif QCexplain == 'TSNR':
-                        TSNR = mean_signal_per_region
-
-                line_TSNR = [f"  stdev signal: {stdev}", f" TSNR signal: {TSNR}", f" TSNR cvarinv signal: {TSNRcvarinv}"]
-
-                lines = line_motion + line_TSNR + line_snr + line_QC_func
-
-                with open(output_results + '/' + root_RS + 'QC_result.txt', 'w') as f:
-                    for line in lines:
-                        f.write(line)
-                        f.write('\n')
-            else:
-                print(bcolors.WARNING + 'WARNING: ' + str(anat_filename) + ' not found!!' + bcolors.ENDC)
+                        raise ValueError("10% of noise is just 0; noise calculation cannot be completed.")
+
+                    # Calculate SNR for the time point
+                    snr = np.mean(mask_signal) / noise
+                    snr_values.append(snr)
+
+                # Calculate the average SNR
+                avg_snr = np.mean(snr_values)
+                print(f"Average SNR in gray matter mask: {avg_snr}")
+                return avg_snr
+
+            # Example usage
+            compute_snr_brain_mask_val = compute_snr_brain_mask(
+                brain_mask,
+                anat_filename,
+                output_results, Timage)
+            line_QC_func.append(f"  snr_brain_mask {compute_snr_brain_mask_val}")
+
+            lines.append(line_QC_func)
+            flattened_list = [item for sublist in lines for item in sublist]
+
+            print(bcolors.OKGREEN + 'QC will look like ' + str(flattened_list) + bcolors.ENDC)
+
+            with open(output_results + '/' + Timage + 'QC_result.txt', 'w') as f:
+                for line in flattened_list:
+                    f.write(line)
+                    f.write('\n')
+        else:
+            print(bcolors.WARNING + 'WARNING: ' + str(anat_filename) + ' not found!!' + bcolors.ENDC)

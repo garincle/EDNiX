@@ -94,7 +94,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                     output_results = opj(dir_fMRI_Refth_RS_prepro3, '10_Results/SBA')
                     if not os.path.exists(output_results): os.mkdir(output_results)
                 else:
-                    raise ValueError(bcolors.FAIL + 'ERROR: SBAspace must be a list containing at least on of atlas, anat, func' + bcolors.ENDC)
+                    print(bcolors.WARNING + 'WARNING: will not perform ' + str(direction_results) + ' space because SBAspace is ' + str(SBAspace) + bcolors.ENDC)
 
                 if ope(func_filename):
                     ##########################################################################

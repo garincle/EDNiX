@@ -43,6 +43,7 @@ import anatomical._12_make_pial
 import anatomical._13_FS_freeview
 import anatomical._14_Finalise
 import anatomical._15_to_WB
+import anatomical._16_anat_QC_SNR
 import anatomical._100_Data_Clean
 import anatomical._200_Data_QC
 
@@ -90,7 +91,6 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
         listTimage = [otheranat, type_norm]
     else: 
         listTimage = [type_norm]
-
 
     ####################################################################################
     ########################## Start the pipeline !!!!!!!!!!!!!!!!!!!!!!   #############
@@ -422,6 +422,11 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
             print(bcolors.OKGREEN + 'INFO: skip step ' + str(15) + bcolors.ENDC)
         else:
             anatomical._15_to_WB.WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2,s_bind,afni_sif,fsl_sif,fs_sif,wb_sif)
+
+        if 16 in Skip_step:
+            print(bcolors.OKGREEN + 'INFO: skip step ' + str(16) + bcolors.ENDC)
+        else:
+            anatomical._16_anat_QC_SNR.anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind, afni_sif)
 
         if 100 in Skip_step:
                 print(bcolors.OKGREEN + 'INFO: skip step ' + str(100) + bcolors.ENDC)

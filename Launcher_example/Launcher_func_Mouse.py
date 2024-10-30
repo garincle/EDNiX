@@ -257,10 +257,10 @@ doMaskingfMRI = True # True or False
 #### 3dAllineate is based ont the linerar alignment of the anat to the func to send the anat mask to the func
 
 #### nilearn is a theshold based method (you can play with the threshold level)
-Method_mask_func = 'nilearn' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = 'Vol_sammba_350' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 
 ### if Method_mask_func=="3dAllineate" choose a method a alignment
-costAllin = 'lpa' # string
+costAllin = 'lpc' # string
 
 ### if Method_mask_func=="nilearn" choose a cutoff
 lower_cutoff = 0.05 # int
@@ -294,8 +294,8 @@ deoblique_exeption2 = [] # list
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
-type_of_transform = 'SyNRA'
-aff_metric_ants = 'MI'
+type_of_transform = 'SyNBold'
+aff_metric_ants = 'mattes'
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
 ### define the acronyme/suffix of the anat as in the BIDS
@@ -465,7 +465,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [100,200]
+Skip_step = [1,2,100,200]
     ############################################################
     ######################## START de pipeline #################
     ############################################################
