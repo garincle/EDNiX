@@ -357,8 +357,8 @@ diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual'
 
 # if creat_study_template== False you need to provide this
 BASE_SS     = opj(diratlas_orig, 'templateT2.nii.gz') # sting
-BASE_mask   = opj(diratlas_orig, 'BrainMask.nii.gz') # sting
-GM_mask     =opj(diratlas_orig, 'CorticalMask.nii.gz') # sting
+BASE_mask   = opj(diratlas_orig, 'brain_mask.nii.gz') # sting
+GM_mask     =opj(diratlas_orig, 'Gmask.nii.gz') # sting
 
     ##########################################################
     ##### define atlases that are in template space ##########

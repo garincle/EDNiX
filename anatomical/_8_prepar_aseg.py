@@ -71,7 +71,7 @@ def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_
                 spco([command], shell=True)
                 print(bcolors.OKGREEN + 'INFO: done with atlas in subject space! you should check that' + bcolors.ENDC)
             else:
-                print(bcolors.WARNING + 'WARNING: no atlas found' + bcolors.ENDC)
+                print(bcolors.WARNING + 'WARNING: no atlas found for path: ' + str(atlas) + bcolors.ENDC)
 
     #### apply to asegLR
     if ope(Aseg_refLR):
