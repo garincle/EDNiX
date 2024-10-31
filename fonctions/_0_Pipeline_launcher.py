@@ -116,7 +116,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 transfo_concat_Anat = \
                     [opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_1Warp.nii.gz'),
                      opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_0GenericAffine.mat')]
-                w2inv_fwd = [False, False]
+                w2inv_Anat = [False, False]
             else:
                 data_path_max = opj(bids_dir, 'sub-' + ID, 'ses-' + str(max_ses))
                 path_anat_max = opj(data_path_max, 'anat/')
@@ -143,7 +143,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             w2inv_Anat = [True, False]
 
         if IhaveanANAT == True:
-            anat_subject =  opj(dir_prepro, ID + '_acpc_cropped' + TfMRI + '.nii.gz')
+            anat_subject =  opj(volumes_dir,ID + type_norm + '_brain.nii.gz')
             brainmask     = opj(masks_dir,'brain_mask_in_anat_DC.nii.gz')
             if use_erode_V_func_masks == True:
                 V_mask        = opj(masks_dir, type_norm + 'Vmask_erod.nii.gz')
@@ -483,23 +483,22 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             else:
                 print(bcolors.OKGREEN + '##########   Working on step ' + str(12) + ' _12_fMRI_QC  ###############' + bcolors.ENDC)
                 print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session) + bcolors.ENDC)
-                fonctions._12_fMRI_QC.fMRI_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, bids_dir,s_bind,afni_sif)
+                fonctions._12_fMRI_QC.fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind, afni_sif)
 
             if 13 in Skip_step:
                 print(bcolors.OKGREEN + 'skip step ' + str(13) + bcolors.ENDC)
             else:
                 print(bcolors.OKGREEN + '##########   Working on step ' + str(12) + ' _13_fMRI_QC_SBA  ###############' + bcolors.ENDC)
                 print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session) + bcolors.ENDC)
-                fonctions._13_fMRI_QC_SBA.fMRI_QC_SBA(Seed_name, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                            dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files, oversample_map,
-                            use_cortical_mask_func)
-
+                fonctions._13_fMRI_QC_SBA.fMRI_QC_SBA(SBAspace, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+                                                        dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files)
             if 14 in Skip_step:
                 print(bcolors.OKGREEN + 'skip step ' + str(14) + bcolors.ENDC)
             else:
                 print(bcolors.OKGREEN + '##########   Working on step ' + str(12) + ' _14_fMRI_QC_matrix  ###############' + bcolors.ENDC)
                 print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session) + bcolors.ENDC)
-                fonctions._14_fMRI_QC_matrix.fMRI_QC_matrix(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, bids_dir,s_bind,afni_sif)
+                fonctions._14_fMRI_QC_matrix.fMRI_QC_matrix(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+                                                            dir_fMRI_Refth_RS_prepro3, specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, s_bind,afni_sif)
 
             if 100 in Skip_step:
                 print(bcolors.OKGREEN + 'skip step ' + str(100) + bcolors.ENDC)

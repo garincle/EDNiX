@@ -39,7 +39,7 @@ spgo = subprocess.getoutput
 #################################################################################################
 ####Seed base analysis
 #################################################################################################
-def fMRI_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3, specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, bids_dir,s_bind,afni_sif):
+def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind, afni_sif):
 
     # Several fnctions are extracted from
     # https://github.com/preprocessed-connectomes-project/quality-assessment-protocol
@@ -51,7 +51,7 @@ def fMRI_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_
     output_results = opj(direction, '10_Results/fMRI_QC_SNR')
     if os.path.exists(output_results): shutil.rmtree(output_results)
     if not os.path.exists(output_results): os.mkdir(output_results)
-    atlas_filename = opj(direction, 'atlaslvl1_LR.nii.gz')
+    atlas_filename = opj(direction, 'atlaslvl1_ADD_LR.nii.gz')
 
     for i in range(0, int(nb_run)):
         lines = []
@@ -309,48 +309,53 @@ def fMRI_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_
                 lines.append(line_snr)
 
             #################### QC that doesn't require atlaslvl1 ####################
+            line_QC_func = []
+            try:
+                # FWHM Calculation
+                def fwhm(anat_file, mask_file):
+                    """Calculate the FWHM of the input i
+                    mage using AFNI's 3dFWHMx.
+                    - Uses AFNI 3dFWHMx. More details here:
+                        https://afni.nimh.nih.gov/pub/dist/doc/program_help/3dFWHMx.html
 
-            # FWHM Calculation
-            def fwhm(anat_file, mask_file):
-                """Calculate the FWHM of the input image using AFNI's 3dFWHMx.
-                - Uses AFNI 3dFWHMx. More details here:
-                    https://afni.nimh.nih.gov/pub/dist/doc/program_help/3dFWHMx.html
+                    :type anat_file: str
+                    :param anat_file: The filepath to the anatomical image NIFTI file.
+                    :type mask_file: str
+                    :param mask_file: The filepath to the binary head mask NIFTI file.
+                    :type out_vox: bool
+                    :param out_vox: (default: False) Output the FWHM as number of voxels
+                                    instead of mm (the default).
+                    :rtype: tuple
+                    :return: A tuple of the FWHM values (x, y, z, and combined).
+                    """
 
-                :type anat_file: str
-                :param anat_file: The filepath to the anatomical image NIFTI file.
-                :type mask_file: str
-                :param mask_file: The filepath to the binary head mask NIFTI file.
-                :type out_vox: bool
-                :param out_vox: (default: False) Output the FWHM as number of voxels
-                                instead of mm (the default).
-                :rtype: tuple
-                :return: A tuple of the FWHM values (x, y, z, and combined).
-                """
+                    command = f'singularity run {s_bind} {afni_sif} 3dFWHMx -overwrite -combined ' \
+                              f'-mask {mask_file} ' \
+                              f'-input {anat_file}'
+                    fwhm_string_list = spgo([command])
+                    print(fwhm_string_list)
 
-                command = f'singularity run {s_bind} {afni_sif} 3dFWHMx -overwrite -combined ' \
-                          f'-mask {mask_file} ' \
-                          f'-input {anat_file}'
-                fwhm_string_list = spgo([command])
-                print(fwhm_string_list)
+                    try:
+                        # Use regex to find the line with the four numeric values
+                        match = re.search(r'(\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+)', fwhm_string_list)
+                        if match:
+                            retcode = str(match.group(1))
+                            print(retcode)
+                        vals = np.array(retcode.split(), dtype=np.float64)
 
-                try:
-                    # Use regex to find the line with the four numeric values
-                    match = re.search(r'(\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+)', fwhm_string_list)
-                    if match:
-                        retcode = str(match.group(1))
-                        print(retcode)
-                    vals = np.array(retcode.split(), dtype=np.float64)
+                    except Exception as e:
+                        err = "\n\n[!] Something went wrong with AFNI's 3dFWHMx. Error " \
+                              "details: %s\n\n" % e
+                        raise Exception(err)
 
-                except Exception as e:
-                    err = "\n\n[!] Something went wrong with AFNI's 3dFWHMx. Error " \
-                          "details: %s\n\n" % e
-                    raise Exception(err)
+                    return list(vals)[3]
 
-                return list(vals)[3]
-
-            fwhm_val = fwhm(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdt_mean.nii.gz'),
-                                opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
-            print(fwhm_val)
+                fwhm_val = fwhm(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz'),
+                                opj(dir_fMRI_Refth_RS_prepro1,'maskDilat.nii.gz'))
+                print(fwhm_val)
+                line_QC_func.append(f"  fwhm_val: {fwhm_val}")
+            except:
+                print(bcolors.WARNING + 'FWHM calculation failed (the fix is complicated, but it is not a big deal)' + bcolors.ENDC)
 
             def load(func_file, mask_file, check4d=True):
                 """Load the functional timeseries data from a NIFTI file into Nibabel data
@@ -695,10 +700,9 @@ def fMRI_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_
             plt.close()
             mean_dvars_val = np.mean(calc_dvars_array)
 
-            line_QC_func = [f"  gcor: {gcor_val}",
+            line_QC_func2 = [f"  gcor: {gcor_val}",
                             f"  mean_fd: {mean_fd}",
-                            f"  mean_dvar: {mean_dvars_val}",
-                            f"  fwhm_val: {fwhm_val}"]
+                            f"  mean_dvar: {mean_dvars_val}"]
             def plot_motion_parameters(motion_file, output_results):
                 # Load the motion parameters
                 motion_params = np.genfromtxt(motion_file)
@@ -935,6 +939,7 @@ def fMRI_QC(correction_direction, ID, Session, segmentation_name_list, dir_fMRI_
 
             lines.append(line_motion)
             lines.append(line_QC_func)
+            lines.append(line_QC_func2)
             flattened_list = [item for sublist in lines for item in sublist]
 
             print(bcolors.OKGREEN + 'QC will look like ' + str(flattened_list) + bcolors.ENDC)

@@ -46,7 +46,7 @@ report = BIDSReport(layout)
 
 
 # Ask get() to return the ids of subjects that have T1w files #return_type='filename
-T1 = layout.get(return_type='filename', target='subject', suffix='T1w', extension='nii.gz')
+T1 = layout.get(return_type='filename', target='subject', suffix='T1', extension='nii.gz')
 print(T1)
 ###question
 
@@ -185,7 +185,7 @@ endmap = '*_map.nii' # string
 anat_func_same_space = True # True or False
 
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
-TfMRI = 'T1w' # string
+TfMRI = 'T1' # string
 
 #### Specify if you have a T1 and T2 image in the same space
 IgotbothT1T2 = False # True or False
@@ -298,9 +298,9 @@ aff_metric_ants = 'MI'
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
 ### define the acronyme/suffix of the anat as in the BIDS
-type_norm = 'T1w' # T1 or T2
+type_norm = 'T1' # T1 or T2
 ### define the acronyme/suffix of the other anat as in the BIDS
-otheranat = 'T2w' # sting
+otheranat = 'T2FLAIR' # sting
 
 ###### sometime, the functional quality is so poor that co-registering the anat to the functional image will creat mistakes
 ###### if it is the case and if you !!!! FUNC IS IN THE ANAT SPACE !!!!! you may try do_anat_to_func = False,
@@ -318,7 +318,7 @@ creat_study_template = True # True or False
 
 ######no need to answer this question if you are not doing a study template
 #folder where you stored the stdy template
-study_template_atlas_forlder = '/scratch/cgarin/Macaque/BIDS_Cdt_Garin/Study_template_test/studytemplate2_T1/'  # sting
+study_template_atlas_forlder = '/scratch/cgarin/Macaque/BIDS_Cdt_Garin/Study_template_test/'  # sting
 stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_mask.nii.gz') # sting
 stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
 GM_mask_studyT = opj('/scratch/cgarin/Macaque/BIDS_Cdt_Garin/Study_template_test/Atlases_ref_in_stdy_template/Gmask.nii.gz') # sting
@@ -328,8 +328,8 @@ diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual'
 
 # if creat_study_template== False you need to provide this
 BASE_SS     = opj(diratlas_orig, 'template.nii.gz') # sting
-BASE_mask   = opj(diratlas_orig, 'BrainMask.nii.gz') # sting
-GM_mask     =opj(diratlas_orig, 'CorticalMask.nii.gz') # sting
+BASE_mask   = opj(diratlas_orig, 'brain_mask.nii.gz') # sting
+GM_mask     =opj(diratlas_orig, 'Gmask.nii.gz') # sting
 
     ##########################################################
     ##### define atlases that are in template space ##########
@@ -411,7 +411,7 @@ cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
 cut_coordsY = [-7, -6, -5, -3, -2, 0, 1, 3, 4, 5] #list of int
 cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 
-SBAspace = ['func'] #list containing at least on of the string 'func', 'anat', 'atlas'
+SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
 erod_seed  = True
 
 #Threshold the correlation image np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val)

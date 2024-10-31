@@ -270,9 +270,8 @@ opj(diratlas_orig, 'atlaslvl2_LR.nii.gz'),
 opj(diratlas_orig, 'atlaslvl3_LR.nii.gz'),
 opj(diratlas_orig, 'atlaslvl4_LR.nii.gz')]
 
-BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'template.nii.gz') # sting
-BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',species,'BrainMask.nii.gz') # sting
-GM_mask     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',species,'CorticalMask.nii.gz') # sting
+BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'templateT2.nii.gz') # sting
+BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'brain_mask.nii.gz') # sting
 
 ####atlases files
 Aseg_ref    = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',species,'atlas_forSEG_final.nii.gz')

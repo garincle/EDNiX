@@ -129,7 +129,36 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 removelist = []
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in []:
+    if ID in ['147BCBB',
+ '169BAB',
+ '184CB',
+ '263BCE',
+ '263BCE',
+ '276BC',
+ '283CA',
+ '283CCA',
+ '283CCA',
+ '283EA',
+ '283EA',
+ '285AAA',
+ '285AB',
+ '285D',
+ '285D',
+ '285E',
+ '289BB',
+ '289BB',
+ '300BA',
+ '300BA',
+ '310C',
+ '310C',
+ '314CA',
+ '314CA',
+ '365A',
+ '965MBFA',
+ '965MBFC',
+ '965MBG',
+ '965MBGA',
+ '967HACA']:
         removelist.append(num)
 
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
@@ -162,7 +191,7 @@ orientation = 'RPS'
 
 n_for_ANTS='hammingWindowedSinc'
 overwrite_option = True #YES or NO
-type_of_transform = 'SyNBold'
+type_of_transform = 'SyNCC'
 aff_metric_ants = 'MI'
 
 ####Choose to normalize using T1 or T2
@@ -292,6 +321,7 @@ opj(diratlas_orig, 'atlaslvl4_ADD.nii.gz')]
 FreeSlabel_ctab_list = [opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt'),
 opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt'),
 opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt'),
+opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt'),
 opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')]
 
 
@@ -303,7 +333,7 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [10,11,12,13,14,15,16,100,200]
+Skip_step = [1,2,3,4,5,10,11,12,13,14,15,100,200]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 print(type_of_transform)
