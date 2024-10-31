@@ -361,12 +361,12 @@ diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual'
 
 # if creat_study_template== False you need to provide this
 BASE_SS     = opj(diratlas_orig, 'templateT2.nii.gz') # sting
-BASE_mask   = opj(diratlas_orig, 'BrainMask.nii.gz') # sting
+BASE_mask   = opj(diratlas_orig, 'brain_mask.nii.gz') # sting
 GM_mask     =opj(diratlas_orig, 'Gmask.nii.gz') # sting
 
-    ##########################################################
-    ##### define atlases that are in template space ##########
-    ##########################################################
+##########################################################
+##### define atlases that are in template space ##########
+##########################################################
 
 ####put all atlases and template to process in the same folder named: ...
 list_atlases = [opj(diratlas_orig, 'TTS.nii.gz')]
@@ -418,7 +418,7 @@ cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
 cut_coordsY = [-7, -6, -5, -3, -2, 0, 1, 3, 4, 5] #list of int
 cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 
-SBAspace = ['func'] #list containing at least on of the string 'func', 'anat', 'atlas'
+SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
 erod_seed  = True
 
 #Threshold the correlation image np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val)

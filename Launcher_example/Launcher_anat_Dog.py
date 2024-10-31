@@ -21,7 +21,7 @@ spco = subprocess.check_output
 MAIN_PATH = opj('/','srv','projects','easymribrain')
 s_bind = ' --bind ' + opj('/', 'scratch', 'cgarin/') + ',' + MAIN_PATH
 s_path = opj(MAIN_PATH, 'code', 'singularity')
-
+species = 'Dog'
 # Freesurfer set up
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
@@ -271,9 +271,8 @@ opj(diratlas_orig, 'atlaslvl2_LR.nii.gz'),
 opj(diratlas_orig, 'atlaslvl3_LR.nii.gz'),
 opj(diratlas_orig, 'atlaslvl4_LR.nii.gz')]
 
-BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas','RatWHS','templateT2.nii.gz') # sting
-BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual','RatWHS','BrainMask.nii.gz') # sting
-GM_mask     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual','RatWHS','CorticalMask.nii.gz') # sting
+BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'template.nii.gz') # sting
+BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'brain_mask.nii.gz') # sting
 
 ####atlases files
 Aseg_ref    = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual','RatWHS','atlas_forSEG_final.nii.gz')

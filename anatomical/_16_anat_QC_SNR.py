@@ -6,6 +6,7 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.ndimage import zoom
 
 class bcolors:
     HEADER = '\033[95m'
@@ -32,11 +33,11 @@ spgo = subprocess.getoutput
 def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind, afni_sif):
 
     for Timage in listTimage:
-        direction = opj(labels_dir, type_norm)
-        atlas_filename = opj(direction, 'atlaslvl1_LR.nii.gz')
+        direction = opj(labels_dir)
+        atlas_filename = opj(direction, type_norm + 'atlaslvl1_ADD_LR.nii.gz')
         lines = []
-        anat_filename = opj(dir_prepro, ID + '_acpc_test_QC' + Timage + '.nii.gz')
-        brain_mask = opj(masks_dir,'brain_mask_in_anat_DC.nii.gz')
+        anat_filename = opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz')
+        brain_mask = opj(masks_dir, Timage + 'brain_mask_final_QCrsp.nii.gz')
         output_results =  opj(dir_prepro, 'QC_anat')
         if not os.path.exists(output_results): os.mkdir(output_results)
         
@@ -156,22 +157,32 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
 
                 # Function to compute average SNR across all regions for gray and white matter (no left and right separation)
                 def compute_average_snr_gray_white(snr_results, gray_regions, white_regions):
-                    avg_gray_snr = []
-                    avg_white_snr = []
-                    time_points = len(next(iter(snr_results.values()))['Left'])  # Length of time points
+                    """
+                    Computes the average SNR for gray and white matter from single-frame SNR results.
 
-                    for t in range(time_points):
-                        # Average gray matter SNR
-                        gray_snr = []
-                        for region in gray_regions:
-                            gray_snr.append(np.mean([snr_results[region]['Left'][t], snr_results[region]['Right'][t]]))
-                        avg_gray_snr.append(np.mean(gray_snr))
+                    :param snr_results: Dictionary with SNR values for each region
+                    :param gray_regions: List of region names for gray matter
+                    :param white_regions: List of region names for white matter
+                    :return: Average SNR values for gray and white matter
+                    """
+                    gray_snr = []
+                    white_snr = []
 
-                        # Average white matter SNR
-                        white_snr = []
-                        for region in white_regions:
-                            white_snr.append(np.mean([snr_results[region]['Left'][t], snr_results[region]['Right'][t]]))
-                        avg_white_snr.append(np.mean(white_snr))
+                    # Calculate average SNR for gray matter regions
+                    for region in gray_regions:
+                        if region in snr_results:
+                            region_snr = np.mean([snr_results[region]['Left'], snr_results[region]['Right']])
+                            gray_snr.append(region_snr)
+
+                    # Calculate average SNR for white matter regions
+                    for region in white_regions:
+                        if region in snr_results:
+                            region_snr = np.mean([snr_results[region]['Left'], snr_results[region]['Right']])
+                            white_snr.append(region_snr)
+
+                    # Return the average SNR across all gray and white matter regions
+                    avg_gray_snr = np.mean(gray_snr) if gray_snr else np.nan
+                    avg_white_snr = np.mean(white_snr) if white_snr else np.nan
 
                     return avg_gray_snr, avg_white_snr
 
@@ -182,21 +193,16 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                 # Compute the average SNR for gray and white matter
                 avg_gray_snr, avg_white_snr = compute_average_snr_gray_white(snr_results, gray_regions, white_regions)
 
-                # Add gray and white matter SNR values to the DataFrame
-                df['Gray_Matter'] = avg_gray_snr
-                df['White_Matter'] = avg_white_snr
-
-                # Extract the average SNR across all time points for each region, including gray and white
+                # Create a dictionary to store the average SNR for each region
                 average_snr_results = {}
-                # Compute the average SNR for each region
                 for region, hemispheres in snr_results.items():
-                    avg_left_snr = np.mean(hemispheres['Left'])
-                    avg_right_snr = np.mean(hemispheres['Right'])
+                    avg_left_snr = hemispheres['Left']
+                    avg_right_snr = hemispheres['Right']
                     average_snr_results[region] = {'Left': avg_left_snr, 'Right': avg_right_snr}
 
-                # Add the average gray and white matter to the dictionary
-                average_snr_results['Gray_Matter'] = np.mean(avg_gray_snr)
-                average_snr_results['White_Matter'] = np.mean(avg_white_snr)
+                # Add the average gray and white matter SNR to the dictionary
+                average_snr_results['Gray_Matter'] = avg_gray_snr
+                average_snr_results['White_Matter'] = avg_white_snr
 
                 # Print the average SNR for each region
                 print("Average SNR for each region:")
@@ -206,19 +212,18 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                     else:
                         print(f"{region}: Average SNR = {values:.2f}")
 
-                # Build the `line_snr` variable, including the average SNR for gray and white matter, and for each brain region.
+                # Build the `line_snr` variable, including the average SNR for gray and white matter, and each brain region
                 line_snr = [
-                    f"  avg snr Gray_Matter: {str(average_snr_results['Gray_Matter'])}",
-                    f"  avg snr White_Matter: {str(average_snr_results['White_Matter'])}"]
+                    f"  avg snr Gray_Matter: {average_snr_results['Gray_Matter']:.2f}",
+                    f"  avg snr White_Matter: {average_snr_results['White_Matter']:.2f}"
+                ]
 
                 # Add average SNR for each specific region (left and right hemispheres)
                 for region, values in average_snr_results.items():
-                    if region not in ['Gray_Matter', 'White_Matter']:  # Skip already handled gray/white matter
-                        if isinstance(values, dict):  # If region has left and right hemisphere data
-                            line_snr.append(f"  avg snr {region} Left: {str(values['Left'])}")
-                            line_snr.append(f"  avg snr {region} Right: {str(values['Right'])}")
-                        else:  # If region is a single value (like gray/white matter)
-                            line_snr.append(f"  avg snr {region}: {str(values)}")
+                    if region not in ['Gray_Matter', 'White_Matter']:
+                        line_snr.append(f"  avg snr {region} Left: {values['Left']:.2f}")
+                        line_snr.append(f"  avg snr {region} Right: {values['Right']:.2f}")
+
 
                 cnr_val = np.abs(average_snr_results['Gray_Matter'] - average_snr_results['White_Matter']) / noise
                 cortical_contrast = (average_snr_results['White_Matter'] - average_snr_results['Gray_Matter']) / ((average_snr_results['White_Matter'] + average_snr_results['Gray_Matter']) / 2)
@@ -232,92 +237,101 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                 lines.append(line_snr)
 
             #################### QC that doesn't require atlaslvl1 ####################
+            line_QC_func = []
+            try:
+                # FWHM Calculation
+                def fwhm(anat_file, mask_file):
+                    """Calculate the FWHM of the input image using AFNI's 3dFWHMx.
+                    - Uses AFNI 3dFWHMx. More details here:
+                        https://afni.nimh.nih.gov/pub/dist/doc/program_help/3dFWHMx.html
 
-            # FWHM Calculation
-            def fwhm(anat_file, mask_file):
-                """Calculate the FWHM of the input image using AFNI's 3dFWHMx.
-                - Uses AFNI 3dFWHMx. More details here:
-                    https://afni.nimh.nih.gov/pub/dist/doc/program_help/3dFWHMx.html
+                    :type anat_file: str
+                    :param anat_file: The filepath to the anatomical image NIFTI file.
+                    :type mask_file: str
+                    :param mask_file: The filepath to the binary head mask NIFTI file.
+                    :type out_vox: bool
+                    :param out_vox: (default: False) Output the FWHM as number of voxels
+                                    instead of mm (the default).
+                    :rtype: tuple
+                    :return: A tuple of the FWHM values (x, y, z, and combined).
+                    """
 
-                :type anat_file: str
-                :param anat_file: The filepath to the anatomical image NIFTI file.
-                :type mask_file: str
-                :param mask_file: The filepath to the binary head mask NIFTI file.
-                :type out_vox: bool
-                :param out_vox: (default: False) Output the FWHM as number of voxels
-                                instead of mm (the default).
-                :rtype: tuple
-                :return: A tuple of the FWHM values (x, y, z, and combined).
-                """
+                    command = f'singularity run {s_bind} {afni_sif} 3dFWHMx -overwrite ' \
+                              f'-mask {mask_file} ' \
+                              f'-input {anat_file}'
+                    fwhm_string_list = spgo([command])
+                    print(fwhm_string_list)
 
-                command = f'singularity run {s_bind} {afni_sif} 3dFWHMx -overwrite -combined ' \
-                          f'-mask {mask_file} ' \
-                          f'-input {anat_file}'
-                fwhm_string_list = spgo([command])
-                print(fwhm_string_list)
+                    try:
+                        # Use regex to find the line with the four numeric values
+                        match = re.search(r'(\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+)', fwhm_string_list)
+                        if match:
+                            retcode = str(match.group(1))
+                            print(retcode)
+                        vals = np.array(retcode.split(), dtype=np.float64)
 
-                try:
-                    # Use regex to find the line with the four numeric values
-                    match = re.search(r'(\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+)', fwhm_string_list)
-                    if match:
-                        retcode = str(match.group(1))
-                        print(retcode)
-                    vals = np.array(retcode.split(), dtype=np.float64)
+                    except Exception as e:
+                        err = "\n\n[!] Something went wrong with AFNI's 3dFWHMx. Error " \
+                              "details: %s\n\n" % e
+                        raise Exception(err)
 
-                except Exception as e:
-                    err = "\n\n[!] Something went wrong with AFNI's 3dFWHMx. Error " \
-                          "details: %s\n\n" % e
-                    raise Exception(err)
+                    return list(vals)[3]
 
-                return list(vals)[3]
-
-            fwhm_val = fwhm(anat_filename,
-                            atlas_filename)
-            print(fwhm_val)
-
-            line_QC_func = [f"  fwhm_val: {fwhm_val}"]
+                fwhm_val = fwhm(anat_filename,
+                                atlas_filename)
+                print(fwhm_val)
+                line_QC_func.append(f"  fwhm_val: {fwhm_val}")
+            except:
+                print(bcolors.WARNING + 'FWHM calculation failed (the fix is complicated, but it is not a big deal)' + bcolors.ENDC)
 
             def compute_snr_brain_mask(gray_mask_path, anat_data_path, output_path, root_name):
                 """
-                Computes SNR within a specified gray matter mask, plots the SNR over time, and saves the average SNR.
+                Computes SNR within a specified gray matter mask for single-frame data, plots the SNR histogram,
+                and saves the average SNR to a text file.
 
                 :param gray_mask_path: Path to binary gray matter mask NIfTI file
-                :param anat_data_path: Path to 4D fMRI data NIfTI file
+                :param anat_data_path: Path to single-frame anatomical data NIfTI file
                 :param output_path: Directory path to save results
                 :param root_name: Root name for output files
                 """
                 # Load the data
                 gray_mask_img = nib.load(gray_mask_path)
-                fmri_img = nib.load(anat_data_path)
+                anat_img = nib.load(anat_data_path)
                 gray_mask = gray_mask_img.get_fdata().astype(bool)
-                anat_data = fmri_img.get_fdata()
+                anat_data = anat_img.get_fdata()
 
-                time_points = anat_data.shape[-1]
-                snr_values = []
+                # Signal within the gray matter mask
+                mask_signal = anat_data[gray_mask]
 
-                for t in range(time_points):
-                    # Signal in gray matter mask at time point t
-                    mask_signal = anat_data[gray_mask, t]
+                # Compute noise from the bottom 10% of histogram values in the whole brain, excluding zeros
+                brain_values = anat_data.flatten()
+                non_zero_values = brain_values[brain_values > 0]
 
-                    # Compute noise from bottom 10% of histogram values in the whole brain, excluding zeros
-                    brain_values = anat_data[..., t].flatten()
-                    non_zero_values = brain_values[brain_values > 0]
+                if len(non_zero_values) > 0:
+                    noise_threshold = np.percentile(non_zero_values, 10)
+                    noise_values = non_zero_values[non_zero_values <= noise_threshold]
+                    noise = np.std(noise_values)
+                else:
+                    raise ValueError("10% of noise is just 0; noise calculation cannot be completed.")
 
-                    if len(non_zero_values) > 0:
-                        noise_threshold = np.percentile(non_zero_values, 10)
-                        noise_values = non_zero_values[non_zero_values <= noise_threshold]
-                        noise = np.std(noise_values)
-                    else:
-                        raise ValueError("10% of noise is just 0; noise calculation cannot be completed.")
+                # Calculate SNR for the single frame
+                snr = np.mean(mask_signal) / noise
 
-                    # Calculate SNR for the time point
-                    snr = np.mean(mask_signal) / noise
-                    snr_values.append(snr)
+                # Plot histogram of SNR values within the gray matter mask
+                plt.figure(figsize=(8, 5))
+                plt.hist(mask_signal, bins=30, color='skyblue', edgecolor='black')
+                plt.axvline(snr, color='red', linestyle='--', label=f'Average SNR: {snr:.2f}')
+                plt.xlabel('Signal Intensity')
+                plt.ylabel('Frequency')
+                plt.title('SNR Histogram within Gray Matter Mask')
+                plt.legend()
+                plt.tight_layout()
+                plt.savefig(f"{output_path}/{root_name}_snr_histogram.png")
+                plt.close()
 
-                # Calculate the average SNR
-                avg_snr = np.mean(snr_values)
-                print(f"Average SNR in gray matter mask: {avg_snr}")
-                return avg_snr
+                # Print and return the average SNR
+                print(f"Average SNR in gray matter mask: {snr}")
+                return snr
 
             # Example usage
             compute_snr_brain_mask_val = compute_snr_brain_mask(

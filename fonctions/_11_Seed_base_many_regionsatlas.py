@@ -37,10 +37,11 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
         cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, s_bind, afni_sif):
 
     for panda_file, atlas in zip(panda_files, selected_atlases):
-        for direction_results in [dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3]:
+        for space in SBAspace:
             for i in range(0, int(nb_run)):
                 root_RS = extract_filename(RS[i])
-                if direction_results == dir_fMRI_Refth_RS_prepro1 and 'func' in SBAspace:
+                if space=='func':
+                    direction_results = dir_fMRI_Refth_RS_prepro1
                     if oversample_map == True:
                         ###not possible yet
                         studytemplatebrain = opj(dir_fMRI_Refth_RS_prepro1, 'Ref_anat_in_fMRI_anat_resolution.nii.gz')
@@ -58,7 +59,8 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                     output_results = opj(dir_fMRI_Refth_RS_prepro1, '10_Results/SBA')
                     if not os.path.exists(output_results): os.mkdir(output_results)
 
-                elif direction_results == dir_fMRI_Refth_RS_prepro2 and 'anat' in SBAspace:
+                elif space=='anat':
+                    direction_results = dir_fMRI_Refth_RS_prepro2
                     if oversample_map == True:
                         ###to test
                         studytemplatebrain = opj(dir_fMRI_Refth_RS_prepro2,'orig_anat_for_plot.nii.gz')
@@ -77,7 +79,8 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                     output_results = opj(dir_fMRI_Refth_RS_prepro2, '10_Results/SBA')
                     if not os.path.exists(output_results): os.mkdir(output_results)
 
-                elif direction_results == dir_fMRI_Refth_RS_prepro3 and 'atlas' in SBAspace:
+                elif space == 'atlas':
+                    direction_results = dir_fMRI_Refth_RS_prepro3
                     if oversample_map == True:
                         studytemplatebrain = BASE_SS_coregistr
                     else:

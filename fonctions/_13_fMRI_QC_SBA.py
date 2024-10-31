@@ -26,25 +26,37 @@ ope = os.path.exists
 #################################################################################################
 ####Seed base analysis
 #################################################################################################
-def fMRI_QC_SBA(SBAspace, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-    dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func):
+def fMRI_QC_SBA(SBAspace, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+    dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files):
 
     for panda_file, atlas in zip(panda_files, selected_atlases):
-        for direction_results in [dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3]:
-
-            if direction_results == dir_fMRI_Refth_RS_prepro1:
-                direction = opj(dir_fMRI_Refth_RS_prepro1, '10_Results')
+        for space in SBAspace:
+            if space == 'func':
+                direction_results = dir_fMRI_Refth_RS_prepro1
+                output_results = opj(dir_fMRI_Refth_RS_prepro1, '10_Results')
+                if not os.path.exists(output_results): os.mkdir(output_results)
                 output_results = opj(dir_fMRI_Refth_RS_prepro1, '10_Results/SBA')
-            elif direction_results == dir_fMRI_Refth_RS_prepro2:
-                direction = opj(dir_fMRI_Refth_RS_prepro2, '10_Results')
-                output_results = opj(dir_fMRI_Refth_RS_prepro2, '10_Results/SBA')
-            elif direction_results == dir_fMRI_Refth_RS_prepro3:
-                direction = opj(dir_fMRI_Refth_RS_prepro3, '10_Results')
-                output_results = opj(dir_fMRI_Refth_RS_prepro3, '10_Results/SBA')
-            print(direction)
+                if not os.path.exists(output_results): os.mkdir(output_results)
 
-            if not os.path.exists(direction): os.mkdir(direction)
-            output_results_result = opj(direction, 'fMRI_QC_SBA')
+            if space == 'anat':
+                direction_results = dir_fMRI_Refth_RS_prepro2
+                output_results = opj(dir_fMRI_Refth_RS_prepro2, '10_Results')
+                if not os.path.exists(output_results): os.mkdir(output_results)
+                output_results = opj(dir_fMRI_Refth_RS_prepro2, '10_Results/SBA')
+                if not os.path.exists(output_results): os.mkdir(output_results)
+
+            if space == 'atlas':
+                direction_results = dir_fMRI_Refth_RS_prepro3
+                output_results = opj(dir_fMRI_Refth_RS_prepro3, '10_Results')
+                if not os.path.exists(output_results): os.mkdir(output_results)
+                output_results = opj(dir_fMRI_Refth_RS_prepro3, '10_Results/SBA')
+                if not os.path.exists(output_results): os.mkdir(output_results)
+            else:
+                print(bcolors.WARNING + 'WARNING: will not perform ' + str(
+                    direction_results) + ' space because SBAspace is ' + str(SBAspace) + bcolors.ENDC)
+
+            if not os.path.exists(output_results): os.mkdir(output_results)
+            output_results_result = opj(output_results, 'fMRI_QC_SBA')
             print(output_results_result)
             if os.path.exists(output_results_result): shutil.rmtree(output_results_result)
             if not os.path.exists(output_results_result): os.mkdir(output_results_result)
@@ -114,7 +126,7 @@ def fMRI_QC_SBA(SBAspace, BASE_SS_coregistr, dir_fMRI_Refth_RS_prepro1, dir_fMRI
                         global_clustering_index = np.mean(capacity)
 
                         # Open the file in 'r+' mode (read and write) and add the new line
-                        with open(direction + '/fMRI_QC_SBA/' + root_RS + 'QC_result.txt', 'w') as file:
+                        with open(output_results + '/fMRI_QC_SBA/' + root_RS + 'QC_result.txt', 'w') as file:
                             file.seek(0, 2)  # Move the pointer to the end of the file
                             if file.tell() > 0:  # Ensure the file is not empty
                                 file.seek(file.tell() - 1)  # Move to the last character

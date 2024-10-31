@@ -253,7 +253,7 @@ list_atlases.append(opj(diratlas_orig,'Gmask.nii.gz'))
 list_atlases.append(opj(diratlas_orig,'Wmask.nii.gz'))
 
 BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'templateT2.nii.gz') # sting
-BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'BrainMask.nii.gz') # sting
+BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'brain_mask.nii.gz') # sting
 
 ####atlases files
 Aseg_ref    = ''
