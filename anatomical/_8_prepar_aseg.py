@@ -1,6 +1,7 @@
 import os
 import subprocess
 import ants
+from nilearn import plotting
 
 class bcolors:
     HEADER = '\033[95m'
@@ -24,7 +25,7 @@ spgo = subprocess.getoutput
 
 
 def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref,
-                type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, check_visualy_each_img, n_for_ANTS, otheranat,overwrite,
+                type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, check_visualy_each_img, n_for_ANTS, otheranat, overwrite, bids_dir, Session,
                 s_bind,afni_sif,itk_sif):
 
     print(bcolors.OKGREEN + "INFO: template mask is " + BASE_SS_mask + bcolors.ENDC)
@@ -82,6 +83,22 @@ def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_
                 print(bcolors.OKGREEN + 'INFO: done with atlas in subject space! you should check that' + bcolors.ENDC)
             else:
                 print(bcolors.WARNING + 'WARNING: no atlas found for path: ' + str(atlas) + bcolors.ENDC)
+
+
+        if not os.path.exists(bids_dir + '/QC/FinalQC'):
+            os.mkdir(bids_dir + '/QC/FinalQC')
+        try:
+            display = plotting.plot_anat(Ref_file, display_mode='mosaic', dim=4)
+            display.add_contours(opj(dir_prepro,'template_in_anat_DC.nii.gz'),
+            linewidths=.2, colors=['red'])
+            display.savefig(bids_dir + '/QC/FinalQC/' + ID + '_' + str(Session) + '_' + type_norm + '_final_template_to_anat.png')
+            # Don't forget to close the display
+            display.close()
+        except:
+            display = plotting.plot_anat(Ref_file, display_mode='mosaic', dim=4)
+            display.savefig(bids_dir + '/QC/FinalQC/' + ID + '_' + str(Session) + '_' + type_norm + '_final_template_to_anat.png')
+            # Don't forget to close the display
+            display.close()
 
     #### apply to asegLR
     if ope(Aseg_refLR):

@@ -373,7 +373,8 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
         if 8 in Skip_step:
             print(bcolors.OKGREEN + 'INFO: skip step ' + str(8) + bcolors.ENDC)
         else:
-            anatomical._8_prepar_aseg.prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref, type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, check_visualy_each_img, n_for_ANTS, otheranat,overwrite,
+            anatomical._8_prepar_aseg.prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref,
+                type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, check_visualy_each_img, n_for_ANTS, otheranat, overwrite, bids_dir, Session,
                 s_bind,afni_sif,itk_sif)
         
         if do_fMRImasks == True:

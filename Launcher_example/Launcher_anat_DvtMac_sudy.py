@@ -59,7 +59,7 @@ df.head()
 
 ##############################################################  TO DO !! ##############################################################
 #### Create a pandas sheet for the dataset (I like it, it help to know what you are about to process
-allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
+allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii')]
 allinfo_study_c.rename(columns={'session': 'Session'}, inplace=True)
 allinfo_study_c.rename(columns={'subject': 'ID'}, inplace=True)
 allinfo_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
@@ -135,7 +135,6 @@ for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session,
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
     if ID in ["Quantum"] and Session in [3]:
         removelist.append(num)
-
 
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
 all_Session =  [item for i, item in enumerate(all_Session) if i not in removelist]
@@ -282,7 +281,7 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,100,200]
+Skip_step = [1,3,4,5,6,9,10,11,12,13,14,15,100,200]
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
