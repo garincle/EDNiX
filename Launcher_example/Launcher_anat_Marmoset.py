@@ -155,7 +155,7 @@ check_visualy_final_mask = False #YES or NO
 deoblique='WARP_without_3drefit' #header or WARP or no_deoblique or WARP_without_3drefit
 n_for_ANTS='hammingWindowedSinc'
 overwrite_option = True #YES or NO
-type_of_transform = 'SyN'
+type_of_transform = 'SyNCC'
 
 ####Choose to normalize using T1 or T2
 type_norm = 'T2w' # T1 or T2
@@ -291,7 +291,7 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [1,3,4,5,6,9,10,11,12,13,14,15,100,200]
+Skip_step = [1,2,3,4,5,6,9,10,11,12,13,14,15,100,200]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 
