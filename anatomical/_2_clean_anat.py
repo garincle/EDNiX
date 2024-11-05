@@ -157,7 +157,7 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
         ' -input  ' + input_Allin
         spco([command], shell=True)
 
-        if Timage != str(type_norm) + '_' + str(otheranat):
+        if Timage in [str(type_norm), str(otheranat)]:
             command = 'singularity run' + s_bind + afni_sif + '3dAllineate -overwrite -interp NN -1Dmatrix_apply ' + opj(dir_prepro, ID + '_brain_for_Align_Center.1D') + \
                       ' -prefix ' + opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz') + \
                       ' -master ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + \
@@ -169,10 +169,11 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
         if do_manual_crop == True:
             command = 'singularity run' + s_bind + fs_sif + 'freeview -v ' + opj(dir_prepro, ID + '_acpc' + Timage + '.nii.gz')
         else:
-            command = 'singularity run' + s_bind + afni_sif + '3dAutobox' + overwrite + ' -input ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + ' -prefix ' + opj(dir_prepro, ID + '_acpc_cropped' + Timage + '.nii.gz') + ' -noclust  -overwrite'
-            spco(command, shell=True)
-            command = 'singularity run' + s_bind + afni_sif + '3dAutobox' + overwrite + ' -input ' + opj(dir_prepro, ID + '_acpc_test_QC' + Timage + '.nii.gz') + ' -prefix ' + opj(dir_prepro, ID + '_acpc_test_QC' + Timage + '.nii.gz') + ' -noclust  -overwrite'
-            spco(command, shell=True)
+            if Timage in [str(type_norm), str(otheranat)]:
+                command = 'singularity run' + s_bind + afni_sif + '3dAutobox' + overwrite + ' -input ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + ' -prefix ' + opj(dir_prepro, ID + '_acpc_cropped' + Timage + '.nii.gz') + ' -noclust  -overwrite'
+                spco(command, shell=True)
+                command = 'singularity run' + s_bind + afni_sif + '3dAutobox' + overwrite + ' -input ' + opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz') + ' -prefix ' + opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz') + ' -noclust  -overwrite'
+                spco(command, shell=True)
 
     for Timage in listTimage:
         ####### optional manual acpc center #######

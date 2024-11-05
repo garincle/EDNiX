@@ -260,7 +260,7 @@ FS_buckner40_GCS = opj(FS_dir,'MacaqueYerkes19')
     ##########################################
     ##### define atlases and tempates ########
     ##########################################
-diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',species) # sting # sting
+diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2',species) # sting # sting
 list_atlases = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
 opj(diratlas_orig, 'atlaslvl2.nii.gz'),
 opj(diratlas_orig, 'atlaslvl3.nii.gz'),
@@ -274,34 +274,12 @@ BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','
 BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'brain_mask.nii.gz') # sting
 
 ####atlases files
-Aseg_ref    = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',species,'atlas_forSEG_final.nii.gz')
-Aseg_refLR  = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',species,'atlas_forSEG_final_LR.nii.gz')
+Aseg_ref    = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2',species,'atlas_forSEG_final.nii.gz')
+Aseg_refLR  = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2',species,'atlas_forSEG_final_LR.nii.gz')
 
 ####atlases files
-Aseg_ref    = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',species,'atlas_forSEG_final.nii.gz')
-Aseg_refLR  = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',species,'atlas_forSEG_final_LR.nii.gz')
-
-species_list = ['Pig', 'Mouse_lemur', 'Marmoset', 'Macaque', 'Chimpanzee', 'DoginCat', 'CatinDog', 'Mouse', 'RatWHS', 'Human']
-middle_value = ['-0.929', '0.091','0.075','0.125','0.5','-0.352','-0.289','-0.05','0','0']
-
-afni_sif    = ' ' + opj(s_path , 'afni_make_build_AFNI_23.1.10.sif') + ' '
-###question of Aseg_refLR
-def get_middle_value_for_species(species_list, value_list, target_species):
-    for i, specie in enumerate(species_list):
-        if specie == target_species:
-            return value_list[i]
-    return None
-
-define_center = get_middle_value_for_species(species_list, middle_value, species)
-### if it doesn't exists let's make it!!! but you need an Aseg_ref!!
-if not ope(Aseg_refLR):
-    command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + Aseg_ref + ' -expr "step(ispositive(x-' + define_center + ')*a)" -prefix ' + opd(
-        Aseg_refLR) + '/Aseg_ref_L.nii.gz'
-    spco([command], shell=True)
-    command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opd(
-        Aseg_refLR) + '/Aseg_ref_L.nii.gz -b ' + Aseg_ref + ' -expr "ifelse(a, a*255,step(b)*127)" -prefix ' + Aseg_refLR
-    spco([command], shell=True)
-
+Aseg_ref    = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2',species,'atlas_forSEG_final.nii.gz')
+Aseg_refLR  = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2',species,'atlas_forSEG_final_LR.nii.gz')
 
 #### for 14 ####
 list_atlases_2 = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),

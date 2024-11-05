@@ -357,7 +357,7 @@ stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
 GM_mask_studyT = opj('/srv/projects/easymribrain/data/MRI/Bat/BIDS_bat/sub-1/ses-1/anat/native/02_Wb/volumes/masks/acq-coronal_T2wGmask.nii.gz') # sting
 
 ########## if creat_study_template = False ##########
-diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual', species)
+diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2', species)
 
 # if creat_study_template== False you need to provide this
 BASE_SS     = opj(diratlas_orig, 'templateT2.nii.gz') # sting

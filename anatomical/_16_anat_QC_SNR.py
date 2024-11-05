@@ -34,7 +34,8 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
 
     for Timage in listTimage:
         direction = opj(labels_dir)
-        atlas_filename = opj(direction, type_norm + 'atlaslvl1_ADD_LR.nii.gz')
+        atlas_filename_rsp = opj(direction, type_norm + 'atlaslvl1_LRrspQC' + Timage + '.nii.gz')
+        atlas_filename = opj(direction, type_norm + 'atlaslvl1_LR.nii.gz')
         lines = []
         anat_filename = opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz')
         brain_mask = opj(masks_dir, Timage + 'brain_mask_final_QCrsp.nii.gz')
@@ -73,8 +74,10 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                         caca = nilearn.image.resample_to_img(atlas_filename, anat_filename, interpolation='nearest')
                         caca.to_filename(atlas_filename)
                         extracted_data = nib.load(atlas_filename).get_fdata()
+                        extracted_data = np.rint(extracted_data).astype(np.int32)
                         labeled_img2 = nilearn.image.new_img_like(anat_filename, extracted_data, copy_header=True)
-                        labeled_img2.to_filename(atlas_filename)
+                        labeled_img2.to_filename(atlas_filename_rsp)
+                        atlas_filename = opj(direction, type_norm + 'atlaslvl1_LRrspQC' + Timage + '.nii.gz')
                 else:
                     print(bcolors.OKGREEN + "No differences found in the specified fields." + bcolors.ENDC)
 
@@ -83,12 +86,6 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                           6: 'Cortical White matter', 1: 'CSF', 4: 'Lateral ventricles', 8: 'Isocortex',
                           9: 'Allocortex', 10: 'Periallocortex', 11: 'Subcortical areas', 12: 'Diencephalon',
                           13: 'Brain stem'}
-
-                # Load the atlas and fMRI data
-                atlas_img = nib.load(atlas_filename)
-                atlas_data = atlas_img.get_fdata()
-                anat_img = nib.load(anat_filename)
-                anat_data = anat_img.get_fdata()
 
                 # Function to calculate SNR for each region and hemisphere
                 def compute_snr_single_frame(atlas_data, anat_data, labels, hemisphere_offset=1000):
@@ -125,11 +122,11 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                             'Left': left_signal_avg / noise if noise != 0 else np.nan,
                             'Right': right_signal_avg / noise if noise != 0 else np.nan
                         }
-
                     return snr_values, noise
 
                 # Example usage
                 atlas_data = nib.load(atlas_filename).get_fdata()
+                atlas_data = np.rint(atlas_data).astype(np.int32)
                 anat_data = nib.load(anat_filename).get_fdata()
                 snr_results, noise = compute_snr_single_frame(atlas_data, anat_data, labels)
 
@@ -297,7 +294,8 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                 # Load the data
                 gray_mask_img = nib.load(gray_mask_path)
                 anat_img = nib.load(anat_data_path)
-                gray_mask = gray_mask_img.get_fdata().astype(bool)
+                gray_mask = gray_mask_img.get_fdata()
+                gray_mask = np.rint(gray_mask).astype(np.int32)
                 anat_data = anat_img.get_fdata()
 
                 # Signal within the gray matter mask

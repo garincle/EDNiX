@@ -247,16 +247,16 @@ FS_buckner40_GCS = opj(FS_dir,'MacaqueYerkes19')
     ##########################################
 
 ##### if yu don't have any aseg and want to work with functional images, please add a ventricle and whitte matter mask in the template space named Vmask, Wmask
-diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual',species) # sting # sting
+diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2',species) # sting # sting
 
-list_atlases = [opj(diratlas_orig, 'atlaslvl1_ADD.nii.gz'),
-opj(diratlas_orig, 'atlaslvl2_ADD.nii.gz'),
-opj(diratlas_orig, 'atlaslvl3_ADD.nii.gz'),
-opj(diratlas_orig, 'atlaslvl4_ADD.nii.gz'),
-opj(diratlas_orig, 'atlaslvl1_ADD_LR.nii.gz'),
-opj(diratlas_orig, 'atlaslvl2_ADD_LR.nii.gz'),
-opj(diratlas_orig, 'atlaslvl3_ADD_LR.nii.gz'),
-opj(diratlas_orig, 'atlaslvl4_ADD_LR.nii.gz'),
+list_atlases = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4.nii.gz'),
+opj(diratlas_orig, 'atlaslvl1_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4_LR.nii.gz'),
 opj(diratlas_orig,'Gmask.nii.gz'),
 opj(diratlas_orig, 'Wmask.nii.gz')]
 
@@ -269,33 +269,13 @@ BASE_mask   = opj(diratlas_orig,'brain_mask.nii.gz') # sting # sting
 Aseg_ref    = opj(diratlas_orig,'atlas_forSEG_final.nii.gz')
 Aseg_refLR  = opj(diratlas_orig,'atlas_forSEG_final_LR.nii.gz')
 
-species_list = ['Pig', 'Mouse_lemur', 'Marmoset', 'Macaque', 'Chimpanzee', 'DoginCat', 'CatinDog', 'Mouse', 'RatWHS', 'Human']
-middle_value = ['-0.929', '0.091','0.075','0.125','0.5','-0.352','-0.289','-0.05','0','0']
-
 fMRImasks = 'aseg' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
 
-###question of Aseg_refLR
-def get_middle_value_for_species(species_list, value_list, target_species):
-    for i, specie in enumerate(species_list):
-        if specie == target_species:
-            return value_list[i]
-    return None
-
-define_center = get_middle_value_for_species(species_list, middle_value, species)
-### if it doesn't exists let's make it!!! but you need an Aseg_ref!!
-if not ope(Aseg_refLR):
-    command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + Aseg_ref + ' -expr "step(ispositive(x-' + define_center + ')*a)" -prefix ' + opd(
-        Aseg_refLR) + '/Aseg_ref_L.nii.gz'
-    spco([command], shell=True)
-    command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opd(
-        Aseg_refLR) + '/Aseg_ref_L.nii.gz -b ' + Aseg_ref + ' -expr "ifelse(a, a*255,step(b)*127)" -prefix ' + Aseg_refLR
-    spco([command], shell=True)
-
 #### for 14 ####
-list_atlases_2 = [opj(diratlas_orig, 'atlaslvl1_ADD.nii.gz'),
-opj(diratlas_orig, 'atlaslvl2_ADD.nii.gz'),
-opj(diratlas_orig, 'atlaslvl3_ADD.nii.gz'),
-opj(diratlas_orig, 'atlaslvl4_ADD.nii.gz')]
+list_atlases_2 = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4.nii.gz')]
 
 FreeSlabel_ctab_list = [opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt'),
 opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt'),
@@ -311,7 +291,7 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [1,3,4,5,6,9,10,11,12,13,14,15,16,100,200]
+Skip_step = [1,3,4,5,6,9,10,11,12,13,14,15,100,200]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 

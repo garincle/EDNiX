@@ -51,7 +51,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
     output_results = opj(direction, '10_Results/fMRI_QC_SNR')
     if os.path.exists(output_results): shutil.rmtree(output_results)
     if not os.path.exists(output_results): os.mkdir(output_results)
-    atlas_filename = opj(direction, 'atlaslvl1_ADD_LR.nii.gz')
+    atlas_filename = opj(direction, 'atlaslvl1_LR.nii.gz')
 
     for i in range(0, int(nb_run)):
         lines = []
