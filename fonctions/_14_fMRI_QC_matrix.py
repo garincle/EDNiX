@@ -69,12 +69,12 @@ def fMRI_QC_matrix(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro
         if os.path.exists(out_results_V): shutil.rmtree(out_results_V)
         if not os.path.exists(out_results_V): os.mkdir(out_results_V)
 
-        atlas = 'atlaslvl3_ADD_LR.nii.gz'
-        atlas_filenamelvl3LR = opj(direction, 'atlaslvl3_ADD_LR.nii.gz')
+        atlas = 'atlaslvl3_LR.nii.gz'
+        atlas_filenamelvl3LR = opj(direction, 'atlaslvl3_LR.nii.gz')
         atlas_filenameQC = opj(direction, atlas[:-7] + '_forfMRIQC.nii.gz')
 
         if ope(atlas_filenamelvl3LR)==False:
-            raise Exception(bcolors.FAIL + 'ERROR: no altlas lvl 3_ADD LR found, this is a requirement for QC analysis')
+            raise Exception(bcolors.FAIL + 'ERROR: no altlas lvl 3 LR found, this is a requirement for QC analysis')
             raise Exception(bcolors.FAIL + 'ERROR: If this analysis is nto performed Step 14 will failed too!')
         else:
             #### Build the atlas for LR somato ant anterior cingulate

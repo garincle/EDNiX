@@ -133,7 +133,7 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 removelist = []
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in []:
+    if ID in [10]:
         removelist.append(num)
 
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
@@ -333,7 +333,7 @@ stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
 GM_mask_studyT = opj(study_template_atlas_forlder, 'atlases', 'Gmask.nii.gz') # sting
 
 ########## if creat_study_template = False ##########
-diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual', species)
+diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2', species)
 
 # if creat_study_template== False you need to provide this
 BASE_SS     = opj(diratlas_orig, 'templateT2.nii.gz') # sting
@@ -345,14 +345,14 @@ GM_mask     =opj(diratlas_orig, 'Gmask.nii.gz') # sting
     ##########################################################
 
 ####put all atlases and template to process in the same folder named: ...
-list_atlases = [opj(diratlas_orig, 'atlaslvl1_ADD.nii.gz'),
-opj(diratlas_orig, 'atlaslvl2_ADD.nii.gz'),
-opj(diratlas_orig, 'atlaslvl3_ADD.nii.gz'),
-opj(diratlas_orig, 'atlaslvl4_ADD.nii.gz'),
-opj(diratlas_orig, 'atlaslvl1_ADD_LR.nii.gz'),
-opj(diratlas_orig, 'atlaslvl2_ADD_LR.nii.gz'),
-opj(diratlas_orig, 'atlaslvl3_ADD_LR.nii.gz'),
-opj(diratlas_orig, 'atlaslvl4_ADD_LR.nii.gz')]
+list_atlases = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4.nii.gz'),
+opj(diratlas_orig, 'atlaslvl1_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4_LR.nii.gz')]
 
 #######for melodic cleaning (step 4)
 melodic_prior_post_TTT = False # True or False
@@ -389,7 +389,7 @@ use_cortical_mask_func = False # True or False
 
 #######for seed analysis (step 11)
 #### name of the atlases  you want to use for the seed base analysis
-selected_atlases = ['atlaslvl3_ADD_LR.nii.gz', 'atlaslvl4_ADD_LR.nii.gz'] #liste
+selected_atlases = ['atlaslvl3_LR.nii.gz', 'atlaslvl4_LR.nii.gz'] #liste
 
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 panda_files = [pd.DataFrame({'region':[
@@ -436,14 +436,14 @@ oversample_map = False # True or False
 file_path = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Classiff','Legende_VDualvf2_formatrix.xlsx')
 legendPNAS = pd.read_excel(file_path, 'Legend_2023')
 
-selected_atlases_matrix = [opj(diratlas_orig, 'atlaslvl1_ADD.nii.gz'),
-opj(diratlas_orig, 'atlaslvl2_ADD.nii.gz'),
-opj(diratlas_orig, 'atlaslvl3_ADD.nii.gz'),
-opj(diratlas_orig, 'atlaslvl4_ADD.nii.gz'),
-opj(diratlas_orig, 'atlaslvl1_ADD_LR.nii.gz'),
-opj(diratlas_orig, 'atlaslvl2_ADD_LR.nii.gz'),
-opj(diratlas_orig, 'atlaslvl3_ADD_LR.nii.gz'),
-opj(diratlas_orig, 'atlaslvl4_ADD_LR.nii.gz')]
+selected_atlases_matrix = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4.nii.gz'),
+opj(diratlas_orig, 'atlaslvl1_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4_LR.nii.gz')]
 
 # Select the desired columns and rename them
 pandas1 = legendPNAS[['NEWlvl1_label', 'NEWLVL1']].rename(columns={'NEWlvl1_label': 'label', 'NEWLVL1': 'region'})
@@ -471,7 +471,7 @@ Seed_name = 'Periarchicortex'
 
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [100,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,100,200]
     ############################################################
     ######################## START de pipeline #################
     ############################################################

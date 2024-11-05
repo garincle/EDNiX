@@ -261,7 +261,7 @@ FS_buckner40_GCS = opj(FS_dir,'MacaqueYerkes19')
     ##########################################
     ##### define atlases and tempates ########
     ##########################################
-diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual','RatWHS') # sting # sting
+diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2','RatWHS') # sting # sting
 list_atlases = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
 opj(diratlas_orig, 'atlaslvl2.nii.gz'),
 opj(diratlas_orig, 'atlaslvl3.nii.gz'),
@@ -275,22 +275,8 @@ BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','
 BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'brain_mask.nii.gz') # sting
 
 ####atlases files
-Aseg_ref    = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual','RatWHS','atlas_forSEG_final.nii.gz')
-Aseg_refLR  = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual','RatWHS','atlas_forSEG_final_LR.nii.gz')
-
-###question of Aseg_refLR
-define_center = '0'
-
-
-### if it doesn't exists let's make it!!! but you need an Aseg_ref!!
-if not ope(Aseg_refLR):
-    command = '3dcalc -a ' + Aseg_ref + ' -expr "step(ispositive(x-' + define_center + ')*a)" -prefix ' + opd(Aseg_refLR) + '/Aseg_ref_L.nii.gz'
-    spco([command], shell=True)
-
-    command = '3dcalc -a ' + opd(Aseg_refLR) + '/Aseg_ref_L.nii.gz -b ' + Aseg_ref + ' -expr "ifelse(a, a*255,step(b)*127)" -prefix ' + Aseg_refLR
-    spco([command], shell=True)
-
-
+Aseg_ref    = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2','RatWHS','atlas_forSEG_final.nii.gz')
+Aseg_refLR  = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2','RatWHS','atlas_forSEG_final_LR.nii.gz')
 
 #### for 14 ####
 list_atlases_2 = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),

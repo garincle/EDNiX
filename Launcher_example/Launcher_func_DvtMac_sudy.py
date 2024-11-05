@@ -143,6 +143,8 @@ for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session,
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
     if ID in ["Quantum"] and Session in [3]:
         removelist.append(num)
+    if ID in ["Oliver"] and Session in [11]:
+        removelist.append(num)
 
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
 all_Session =  [item for i, item in enumerate(all_Session) if i not in removelist]
@@ -324,7 +326,7 @@ stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
 GM_mask_studyT = opj('/scratch/cgarin/Macaque/BIDS_Cdt_Garin/Study_template_test/Atlases_ref_in_stdy_template/Gmask.nii.gz') # sting
 
 ########## if creat_study_template = False ##########
-diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','New_atlas_Dual', species)
+diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2', species)
 
 # if creat_study_template== False you need to provide this
 BASE_SS     = opj(diratlas_orig, 'template.nii.gz') # sting
@@ -461,7 +463,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [100,200]
+Skip_step = [1,3,4,5,6,9,10,11,12,13,14,15,100,200]
 
     ############################################################
     ######################## START de pipeline #################

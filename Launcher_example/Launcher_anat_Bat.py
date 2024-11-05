@@ -247,7 +247,7 @@ FS_buckner40_GCS = opj(FS_dir,'MacaqueYerkes19')
     ##### define atlases and tempates ########
     ##########################################
 
-diratlas_orig = '/srv/projects/easymribrain/data/Atlas/13_Atlas_project/New_atlas_Dual/Bat/'
+diratlas_orig = '/srv/projects/easymribrain/data/Atlas/13_Atlas_project/Atlases_V2/' + species
 list_atlases = [opj('/srv/projects/easymribrain/data/Atlas/13_Atlas_project/0_Atlas_modify/Atlas/Bat', 'atlas.nii.gz'), opj(diratlas_orig, 'TTS.nii.gz')]
 list_atlases.append(opj(diratlas_orig,'Gmask.nii.gz'))
 list_atlases.append(opj(diratlas_orig,'Wmask.nii.gz'))
@@ -259,20 +259,6 @@ BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','
 Aseg_ref    = ''
 Aseg_refLR  = ''
 fMRImasks = 'custom' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
-
-###question of Aseg_refLR
-define_center = ''
-
-#We will not work with surface for now
-'''
-### if it doesn't exists let's make it!!! but you need an Aseg_ref!!
-if not ope(Aseg_refLR):
-    command = '3dcalc -a ' + Aseg_ref + ' -expr "step(ispositive(x-' + define_center + ')*a)" -prefix ' + opd(Aseg_refLR) + '/Aseg_ref_L.nii.gz'
-    spco([command], shell=True)
-
-    command = '3dcalc -a ' + opd(Aseg_refLR) + '/Aseg_ref_L.nii.gz -b ' + Aseg_ref + ' -expr "ifelse(a, a*255,step(b)*127)" -prefix ' + Aseg_refLR
-    spco([command], shell=True)
-'''
 
 #### for 14 ####
 list_atlases_2 = []
@@ -286,7 +272,7 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [1,2,3,4,5,6,10,11,12,13,14,15,100,200]
+Skip_step = [1,3,4,5,6,10,11,12,13,14,15,100,200]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
 

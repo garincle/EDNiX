@@ -3,14 +3,12 @@
 ###################################
 import subprocess
 import os
-import sys
 import shutil
 import nibabel as nib
 import ants
 import math
 import nilearn
 from nilearn.masking import compute_epi_mask
-from nilearn.image import math_img
 import numpy as np
 from anatomical import Histrogram_mask_EMB
 from fonctions.extract_filename import extract_filename
