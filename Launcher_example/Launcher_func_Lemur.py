@@ -133,27 +133,7 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 removelist = []
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in ['119BBB',
- '147BCBA',
- '147BCBB',
- '153FBA',
- '169BAB',
- '184CB',
- '208CBF'
- '216B',
- '263BCE',
- '263BCE',
- '276BC',
- '276BC',
- '283CA',
- '283CA',
- '283CCA',
- '283CCA',
- '283EA',
- '283EA',
- '285AAA',
- '285AB',
- '285AB']:
+    if ID in []:
         removelist.append(num)
 
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
@@ -314,7 +294,7 @@ deoblique_exeption2 = [] # list
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
 type_of_transform = 'SyNBold'
-aff_metric_ants = 'mattes'
+aff_metric_ants = 'MI'
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
 ### define the acronyme/suffix of the anat as in the BIDS
