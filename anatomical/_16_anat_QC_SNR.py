@@ -116,6 +116,21 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                         # Compute noise as the standard deviation of the lowest 10% values across the brain
                         brain_values = anat_data[anat_data > 0].flatten()  # Exclude zero values
                         noise = np.std(brain_values[brain_values <= np.percentile(brain_values, 10)]) if brain_values.size > 0 else np.nan
+                        if noise == 0:
+                            print(bcolors.WARNING + 'std of noise values = 0, try with 20% of the lowest values in the img' + bcolors.ENDC)
+                            noise = np.std(brain_values[brain_values <= np.percentile(brain_values,20)]) if brain_values.size > 0 else np.nan
+                            if noise == 0:
+                                print(bcolors.WARNING + 'std of noise values = 0, try with 30% of the lowest values in the img' + bcolors.ENDC)
+                                noise = np.std(brain_values[brain_values <= np.percentile(brain_values,30)]) if brain_values.size > 0 else np.nan
+                                if noise == 0:
+                                    print(bcolors.WARNING + 'std of noise values = 0, try with 40% of the lowest values in the img' + bcolors.ENDC)
+                                    noise = np.std(brain_values[brain_values <= np.percentile(brain_values,40)]) if brain_values.size > 0 else np.nan
+                                    if noise == 0:
+                                        print(bcolors.WARNING + 'std of noise values = 0, try with 50% of the lowest values in the img' + bcolors.ENDC)
+                                        noise = np.std(brain_values[brain_values <= np.percentile(brain_values, 50)]) if brain_values.size > 0 else np.nan
+                                    else:
+                                        raise ValueError(
+                                            bcolors.FAIL + "more than 50% background is the same value; noise calculation cannot be completed." + bcolors.ENDC)
 
                         # SNR = signal / noise
                         snr_values[region_name] = {
@@ -298,8 +313,16 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                 gray_mask = np.rint(gray_mask).astype(np.int32)
                 anat_data = anat_img.get_fdata()
 
+                # Check if anat_data has a fourth dimension (multi-frame data)
+                if anat_data.ndim == 4:
+                    # Select the first frame along the fourth axis
+                    anat_data = anat_data[..., 0]
+                else:
+                    # Use anat_data as-is if it’s already 3D
+                    anat_data = anat_data
+
                 # Signal within the gray matter mask
-                mask_signal = anat_data[gray_mask]
+                mask_signal = anat_data[gray_mask > 0]
 
                 # Compute noise from the bottom 10% of histogram values in the whole brain, excluding zeros
                 brain_values = anat_data.flatten()
@@ -309,8 +332,30 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                     noise_threshold = np.percentile(non_zero_values, 10)
                     noise_values = non_zero_values[non_zero_values <= noise_threshold]
                     noise = np.std(noise_values)
+                    if noise == 0:
+                        print(bcolors.WARNING + 'std of noise values = 0, try with 20% of the lowest values in the img' + bcolors.ENDC)
+                        noise_threshold = np.percentile(non_zero_values, 20)
+                        noise_values = non_zero_values[non_zero_values <= noise_threshold]
+                        noise = np.std(noise_values)
+                        if noise == 0:
+                            print(bcolors.WARNING + 'std of noise values = 0, try with 30% of the lowest values in the img' + bcolors.ENDC)
+                            noise_threshold = np.percentile(non_zero_values, 30)
+                            noise_values = non_zero_values[non_zero_values <= noise_threshold]
+                            noise = np.std(noise_values)
+                            if noise == 0:
+                                print(bcolors.WARNING + 'std of noise values = 0, try with 40% of the lowest values in the img' + bcolors.ENDC)
+                                noise_threshold = np.percentile(non_zero_values, 40)
+                                noise_values = non_zero_values[non_zero_values <= noise_threshold]
+                                noise = np.std(noise_values)
+                                if noise == 0:
+                                    print(bcolors.WARNING + 'std of noise values = 0, try with 50% of the lowest values in the img' + bcolors.ENDC)
+                                    noise_threshold = np.percentile(non_zero_values, 50)
+                                    noise_values = non_zero_values[non_zero_values <= noise_threshold]
+                                    noise = np.std(noise_values)
+                                else:
+                                    raise ValueError(bcolors.FAIL + "more than 50% background is the same value; noise calculation cannot be completed." + bcolors.ENDC)
                 else:
-                    raise ValueError("10% of noise is just 0; noise calculation cannot be completed.")
+                    raise ValueError(bcolors.FAIL + "10% of noise is just 0; noise calculation cannot be completed." + bcolors.ENDC)
 
                 # Calculate SNR for the single frame
                 snr = np.mean(mask_signal) / noise

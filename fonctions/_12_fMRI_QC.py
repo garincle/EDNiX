@@ -90,6 +90,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                         caca = nilearn.image.resample_to_img(atlas_filename, func_filename, interpolation='nearest')
                         caca.to_filename(atlas_filename)
                         extracted_data = nib.load(atlas_filename).get_fdata()
+                        extracted_data = np.rint(extracted_data).astype(np.int32)
                         labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
                         labeled_img2.to_filename(atlas_filename)
                 else:
@@ -104,6 +105,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 # Load the atlas and fMRI data
                 atlas_img = nib.load(atlas_filename)
                 atlas_data = atlas_img.get_fdata()
+                atlas_data = np.rint(atlas_data).astype(np.int32)
                 fmri_img = nib.load(func_filename)
                 fmri_data = fmri_img.get_fdata()
 
@@ -862,6 +864,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 gray_mask_img = nib.load(gray_mask_path)
                 fmri_img = nib.load(fmri_data_path)
                 gray_mask = gray_mask_img.get_fdata().astype(bool)
+                gray_mask = np.rint(gray_mask).astype(np.int32)
                 fmri_data = fmri_img.get_fdata()
 
                 time_points = fmri_data.shape[-1]
@@ -875,10 +878,32 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                     brain_values = fmri_data[..., t].flatten()
                     non_zero_values = brain_values[brain_values > 0]
 
-                    if len(non_zero_values) > 0:
-                        noise_threshold = np.percentile(non_zero_values, 10)
+                if len(non_zero_values) > 0:
+                    noise_threshold = np.percentile(non_zero_values, 10)
+                    noise_values = non_zero_values[non_zero_values <= noise_threshold]
+                    noise = np.std(noise_values)
+                    if noise == 0:
+                        print(bcolors.WARNING + 'std of noise values = 0, try with 20% of the lowest values in the img' + bcolors.ENDC)
+                        noise_threshold = np.percentile(non_zero_values, 20)
                         noise_values = non_zero_values[non_zero_values <= noise_threshold]
                         noise = np.std(noise_values)
+                        if noise == 0:
+                            print(bcolors.WARNING + 'std of noise values = 0, try with 30% of the lowest values in the img' + bcolors.ENDC)
+                            noise_threshold = np.percentile(non_zero_values, 30)
+                            noise_values = non_zero_values[non_zero_values <= noise_threshold]
+                            noise = np.std(noise_values)
+                            if noise == 0:
+                                print(bcolors.WARNING + 'std of noise values = 0, try with 40% of the lowest values in the img' + bcolors.ENDC)
+                                noise_threshold = np.percentile(non_zero_values, 40)
+                                noise_values = non_zero_values[non_zero_values <= noise_threshold]
+                                noise = np.std(noise_values)
+                                if noise == 0:
+                                    print(bcolors.WARNING + 'std of noise values = 0, try with 50% of the lowest values in the img' + bcolors.ENDC)
+                                    noise_threshold = np.percentile(non_zero_values, 50)
+                                    noise_values = non_zero_values[non_zero_values <= noise_threshold]
+                                    noise = np.std(noise_values)
+                                else:
+                                    raise ValueError(bcolors.FAIL + "more than 50% background is the same value; noise calculation cannot be completed." + bcolors.ENDC)
                     else:
                         raise ValueError("10% of noise is just 0; noise calculation cannot be completed.")
 
