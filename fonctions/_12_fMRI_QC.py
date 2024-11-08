@@ -377,41 +377,34 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 :return: The validated functional timeseries data with voxels of zero
                          variance excluded.
                 """
-
                 try:
                     func_img = nib.load(func_file)
                     mask_img = nib.load(mask_file)
                 except:
                     raise Exception(bcolors.FAIL + 'ERROR' + bcolors.ENDC)
-
                 mask = mask_img.get_fdata()
                 func = func_img.get_fdata().astype(float)
-
-                mask_var_filtered = remove_zero_variance_voxels(func, mask)
+                mask_var_filtered = remove_zero_variance_voxels(func, mask, threshold=1e-6)
                 func = func[mask_var_filtered.nonzero()].T  # will have ntpts x nvoxs
-
                 return func
 
-            def remove_zero_variance_voxels(func_timeseries, mask):
-                """Modify a head mask to exclude timeseries voxels which have zero
-                variance.
+            def remove_zero_variance_voxels(func_timeseries, mask, threshold=1e-6):
+                """
+                Modify a head mask to exclude timeseries voxels which have zero or near-zero variance.
 
                 :type func_timeseries: Nibabel data
                 :param func_timeseries: The 4D functional timeseries.
                 :type mask: Nibabel data
                 :param mask: The binary head mask.
+                :type threshold: float
+                :param threshold: Variance threshold below which voxels will be excluded from the mask.
                 :rtype: Nibabel data
-                :return: The binary head mask, but with voxels of zero variance excluded.
+                :return: The binary head mask, but with voxels of near-zero variance excluded.
                 """
-
-                # this needs optimization/refactoring
-                for i in range(0, len(func_timeseries)):
-                    for j in range(0, len(func_timeseries[0])):
-                        for k in range(0, len(func_timeseries[0][0])):
-                            var = func_timeseries[i][j][k].var()
-                            if int(var) == 0:
-                                mask[i][j][k] = mask[i][j][k] * 0
-
+                # Calculate variance across time for each voxel
+                variance_map = func_timeseries.var(axis=-1)
+                # Update the mask to exclude voxels with variance below the threshold
+                mask[variance_map < threshold] = 0
                 return mask
 
             def fd_jenkinson(in_file, rmax=80., out_file=None, out_array=True):
@@ -500,7 +493,6 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 else:
                     return out_file
             fd_jenkinson_array = fd_jenkinson(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '.aff12.1D'), rmax=80., out_file=None, out_array=True)
-            print(fd_jenkinson_array)
 
             try:
                 # Define timepoints (assuming each value in fd_jenkinson_val represents one timepoint)
@@ -575,7 +567,12 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 gcor_val =  global_correlation(opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtr_deob.nii.gz'),
                                                opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
                 print(gcor_val)
+                line_QC_func2.append(f"  gcor: {gcor_val}")
+            except:
+                raise ValueError()
+                print(bcolors.WARNING + 'gcor calculation failed (the fix is complicated, but it is not a big deal)' + bcolors.ENDC)
 
+            try:
                 def robust_stdev(func):
                     """Compute robust estimation of standard deviation.
 
@@ -604,7 +601,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                                   timeseries to use in the calculation.
                     :type center: bool
                     :param center: (default: False) Whether to center the timeseries (to
-                                   demean it).
+                                   demean it).mean_dvar
                     :rtype: float
                     :return: The modeled noise value for the current voxel's timeseries.
                     """
@@ -690,7 +687,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
 
                 calc_dvars_array = calc_dvars(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_deob.nii.gz'),
                                                opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
-                print(calc_dvars_array)
+
                 timepoints = np.arange(len(calc_dvars_array))
                 plt.figure(figsize=(10, 6))
                 plt.plot(timepoints, calc_dvars_array, label='Dvars', linestyle='-', color='b')
@@ -707,9 +704,10 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 plt.savefig(output_results + '/' + root_RS + '_dvars_plot.png')
                 plt.close()
                 mean_dvars_val = np.mean(calc_dvars_array)
-                line_QC_func2.append(f"  gcor: {gcor_val}", f"  mean_dvar: {mean_dvars_val}")
+                line_QC_func2.append(f"  mean_dvar: {mean_dvars_val}")
             except:
-                print(bcolors.WARNING + 'gcor calculation failed (the fix is complicated, but it is not a big deal)' + bcolors.ENDC)
+                raise ValueError()
+                print(bcolors.WARNING + 'mean_dvar calculation failed (the fix is complicated, but it is not a big deal)' + bcolors.ENDC)
 
             def plot_motion_parameters(motion_file, output_results):
                 # Load the motion parameters
@@ -869,73 +867,70 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 # Load the data
                 gray_mask_img = nib.load(gray_mask_path)
                 fmri_img = nib.load(fmri_data_path)
-                gray_mask = gray_mask_img.get_fdata().astype(bool)
+                gray_mask = gray_mask_img.get_fdata()
+
+                # Ensure the mask is binary (0 or 1)
                 gray_mask = np.rint(gray_mask).astype(np.int32)
                 fmri_data = fmri_img.get_fdata()
 
                 time_points = fmri_data.shape[-1]
                 snr_values = []
 
+                # Iterate over time points to compute SNR for each
                 for t in range(time_points):
-                    # Signal in gray matter mask at time point t
-                    mask_signal = fmri_data[gray_mask, t]
+                    # Extract the 3D fMRI volume at time point t
+                    fmri_volume = fmri_data[..., t]
 
-                    # Compute noise from bottom 10% of histogram values in the whole brain, excluding zeros
-                    brain_values = fmri_data[..., t].flatten()
-                    non_zero_values = brain_values[brain_values > 0]
+                    # Signal within gray matter mask at this time point
+                    mask_signal = fmri_volume[gray_mask == 1]
 
-                if len(non_zero_values) > 0:
-                    noise_threshold = np.percentile(non_zero_values, 10)
-                    noise_values = non_zero_values[non_zero_values <= noise_threshold]
-                    noise = np.std(noise_values)
-                    if noise == 0:
-                        print(bcolors.WARNING + 'std of noise values = 0, try with 20% of the lowest values in the img' + bcolors.ENDC)
-                        noise_threshold = np.percentile(non_zero_values, 20)
-                        noise_values = non_zero_values[non_zero_values <= noise_threshold]
+                    # Compute noise from bottom percentile values in the whole brain, excluding zeros
+                    brain_values = fmri_volume[fmri_volume > 0].flatten()  # Exclude zeros directly
+                    noise = None
+                    for threshold in [10, 20, 30, 40, 50]:  # Try different percentiles
+                        if len(brain_values) == 0:
+                            raise ValueError("No non-zero values found in the brain data; check your fMRI data.")
+
+                        noise_threshold = np.percentile(brain_values, threshold)
+                        noise_values = brain_values[brain_values <= noise_threshold]
                         noise = np.std(noise_values)
-                        if noise == 0:
-                            print(bcolors.WARNING + 'std of noise values = 0, try with 30% of the lowest values in the img' + bcolors.ENDC)
-                            noise_threshold = np.percentile(non_zero_values, 30)
-                            noise_values = non_zero_values[non_zero_values <= noise_threshold]
-                            noise = np.std(noise_values)
-                            if noise == 0:
-                                print(bcolors.WARNING + 'std of noise values = 0, try with 40% of the lowest values in the img' + bcolors.ENDC)
-                                noise_threshold = np.percentile(non_zero_values, 40)
-                                noise_values = non_zero_values[non_zero_values <= noise_threshold]
-                                noise = np.std(noise_values)
-                                if noise == 0:
-                                    print(bcolors.WARNING + 'std of noise values = 0, try with 50% of the lowest values in the img' + bcolors.ENDC)
-                                    noise_threshold = np.percentile(non_zero_values, 50)
-                                    noise_values = non_zero_values[non_zero_values <= noise_threshold]
-                                    noise = np.std(noise_values)
-                                else:
-                                    raise ValueError(bcolors.FAIL + "more than 50% background is the same value; noise calculation cannot be completed." + bcolors.ENDC)
-                    else:
-                        raise ValueError("10% of noise is just 0; noise calculation cannot be completed.")
+
+                        if noise > 0:
+                            break  # Valid noise found, break out of loop
+                        else:
+                            print(f"Warning: Noise std is zero at {threshold}% threshold, trying higher threshold.")
+
+                    if noise == 0:
+                        raise ValueError("Unable to calculate noise; more than 50% of background values are identical.")
 
                     # Calculate SNR for the time point
                     snr = np.mean(mask_signal) / noise
                     snr_values.append(snr)
 
-                # Calculate the average SNR
-                avg_snr = np.mean(snr_values)
-                print(f"Average SNR in gray matter mask: {avg_snr}")
-
-                # Save SNR values over time to CSV
-                df = pd.DataFrame({'Time': np.arange(time_points), 'SNR': snr_values})
-                df.to_csv(opj(output_path, f'{root_name}_snr_gray_mask.csv'), index=False)
+                # Save SNR values
+                snr_output_path = os.path.join(output_path, f"{root_name}_snr_values.npy")
+                np.save(snr_output_path, snr_values)
+                print(f"SNR values saved to {snr_output_path}")
 
                 # Plot SNR over time
                 plt.figure(figsize=(10, 6))
-                plt.plot(df['Time'], df['SNR'], label='Gray Matter Mask SNR', color='b')
-                plt.xlabel('Time')
+                plt.plot(snr_values, label='SNR over Time')
+                plt.xlabel('Time Points')
                 plt.ylabel('SNR')
-                plt.title('SNR in Gray Matter Mask Over Time')
+                plt.title('SNR within Gray Matter Mask Over Time')
                 plt.legend()
+                plt.grid(True)
                 plt.tight_layout()
-                plt.savefig(opj(output_path, f'{root_name}_snr_gray_mask_plot.png'))
-                plt.close()
-                return avg_snr
+
+                # Save the plot
+                plot_output_path = os.path.join(output_path, f"{root_name}_snr_plot.png")
+                plt.savefig(plot_output_path)
+                print(f"SNR plot saved to {plot_output_path}")
+
+                # Return the mean SNR across time points
+                mean_snr = np.mean(snr_values)
+                print(f"Average SNR: {mean_snr}")
+                return mean_snr
 
             # Example usage
             compute_snr_brain_mask_val = compute_snr_brain_mask(
