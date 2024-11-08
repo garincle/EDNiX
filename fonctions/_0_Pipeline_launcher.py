@@ -409,7 +409,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print(bcolors.OKGREEN + 'skip step ' + str(3) + bcolors.ENDC)
             else:
                 print(bcolors.OKGREEN + '##########   Working on step ' + str(3) + ' _3_mask_fMRI  ###############' + bcolors.ENDC)
-                print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session))
+                print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session) + bcolors.ENDC)
                 fonctions._3_mask_fMRI.Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                        dir_fMRI_Refth_RS_prepro3, RS, nb_run, REF_int, ID, dir_prepro, brainmask, V_mask, W_mask, G_mask, dilate_mask,
                        costAllin, anat_subject, doMaskingfMRI, Method_mask_func, lower_cutoff, upper_cutoff, overwrite, type_of_transform, aff_metric_ants,
@@ -441,7 +441,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print(bcolors.OKGREEN + 'skip step ' + str(7) + bcolors.ENDC)
             else:
                 print(bcolors.OKGREEN + '##########   Working on step ' + str(7) + ' _7_post_TTT  ###############' + bcolors.ENDC)
-                print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session))
+                print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session) + bcolors.ENDC)
                 fonctions._7_post_TTT.signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_RS_ICA_native,
                 nb_run, RS, blur, TR_val, melodic_prior_post_TTT, extract_exterior_CSF, extract_WM, do_not_correct_signal, band, extract_Vc, extract_GS, overwrite,s_bind,afni_sif)
 
@@ -449,7 +449,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print(bcolors.OKGREEN + 'skip step ' + str(8) + bcolors.ENDC)
             else:
                 print(bcolors.OKGREEN + '##########   Working on step ' + str(8) + ' _8_fMRI_to_anat  ###############' + bcolors.ENDC)
-                print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session))
+                print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session) + bcolors.ENDC)
                 fonctions._8_fMRI_to_anat.to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                 nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space)
 
@@ -457,7 +457,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print(bcolors.OKGREEN + 'skip step ' + str(9) + bcolors.ENDC)
             else:
                 print(bcolors.OKGREEN + '##########   Working on step ' + str(9) + ' _9_coregistration_to_template_space  ###############' + bcolors.ENDC)
-                print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session))
+                print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session) + bcolors.ENDC)
                 fonctions._9_coregistration_to_template_space.to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3,
                 nb_run, RS, transfo_concat_Anat,w2inv_Anat,do_anat_to_func, n_for_ANTS, list_atlases, TfMRI, BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template,
                 anat_func_same_space, orientation, dir_prepro, ID, REF_int, IhaveanANAT, overwrite,s_bind,afni_sif)
@@ -466,7 +466,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print(bcolors.OKGREEN + 'skip step ' + str(10) + bcolors.ENDC)
             else:
                 print(bcolors.OKGREEN + '##########   Working on step ' + str(10) + ' _10_Correl_matrix  ###############' + bcolors.ENDC)
-                print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session))
+                print(bcolors.OKGREEN + str(ID) + ' Session ' + str(Session) + bcolors.ENDC)
                 fonctions._10_Correl_matrix.correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix, segmentation_name_list, ID, Session, bids_dir,s_bind,afni_sif)
 
             if 11 in Skip_step:
