@@ -5,6 +5,9 @@ import ants
 from nilearn import plotting
 from nilearn.image import resample_to_img
 import anatomical.Skullstrip_method
+import datetime
+import json
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -31,13 +34,30 @@ spgo = subprocess.getoutput
 
 def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, type_of_transform, ID, aff_metric_ants, Session, otheranat, type_norm, dir_prepro, masking_img, do_manual_crop,
     brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, template_skullstrip, study_template_atlas_forlder, overwrite,
-               s_bind,afni_sif,fsl_sif,fs_sif, itk_sif, strip_sif):
+               s_bind,afni_sif,fsl_sif,fs_sif, itk_sif, strip_sif,diary_file):
 
-    print(type_of_transform)
+    ct = datetime.datetime.now()
+    nl = 'Run anatomical._2_clean_anat.clean_anat'
+    diary = open(diary_file, "a")
+    diary.write(f'\n{ct}')
+    diary.write(f'\n{nl}')
+
+    nl = type_of_transform
+    print(nl)
+    diary.write(f'\n{nl}')
+    diary.write(f'\n')
+    diary.close()
+
     step_skullstrip = 1
     output_for_mask =  anatomical.Skullstrip_method.Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas_forlder, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, BASE_SS_coregistr, BASE_SS_mask,
-    type_of_transform, ID, aff_metric_ants, check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif, strip_sif)
+    type_of_transform, ID, aff_metric_ants, check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif, strip_sif,diary_file)
 
+    diary = open(diary_file, "a")
+    ct = datetime.datetime.now()
+    diary.write(f'\n{ct}')
+    nl = 'Run anatomical._2_clean_anat.clean_anat (section after skulls stripping)'
+    diary.write(f'\n{nl}')
+    
     #### Apply masking to other anat imagesother
 
     for Timage in listTimage:
@@ -47,33 +67,47 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
         command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(dir_prepro, ID + '_anat_reorient_NU' + Timage + '.nii.gz') + \
         ' -b ' + maskRS + \
         ' -expr "a*b" -prefix ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz')
-        spco([command], shell=True)
+        nl= spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": [opj(dir_prepro, ID + '_anat_reorient_NU' + Timage + '.nii.gz'),
+                                  maskRS],
+                      "Description": 'Skull stripping.', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.json'), "w") as outfile:
+            outfile.write(json_object)
 
         #QC
-        if not os.path.exists(bids_dir + '/QC/skullstrip_step1'):
-            os.mkdir(bids_dir + '/QC/skullstrip_step1')
+        if not ope(opj(bids_dir + 'QC','skullstrip_step1')):
+            os.mkdir(opj(bids_dir + 'QC','skullstrip_step1'))
         try:
             display = plotting.plot_anat(opj(dir_prepro, ID + '_anat_reorient_NU' + Timage + '.nii.gz'), display_mode='mosaic')
             display.add_contours(opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz'),
             linewidths=.3, colors=['red'])
-            display.savefig(bids_dir + '/QC/skullstrip_step1/' + ID + '_' + str(Session) + '_' + Timage + '_skullstriped.png')
+            display.savefig(opj(bids_dir + 'QC','skullstrip_step1', ID + '_' + str(Session) + '_' + Timage + '_skullstriped.png'))
             # Don't forget to close the display
             display.close()
         except:
             display = plotting.plot_anat(opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz'), display_mode='x', cut_coords=10)
-            display.savefig(bids_dir + '/QC/skullstrip_step1/' + ID + '_' + str(Session) + '_' + Timage + '_skullstriped.png')
+            display.savefig(opj(bids_dir + 'QC','skullstrip_step1', ID + '_' + str(Session) + '_' + Timage + '_skullstriped.png'))
             # Don't forget to close the display
             display.close()
 
         ####################################################################################
         ########################## transfo rigid to atlas template (BASE_SS)   #############
         ####################################################################################
+        # Normalization of the images size (Brain and brain mask
         command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 200 -S 200 -A 200 -P 200 -L 200 -R 200 -S 200 -prefix ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz') + ' ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz') + ' -overwrite'
-        spco([command], shell=True)
+        nl= spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
 
         command = 'singularity run' + s_bind + afni_sif + '3dresample -master ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz') + ' -prefix ' + opj(masks_dir, ID + Timage + '_mask_1_rsp.nii.gz') + \
                   ' -input ' + opj(masks_dir, ID + Timage + '_mask_1_rsp.nii.gz') + ' -overwrite'
-        spco([command], shell=True)
+        nl= spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
 
     #### align anat img to atlas template
     if Align_img_to_template == '3dAllineate':
@@ -85,20 +119,46 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
         opj(dir_prepro,ID + '_brain_for_Align_Center.1D')
         spco(command, shell=True)
 
+        dictionary = {"Sources": [opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz'),
+                                  BASE_SS,
+                                  opj(masks_dir, ID + type_norm + '_mask_1_rsp.nii.gz')],
+                      "Description": 'rigid co-registration.', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.json'), "w") as outfile:
+            outfile.write(json_object)
+
+
     elif Align_img_to_template == '@Align_Centers':
         current_working_directory = os.getcwd()
         os.chdir(dir_prepro)
         command = 'singularity run' + s_bind + afni_sif + '@Align_Centers -base ' + BASE_SS + \
         ' -dset ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz') + ' -cm -prefix ' + ID + '_brain_for_Align_Center.nii.gz' + overwrite
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
         os.chdir(str(current_working_directory))
 
-        command = 'singularity run' + s_bind + afni_sif + '3dcopy ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz') + ' ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + overwrite
-        spco([command], shell=True)
+        command = 'singularity run' + s_bind + afni_sif + '3dcopy ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz') + ' ' + \
+                  opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + overwrite
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
+        dictionary = {"Sources": [opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz'),
+                                  BASE_SS,],
+                      "Description": 'rigid co-registration.', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.json'), "w") as outfile:
+            outfile.write(json_object)
 
     elif Align_img_to_template == 'No':
-        command = 'singularity run' + s_bind + afni_sif + '3dcopy ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz') + ' ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + overwrite
-        spco([command], shell=True)
+        command = 'singularity run' + s_bind + afni_sif + '3dcopy ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz') + ' ' + \
+                  opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + overwrite
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
         def create_1D_matrix(filename, matrix):
             if matrix.shape != (3, 4):
                 raise Exception(bcolors.FAIL + 'ERROR: Matrix must be 3x4 for a valid AFNI transformation.' + bcolors.ENDC)
@@ -112,13 +172,29 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
             [1.0, 0.0, 0.0, 0.0],
             [0.0, 1.0, 0.0, 0.0],
             [0.0, 0.0, 1.0, 0.0]])
+
         create_1D_matrix(filename, matrix)
-        print(bcolors.OKGREEN + f"INFO: .1D matrix file saved as {filename}" + bcolors.ENDC)
+        nl = f"INFO: .1D matrix file saved as {filename}"
+        print(bcolors.OKGREEN + nl + bcolors.ENDC)
+        diary.write(f'\n{nl}')
+
+        dictionary = {"Sources": opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz'),
+                      "Description": 'Copy.', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.json'), "w") as outfile:
+            outfile.write(json_object)
+
     else:
-        raise Exception(bcolors.FAIL + 'ERROR: Align_img_to_template need to be define as string (3dAllineate, @Align_Centers, No)' + bcolors.ENDC)
+        nl = 'ERROR: Align_img_to_template need to be define as string (3dAllineate, @Align_Centers, No)'
+        diary.write(f'\n{nl}')
+        raise Exception(bcolors.FAIL + nl + bcolors.ENDC)
+
 
     command = 'export AFNI_NIFTI_TYPE_WARN=NO'
-    spco([command], shell=True)
+    nl = spgo(command)
+    diary.write(f'\n{nl}')
+    print(nl)
+
     command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz')
     dummy = spgo(command).split('\n')
     delta_x = str(round(abs(float(dummy[-1])), 2))
@@ -133,7 +209,9 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
               ' -prefix ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + \
               ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' + \
               ' -input  ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz')
-    spco([command], shell=True)
+    nl= spgo(command)
+    diary.write(f'\n{nl}')
+    print(nl)
 
         ##########################################
         ########## correct anat images ###########
@@ -152,17 +230,35 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
             input_Allin = opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz')
 
         command = 'singularity run' + s_bind + afni_sif + '3dAllineate -overwrite -interp NN -1Dmatrix_apply ' + opj(dir_prepro,ID + '_brain_for_Align_Center.1D') + \
-        ' -prefix ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + \
-        ' -master ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + \
-        ' -input  ' + input_Allin
-        spco([command], shell=True)
+                  ' -prefix ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + \
+                  ' -master ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + \
+                  ' -input  ' + input_Allin
+        nl= spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
+        dictionary = {"Sources": [input_Allin,
+                                  opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz')],
+                      "Description": 'Rigid normalization.', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(dir_prepro, ID + '_acpc_64' + Timage + '.json'), "w") as outfile:
+            outfile.write(json_object)
 
         if Timage in [str(type_norm), str(otheranat)]:
             command = 'singularity run' + s_bind + afni_sif + '3dAllineate -overwrite -interp NN -1Dmatrix_apply ' + opj(dir_prepro, ID + '_brain_for_Align_Center.1D') + \
-                      ' -prefix ' + opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz') + \
+                      ' -prefix ' + opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.*gz') + \
                       ' -master ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + \
                       ' -input  ' + opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz')
-            spco([command], shell=True)
+            nl= spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+
+            dictionary = {"Sources": [opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz'),
+                                      opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz')],
+                          "Description": 'Rigid normalization.', }
+            json_object = json.dumps(dictionary, indent=2)
+            with open(opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.json'), "w") as outfile:
+                outfile.write(json_object)
 
 
         ####### optional crop !! save as "ID_acpc_cropped.nii.gz" #######
@@ -170,45 +266,72 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
             command = 'singularity run' + s_bind + fs_sif + 'freeview -v ' + opj(dir_prepro, ID + '_acpc' + Timage + '.nii.gz')
         else:
             if Timage in [str(type_norm), str(otheranat)]:
-                command = 'singularity run' + s_bind + afni_sif + '3dAutobox' + overwrite + ' -input ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + ' -prefix ' + opj(dir_prepro, ID + '_acpc_cropped' + Timage + '.nii.gz') + ' -noclust  -overwrite'
-                spco(command, shell=True)
-                command = 'singularity run' + s_bind + afni_sif + '3dAutobox' + overwrite + ' -input ' + opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz') + ' -prefix ' + opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz') + ' -noclust  -overwrite'
-                spco(command, shell=True)
+                command = 'singularity run' + s_bind + afni_sif + '3dAutobox' + overwrite + ' -input ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + \
+                          ' -prefix ' + opj(dir_prepro, ID + '_acpc_cropped' + Timage + '.nii.gz') + ' -noclust  -overwrite'
+                nl = spgo(command)
+                diary.write(f'\n{nl}')
+                print(nl)
+
+                dictionary = {"Sources": opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz'),
+                              "Description": 'Crop.', }
+                json_object = json.dumps(dictionary, indent=2)
+                with open( opj(dir_prepro, ID + '_acpc_cropped' + Timage + '.json'), "w") as outfile:
+                    outfile.write(json_object)
+
+                command = 'singularity run' + s_bind + afni_sif + '3dAutobox' + overwrite + ' -input ' + opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz') + \
+                          ' -prefix ' + opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz') + ' -noclust  -overwrite'
+                nl = spgo(command)
+                diary.write(f'\n{nl}')
+                print(nl)
 
     for Timage in listTimage:
         ####### optional manual acpc center #######
         if check_visualy_each_img == True:
             #Check the result and do manually the finest correction save the file as "ID_acpc_tmp.nii.gz"
             command = 'singularity run' + s_bind + fs_sif + 'freeview -v ' + BASE_SS + ' ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + ':opacity=0.6:visible=1'
-            spco([command], shell=True)
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+
         ######################################################################
-        ####### B0 correction ####### ==> creat INDIV template !!!!!!!!!!!####
+        ####### B0 correction ####### ==> create INDIV template !!!!!!!!!!!####
         ######################################################################
 
     for Timage in listTimage:
         IMG = ants.image_read(opj(dir_prepro,ID + '_acpc_cropped' + Timage + '.nii.gz'))
         IMG = ants.denoise_image(IMG,r=3,noise_model='Gaussian')
         ants.image_write(IMG, opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz'), ri=False)
-        if not os.path.exists(bids_dir + '/QC/align_rigid_to_template'):
-            os.mkdir(bids_dir + '/QC/align_rigid_to_template')
+        dictionary = {"Sources": opj(dir_prepro,ID + '_acpc_cropped' + Timage + '.nii.gz'),
+                      "Description": 'Denoising (ANTspy.', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(volumes_dir, ID + '_' + Timage + '_template.json'), "w") as outfile:
+            outfile.write(json_object)
+
+
+        if not os.path.exists(opj(bids_dir + 'QC','align_rigid_to_template')):
+            os.mkdir(opj(bids_dir + 'QC','align_rigid_to_template'))
         try:
             display = plotting.plot_anat(opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz'), display_mode='mosaic', dim=4)
-            display.add_contours(BASE_SS_coregistr,
-            linewidths=.2, colors=['red'])
-            display.savefig(bids_dir + '/QC/align_rigid_to_template/' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png')
+            display.add_contours(BASE_SS_coregistr,linewidths=.2, colors=['red'])
+            display.savefig(opj(bids_dir + 'QC','align_rigid_to_template' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png'))
             # Don't forget to close the display
             display.close()
         except:
             display = plotting.plot_anat(opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz'), display_mode='mosaic', dim=4)
-            display.savefig(bids_dir + '/QC/align_rigid_to_template/' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png')
+            display.savefig(opj(bids_dir + 'QC','align_rigid_to_template' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png'))
             # Don't forget to close the display
             display.close()
 
-        ####### check visualy indiv template #######
+        ####### check visually indiv template #######
         if check_visualy_each_img == True:
             # now look at the coordinate of the brain and ajust bet2 according to them
             command = 'singularity run' + s_bind + fs_sif + 'freeview -v ' + opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz')
-            spco([command], shell=True)
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+
+    diary.write(f'\n')
+    diary.close()
 
 
 

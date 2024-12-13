@@ -2,6 +2,8 @@
 ##see fMRI prep²
 import os
 import subprocess
+import datetime
+
 
 class bcolors:
     HEADER = '\033[95m'
@@ -13,18 +15,22 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
 opn = os.path.normpath
 opd = os.path.dirname
 ope = os.path.exists
-spco = subprocess.check_output
-spgo = subprocess.getoutput
 
 from fonctions.extract_filename import extract_filename
 
-def _itk_check_masks(dir_prepro, masks_dir, ID, type_norm,s_bind,itk_sif):
+def _itk_check_masks(dir_prepro, masks_dir, ID, type_norm,s_bind,itk_sif,diary_file):
+    ct = datetime.datetime.now()
+    nl = 'Run anatomical._200_Data_QC.clean._itk_check_masks'
+    diary = open(diary_file, "a")
+    diary.write(f'\n{ct}')
+    diary.write(f'\n{nl}')
 
     def run_command_and_wait(command):
         print(bcolors.OKGREEN + "INFO: Running command:" + bcolors.ENDC, command)
@@ -39,4 +45,6 @@ def _itk_check_masks(dir_prepro, masks_dir, ID, type_norm,s_bind,itk_sif):
               ' -s ' + opj(masks_dir, 'brain_mask_in_anat_DC.nii.gz'))
     run_command_and_wait(command)
 
+    diary.write(f'\n')
+    diary.close()
 

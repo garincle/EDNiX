@@ -1,9 +1,10 @@
 import os
-import subprocess
-import glob
 from fonctions.extract_filename import extract_filename
 import ants
 from nilearn import plotting
+import datetime
+import json
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -21,32 +22,46 @@ opb = os.path.basename
 opn = os.path.normpath
 opd = os.path.dirname
 ope = os.path.exists
-spco = subprocess.check_output
-spgo = subprocess.getoutput
+
 
 def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-    nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space):
+    nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space,diary_file):
+
+
     #########################################################################################################
     ################################### registration to anat space ##########################################
     #########################################################################################################
+
+    ct = datetime.datetime.now()
+    diary = open(diary_file, "a")
+    diary.write(f'\n{ct}')
+    nl = '##  Working on step ' + str(8) + '(function: _8_fMRI_to_anat).  ##'
+    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+    diary.write(f'\n{nl}')
 
     ############################### ############################### ############################### 
     ############################### apply transfo to anat space to each volume of each func image #
     ############################### ############################### ############################### 
     if do_anat_to_func == True:
+
         mvt_shft_ANTs = []
-        w2inv_fwd = []
-        for elem1, elem2 in zip([  # opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
-            opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
-            opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')], [False, False]):
+        w2inv_fwd     = []
+
+        for elem1, elem2 in zip([opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
+                                 opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')], [False, False]):
             if ope(elem1):
                 mvt_shft_ANTs.append(elem1)
                 w2inv_fwd.append(elem2)
+
     elif do_anat_to_func == False and anat_func_same_space == True:
+
         mvt_shft_ANTs = []
-        w2inv_fwd = []
+        w2inv_fwd     = []
+
     else:
-        raise Exception(bcolors.FAIL + 'ERROR: If Anat and Func are not in the same space you need to perform that trasnformation (do_anat_to_func = True)' + bcolors.ENDC)
+        nl = 'ERROR: If Anat and Func are not in the same space you need to perform that trasnformation (do_anat_to_func = True)'
+        diary.write(f'\n{nl}')
+        raise Exception(bcolors.FAIL + nl + bcolors.ENDC)
 
     ## test on mean img (to see spatially that is works)
     MEAN  = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'))
@@ -56,27 +71,34 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                                   interpolator=n_for_ANTS,
                                   whichtoinvert=w2inv_fwd)
     ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro2, 'Mean_Image_RcT_SS_in_anat.nii.gz'), ri=False)
+    dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
+                              opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz')],
+                  "Description": ' Non linear normalization (ANTspy).'},
+    json_object = json.dumps(dictionary, indent=2)
+    with open(opj(dir_fMRI_Refth_RS_prepro2, 'Mean_Image_RcT_SS_in_anat.json'), "w") as outfile:
+        outfile.write(json_object)
 
 
 
     bids_dir = opd(opd(opd(opd(opd(dir_fMRI_Refth_RS_prepro1)))))
-    if not os.path.exists(bids_dir + '/QC/meanIMG_in_anat/'): os.mkdir(bids_dir + '/QC/meanIMG_in_anat/')
+    if not os.path.exists(opj(bids_dir,'QC','meanIMG_in_anat')):
+        os.mkdir(opj(bids_dir,'QC','meanIMG_in_anat'))
 
-    ####plot the QC
+    ### plot the QC
     try:
         display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz'),
                                      threshold='auto',
                                      display_mode='mosaic', dim=4)
         display.add_contours(opj(dir_fMRI_Refth_RS_prepro2, 'Mean_Image_RcT_SS_in_anat.nii.gz'),
                              linewidths=.2, colors=['red'])
-        display.savefig(bids_dir + '/QC/meanIMG_in_anat/Mean_Image_RcT_SS_in_anat.png')
+        display.savefig(opj(bids_dir,'QC','meanIMG_in_anat','Mean_Image_RcT_SS_in_anat.png'))
         # Don't forget to close the display
         display.close()
     except:
         display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz'),
                                      threshold='auto',
                                      display_mode='mosaic', dim=4)
-        display.savefig(bids_dir + '/QC/meanIMG_in_anat/Mean_Image_RcT_SS_in_anat.png')
+        display.savefig(opj(bids_dir,'QC','meanIMG_in_anat','Mean_Image_RcT_SS_in_anat.png'))
         # Don't forget to close the display
         display.close()
 
@@ -84,15 +106,25 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
         root_RS = extract_filename(RS[i])
         if ope(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')) == False:
             FUNC_path = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_3dDeconvolve_failed.nii.gz')
-            OUTPUT = opj(dir_fMRI_Refth_RS_prepro2, root_RS + '_3dDeconvolve_failed_in_anat.nii.gz')
+            OUTPUT    = opj(dir_fMRI_Refth_RS_prepro2, root_RS + '_3dDeconvolve_failed_in_anat.nii.gz')
         else:
             FUNC_path = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
-            OUTPUT = opj(dir_fMRI_Refth_RS_prepro2, root_RS + '_residual_in_anat.nii.gz')
+            OUTPUT    = opj(dir_fMRI_Refth_RS_prepro2, root_RS + '_residual_in_anat.nii.gz')
 
-        FUNC = ants.image_read(FUNC_path)
+        FUNC  = ants.image_read(FUNC_path)
         TRANS = ants.apply_transforms(fixed=BRAIN, moving=FUNC,
                                       transformlist=mvt_shft_ANTs,
                                       interpolator='nearestNeighbor',
                                       whichtoinvert=w2inv_fwd,imagetype=3)
         ants.image_write(TRANS, OUTPUT, ri=False)
+        dictionary = {"Sources": [FUNC_path,
+                                  opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz')],
+                      "Description": ' Non linear normalization (ANTspy).'},
+        json_object = json.dumps(dictionary, indent=2)
+        with open(OUTPUT[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
+
+    diary.write(f'\n')
+    diary.close()
+
 

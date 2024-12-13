@@ -94,10 +94,10 @@ allinfo_study_c_formax = allinfo_study_c.copy()
 ############################################################## NOTHING TO DO HERE ##############################################################
 
 #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### ####
-#### #### now, we need to creat the list of variable to feed to function "_0_Pipeline_launcher" #### ####
+#### #### now, we need to create the list of variable to feed to function "_0_Pipeline_launcher" #### ####
 #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### ####
 
-#########creat lists of indiv and usefull variables
+#########creat lists of indiv and useful variables
 # just a list of all datapath
 all_data_path = []
 # just a list of all subject ID
@@ -111,7 +111,7 @@ all_ID_max = []
 max_session = []
 max_sessionlist = []
 
-### this is just to list all subject in a ID + 'ses-' + str(Session) way (usefull for the variable "deoblique_exeption")
+### this is just to list all subject in a ID + 'ses-' + str(Session) way (useful for the variable "deoblique_exeption")
 animal_ID = []
 
 #let's add all the the string to those lists
@@ -122,7 +122,7 @@ for ID in pd.unique(allinfo_study_c_formax.ID):
     max_session.append(np.array(listereverse).max())
 
     for Session in listereverse:
-        print('session numuber ' + str(Session))
+        print('session number ' + str(Session))
 
         # Organization of the folders
         data_path = opj(bids_dir,'sub-' + ID,'ses-' + str(Session))
@@ -140,7 +140,7 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 
 ##############################################################  TO DO !!!! ##############################################################
 
-######## sometime you aleady analysed some subjects, and you don't want to do it again,
+######## sometime you alReady analysed some subjects, and you don't want to do it again,
 # this can not be done in the previous step, as if you are working with the longitudinal dataset it can mess up your analysis
 ######## select animals that have been analyzed already
 
@@ -164,11 +164,11 @@ max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i not in r
                                 ########### 2. variable specific of you dataset ##############
                                 ##############################################################
 
-#### Choose the type of analysis you want to to do
+#### Choose the type of analysis you want to do
 coregistration_longitudinal = False #True or False
 overwrite_option = True #True or False overwrite previous analysis if in BIDS
 
-#### if you don't have an anat image!!  not great but sometine you don't have the choice
+#### if you don't have an anat image!!  not great but sometimes you don't have the choice
 IhaveanANAT = True # True or False
 
 #####if IhaveanANAT = False
@@ -181,13 +181,13 @@ V_mask        = opj(folderforTemplate_Anat,'V_mask.nii.gz') # string
 W_mask = opj(folderforTemplate_Anat,'W_mask.nii.gz') # string
 G_mask = opj(folderforTemplate_Anat,'G_mask.nii.gz') # string
 
-#### find the good fmri image: as it is not always standart, look in you BIDS and help use to know how you fmri dataset end by ?:
+#### find the good fmri image: as it is not always standard, look in you BIDS and help use to know how you fmri dataset end by ?:
 ### specify the suffix to be used by glob.glob to select all fmri image (or map) in their respective folders
 endfmri = '*_task-rest_*.nii.gz' # string
 endjson = '*_task-rest_*.json' # string
 
-####find on image in the opposite direction of th BOLD aquistion either one per run or one per session or none !!!
-### if the pipeline doesn't find the image it will continue anyway so be carefull!
+####find on image in the opposite direction of th BOLD acquisition either one per run or one per session or none !!!
+### if the pipeline doesn't find the image it will continue anyway so be careful!
 endmap = '*_map.nii.gz' # string
 
 ##### is your anat and func in the same same space ? iff they are you can put anat_func_same_space = True  and it will use the mask of the anat to help
@@ -201,7 +201,7 @@ TfMRI = 'T1w' # string
 IgotbothT1T2 = False # True or False
 
 #### fMRI pre-treatment
-### number of TR to remove at the begining
+### number of TR to remove at the beginning
 T1_eq = 5 # int
 #### Choose which image you want to use as ref (0 the first one, 1 the second run, ect...)
 REF_int = 0 # int
@@ -230,24 +230,24 @@ REF_int = 0 # int
 
 ##### if their is an image in the  opposite direction, then we will apply fudge but for this you need to know
 ####### so here you need to provide the path for the se_map and b02b0.cnf
-#b02b0.cnf will be provided, but I never undestood if it should be really modified
+#b02b0.cnf will be provided, but I never understood if it should be really modified
 
 # However, you need to change se map file!!!!!!
 # se_map need 4 numbers in two lines:
 # First is the line for the map img and second for the func
 # In our example, it should be the -1 if the map image is j- and 1 if j (then for the second line it is the same but for the func img).
-# The last number is used to correct for different in acquistion between func and fmap.
+# The last number is used to correct for different in acquisition between func and fmap.
 #I don't know how it works, but refer to doc if necessary (it should be TotalReadoutTime).
 #https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/topup/TopupUsersGuide#A--datain
 # If same image, it should be the same number (whatever it is)
 # Ones you have created the topup file you should save it somewhere
 
-### correction_direction (necessery only if you want to appply TOPUP)
+### correction_direction (necessary only if you want to apply TOPUP)
 correction_direction = 'Auto' # 'x', 'x-', 'y', 'y-', 'Auto', 'None'
 
-### Dwell Time (necessery only if you want to appply TOPUP)
+### Dwell Time (necessary only if you want to apply TOPUP)
 DwellT = 'Auto' # 'value du calculate', 'Auto', 'None'
-### TotalReadoutTime (necessery only if you want to appply TOPUP)
+### TotalReadoutTime (necessery only if you want to apply TOPUP)
 TRT = 'Auto'
 
 #### where are stored the file for topup??
@@ -255,7 +255,7 @@ study_fMRI_Refth = opj(MAIN_PATH,'code','4topup.txt') #string (path)
 
 ########################################################################################################################
 
-### Slice encoding direction (SED) (necessery only if you want to restrict the transfo for anat to func)
+### Slice encoding direction (SED) (necessary only if you want to restrict the transfo for anat to func)
 SED = 'Auto' #  "i", "i-", "j", "j-", "k", "k-", 'Auto', 'None'
 
 ### YOU NEED TO PROVIDE A TR if not in .json, otherwise it will fail
@@ -270,12 +270,12 @@ doMaskingfMRI = True # True or False
 
 # if no
 ### Method_mask_func=="3dAllineate" or Method_mask_func = 'nilearn'
-#### 3dAllineate is based ont the linerar alignment of the anat to the func to send the anat mask to the func
+#### 3dAllineate is based ont the linear alignment of the anat to the func to send the anat mask to the func
 
-#### nilearn is a theshold based method (you can play with the threshold level)
-Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+#### nilearn is a threshold based method (you can play with the threshold level)
+Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or create a manual mask in the funcspace folder name "manual_mask.nii.gz"
 
-### if Method_mask_func=="3dAllineate" choose a method a alignment
+### if Method_mask_func=="3dAllineate" choose a method an alignment
 costAllin = '' # string
 
 ### if Method_mask_func=="nilearn" choose a cutoff
@@ -294,7 +294,7 @@ orientation = 'LPI' # string
 # another option is to put all of several animals in deoblique_exeption1, and no deoblique will be applied
 
 #### if they are, and you want to make your life easy by using the anatomical mask, you need to have the anat and func in the space after deoblique
-#### their is two way to do it deoblique='header': if the oblique is not too crazy and the center of the FOV similar it should work, but often, it is not the case.
+#### there are two ways to do it deoblique='header': if the oblique is not too crazy and the center of the FOV similar it should work, but often, it is not the case.
 ## deoblique='WARP' BOLD images will be warped to fix the deoblique difference, you can use it ONLY if you have done the same thing of the anatomical images.
 # It will have for unfortunate consequence to warp the func multiple times to go in the atlas space and one time in the original space.
 # However, this function can help to solve common space problem.....
@@ -308,15 +308,15 @@ type_of_transform = 'SyNBoldAff'
 aff_metric_ants = 'MI'
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
-### define the acronyme/suffix of the anat as in the BIDS
+### define the acronym/suffix of the anat as in the BIDS
 type_norm = 'T1w' # T1 or T2
-### define the acronyme/suffix of the other anat as in the BIDS
+### define the acronym/suffix of the other anat as in the BIDS
 otheranat = '' # sting
 
-### if you want to use T1/T2 as template (not sure if it will be ever usefull)
+### if you want to use T1/T2 as template (not sure if it will be ever useful)
 useT1T2_for_coregis = False # True or False
 
-###### sometime, the functional quality is so poor that co-registering the anat to the functional image will creat mistakes
+###### sometime, the functional quality is so poor that co-registering the anat to the functional image will create mistakes
 ###### if it is the case and if you !!!! FUNC IS IN THE ANAT SPACE !!!!! you may try do_anat_to_func = False,
 # it will assume that no coregistration between the anatomical image and the func is necessary
 do_anat_to_func = True # True or False
@@ -325,13 +325,13 @@ do_anat_to_func = True # True or False
 ######################### study template??? ###########################
 #######################################################################
 ##### if you don't have an anat then template will be the same as anat...
-#creat_study_template was created with the anat type_norm img, and you want to use it as standart space
+#creat_study_template was created with the anat type_norm img, and you want to use it as standard space
 creat_study_template = False # True or False
 
 ########## if creat_study_template = True ##########
 
 ######no need to answer this question if you are not doing a study template
-#folder where you stored the stdy template
+#folder where you stored the study template
 study_template_atlas_forlder = ''  # sting
 stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_mask.nii.gz') # sting
 stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
@@ -365,7 +365,7 @@ nb_ICA_run = 20 # int
 nb_ICA     = 30 # int
 
 #######for 3dDeconvolve cleaning (step 5)
-#If you dont want to correct the signal at all!  do_not_correct_signal  = True
+#If you don't want to correct the signal at all!  do_not_correct_signal  = True
 do_not_correct_signal  = False # True or False
 ### you can use the CSF (first layer outside the brain) as regressor
 extract_exterior_CSF = False # True or False
@@ -375,7 +375,7 @@ extract_WM = True # True or False
 #use the eroded  White Matter functional mask (produced during the anat processing)
 use_erode_WM_func_masks  = True # True or False
 
-### you can use the Ventricules as regressor (not advised for small species as often not enough voxels)
+### you can use the Ventricles as regressor (not advised for small species as often not enough voxels)
 extract_Vc = False # True or False
 #use the eroded ventricular functional mask (produced during the anat processing)
 use_erode_V_func_masks = False # True or False

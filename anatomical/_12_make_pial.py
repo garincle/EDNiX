@@ -4,6 +4,7 @@
 import os
 import subprocess
 import ants
+import datetime
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -11,10 +12,15 @@ opb = os.path.basename
 opn = os.path.normpath
 opd = os.path.dirname
 ope = os.path.exists
-spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-def make_pial(FS_dir, animal_folder, type_norm, otheranat, Hmin, Ref_file, do_surfacewith, overwrite,s_bind,fs_sif):
+def make_pial(FS_dir, animal_folder, type_norm, otheranat, Hmin, Ref_file, do_surfacewith, overwrite,s_bind,fs_sif, diary_file):
+
+    ct = datetime.datetime.now()
+    nl = 'Run anatomical._12_make_pial.make_pial'
+    diary = open(diary_file, "a")
+    diary.write(f'\n{ct}')
+    diary.write(f'\n{nl}')
 
     export_FS = 'export SINGULARITYENV_SUBJECTS_DIR="' + FS_dir + '"'
 
@@ -28,13 +34,22 @@ def make_pial(FS_dir, animal_folder, type_norm, otheranat, Hmin, Ref_file, do_su
 
             for H in range(2):
                 command = export_FS + ';singularity run' + s_bind + fs_sif + 'mris_make_surfaces -white NOWRITE -aseg aseg -orig white -noaparc -mgz -T1 brain -T2 ' + opj(FS_dir,animal_folder, 'mri', otheranat + 'brain') + ' ' + animal_folder + ' ' + Hmin[H] + 'h'
-                spco([command], shell=True)
+                nl = spgo(command)
+                diary.write(f'\n{nl}')
+                print(nl)
         else:
             for H in range(2):
                 command = export_FS + ';singularity run' + s_bind + fs_sif + 'mris_make_surfaces -white NOWRITE -aseg aseg -orig white -noaparc -mgz -T1 ' + 'T1brain' + ' -T2 ' + opj(FS_dir,animal_folder, 'mri', 'brain ') + animal_folder + ' ' + Hmin[H] + 'h'
-                spco([command], shell=True)
+                nl = spgo(command)
+                diary.write(f'\n{nl}')
+                print(nl)
 
     elif do_surfacewith == 'T1':
         for H in range(2):
             command = export_FS + ';singularity run' + s_bind + fs_sif + 'mris_make_surfaces -white NOWRITE -aseg aseg -orig white -noaparc -mgz -T1 brain ' + animal_folder + ' ' + Hmin[H] + 'h'
-            spco([command], shell=True)
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+
+    diary.write(f'\n')
+    diary.close()

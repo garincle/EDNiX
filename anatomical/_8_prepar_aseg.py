@@ -2,6 +2,8 @@ import os
 import subprocess
 import ants
 from nilearn import plotting
+import datetime
+import json
 
 class bcolors:
     HEADER = '\033[95m'
@@ -26,19 +28,33 @@ spgo = subprocess.getoutput
 
 def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_transfo, BASE_SS_mask, BASE_SS_coregistr, Aseg_refLR, Aseg_ref,
                 type_norm, ID, transfo_concat,w2inv_fwd, dir_prepro, list_atlases, check_visualy_each_img, n_for_ANTS, otheranat, overwrite, bids_dir, Session,
-                s_bind,afni_sif,itk_sif):
+                s_bind,afni_sif,itk_sif,diary_file):
 
-    print(bcolors.OKGREEN + "INFO: template mask is " + BASE_SS_mask + bcolors.ENDC)
-    print(bcolors.OKGREEN + "INFO: template is " + BASE_SS_coregistr + bcolors.ENDC)
-    print(bcolors.OKGREEN + "INFO: anat Ref_file is " + Ref_file + bcolors.ENDC)
+    ct = datetime.datetime.now()
+    nl = 'Run anatomical._8_prepar_aseg.prepar_aseg'
+    diary = open(diary_file, "a")
+    diary.write(f'\n{ct}')
+    diary.write(f'\n{nl}')
+
+    nl = "INFO: template mask is "
+    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+    diary.write(f'\n{nl}')
+    nl =  "INFO: template is " + BASE_SS_coregistr
+    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+    diary.write(f'\n{nl}')
+    nl =  "INFO: anat Ref_file is " + Ref_file
+    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+    diary.write(f'\n{nl}')
 
     ################################################################################################
     ########################## aseg and atlases into the native space ##############################
     ################################################################################################
 
-    ####save the old "Ref_file"    ####test on the template (atlas or sty) to see if it works
+    #### save the old "Ref_file"    ####test on the template (atlas or sty) to see if it works
     command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(volumes_dir,ID + type_norm + '_brain_step_1.nii.gz') + ' -expr "a" -prefix ' + Ref_file
-    spco([command], shell=True)
+    nl = spgo(command)
+    diary.write(f'\n{nl}')
+    print(nl)
 
     brain_img  = ants.image_read(Ref_file)
     MSK = ants.image_read(BASE_SS_mask)
@@ -46,24 +62,57 @@ def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_
     TRANS = ants.apply_transforms(fixed=brain_img, moving=MSK,
                                   transformlist=transfo_concat, interpolator='nearestNeighbor',whichtoinvert=w2inv_fwd)
     ants.image_write(TRANS, opj(masks_dir,'brain_mask_in_anat_DC.nii.gz'), ri=False)
+    dictionary = {"Sources": [BASE_SS_mask,
+                              Ref_file],
+                  "Description": 'Co-registration .', }
+    json_object = json.dumps(dictionary, indent=2)
+    with open(opj(masks_dir,'brain_mask_in_anat_DC.json'), "w") as outfile:
+        outfile.write(json_object)
+
     TRANS = ants.apply_transforms(fixed=brain_img, moving=IMG,
                                   transformlist=transfo_concat, interpolator=n_for_ANTS,whichtoinvert=w2inv_fwd)
     ants.image_write(TRANS, opj(dir_prepro,'template_in_anat_DC.nii.gz'), ri=False)
+
+    dictionary = {"Sources": [BASE_SS_coregistr,
+                              Ref_file],
+                  "Description": 'Co-registration .', }
+    json_object = json.dumps(dictionary, indent=2)
+    with open(opj(masks_dir, 'template_in_anat_DC.json'), "w") as outfile:
+        outfile.write(json_object)
+
     command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(dir_prepro,'template_in_anat_DC.nii.gz') + ' -expr "step(a)*b" -prefix ' + opj(dir_prepro,'template_in_anat_DC.nii.gz')
-    spco([command], shell=True)
+    nl = spgo(command)
+    diary.write(f'\n{nl}')
+    print(nl)
 
     command = 'singularity run' + s_bind + afni_sif + '3dresample' + \
           ' -master ' + opj(dir_prepro, ID + '_acpc_test_QC_' + type_norm + '.nii.gz') + \
           ' -prefix ' + opj(masks_dir, type_norm + 'brain_mask_final_QCrsp.nii.gz') + \
           ' -input ' + opj(masks_dir,'brain_mask_in_anat_DC.nii.gz') + ' -overwrite'
-    spco([command], shell=True)
+    nl = spgo(command)
+    diary.write(f'\n{nl}')
+    print(nl)
+    dictionary = {"Sources": [ opj(masks_dir,'brain_mask_in_anat_DC.nii.gz'),
+                              opj(dir_prepro, ID + '_acpc_test_QC_' + type_norm + '.nii.gz')],
+                  "Description": 'Resample .', }
+    json_object = json.dumps(dictionary, indent=2)
+    with open(opj(masks_dir, type_norm + 'brain_mask_final_QCrsp.json'), "w") as outfile:
+        outfile.write(json_object)
 
     if IgotbothT1T2 == True:
         command = 'singularity run' + s_bind + afni_sif + '3dresample' + \
                   ' -master ' + opj(dir_prepro, ID + '_acpc_test_QC_' + otheranat + '.nii.gz') + \
                   ' -prefix ' + opj(masks_dir, otheranat + 'brain_mask_final_QCrsp.nii.gz') + \
                   ' -input ' + opj(masks_dir,'brain_mask_in_anat_DC.nii.gz') + ' -overwrite'
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": [opj(masks_dir, 'brain_mask_in_anat_DC.nii.gz'),
+                                  opj(dir_prepro, ID + '_acpc_test_QC_' + otheranat  + '.nii.gz')],
+                      "Description": 'Resample .', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(masks_dir, otheranat  + 'brain_mask_final_QCrsp.json'), "w") as outfile:
+            outfile.write(json_object)
 
     #### apply to all atlases
     if list_atlases:
@@ -79,38 +128,65 @@ def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_
                                               transformlist=transfo_concat, interpolator='nearestNeighbor',whichtoinvert=w2inv_fwd)
                 ants.image_write(TRANS, opj(dir_out,type_norm + opb(atlas)), ri=False)
                 command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(dir_out,type_norm + opb(atlas)) + ' -expr "step(a)*b" -prefix ' + opj(labels_dir,type_norm + opb(atlas))
-                spco([command], shell=True)
-                print(bcolors.OKGREEN + 'INFO: done with atlas in subject space! you should check that' + bcolors.ENDC)
+                nl = spgo(command)
+                diary.write(f'\n{nl}')
+                print(nl)
+                dictionary = {"Sources": [atlas,
+                                          Ref_file],
+                              "Description": 'Co-registration .', }
+                json_object = json.dumps(dictionary, indent=2)
+                with open(opj(labels_dir,type_norm + opb(atlas[:-7])) + '.json', "w") as outfile:
+                    outfile.write(json_object)
+
+                nl = 'INFO: done with atlas in subject space! you should check that'
+                print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                diary.write(f'\n{nl}')
             else:
-                print(bcolors.WARNING + 'WARNING: no atlas found for path: ' + str(atlas) + bcolors.ENDC)
+                nl = 'WARNING: no atlas found for path: ' + str(atlas)
+                print(bcolors.WARNING + nl + bcolors.ENDC)
+                diary.write(f'\n{nl}')
 
 
-        if not os.path.exists(bids_dir + '/QC/FinalQC'):
-            os.mkdir(bids_dir + '/QC/FinalQC')
+        if not ope(opj(bids_dir + 'QC','FinalQC')):
+            os.mkdir(opj(bids_dir + 'QC','FinalQC'))
         try:
             display = plotting.plot_anat(Ref_file, display_mode='mosaic', dim=4)
             display.add_contours(opj(dir_prepro,'template_in_anat_DC.nii.gz'),
             linewidths=.2, colors=['red'])
-            display.savefig(bids_dir + '/QC/FinalQC/' + ID + '_' + str(Session) + '_' + type_norm + '_final_template_to_anat.png')
+            display.savefig(opj(bids_dir + 'QC','FinalQC' + ID + '_' + str(Session) + '_' + type_norm + '_final_template_to_anat.png'))
             # Don't forget to close the display
             display.close()
         except:
             display = plotting.plot_anat(Ref_file, display_mode='mosaic', dim=4)
-            display.savefig(bids_dir + '/QC/FinalQC/' + ID + '_' + str(Session) + '_' + type_norm + '_final_template_to_anat.png')
+            display.savefig(opj(bids_dir + 'QC','FinalQC' + ID + '_' + str(Session) + '_' + type_norm + '_final_template_to_anat.png'))
             # Don't forget to close the display
             display.close()
 
     #### apply to asegLR
     if ope(Aseg_refLR):
-        print(bcolors.OKGREEN + 'INFO: found Aseg_refLR:' + str(Aseg_refLR) + bcolors.ENDC)
+        nl = 'INFO: found Aseg_refLR:' + str(Aseg_refLR)
+        print(bcolors.OKGREEN + nl + bcolors.ENDC)
+        diary.write(f'\n{nl}')
+
         IMG = ants.image_read(Aseg_refLR)
         TRANS = ants.apply_transforms(fixed=brain_img, moving=IMG,
                                       transformlist=transfo_concat, interpolator='nearestNeighbor',whichtoinvert=w2inv_fwd)
         ants.image_write(TRANS, opj(labels_dir, type_norm + 'Aseg_refLR.nii.gz'), ri=False)
         command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(labels_dir, type_norm + 'Aseg_refLR.nii.gz') + ' -expr "step(a)*b" -prefix ' + opj(labels_dir, type_norm + 'Aseg_refLR.nii.gz')
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": [Aseg_refLR,
+                                  Ref_file],
+                      "Description": 'Co-registration .', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(labels_dir, type_norm + 'Aseg_refLR.json'), "w") as outfile:
+            outfile.write(json_object)
+
     else:
-        print(bcolors.WARNING + 'WARNING: no Aseg_refLR found' + bcolors.ENDC)
+        nl = 'WARNING: no Aseg_refLR found'
+        print(bcolors.WARNING + nl + bcolors.ENDC)
+        diary.write(f'\n{nl}')
 
     if ope(Aseg_ref):
         #### apply to aseg
@@ -119,23 +195,43 @@ def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_
                                       transformlist=transfo_concat, interpolator='nearestNeighbor',whichtoinvert=w2inv_fwd)
         ants.image_write(TRANS, opj(labels_dir, type_norm + 'aseg.nii.gz'), ri=False)
         command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + Ref_file + ' -b ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "step(a)*b" -prefix ' + opj(labels_dir, type_norm + 'aseg.nii.gz')
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": [Aseg_ref,
+                                  Ref_file],
+                      "Description": 'Co-registration .', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(labels_dir, type_norm + 'aseg.json'), "w") as outfile:
+            outfile.write(json_object)
+
     else:
-        print(bcolors.WARNING + 'WARNING: no Aseg_ref found' + bcolors.ENDC)
+        nl =  'WARNING: no Aseg_ref found'
+        print(bcolors.WARNING + nl + bcolors.ENDC)
+        diary.write(f'\n{nl}')
 
     if ope(opj(labels_dir, type_norm + 'aseg.nii.gz')):
         #### check the result if you are not a fan of auto "like Simon Clavagnier
         if check_visualy_each_img == True:
             #  Check for manual correction of the seg file!!!
             def run_command_and_wait(command):
-                print(bcolors.OKGREEN + 'INFO: Running command:', command + bcolors.ENDC)
+                nl = 'INFO: Running command:' +  command
+                print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                #diary.write(f'\n{nl}')
                 result = subprocess.run(command, shell=True)
                 if result.returncode == 0:
-                    print(bcolors.OKGREEN + 'INFO: Command completed successfully.' + bcolors.ENDC)
+                    nl = 'INFO: Command completed successfully.'
+                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                    #diary.write(f'\n{nl}')
                 else:
-                    print(bcolors.WARNING + 'WARNING: Command failed with return code:', result.returncode, bcolors.ENDC)
+                    pl =  'WARNING: Command failed with return code:' +  result.returncode
+                    print(bcolors.WARNING + nl + bcolors.ENDC)
+                    #diary.write(f'\n{nl}')
             # Example usage
-            print(bcolors.WARNING + 'WARNING: check aseg and if you correct it save it where it as ' + opj(labels_dir,'aseg_manual.nii.gz') +  + bcolors.ENDC)
+            nl =  'WARNING: check aseg and if you correct it save it where it as ' + opj(labels_dir,'aseg_manual.nii.gz') +  bcolors.ENDC
+            print(bcolors.WARNING + nl + bcolors.ENDC)
+            #diary.write(f'\n{nl}')
+
             command = ('singularity run' + s_bind + itk_sif + 'itksnap -g ' + Ref_file + ' -s ' + opj(labels_dir, type_norm + 'aseg.nii.gz'))
             run_command_and_wait(command)
 
@@ -152,7 +248,15 @@ def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_
                 ants.image_write(TRANS, opj(labels_dir,'aseg_manual_for_transform.nii.gz'), ri=False)
 
                 command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(labels_dir, type_norm + 'aseg_manual_for_transform.nii.gz') + ' -expr "a" -prefix ' + opj(labels_dir, type_norm + 'aseg.nii.gz')
-                spco([command], shell=True)
+                nl = spgo(command)
+                diary.write(f'\n{nl}')
+                print(nl)
+                dictionary = {"Sources": [opj(labels_dir, type_norm + 'aseg_manual.nii.gz'),
+                                          Ref_file],
+                              "Description": 'Co-registration .', }
+                json_object = json.dumps(dictionary, indent=2)
+                with open(opj(labels_dir, type_norm + 'aseg.json'), "w") as outfile:
+                    outfile.write(json_object)
 
     if ope(opj(labels_dir, type_norm + 'aseg.nii.gz')):
         ####################################################################################
@@ -179,19 +283,25 @@ def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_
 
         #creat CSF file
         command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + CSF_edit + ')" -prefix ' + opj(labels_dir, type_norm + 'CSF_select.nii.gz')
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
         img_CSF = ants.image_read(opj(labels_dir, type_norm + 'CSF_select.nii.gz'))
         CSF     = ants.mask_image(normT1, img_CSF, 1)
 
         #creat WM file
         command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + WM_edit + ')" -prefix ' + opj(labels_dir, type_norm + 'WM_select.nii.gz')
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
         img_WM = ants.image_read(opj(labels_dir, type_norm + 'WM_select.nii.gz'))
         WM     = ants.mask_image(normT1, img_WM, 1)
 
         #creat GM file
         command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + GM_edit + ')" -prefix ' + opj(labels_dir, type_norm + 'GM_select.nii.gz')
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
 
         img_GM  = ants.image_read(opj(labels_dir, type_norm + 'GM_select.nii.gz'))
         GM      = ants.mask_image(normT1, img_GM, 1)
@@ -225,23 +335,43 @@ def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_
         ants.image_write(nii, Ref_file.replace('.nii.gz', '_norm_' + type_norm + '.nii.gz'), ri=False)
 
         command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + aseg_edit + ')*250" -prefix ' + opj(labels_dir, type_norm + 'aseg_edit.nii.gz')
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
         ASEG = ants.image_read(opj(labels_dir, type_norm + 'aseg_edit.nii.gz'))
 
         command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + wm_aseg_edit + ')" -prefix ' + opj(labels_dir, type_norm + 'wm_edit.nii.gz')
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
         img_WM2  = ants.image_read(opj(labels_dir, type_norm + 'wm_edit.nii.gz'))
         WM_seg = ants.mask_image(pWM, img_WM2, 1)
         WM_FS  = ASEG + WM_seg
         ants.image_write(WM_FS, opj(labels_dir, type_norm + 'wm.nii.gz'), ri=False)
 
         command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + filled_edit + ')" -prefix ' + opj(labels_dir, type_norm + 'filled_mask.nii.gz')
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
 
         img_filled = ants.image_read(opj(labels_dir, type_norm + 'filled_mask.nii.gz'))
         img_filled = ants.iMath(img_filled,operation='GetLargestComponent')
         nii = ants.image_clone(img_filled)
         ants.image_write(nii, opj(labels_dir, type_norm + 'filled.nii.gz'), ri=False)
+
         command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'Aseg_refLR.nii.gz') + ' -b ' + opj(labels_dir, type_norm + 'filled.nii.gz') + ' -expr "b*a" -prefix ' + opj(labels_dir, type_norm + 'filled.nii.gz') + ' -overwrite'
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
+        dictionary = {"Sources": [opj(labels_dir, type_norm + 'aseg.nii.gz'),
+                                  opj(labels_dir, type_norm + 'Aseg_refLR.nii.gz')],
+                      "Description": 'labelling .', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(labels_dir, type_norm + 'filled.json'), "w") as outfile:
+            outfile.write(json_object)
+
+
+    diary.write(f'\n')
+    diary.close()
 

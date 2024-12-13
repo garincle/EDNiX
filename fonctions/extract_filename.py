@@ -1,14 +1,5 @@
 import os
-import subprocess
-
-# Path to the excels files and data structure
-opj = os.path.join
 opb = os.path.basename
-opn = os.path.normpath
-opd = os.path.dirname
-ope = os.path.exists
-spco = subprocess.check_output
-spgo = subprocess.getoutput
 
 
 def extract_filename(file_path):
