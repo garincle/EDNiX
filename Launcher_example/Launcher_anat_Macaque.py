@@ -212,7 +212,7 @@ lpa+ *OR*  localPcorAbs+Others= Local Pearson Abs + Others
 #creat_study_template with type_norm img
 creat_study_template = False
 
-#folder where you want to store the stdy template
+#folder where you want to store the study template
 study_template_atlas_forlder = bids_dir + '/sty_template'
 #then where do you want your atlases in sty template to be
 dir_out = bids_dir + '/sty_template/atlases'

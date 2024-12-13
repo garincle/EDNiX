@@ -6,10 +6,15 @@ import anatomical.Histrogram_mask_EMB
 import os
 import tempfile
 import subprocess
+import datetime
+
+
+opj = os.path.join
+opb = os.path.basename
 spgo = subprocess.getoutput
 spco = subprocess.check_output
 
-def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
+def anats_to_common(s_bind, afni_sif,diary_file, anat_filenames, write_dir,
                     registration_kind='affine',
                     nonlinear_levels=[1, 2, 3],
                     nonlinear_minimal_patches=[75],
@@ -17,7 +22,12 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
                     convergence=0.005, blur_radius_coarse=1.1,
                     caching=False, verbose=1,
                     unifize_kwargs=None, brain_masking_unifize_kwargs=None):
-    
+
+    ct = datetime.datetime.now()
+    nl = 'Run anatomical.anat_to_common_EMB.anats_to_common'
+    diary = open(diary_file, "a")
+    diary.write(f'\n{ct}')
+    diary.write(f'\n{nl}')
 
     # Create a temporary directory for the wrapper scripts
     wrapper_dir = tempfile.mkdtemp()
@@ -32,7 +42,7 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
 
     # Create wrapper scripts
     for cmd in afni_commands:
-        wrapper_path = os.path.join(wrapper_dir, cmd)
+        wrapper_path = opj(wrapper_dir, cmd)
         with open(wrapper_path, 'w') as wrapper_file:
             # Redirect stderr to /dev/null to suppress warnings
             wrapper_file.write(f"#!/bin/bash\nsingularity run {sing_com} {cmd} \"$@\" 2>/dev/null")
@@ -42,7 +52,7 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
     os.environ['PATH'] = f"{wrapper_dir}:{os.environ['PATH']}"
 
     try:
-        result = subprocess.check_output(['3dAllineate', '--version'])
+        result = spco(['3dAllineate', '--version'])
         print(result.decode('utf-8'))
     except subprocess.CalledProcessError as e:
         print(e.output.decode('utf-8'))
@@ -223,13 +233,13 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
     copied_anat_filenames = []
     for n, anat_file in enumerate(anat_filenames):
         suffixed_file = fname_presuffix(anat_file, suffix='_{}'.format(n))
-        out_file = os.path.join(write_dir, os.path.basename(suffixed_file))
+        out_file = opj(write_dir, opb(suffixed_file))
         out_copy = copy(in_file=anat_file, out_file=out_file,
                         **verbosity_kwargs)
         copied_anat_filenames.append(out_copy.outputs.out_file)
 
     out_tcat = tcat(in_files=copied_anat_filenames,
-                    out_file=os.path.join(write_dir, 'raw_heads.nii.gz'),
+                    out_file=opj(write_dir, 'raw_heads.nii.gz'),
                     outputtype='NIFTI_GZ', **verbosity_kwargs)
     out_tstat = tstat(in_file=out_tcat.outputs.out_file, outputtype='NIFTI_GZ')
 
@@ -333,7 +343,7 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
 
     # create an empty template with a center at the image matrix center
     out_undump = undump(in_file=out_tstat.outputs.out_file,
-                        out_file=os.path.join(write_dir, 'undump.nii.gz'),
+                        out_file=opj(write_dir, 'undump.nii.gz'),
                         outputtype='NIFTI_GZ')
     out_refit = refit2(in_file=out_undump.outputs.out_file,
                        xorigin='cen', yorigin='cen', zorigin='cen')
@@ -349,7 +359,7 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
         centered_brain_files.append(out_resample.outputs.out_file)
     '''
     out_tcat = tcat(in_files=unifized_files,
-                    out_file=os.path.join(write_dir, 'centered_brains.nii.gz'),
+                    out_file=opj(write_dir, 'centered_brains.nii.gz'),
                     **verbosity_kwargs)
     out_tstat_centered_brain = tstat(in_file=out_tcat.outputs.out_file,
                                      outputtype='NIFTI_GZ')
@@ -364,7 +374,7 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
         centered_head_files.append(out_resample.outputs.out_file)
     '''
     out_tcat = tcat(in_files=unifized_files,
-                    out_file=os.path.join(write_dir, 'centered_heads.nii.gz'),
+                    out_file=opj(write_dir, 'centered_heads.nii.gz'),
                     **verbosity_kwargs)
     out_tstat_centered_brain = tstat(in_file=out_tcat.outputs.out_file,
                                      outputtype='NIFTI_GZ')
@@ -394,7 +404,7 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
         suffixed_matrix = fname_presuffix(centered_brain_file,
                                           suffix='_shr.aff12.1D',
                                           use_ext=False)
-        out_matrix = os.path.join(write_dir, os.path.basename(suffixed_matrix))
+        out_matrix = opj(write_dir, opb(suffixed_matrix))
         out_allineate = allineate(
             in_file=centered_brain_file,
             reference=out_tstat_centered_brain.outputs.out_file,
@@ -412,7 +422,7 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
     for centered_head_file, rigid_transform_file in zip(unifized_files,
                                                         rigid_transform_files):
         suffixed_file = fname_presuffix(centered_head_file, suffix='_shr')
-        out_file = os.path.join(write_dir, os.path.basename(suffixed_file))
+        out_file = opj(write_dir, opb(suffixed_file))
         out_allineate = allineate2(
             in_file=centered_head_file,
             master=out_tstat_centered_brain.outputs.out_file,
@@ -424,13 +434,13 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
     # quality check video and mean for head and brain
     out_tcat = tcat(
         in_files=shift_rotated_head_files,
-        out_file=os.path.join(write_dir, 'rigid_body_registered_heads.nii.gz'),
+        out_file=opj(write_dir, 'rigid_body_registered_heads.nii.gz'),
         **verbosity_kwargs)
     out_tstat_shr = tstat(in_file=out_tcat.outputs.out_file,
                           outputtype='NIFTI_GZ')
     out_tcat = tcat(
         in_files=shift_rotated_brain_files,
-        out_file=os.path.join(write_dir, 'rigid_body_registered_brains.nii.gz'),
+        out_file=opj(write_dir, 'rigid_body_registered_brains.nii.gz'),
         **verbosity_kwargs)
     out_tstat_shr = tstat(in_file=out_tcat.outputs.out_file,
                           outputtype='NIFTI_GZ')
@@ -482,8 +492,7 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
         suffixed_matrix = fname_presuffix(shift_rotated_head_file,
                                           suffix='_affine_catenated.aff12.1D',
                                           use_ext=False)
-        catmatvec_out_file = os.path.join(write_dir,
-                                          os.path.basename(suffixed_matrix))
+        catmatvec_out_file = opj(write_dir,opb(suffixed_matrix))
         out_catmatvec = catmatvec(in_file=[(rigid_transform_file, 'ONELINE'),
                                            (out_allineate.outputs.out_matrix,
                                             'ONELINE')],
@@ -552,7 +561,7 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
             unifized_files_false_head, affine_transform_files):
         suffixed_file = fname_presuffix(centered_head_file,
                                         suffix='_shr_af_cat')
-        out_file = os.path.join(write_dir, os.path.basename(suffixed_file))
+        out_file = opj(write_dir, opb(suffixed_file))
         out_allineate = allineate2(
             in_file=centered_head_file,
             master=out_tstat_shr.outputs.out_file,
@@ -564,13 +573,13 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
     # quality check videos and template for head and brain
     out_tcat_head = tcat(
         in_files=allineated_head_files,
-        out_file=os.path.join(write_dir, 'affine_registered_heads.nii.gz'),
+        out_file=opj(write_dir, 'affine_registered_heads.nii.gz'),
         **verbosity_kwargs)
     out_tstat_allineated_head = tstat(in_file=out_tcat_head.outputs.out_file,
                                       outputtype='NIFTI_GZ')
     out_tcat_brain = tcat(
         in_files=allineated_brain_files,
-        out_file=os.path.join(write_dir, 'affine_registered_brains.nii.gz'),
+        out_file=opj(write_dir, 'affine_registered_brains.nii.gz'),
         **verbosity_kwargs)
     out_tstat_allineated_brain = tstat(in_file=out_tcat_brain.outputs.out_file,
                                        outputtype='NIFTI_GZ')
@@ -590,14 +599,14 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
         out_mask_tool = mask_tool(
             in_file=out_tcat.outputs.out_file,
             union=True,
-            out_file=os.path.join(
+            out_file=opj(
                 write_dir,
                 'affine_registered_brains_unionmask.nii.gz'),
             outputtype='NIFTI_GZ',
             verbose=verbose)
         out_mask_tool = mask_tool(
             in_file=out_mask_tool.outputs.out_file,
-            out_file=os.path.join(
+            out_file=opj(
                 write_dir,
                 'affine_registered_brains_unionmask_dil4.nii.gz'),
             dilate_inputs='4',
@@ -664,8 +673,7 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
         inilev = maxlev + 1
         # Compute the average of the warped images while accounting
         # for systematic biases in the non-linear transforms
-        common_head_file = os.path.join(
-            write_dir, 'warped_{0}_adjusted_mean.nii.gz'.format(n_lev))
+        common_head_file = opj(write_dir, 'warped_{0}_adjusted_mean.nii.gz'.format(n_lev))
         out_nwarp_adjust = nwarp_adjust(warps=warp_files,
                                         in_files=unifized_files,
                                         out_file=common_head_file)
@@ -710,15 +718,12 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
 
         out_tcat = tcat(
             in_files=warped_files,
-            out_file=os.path.join(
-                write_dir,
-                'warped_{0}iters_template.nii.gz'.format(n_iter)),
+            out_file=opj(write_dir,'warped_{0}iters_template.nii.gz'.format(n_iter)),
             **verbosity_kwargs)
         out_tstat_warp_head = tstat(in_file=out_tcat.outputs.out_file,
                                     outputtype='NIFTI_GZ')
 
-        common_head_file = os.path.join(
-            write_dir, 'warped_{0}_adjusted_mean.nii.gz'.format(n_iter))
+        common_head_file = opj(write_dir, 'warped_{0}_adjusted_mean.nii.gz'.format(n_iter))
         out_nwarp_adjust = nwarp_adjust(warps=warp_files,
                                         in_files=unifized_files,
                                         out_file=common_head_file)
@@ -733,7 +738,7 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
         suffixed_file = fname_presuffix(
             centered_head_file,
             suffix='affine_warp{}_catenated'.format(len(nonlinear_levels)))
-        out_file = os.path.join(write_dir, os.path.basename(suffixed_file))
+        out_file = opj(write_dir, opb(suffixed_file))
         out_warp_apply = warp_apply(
             in_file=centered_head_file,
             warp=warp_file,
@@ -745,3 +750,6 @@ def anats_to_common(s_bind, afni_sif, anat_filenames, write_dir,
     os.chdir(current_dir)
     return Bunch(registered=warped_files,
                  transforms=warp_files)
+
+    diary.write(f'\n')
+    diary.close()

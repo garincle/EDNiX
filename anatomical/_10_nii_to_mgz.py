@@ -3,6 +3,8 @@
 ################################################
 import os
 import subprocess
+import datetime
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -22,13 +24,19 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-def nii_to_mgz(ID, Session, FS_dir, Ref_file, labels_dir, volumes_dir, otheranat, IgotbothT1T2, type_norm, overwrite,s_bind,fs_sif):
+def nii_to_mgz(ID, Session, FS_dir, Ref_file, labels_dir, volumes_dir, otheranat, IgotbothT1T2, type_norm, overwrite,s_bind,fs_sif,diary_file):
+    ct = datetime.datetime.now()
+    nl = 'Run anatomical._10_nii_to_mgz.nii_to_mgz'
+    diary = open(diary_file, "a")
+    diary.write(f'\n{ct}')
+    diary.write(f'\n{nl}')
+
     animal_folder =   'sub-' + ID + '_ses-' + str(Session)
 
     cmd = 'singularity run' + s_bind + fs_sif + 'mri_info --orientation ' + Ref_file
     orient_raw = spgo(cmd)
 
-    # purpouse for FS : LIA
+    # purpose for FreeSurfer : LIA
     if orient_raw   == 'RAS': reorient = ' -r -1 3 -2 '
     elif orient_raw == 'LAS': reorient = ' -r 1 3 -2 '
     elif orient_raw == 'RSA': reorient = ' -r -1 -2 3'
@@ -42,7 +50,9 @@ def nii_to_mgz(ID, Session, FS_dir, Ref_file, labels_dir, volumes_dir, otheranat
     elif orient_raw == 'RPS': reorient = ' -r -1 -3 -2 '
     elif orient_raw == 'LPS': reorient = ' -r 1 -3 -2 '
     else:
-        print(bcolors.FAIL + 'ERROR: ' + orient_raw + ' not found in the list' + bcolors.ENDC)
+        nl = 'ERROR: ' + orient_raw + ' not found in the list'
+        print(bcolors.FAIL + nl + bcolors.ENDC)
+        diary.write(f'\n{nl}')
 
     fwdFS_cmd = ' --in_orientation ' + orient_raw + reorient
 
@@ -59,15 +69,24 @@ def nii_to_mgz(ID, Session, FS_dir, Ref_file, labels_dir, volumes_dir, otheranat
     ';singularity run' + s_bind + fs_sif + 'mri_convert ' + fwdFS_cmd + ' -odt uchar ' + opj(labels_dir, type_norm + 'wm.nii.gz') + ' ' + opj(FS_dir,animal_folder,'mri','wm.seg.mgz') + \
     ';singularity run' + s_bind + fs_sif + 'mri_convert ' + fwdFS_cmd + ' ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' ' + opj(FS_dir,animal_folder,'mri','aseg.mgz') + \
     ';singularity run' + s_bind + fs_sif + 'mri_convert ' + fwdFS_cmd + ' ' + opj(labels_dir, type_norm + 'filled.nii.gz') + ' '  + opj(FS_dir,animal_folder,'mri','filled.mgz')
-    spco([command], shell=True)
+    nl = spgo(command)
+    diary.write(f'\n{nl}')
+    print(nl)
 
 
     if IgotbothT1T2 ==True:
         otheranatimg  = opj(volumes_dir, ID + otheranat + '_brain.nii.gz')
-        if os.path.exists(otheranatimg):
+        if ope(otheranatimg):
             ####### attention!! change LPS 
             command = 'singularity run' + s_bind + fs_sif + 'mri_convert ' + fwdFS_cmd + ' ' + otheranatimg + ' ' + opj(FS_dir,animal_folder, 'mri', otheranat + 'brain.mgz')
-            spco([command], shell=True)
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
         else:
             IgotbothT1T2==False
-            raise Exception(bcolors.FAIL + 'Warning No ' + otheranat + ' found !!!!!!!!!!!! (you said yes!!)' + bcolors.ENDC)
+            nl = 'Warning No ' + otheranat + ' found !!!!!!!!!!!! (you said yes!!)'
+            diary.write(f'\n{nl}')
+            raise Exception(bcolors.FAIL + nl + bcolors.ENDC)
+
+    diary.write(f'\n')
+    diary.close()
