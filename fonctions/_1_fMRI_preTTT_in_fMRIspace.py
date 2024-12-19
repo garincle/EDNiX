@@ -122,7 +122,7 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR, S
         # slice-timing correction -heptic!!!!!!
         if Slice_timing_info == 'Auto':
             if opi(opj(dir_fMRI_Refth_RS_prepro1, 'stc.txt')):
-                command = 'singularity run' + s_bind + afni_sif + '3dTshift -heptic' + overwrite + \
+                command = 'singularity run' + s_bind + afni_sif + '3dTshift -wsinc9' + overwrite + \
                           ' -TR ' + str(TR) + ' -tpattern @' + opj(dir_fMRI_Refth_RS_prepro1, 'stc.txt') + \
                           ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz ') + \
                           ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz')
@@ -142,7 +142,7 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR, S
                 STC = list(map(float, STC))
                 if np.sum(STC) > 0:
                     # means that AFNI has access to the slice timing in the nifti header
-                    command = 'singularity run' + s_bind + afni_sif + '3dTshift -heptic' + overwrite + \
+                    command = 'singularity run' + s_bind + afni_sif + '3dTshift -wsinc9' + overwrite + \
                               ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz ') + \
                               ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz')
                     nl = spgo(command)
@@ -168,7 +168,7 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR, S
                     with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.json'), "w") as outfile:
                         outfile.write(json_object)
         elif isinstance(Slice_timing_info, list) == False and Slice_timing_info.split(' ')[0] == '-tpattern':
-            command = 'singularity run' + s_bind + afni_sif + '3dTshift -heptic' + overwrite + \
+            command = 'singularity run' + s_bind + afni_sif + '3dTshift -wsinc9' + overwrite + \
                       ' -TR ' + str(TR) + ' ' + Slice_timing_info + \
                       ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz ') + \
                       ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz')
@@ -181,7 +181,7 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR, S
             with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.json'), "w") as outfile:
                 outfile.write(json_object)
         elif isinstance(Slice_timing_info, list) == True:
-            command = 'singularity run' + s_bind + afni_sif + '3dTshift -heptic' + overwrite + \
+            command = 'singularity run' + s_bind + afni_sif + '3dTshift -wsinc9' + overwrite + \
                       ' -TR ' + str(TR) + ' -tpattern @' + opj(dir_fMRI_Refth_RS_prepro1, 'stc.txt') + \
                       ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz ') + \
                       ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz')

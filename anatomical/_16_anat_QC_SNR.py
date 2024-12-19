@@ -83,7 +83,7 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                         nl = field + ':'
                         print(bcolors.OKGREEN + nl + bcolors.ENDC)
                         diary.write(f'\n{nl}')
-                        nl = "  Image 1: " + values[0]
+                        nl = "  Image 1: " + str(values[0])
                         print(bcolors.OKGREEN + nl + bcolors.ENDC)
                         diary.write(f'\n{nl}')
                         nl = f"  Image 2: {values[1]}"
@@ -295,12 +295,15 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                     :return: A tuple of the FWHM values (x, y, z, and combined).
                     """
 
+                    original_dir = os.getcwd()
+                    os.chdir(dir_prepro)
+
                     command = f'singularity run {s_bind} {afni_sif} 3dFWHMx -overwrite ' \
                               f'-mask {mask_file} ' \
                               f'-input {anat_file}'
                     fwhm_string_list = spgo([command])
                     print(fwhm_string_list)
-
+                    os.chdir(original_dir)
 
                     try:
                         # Use regex to find the line with the four numeric values
