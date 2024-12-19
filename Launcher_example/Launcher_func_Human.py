@@ -36,9 +36,9 @@ FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 
 #https://bids-standard.github.io/pybids/reports/index.html
 
-### where to store the BIDS data?
+###where to store the BIDS data?
 species = 'Human'
-bids_dir = opj('/','scratch','cgarin'+ species, 'BIDS_HBN')
+bids_dir = opj('/scratch/cgarin/'+ species + '/BIDS_HBN')
 
 ##########################################
 ########### Subject loader################
@@ -80,7 +80,7 @@ df.head()
 
 ##############################################################  TO DO !! ##############################################################
 
-#### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process
+#### Create a pandas sheet for the dataset (I like it, it help to know what you are about to process
 allinfo_study_c = df[(df['suffix'] == 'T1w') & (df['extension'] == '.nii.gz') & (df['acquisition'] == 'VNav')]
 list_of_ones = [1] * len(allinfo_study_c)
 allinfo_study_c['Session'] = list_of_ones
@@ -90,8 +90,8 @@ allinfo_study_c_formax = allinfo_study_c.copy()
 
 
 
-############# Select all the animal of the study
-### equal to allinfo_study_c, especially if not longitudinal and you have not selected specific subjects
+##############Select all the monkey of the study
+### equal to allinfo_study_c, espcially if not longitudinal  and you have not selected specific subjects
 
 #########creat lists of indiv and usefull variables
 all_data_path = []
@@ -138,21 +138,21 @@ for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session,
     if ID in []:
         removelist.append(num)
 
-all_ID =          [item for i, item in enumerate(all_ID) if i not in removelist]
-all_Session =     [item for i, item in enumerate(all_Session) if i not in removelist]
-all_data_path =   [item for i, item in enumerate(all_data_path) if i not in removelist]
-max_sessionlist = [item for i, item in enumerate(max_sessionlist) if i not in removelist]
+all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
+all_Session =  [item for i, item in enumerate(all_Session) if i not in removelist]
+all_data_path =  [item for i, item in enumerate(all_data_path) if i not in removelist]
+max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i not in removelist]
 
 ##############################################################  TO DO !!!! ##############################################################
                                 ##############################################################
                                 ########### 2. variable specific of you dataset ##############
                                 ##############################################################
 
-#### Choose the type of analysis you want to do
+#### Choose the type of analysis you want to to do
 coregistration_longitudinal = False #True or False
 overwrite_option = True #True or False overwrite previous analysis if in BIDS
 
-#### if you don't have an anat image!!  not great but sometimes you don't have the choice
+#### if you don't have an anat image!!  not great but sometine you don't have the choice
 IhaveanANAT = True # True or False
 
 #####if IhaveanANAT = False
@@ -160,20 +160,20 @@ IhaveanANAT = True # True or False
 
 folderforTemplate_Anat = ''
 anat_subject = opj(folderforTemplate_Anat,'template.nii.gz') # string
-brainmask    = opj(folderforTemplate_Anat,'brain_mask.nii.gz') # string
+brainmask     = opj(folderforTemplate_Anat,'brain_mask.nii.gz') # string
 
 
-#### find the good fmri image: as it is not always standard, look in you BIDS and help use to know how you fmri dataset end by ?:
+#### find the good fmri image: as it is not always standart, look in you BIDS and help use to know how you fmri dataset end by ?:
 ### specify the suffix to be used by glob.glob to select all fmri image (or map) in their respective folders
 endfmri = '*_task-rest_*.nii.gz' # string
 endjson = '*_task-rest_*.json' # string
 
-####find on image in the opposite direction of th BOLD acquisition either one per run or one per session or none !!!
-### if the pipeline doesn't find the image it will continue anyway so be careful!
+####find on image in the opposite direction of th BOLD aquistion either one per run or one per session or none !!!
+### if the pipeline doesn't find the image it will continue anyway so be carefull!
 endmap = '*fMRI_epi.nii.gz' # string
 
-##### is your anat and func in the same space ? iff they are you can put anat_func_same_space = True and it will use the mask of the anat to help
-# with the co-registration. It also adds other problem, so even if they are in the same space you can put anat_func_same_space = False
+##### is your anat and func in the same same space ? iff they are you can put anat_func_same_space = True  and it will use the mask of the anat to help
+# with the co-registration. It also add other problem, so even if they are in the same space you can put anat_func_same_space = False
 anat_func_same_space = False # True or False
 
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
@@ -183,13 +183,11 @@ TfMRI = 'acq-VNav_T1w' # string
 IgotbothT1T2 = True # True or False
 
 #### fMRI pre-treatment
-### number of TR to remove at the beginning
+### number of TR to remove at the begining
 T1_eq = 5 # int
 #### Choose which image you want to use as ref (0 the first one, 1 the second run, ect...)
 REF_int = 0 # int
-
-Slice_timing_info = 'auto'                  # 'auto' / '-tpattern blabla' (according to 3dTshift) / [0,1,2,3,4,5,6, ....]: the sequence itself
-
+Slice_timing_info = 'Auto'
 
 #### ==> you need to check in the json or on the image map what is the encoding direction
 # For exemple if  phase encoding direction is "j-" you should put physical coordinates y- (ijk = xyz) (info: if image orientation is LPI it means that your image has been acquired from P to A)
@@ -227,12 +225,12 @@ Slice_timing_info = 'auto'                  # 'auto' / '-tpattern blabla' (accor
 # If same image, it should be the same number (whatever it is)
 # Ones you have created the topup file you should save it somewhere
 
-### correction_direction (necessary only if you want to apply TOPUP)
+### correction_direction (necessery only if you want to appply TOPUP)
 correction_direction = 'Auto' # 'x', 'x-', 'y', 'y-', 'Auto', 'None'
 
-### Dwell Time (necessary only if you want to apply TOPUP)
+### Dwell Time (necessery only if you want to appply TOPUP)
 DwellT = 'Auto' # 'value du calculate', 'Auto', 'None'
-### TotalReadoutTime (necessary only if you want to apply TOPUP)
+### TotalReadoutTime (necessery only if you want to appply TOPUP)
 TRT = 'Auto'
 
 #### where are stored the file for topup??
@@ -467,12 +465,11 @@ Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
 Skip_step = [200]
-
     ############################################################
     ######################## START de pipeline #################
     ############################################################
 
-fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, Slice_timing_info,anat_func_same_space,
+fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
     correction_direction, REF_int, study_fMRI_Refth, SBAspace, erod_seed, deoblique, orientation,
     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
     extract_exterior_CSF, extract_WM, n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,

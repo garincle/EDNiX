@@ -255,7 +255,7 @@ list_atlases.append(opj(diratlas_orig,'Wmask.nii.gz'))
 BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'templateT2.nii.gz') # sting
 BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'brain_mask.nii.gz') # sting
 
-####atlases files
+####atlases filesBIDStype
 Aseg_ref    = ''
 Aseg_refLR  = ''
 fMRImasks = 'custom' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
@@ -282,4 +282,3 @@ anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, 
     IgotbothT1T2, list_atlases, Aseg_ref, Aseg_refLR, dir_out, FS_dir, do_surfacewith, Atemplate_to_Stemplate,
     FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, Align_img_to_template,
     species, type_of_transform, type_of_transform_stdyT, fMRImasks, overwrite_option,MAIN_PATH, s_bind, s_path)
-

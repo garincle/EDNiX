@@ -363,7 +363,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print(bcolors.OKGREEN + nl + bcolors.ENDC)
                 diary.write(f'\n{nl}')
 
-            if Slice_timing_info == 'auto':
+            if Slice_timing_info == 'Auto':
                 try:
                     slice_timing = info_RS["SliceTiming"]
                     nl = "INFO: SliceTiming = " + str(slice_timing)
@@ -377,25 +377,23 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 except:
                     cmd = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -slice_timing ' + \
                           list_RS[0]
-                    nl = spgo(cmd)
-                    STC = nl.split('|')
+                    nl = spgo(cmd).split('\n')
+                    STC = nl[-1].split('|')
                     STC = list(map(float, STC))
                     if np.sum(STC) > 0:
                         nl = "INFO: SliceTiming = " + str(STC)
                         print(bcolors.OKGREEN + nl + bcolors.ENDC)
                         diary.write(f'\n{nl}')
                     else :
-                        nl = "INFO: Slice Timing not found"
+                        nl = "WARNING: Slice Timing not found, this will be particularly DANGEROUS, you SHOULD PROVIDE MANUALLY ONE!"
                         print(bcolors.WARNING + nl + bcolors.ENDC)
                         diary.write(f'\n{nl}')
 
             elif isinstance(Slice_timing_info, list) == True:
-                Stimes = np.linspace(0,TR,len(Slice_timing_info)+1)
-                Stimes = Stimes[:-1]
-                nl = "INFO: SliceTiming = " + str(Stimes[slice_timing])
+                nl = "INFO: SliceTiming = " + str(Slice_timing_info)
                 print(bcolors.OKGREEN + nl + bcolors.ENDC)
                 diary.write(f'\n{nl}')
-                STC = map(str, Stimes[slice_timing])
+                STC = map(str, Slice_timing_info)
                 stc = ' '.join(STC)
                 with open(opj(dir_fMRI_Refth_RS_prepro1, 'stc.txt'), 'w') as f:
                     f.write(stc)
@@ -584,7 +582,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                                                                       list_RS,
                                                                       nb_run,
                                                                       T1_eq,
-                                                                      TR,
+                                                                      TR_val,
                                                                       Slice_timing_info,
                                                                       overwrite,
                                                                       s_bind,afni_sif,diary_file)
@@ -756,7 +754,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 diary.close()
 
             else:
-                fonctions._12_fMRI_QC.fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, diary_file)
+                fonctions._12_fMRI_QC.fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind, afni_sif,diary_file)
 
             if 13 in Skip_step:
                 ct = datetime.datetime.now()

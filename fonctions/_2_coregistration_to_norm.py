@@ -125,7 +125,6 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
         with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP.json'), "w") as outfile:
             outfile.write(json_object)
 
-
         ### 2.0 Start fix_orient
 
         imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
@@ -166,8 +165,6 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
             json_object = json.dumps(dictionary, indent=2)
             with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP.json'), "w") as outfile:
                 outfile.write(json_object)
-
-
             ### 2.0 Start fix_orient
 
             imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
@@ -176,9 +173,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
             fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif,diary_file)
 
     elif recordings == 'very_old':
-
         # ### 1.0 Normalization between runs
-
         r = REF_int
         root_RS = extract_filename(RS[r])
         command = 'singularity run' + s_bind + afni_sif + '3dcopy ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') + \
@@ -202,9 +197,6 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
         imgI = '_xdtrf_mean_preWARP.nii.gz'
 
         fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif,diary_file)
-
-
-
 
     ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### 
     ###                                              fix header problems                                                                ###
@@ -256,9 +248,10 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
             moved = ants.apply_transforms(fixed=REF, moving=FUNC,
                                           transformlist=mTx['fwdtransforms'],
                                           interpolator=n_for_ANTS, imagetype=3)
-            ants.image_write(moved, opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtr_deob.nii.gz'), ri=False)
+            ants.image_write(moved, opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtrf_2ref.nii.gz'), ri=False)
+
             dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_deob.nii.gz'),
-                                      opj(dir_fMRI_Refth_RS_prepro1, root_RS_ref + '_xdtr_mean_deob_ref_fudge.nii.gz')],
+                                      opj(dir_fMRI_Refth_RS_prepro1, root_RS_ref + '_xdtrf_2ref.nii.gz')],
                           "Description": 'Coregistration (ANTspy).', }
             json_object = json.dumps(dictionary, indent=2)
             with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_2ref.json'), "w") as outfile:

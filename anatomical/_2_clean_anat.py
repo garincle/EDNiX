@@ -78,18 +78,18 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
             outfile.write(json_object)
 
         #QC
-        if not ope(opj(bids_dir + 'QC','skullstrip_step1')):
-            os.mkdir(opj(bids_dir + 'QC','skullstrip_step1'))
+        if not ope(opj(bids_dir, 'QC','skullstrip_step1')):
+            os.mkdir(opj(bids_dir, 'QC','skullstrip_step1'))
         try:
             display = plotting.plot_anat(opj(dir_prepro, ID + '_anat_reorient_NU' + Timage + '.nii.gz'), display_mode='mosaic')
             display.add_contours(opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz'),
             linewidths=.3, colors=['red'])
-            display.savefig(opj(bids_dir + 'QC','skullstrip_step1', ID + '_' + str(Session) + '_' + Timage + '_skullstriped.png'))
+            display.savefig(opj(bids_dir, 'QC','skullstrip_step1', ID + '_' + str(Session) + '_' + Timage + '_skullstriped.png'))
             # Don't forget to close the display
             display.close()
         except:
             display = plotting.plot_anat(opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz'), display_mode='x', cut_coords=10)
-            display.savefig(opj(bids_dir + 'QC','skullstrip_step1', ID + '_' + str(Session) + '_' + Timage + '_skullstriped.png'))
+            display.savefig(opj(bids_dir, 'QC','skullstrip_step1', ID + '_' + str(Session) + '_' + Timage + '_skullstriped.png'))
             # Don't forget to close the display
             display.close()
 
@@ -308,17 +308,17 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
             outfile.write(json_object)
 
 
-        if not os.path.exists(opj(bids_dir + 'QC','align_rigid_to_template')):
-            os.mkdir(opj(bids_dir + 'QC','align_rigid_to_template'))
+        if not os.path.exists(opj(bids_dir, 'QC','align_rigid_to_template')):
+            os.mkdir(opj(bids_dir, 'QC','align_rigid_to_template'))
         try:
             display = plotting.plot_anat(opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz'), display_mode='mosaic', dim=4)
             display.add_contours(BASE_SS_coregistr,linewidths=.2, colors=['red'])
-            display.savefig(opj(bids_dir + 'QC','align_rigid_to_template' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png'))
+            display.savefig(opj(bids_dir, 'QC','align_rigid_to_template' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png'))
             # Don't forget to close the display
             display.close()
         except:
             display = plotting.plot_anat(opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz'), display_mode='mosaic', dim=4)
-            display.savefig(opj(bids_dir + 'QC','align_rigid_to_template' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png'))
+            display.savefig(opj(bids_dir, 'QC','align_rigid_to_template' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png'))
             # Don't forget to close the display
             display.close()
 

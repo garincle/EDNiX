@@ -71,9 +71,16 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
     dictionary = {"ADD_Sources": [opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz'),
                               opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz')],
                   "ADD_Description": 'Skull strippng (3dcalc, AFNI).', },
-    json_object = json.dumps(dictionary, indent=2)
-    with open(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.json'), "a") as outfile:
-        outfile.write(json_object)
+    # Path to the JSON file
+    json_file_path = opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.json')
+    # Load existing JSON data
+    with open(json_file_path, "r") as infile:
+        existing_data = json.load(infile)
+    # Update the existing data with the new dictionary
+    existing_data.update(dictionary)
+    # Save the updated content back to the file
+    with open(json_file_path, "w") as outfile:
+        json.dump(existing_data, outfile, indent=2)
 
     ####################################################################################
     ########################## use template and transfo to anat (average indiv anat)  ##
@@ -83,6 +90,12 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
         nl = 'No anat to func step required'
         print(bcolors.OKGREEN + nl + bcolors.ENDC)
         diary.write(f'\n{nl}')
+
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz' ) \
+        + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_unwarped.nii.gz') + ' -expr "a"' + overwrite
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
 
     else:
         if 'i' in SED:
@@ -437,14 +450,15 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
             with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.json'), "w") as outfile:
                 outfile.write(json_object)
 
-
         diary.write(f'\n')
-        diary.close()
-
 
         bids_dir = opd(opd(opd(opd(opd(dir_fMRI_Refth_RS_prepro1)))))
-        if not ope(opj(bids_dir + 'QC','mask_to_fMRI_orig')):
-            os.mkdir(opj(bids_dir + 'QC','mask_to_fMRI_orig'))
+        if not ope(opj(bids_dir + '/QC/')):
+            os.mkdir(opj(bids_dir + '/QC/'))
+
+        bids_dir = opd(opd(opd(opd(opd(dir_fMRI_Refth_RS_prepro1)))))
+        if not ope(opj(bids_dir + '/QC/','mask_to_fMRI_orig')):
+            os.mkdir(opj(bids_dir + '/QC/','mask_to_fMRI_orig'))
 
         ####plot the QC
         try:
@@ -452,12 +466,13 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
                                          display_mode='mosaic', dim=4)
             display.add_contours(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'),
                                  linewidths=.2, colors=['red'])
-            display.savefig(opj(bids_dir + 'QC','mask_to_fMRI_orig', root_RS + '_mask_final_in_fMRI_orig.png'))
+            display.savefig(opj(bids_dir, 'QC','mask_to_fMRI_orig', root_RS + '_mask_final_in_fMRI_orig.png'))
             # Don't forget to close the display
             display.close()
         except:
             display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_deob.nii.gz'), threshold='auto',
                                          display_mode='mosaic', dim=4)
-            display.savefig(opj(bids_dir + 'QC','mask_to_fMRI_orig', root_RS + '_mask_final_in_fMRI_orig.png'))
+            display.savefig(opj(bids_dir, 'QC','mask_to_fMRI_orig', root_RS + '_mask_final_in_fMRI_orig.png'))
             # Don't forget to close the display
             display.close()
+    diary.close()

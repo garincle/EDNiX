@@ -5,6 +5,7 @@ import datetime
 import json
 import numpy as np
 
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -16,7 +17,8 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-#Path to the excels files and data structure
+
+# Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
 opn = os.path.normpath
@@ -29,11 +31,11 @@ spgo = subprocess.getoutput
 
 from fonctions.extract_filename import extract_filename
 
+
 ##### XXX add ICA or DL to visualize pre-processing effect
 
-def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR,Slice_timing_info,
-                    overwrite,s_bind,afni_sif,diary_file):
-
+def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR, Slice_timing_info,
+                    overwrite, s_bind, afni_sif, diary_file):
     if ope(dir_fMRI_Refth_RS_prepro1) == False:
         os.makedirs(dir_fMRI_Refth_RS_prepro1)
 
@@ -50,8 +52,9 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR,Sl
         diary.write(f'\n{nl}')
         root = extract_filename(RS[i])
 
-        #copy func imag
-        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + list_RS[i] + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '.nii.gz') + ' -expr "a"' + overwrite
+        # copy func imag
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + list_RS[i] + ' -prefix ' + \
+                  opj(dir_fMRI_Refth_RS_prepro1, root + '.nii.gz') + ' -expr "a"' + overwrite
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -64,7 +67,7 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR,Sl
         base_fMRI = opj(dir_fMRI_Refth_RS_prepro1, root + '.nii.gz')
 
         # Clean bad volumes
-        if ope(opj(opd(list_RS[i]), root, '.txt'))==True:
+        if ope(opj(opd(list_RS[i]), root, '.txt')) == True:
             # Open the file in read mode
             with open(opj(opd(list_RS[i]), root, '.txt'), 'r') as file:
                 # Read the first line and convert it to an integer
@@ -73,8 +76,9 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR,Sl
                 # Read the second line and convert it to an integer
                 cut_high = int(file.readline().strip())
 
-            command = 'singularity run' + s_bind + afni_sif + '3dTcat -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_x0.nii.gz') + ' ' + base_fMRI + \
-            '[' + str(cut_low) + '-' + str(cut_high-1) + ']' + overwrite
+            command = 'singularity run' + s_bind + afni_sif + '3dTcat -prefix ' + \
+                      opj(dir_fMRI_Refth_RS_prepro1,root + '_x0.nii.gz') + ' ' + base_fMRI + \
+                      '[' + str(cut_low) + '-' + str(cut_high - 1) + ']' + overwrite
             nl = spgo(command)
             diary.write(f'\n{nl}')
             print(nl)
@@ -90,8 +94,9 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR,Sl
         cmd = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -nv ' + base_fMRI
         nb_vol = int(spgo(cmd).split('\n')[-1])
 
-        command = 'singularity run' + s_bind + afni_sif + '3dTcat -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_x.nii.gz') + ' ' + base_fMRI + \
-        '[' + str(T1_eq) + '-' + str(nb_vol-1) + ']' + overwrite
+        command = 'singularity run' + s_bind + afni_sif + '3dTcat -prefix ' + \
+                  opj(dir_fMRI_Refth_RS_prepro1,root + '_x.nii.gz') + ' ' + base_fMRI + \
+                  '[' + str(T1_eq) + '-' + str(nb_vol - 1) + ']' + overwrite
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -102,8 +107,9 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR,Sl
             outfile.write(json_object)
 
         # Despiking
-        command = 'singularity run' + s_bind + afni_sif + '3dDespike -NEW -nomask' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz') + \
-        ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_x.nii.gz')
+        command = ('singularity run' + s_bind + afni_sif + '3dDespike -NEW -nomask' + overwrite + ' -prefix ' + \
+            opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz') + \
+            ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_x.nii.gz'))
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -113,31 +119,30 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR,Sl
         with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.json'), "w") as outfile:
             outfile.write(json_object)
 
-        
         # slice-timing correction -heptic!!!!!!
-        if Slice_timing_info == 'auto':
-            if opi(opj(dir_fMRI_Refth_RS_prepro1,'stc.txt')):
+        if Slice_timing_info == 'Auto':
+            if opi(opj(dir_fMRI_Refth_RS_prepro1, 'stc.txt')):
                 command = 'singularity run' + s_bind + afni_sif + '3dTshift -heptic' + overwrite + \
-                        ' -TR ' + str(TR) + ' -tpattern @' + opj(dir_fMRI_Refth_RS_prepro1,'stc.txt') +\
-                        ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz ') + \
-                        ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz')
+                          ' -TR ' + str(TR) + ' -tpattern @' + opj(dir_fMRI_Refth_RS_prepro1, 'stc.txt') + \
+                          ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz ') + \
+                          ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz')
                 nl = spgo(command)
                 diary.write(f'\n{nl}')
                 print(nl)
                 dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz'),
-                            "Description": 'Slice timing correction.', }
+                              "Description": 'Slice timing correction.', }
                 json_object = json.dumps(dictionary, indent=2)
                 with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.json'), "w") as outfile:
                     outfile.write(json_object)
 
-            else :
+            else:
                 cmd = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -slice_timing ' + base_fMRI
-                nl = spgo(cmd)
-                STC = nl.split('|')
-                STC = list(map(float,STC))
+                nl = spgo(cmd).split('\n')
+                STC = nl[-1].split('|')
+                STC = list(map(float, STC))
                 if np.sum(STC) > 0:
                     # means that AFNI has access to the slice timing in the nifti header
-                    command = 'singularity run' + s_bind + afni_sif + '3dTshift -heptic'  + overwrite + \
+                    command = 'singularity run' + s_bind + afni_sif + '3dTshift -heptic' + overwrite + \
                               ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz ') + \
                               ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz')
                     nl = spgo(command)
@@ -148,8 +153,8 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR,Sl
                     json_object = json.dumps(dictionary, indent=2)
                     with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.json'), "w") as outfile:
                         outfile.write(json_object)
-                else :
-                    nl = "INFO: Slice Timing not found"
+                else:
+                    nl = "WARNING: Slice Timing not found, this will be particularly DANGEROUS, you SHOULD PROVIDE MANUALLY ONE!"
                     print(bcolors.WARNING + nl + bcolors.ENDC)
                     diary.write(f'\n{nl}')
                     command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz') + \
@@ -162,7 +167,7 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR,Sl
                     json_object = json.dumps(dictionary, indent=2)
                     with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.json'), "w") as outfile:
                         outfile.write(json_object)
-        elif Slice_timing_info.split(' ')[0] == '-tpattern':
+        elif isinstance(Slice_timing_info, list) == False and Slice_timing_info.split(' ')[0] == '-tpattern':
             command = 'singularity run' + s_bind + afni_sif + '3dTshift -heptic' + overwrite + \
                       ' -TR ' + str(TR) + ' ' + Slice_timing_info + \
                       ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz ') + \
@@ -175,7 +180,7 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR,Sl
             json_object = json.dumps(dictionary, indent=2)
             with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.json'), "w") as outfile:
                 outfile.write(json_object)
-        else:
+        elif isinstance(Slice_timing_info, list) == True:
             command = 'singularity run' + s_bind + afni_sif + '3dTshift -heptic' + overwrite + \
                       ' -TR ' + str(TR) + ' -tpattern @' + opj(dir_fMRI_Refth_RS_prepro1, 'stc.txt') + \
                       ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz ') + \
@@ -188,8 +193,13 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR,Sl
             json_object = json.dumps(dictionary, indent=2)
             with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.json'), "w") as outfile:
                 outfile.write(json_object)
+        else:
+            nl = 'ERROR : please check Slice_timing_info, this variable is not define as it should'
+            diary.write(f'\n{nl}')
+            raise ValueError(bcolors.FAIL + nl + bcolors.ENDC)
 
-        command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -mean -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt_mean.nii.gz') + ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz')
+        command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -mean -prefix ' + \
+                  opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt_mean.nii.gz') + ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz')
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -199,23 +209,23 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR,Sl
         with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt_mean.json'), "w") as outfile:
             outfile.write(json_object)
 
-        #outlier fraction for each volume
+        # outlier fraction for each volume
         command = 'singularity run' + s_bind + afni_sif + '3dToutcount' + overwrite + ' -automask -fraction -polort 4 -legendre ' + \
-        opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz ') + ' > ' + \
-        opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt_outcount.r$run.1D')
+                  opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz ') + ' > ' + \
+                  opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt_outcount.r$run.1D')
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
 
         # realignment intra-run (volreg)
-
         # register each volume to the base image
-        command = 'singularity run' + s_bind + afni_sif + '3dvolreg' + overwrite + ' -verbose -zpad 1 -base ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt_mean.nii.gz') + \
-        ' -1Dfile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + \
-        ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr.nii.gz ') + \
-        ' -cubic' + \
-        ' -1Dmatrix_save ' + opj(dir_fMRI_Refth_RS_prepro1, root + '.aff12.1D') + ' ' + \
-        opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz')
+        command = 'singularity run' + s_bind + afni_sif + '3dvolreg' + overwrite + ' -verbose -zpad 1 -base ' + opj(
+            dir_fMRI_Refth_RS_prepro1, root + '_xdt_mean.nii.gz') + \
+                  ' -1Dfile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + \
+                  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr.nii.gz ') + \
+                  ' -cubic' + \
+                  ' -1Dmatrix_save ' + opj(dir_fMRI_Refth_RS_prepro1, root + '.aff12.1D') + ' ' + \
+                  opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz')
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -228,10 +238,10 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR,Sl
 
         # censoring # see ex 10 in 1d_tool
         command = 'singularity run' + s_bind + afni_sif + '1d_tool.py' + overwrite + ' -infile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + \
-        ' -derivative -censor_prev_TR -collapse_cols euclidean_norm' + \
-        ' -moderate_mask -1.2 1.2 -show_censor_count' + \
-        ' -write_censor ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_censor.1D') + \
-        ' -write_CENSORTR ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_CENSORTR.txt')
+                  ' -derivative -censor_prev_TR -collapse_cols euclidean_norm' + \
+                  ' -moderate_mask -1.2 1.2 -show_censor_count' + \
+                  ' -write_censor ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_censor.1D') + \
+                  ' -write_CENSORTR ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_CENSORTR.txt')
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -239,22 +249,22 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR,Sl
         # compute motion magnitude time series: the Euclidean norm
         # (sqrt(sum squares)) of the motion parameter derivatives
         command = 'singularity run' + s_bind + afni_sif + '1d_tool.py' + overwrite + ' -infile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + ' -set_nruns 1' + \
-        ' -derivative -collapse_cols euclidean_norm ' + \
-        '-write ' + opj(dir_fMRI_Refth_RS_prepro1, root + 'motion_enorm.1D')
+                  ' -derivative -collapse_cols euclidean_norm ' + \
+                  '-write ' + opj(dir_fMRI_Refth_RS_prepro1, root + 'motion_enorm.1D')
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
 
         # writing regressors # get the first derivative
         command = 'singularity run' + s_bind + afni_sif + '1d_tool.py' + overwrite + ' -infile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + \
-        ' -derivative -write ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_deriv.1D')
+                  ' -derivative -write ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_deriv.1D')
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
 
-        # writing regressors # get the demean
+        # writing regressors get demean
         command = 'singularity run' + s_bind + afni_sif + '1d_tool.py' + overwrite + ' -infile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + \
-        ' -demean -write ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_demean.1D')
+                  ' -demean -write ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr_demean.1D')
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -285,5 +295,3 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR,Sl
 
     diary.write(f'\n')
     diary.close()
-
-

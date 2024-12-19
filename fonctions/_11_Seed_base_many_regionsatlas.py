@@ -1,5 +1,7 @@
 import nilearn
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Set the non-interactive backend
 from nilearn import image
 from nilearn import plotting
 import subprocess
@@ -49,71 +51,88 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
     print(bcolors.OKGREEN + nl + bcolors.ENDC)
     diary.write(f'\n{nl}')
 
-    for panda_file, atlas in zip(panda_files, selected_atlases):
-        for space in SBAspace:
-            for i in range(0, int(nb_run)):
+    for space in SBAspace:
+        for i in range(0, int(nb_run)):
+            root_RS = extract_filename(RS[i])
+            if space=='func':
+                direction_results = dir_fMRI_Refth_RS_prepro1
+                func_filename     = opj(direction_results, root_RS + '_residual.nii.gz')
 
-                root_RS = extract_filename(RS[i])
-
-                if space=='func':
-                    direction_results = dir_fMRI_Refth_RS_prepro1
-                    func_filename     = opj(direction_results, root_RS + '_residual.nii.gz')
-
-                    if oversample_map == True:
-                        ### not possible yet
-                        studytemplatebrain = opj(direction_results, 'Ref_anat_in_fMRI_anat_resolution.nii.gz')
-                    else:
-                        studytemplatebrain = opj(direction_results, 'Ref_anat_in_fMRI.nii.gz')
-
-                    if use_cortical_mask_func == True:
-                        cortical_mask_func = opj(direction_results,'Gmask.nii.gz')
-                    else:
-                        cortical_mask_func = opj(direction_results,'mask_ref.nii.gz')
-
-                elif space=='anat':
-                    direction_results = dir_fMRI_Refth_RS_prepro2
-                    func_filename     = opj(direction_results, root_RS + '_residual_in_anat.nii.gz')
-
-                    if oversample_map == True:
-                        ## to test
-                        studytemplatebrain = opj(direction_results,'orig_anat_for_plot.nii.gz')
-                    else:
-                        studytemplatebrain = opj(direction_results,'anat_rsp_in_func.nii.gz')
-
-                    if use_cortical_mask_func == True:
-                        cortical_mask_func = opj(direction_results,'Gmask.nii.gz')
-                    else:
-                        cortical_mask_func = opj(direction_results,'mask_ref.nii.gz')
-
-                elif space == 'atlas':
-                    direction_results = dir_fMRI_Refth_RS_prepro3
-                    func_filename     = opj(direction_results, root_RS + '_residual_in_template.nii.gz')
-
-                    if oversample_map == True:
-                        studytemplatebrain = BASE_SS_coregistr
-                    else:
-                        studytemplatebrain = opj(direction_results,'BASE_SS_fMRI.nii.gz')
-
-                    if use_cortical_mask_func == True:
-                        cortical_mask_func = opj(direction_results,'Gmask.nii.gz')
-                    else:
-                        cortical_mask_func = opj(direction_results,'mask_brain.nii.gz') # should change the name as mask_ref.nii.gz
-
-
+                if oversample_map == True:
+                    ### not possible yet
+                    studytemplatebrain = opj(direction_results, 'Ref_anat_in_fMRI_anat_resolution.nii.gz')
                 else:
-                    nl = 'WARNING: will not perform ' + str(direction_results) + ' space because SBAspace is ' + str(SBAspace)
-                    print(bcolors.WARNING + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
+                    studytemplatebrain = opj(direction_results, 'Ref_anat_in_fMRI.nii.gz')
 
-                atlas_filename = opj(direction_results, atlas)
-                output_results = opj(direction_results, '10_Results', 'SBA')
+                if use_cortical_mask_func == True:
+                    cortical_mask_func = opj(direction_results,'Gmask.nii.gz')
+                else:
+                    cortical_mask_func = opj(direction_results,'mask_ref.nii.gz')
 
-                if not os.path.exists(opj(direction_results, '10_Results')):
-                    os.mkdir(opj(direction_results, '10_Results'))
-                if not os.path.exists(output_results):
-                    os.mkdir(output_results)
+            elif space=='anat':
+                direction_results = dir_fMRI_Refth_RS_prepro2
+                func_filename     = opj(direction_results, root_RS + '_residual_in_anat.nii.gz')
 
-                if ope(func_filename):
+                if oversample_map == True:
+                    ## to test
+                    studytemplatebrain = opj(direction_results,'orig_anat_for_plot.nii.gz')
+                else:
+                    studytemplatebrain = opj(direction_results,'anat_rsp_in_func.nii.gz')
+
+                if use_cortical_mask_func == True:
+                    cortical_mask_func = opj(direction_results,'Gmask.nii.gz')
+                else:
+                    cortical_mask_func = opj(direction_results,'mask_ref.nii.gz')
+
+            elif space == 'atlas':
+                direction_results = dir_fMRI_Refth_RS_prepro3
+                func_filename     = opj(direction_results, root_RS + '_residual_in_template.nii.gz')
+
+                if oversample_map == True:
+                    studytemplatebrain = BASE_SS_coregistr
+                else:
+                    studytemplatebrain = opj(direction_results,'BASE_SS_fMRI.nii.gz')
+
+                if use_cortical_mask_func == True:
+                    cortical_mask_func = opj(direction_results,'Gmask.nii.gz')
+                else:
+                    cortical_mask_func = opj(direction_results,'mask_brain.nii.gz') # should change the name as mask_ref.nii.gz
+            else:
+                nl = 'WARNING: will not perform ' + str(direction_results) + ' space because SBAspace is ' + str(SBAspace)
+                print(bcolors.WARNING + nl + bcolors.ENDC)
+                diary.write(f'\n{nl}')
+
+
+            if ope(func_filename):
+                # Get the global signal within the brain (or gray matter) mask
+                resampled_cortical_mask_func = resample_to_img(cortical_mask_func, func_filename,
+                                                               interpolation='nearest')
+                resampled_cortical_mask_func.to_filename(opj(direction_results, 'cortical_mask_funcrsp.nii.gz'))
+
+                extracted_data2 = nib.load(opj(direction_results, 'cortical_mask_funcrsp.nii.gz')).get_fdata()
+                labeled_img2 = image.new_img_like(func_filename, extracted_data2, copy_header=True)
+                labeled_img2.to_filename(opj(direction_results, 'cortical_mask_funcrsp.nii.gz'))
+                dictionary = {"Sources": [cortical_mask_func,
+                                          func_filename],
+                              "Description": ' resampling (nilearn)', },
+                json_object = json.dumps(dictionary, indent=2)
+                with open(opj(direction_results, 'cortical_mask_funcrsp.json'), "w") as outfile:
+                    outfile.write(json_object)
+
+                brain_masker = NiftiMasker(standardize="zscore", smoothing_fwhm=None,
+                                           memory_level=1, verbose=1,
+                                           mask_img=opj(direction_results, 'cortical_mask_funcrsp.nii.gz'))
+                brain_time_series = brain_masker.fit_transform(func_filename)
+
+                for panda_file, atlas in zip(panda_files, selected_atlases):
+
+                    atlas_filename = opj(direction_results, atlas)
+                    output_results = opj(direction_results, '10_Results', 'SBA')
+
+                    if not os.path.exists(opj(direction_results, '10_Results')):
+                        os.mkdir(opj(direction_results, '10_Results'))
+                    if not os.path.exists(output_results):
+                        os.mkdir(output_results)
 
                     ##########################################################################
                     def format_seed_name(seed_name):
@@ -161,9 +180,9 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                         labels = np.unique(atlas_img.numpy())  # Assumes label 0 is background
 
                         # Check if all the values in the image are zero
-                        if np.sum(labels == 0):
+                        if np.all(labels == 0):
                             nl = "WARNING: The NIfTI image is empty (all voxel values are zero)."
-                            print(bcolors.WARNING + nl + bcolors.ENDC)
+                            print(nl)
                             diary.write(f'\n{nl}')
 
                         else:
@@ -173,9 +192,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                             # we added this additional "security" :
 
                             #####        Erosion of the seed, if possible        #####
-
                             # Erosion function
-
                             def erode_region(region, iterations=1):
                                 binary_mask = region > 0  # Create a binary mask of the region
                                 eroded_mask = ndimage.binary_erosion(binary_mask, iterations=iterations)
@@ -195,7 +212,6 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
 
                                 # Isolate the current region (region is 1 where label matches, else 0)
                                 region_mask = (atlas_img.numpy() == label).astype(np.uint8)
-
                                 if erod_seed == True:
 
                                     # Try erosion by 1 voxel
@@ -214,11 +230,6 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                                     final_result[region_mask > 0] = label  # Keep the original mask
 
                             # Save the final eroded atlas
-
-                            nl = final_result
-                            print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                            diary.write(f'\n{nl}')
-
                             output_path = opj(output_folder, Seed_name + 'eroded.nii.gz')
 
                             final_atlas = ants.from_numpy(final_result, spacing=atlas_img.spacing,
@@ -236,13 +247,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                             print(bcolors.OKGREEN + nl + bcolors.ENDC)
                             diary.write(f'\n{nl}')
 
-
-                            ###########################################################################################
-                            ##               prepare the data for nilearn                                            ##
-                            ###########################################################################################
-
                             # Get the global signal within each seed
-
                             labels_img = resample_to_img(output_path, func_filename, interpolation='nearest')
                             labels_img.to_filename(opj(output_folder, Seed_name + 'rsp.nii.gz'))
 
@@ -260,45 +265,21 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                             seed_masker = NiftiLabelsMasker(labels_img=opj(output_folder,Seed_name + 'rsp.nii.gz'),
                                                             standardize='zscore', resampling_target= 'data', smoothing_fwhm=None,
                                                             memory_level=1, verbose=1)
-
                             seed_time_serie = seed_masker.fit_transform(func_filename)
-
-                            # # Get the global signal within the brain (or gray matter) mask
-                            resampled_cortical_mask_func = resample_to_img(cortical_mask_func, func_filename, interpolation='nearest')
-                            resampled_cortical_mask_func.to_filename(opj(output_folder, Seed_name + 'cortical_mask_funcrsp.nii.gz'))
-
-                            extracted_data2 = nib.load(opj(output_folder, Seed_name + 'cortical_mask_funcrsp.nii.gz')).get_fdata()
-                            labeled_img2 = image.new_img_like(func_filename,extracted_data2, copy_header=True)
-                            labeled_img2.to_filename(opj(output_folder, Seed_name + 'cortical_mask_funcrsp.nii.gz'))
-                            dictionary = {"Sources": [cortical_mask_func,
-                                                      func_filename],
-                                          "Description": ' resampling (nilearn)', },
-                            json_object = json.dumps(dictionary, indent=2)
-                            with open(opj(output_folder, Seed_name + 'cortical_mask_funcrsp.json'), "w") as outfile:
-                                outfile.write(json_object)
-
-
-                            brain_masker = NiftiMasker(standardize='zscore', smoothing_fwhm=None,
-                                memory_level=1, verbose=1, mask_img=opj(output_folder, Seed_name + 'cortical_mask_funcrsp.nii.gz'))
-
-
-                            brain_time_series = brain_masker.fit_transform(func_filename)
-
-
 
                             ###########################################################################################
                             ##               Perform the seed-to-voxel correlation analysis                         ##
                             ###########################################################################################
-
                             # calculate the correlations
-
                             seed_to_voxel_correlations = (np.dot(brain_time_series.T, seed_time_serie) /
                                                           seed_time_serie.shape[0])
-
                             seed_to_voxel_correlations_img = brain_masker.inverse_transform(
                                 seed_to_voxel_correlations.T)
-
                             seed_to_voxel_correlations_img.to_filename(opj(output_folder, root_RS + '_correlations.nii.gz'))
+                            seed_to_voxel_correlations_img = nib.load(opj(output_folder, root_RS + '_correlations.nii.gz')).get_fdata()
+                            seed_to_voxel_correlations_img = image.new_img_like(func_filename,seed_to_voxel_correlations_img, copy_header=True)
+                            seed_to_voxel_correlations_img.to_filename(opj(output_folder, root_RS + '_correlations.nii.gz'))
+
                             dictionary = {"Sources": [opj(output_folder,Seed_name + 'rsp.nii.gz'),
                                                       opj(output_folder, Seed_name + 'cortical_mask_funcrsp.nii.gz')],
                                           "Description": ' Signal Correlation (nilearn)', },
@@ -317,6 +298,9 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
 
                             seed_to_voxel_correlations_img_fish = brain_masker.inverse_transform(
                                 seed_to_voxel_correlations_fisher_z.T)
+                            seed_to_voxel_correlations_img_fish.to_filename(opj(output_folder, root_RS + '_correlations_fish.nii.gz'))
+                            seed_to_voxel_correlations_img_fish = nib.load(opj(output_folder, root_RS + '_correlations_fish.nii.gz')).get_fdata()
+                            seed_to_voxel_correlations_img_fish = image.new_img_like(opj(output_folder, root_RS + '_correlations.nii.gz'),seed_to_voxel_correlations_img_fish, copy_header=True)
                             seed_to_voxel_correlations_img_fish.to_filename(opj(output_folder, root_RS + '_correlations_fish.nii.gz'))
 
                             dictionary = {"Sources": opj(output_folder, root_RS + '_correlations.nii.gz'),
@@ -338,14 +322,15 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                             mask_imag = nilearn.image.threshold_img(opj(output_folder, root_RS + '_correlations_fish.nii.gz'), custom_thresh)
                             mask_imag.to_filename(thresholded_map)
 
+
                             labels_img = resample_to_img(thresholded_map,studytemplatebrain, interpolation='nearest')
                             labels_img.to_filename(thresholded_map)
                             extracted_data2 = nib.load(thresholded_map).get_fdata()
                             labeled_img2    = image.new_img_like(studytemplatebrain,extracted_data2, copy_header=True)
                             labeled_img2.to_filename(thresholded_map)
 
-                            dictionary = {"Sources": opj(output_folder, root_RS + '_correlations_fish.nii.gz'),
-                                          "Description": ' remove the ' + custom_thresh + ' percent', },
+                            dictionary = {"Sources": opj(output_folder, root_RS + '_correlations_fish_custom_thresh.nii.gz'),
+                                          "Description": ' remove the ' + str(custom_thresh) + ' percent', },
                             json_object = json.dumps(dictionary, indent=2)
                             with open(thresholded_map[:-7] + '.json', "w") as outfile:
                                 outfile.write(json_object)
@@ -384,10 +369,10 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                                     colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
                                 display.savefig(opj(output_folder, root_RS + '_.jpg'))
                                 display.close()
-                else:
-                    nl = 'WARNING: ' + str(func_filename) + ' not found!!'
-                    print(bcolors.WARNING + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
+            else:
+                nl = 'WARNING: ' + str(func_filename) + ' not found!!'
+                print(bcolors.WARNING + nl + bcolors.ENDC)
+                diary.write(f'\n{nl}')
 
     diary.write(f'\n')
     diary.close()

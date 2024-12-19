@@ -4,7 +4,6 @@ from nilearn import image
 from nilearn.input_data import NiftiLabelsMasker
 import shutil
 import subprocess
-import re
 from shutil import copyfile
 import math
 import scipy
@@ -79,7 +78,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run,
     for i in range(0, int(nb_run)):
         lines = []
         root_RS = extract_filename(RS[i])
-        func_filename = opj(dir_path,root_RS + '_xdtrf_2ref.nii.gz')
+        func_filename = opj(dir_path, root_RS + '_xdtrf_2ref.nii.gz')
 
         if ope(func_filename):
             if ope(atlas_filename) == False:
@@ -131,8 +130,6 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run,
                         extracted_data = np.rint(extracted_data).astype(np.int32)
                         labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
                         labeled_img2.to_filename(atlas_filename)
-
-
                 else:
                     nl =  "No differences found in the specified fields."
                     print(bcolors.OKGREEN + nl + bcolors.ENDC)
@@ -875,7 +872,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run,
 
 
                 line_QC_func.append(f"  ghost_acq_direction: {ghost_direction_val}")
-                nl = line_QC_func
+                nl = str(line_QC_func)
                 print(bcolors.OKGREEN + nl + bcolors.ENDC)
                 diary.write(f'\n{nl}')
                 nl = str(ghost_direction_val)
@@ -903,7 +900,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run,
                                     opj(dir_path, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
 
             line_QC_func.append(f"  ghost_all_direction: {ghost_all_val}")
-            nl = line_QC_func
+            nl = str(line_QC_func)
             print(bcolors.OKGREEN + nl + bcolors.ENDC)
             diary.write(f'\n{nl}')
             nl = str(ghost_all_val)

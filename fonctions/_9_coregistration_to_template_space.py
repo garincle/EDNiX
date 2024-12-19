@@ -218,8 +218,8 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
     ### plot the QC
     bids_dir = opd(opd(opd(opd(opd(dir_fMRI_Refth_RS_prepro1)))))
 
-    if not os.path.exists(opj(bids_dir + 'QC','meanIMG_in_template')):
-        os.mkdir(opj(bids_dir + 'QC','meanIMG_in_template'))
+    if not os.path.exists(opj(bids_dir, 'QC','meanIMG_in_template')):
+        os.mkdir(opj(bids_dir, 'QC','meanIMG_in_template'))
 
     try:
         display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz'),
@@ -227,14 +227,14 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
                                      display_mode='mosaic', dim=4)
         display.add_contours(opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz'),
                              linewidths=.2, colors=['red'])
-        display.savefig(opj(bids_dir + 'QC','meanIMG_in_template','Mean_Image_RcT_SS_in_anat.png'))
+        display.savefig(opj(bids_dir, 'QC','meanIMG_in_template','Mean_Image_RcT_SS_in_anat.png'))
         # Don't forget to close the display
         display.close()
     except:
         display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz'),
                                      threshold='auto',
                                      display_mode='mosaic', dim=4)
-        display.savefig(opj(bids_dir + 'QC','meanIMG_in_template','Mean_Image_RcT_SS_in_anat.png'))
+        display.savefig(opj(bids_dir, 'QC','meanIMG_in_template','Mean_Image_RcT_SS_in_anat.png'))
         # Don't forget to close the display
         display.close()
 

@@ -23,7 +23,8 @@ packages = {
     "bids": "0.16.5",
     "openpyxl": "3.1.00",
     "torch": "2.4.1",
-    "nitime": "0.11"}
+    "nitime": "0.11",
+    "numba": "0.61.0rc1"}
 
 def install_with_conda(package, version):
     try:

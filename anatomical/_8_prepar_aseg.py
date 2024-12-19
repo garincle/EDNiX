@@ -147,18 +147,18 @@ def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_
                 diary.write(f'\n{nl}')
 
 
-        if not ope(opj(bids_dir + 'QC','FinalQC')):
-            os.mkdir(opj(bids_dir + 'QC','FinalQC'))
+        if not ope(opj(bids_dir, 'QC','FinalQC')):
+            os.mkdir(opj(bids_dir, 'QC','FinalQC'))
         try:
             display = plotting.plot_anat(Ref_file, display_mode='mosaic', dim=4)
             display.add_contours(opj(dir_prepro,'template_in_anat_DC.nii.gz'),
             linewidths=.2, colors=['red'])
-            display.savefig(opj(bids_dir + 'QC','FinalQC' + ID + '_' + str(Session) + '_' + type_norm + '_final_template_to_anat.png'))
+            display.savefig(opj(bids_dir, 'QC','FinalQC' + ID + '_' + str(Session) + '_' + type_norm + '_final_template_to_anat.png'))
             # Don't forget to close the display
             display.close()
         except:
             display = plotting.plot_anat(Ref_file, display_mode='mosaic', dim=4)
-            display.savefig(opj(bids_dir + 'QC','FinalQC' + ID + '_' + str(Session) + '_' + type_norm + '_final_template_to_anat.png'))
+            display.savefig(opj(bids_dir, 'QC','FinalQC' + ID + '_' + str(Session) + '_' + type_norm + '_final_template_to_anat.png'))
             # Don't forget to close the display
             display.close()
 
