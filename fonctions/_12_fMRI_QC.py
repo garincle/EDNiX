@@ -377,11 +377,16 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run,
                 anat_file = opj(dir_path, root_RS + '_residual.nii.gz')
                 mask_file = opj(dir_path,'maskDilat.nii.gz')
 
+                # Step 1: Save the current working directory
+                original_dir = os.getcwd()
+                os.chdir(dir_path)
+
                 command = 'singularity run' + s_bind + afni_sif + '3dFWHMx -overwrite -combined' + \
                               ' -mask ' + mask_file + ' -input ' + anat_file + \
                               ' -acf ' + anat_file[:-7] + '.acf.txt' + \
                               '> ' + anat_file[:-7] + '_FWHMx.txt'
                 nl = spgo([command])
+                os.chdir(original_dir)
                 print(bcolors.OKGREEN + nl + bcolors.ENDC)
                 diary.write(f'\n{nl}')
 

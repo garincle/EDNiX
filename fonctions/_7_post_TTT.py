@@ -136,6 +136,9 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
         for i in range(0, int(nb_run)):
             try:
                 root_RS = extract_filename(RS[i])
+                original_dir = os.getcwd()
+                os.chdir(dir_fMRI_Refth_RS_prepro1)
+
                 command = 'singularity run' + s_bind + afni_sif + '3dDeconvolve -input ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
                 ' -mask ' + opj(dir_fMRI_Refth_RS_prepro1,'maskDilat.nii.gz') + \
                 ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1,root_RS + 'bandpass_rall.1D') + ' bandpass_rall' + \
@@ -200,6 +203,8 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                 json_object = json.dumps(dictionary, indent=2)
                 with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_3dDeconvolve_failed.json'), "w") as outfile:
                     outfile.write(json_object)
+
+                os.chdir(original_dir)
     else:
         for i in range(0, int(nb_run)):
             root_RS = extract_filename(RS[i])
