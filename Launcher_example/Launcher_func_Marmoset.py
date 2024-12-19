@@ -194,6 +194,34 @@ IgotbothT1T2 = False # True or False
 T1_eq = 5 # int
 #### Choose which image you want to use as ref (0 the first one, 1 the second run, ect...)
 REF_int = 0 # int
+# Given data
+slice_offsets = slice_offsets = [
+    0.210436882112241, 0.710436882112241, 1.21043688211224, 1.71043688211224,
+    2.21043688211224, 2.71043688211224, 3.21043688211224, 3.71043688211224,
+    4.21043688211224, 4.71043688211224, 5.21043688211224, 5.71043688211224,
+    6.21043688211224, 6.71043688211224, 7.21043688211224, 7.71043688211224,
+    8.21043688211224, 8.71043688211224, 9.21043688211224, 9.71043688211224,
+    10.2104368821122, 10.7104368821122, 11.2104368821122, 11.7104368821122,
+    12.2104368821122, 12.7104368821122, 13.2104368821122, 13.7104368821122,
+    14.2104368821122, 14.7104368821122, 15.2104368821122, 15.7104368821122,
+    16.2104368821122, 16.7104368821122, 17.2104368821122, 17.7104368821122,
+    18.2104368821122, 18.7104368821122
+]
+
+acq_order = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36,
+  1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37]
+
+# Reorder the slice offsets according to the acquisition order
+reordered_offsets = [0] * len(slice_offsets)
+
+# Reorder the offsets
+for anatomical_index, acquisition_index in enumerate(acq_order):
+    reordered_offsets[acquisition_index] = slice_offsets[anatomical_index]
+
+# Now, assuming a TR of 1 second:
+TR = 2  # Repetition time in seconds
+
+Slice_timing_info = list([TR * (offset - min(reordered_offsets)) / (max(reordered_offsets) - min(reordered_offsets)) for offset in reordered_offsets])
 
 #### ==> you need to check in the json or on the image map what is the encoding direction
 # For exemple if  phase encoding direction is "j-" you should put physical coordinates y- (ijk = xyz) (info: if image orientation is LPI it means that your image has been acquired from P to A)
@@ -382,7 +410,7 @@ extract_GS = False # True or False
 ### Band path filtering
 band = '0.01 0.1' # string
 #Smooth
-blur = 1 # float
+blur = 1.5 # float
 #Dilate the functional brain mask by n layers
 dilate_mask = 0 # int
 #retrain the analysis to the gray matter
@@ -471,13 +499,13 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 
-############ Right in a list format the steps that you want to skip
-Skip_step = [100,200]
+############ Right in a list format the steps that you want to skipSkip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,200]
+Skip_step = [200]
     ############################################################
     ######################## START de pipeline #################
     ############################################################
 
-fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, anat_func_same_space,
+fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
     correction_direction, REF_int, study_fMRI_Refth, SBAspace, erod_seed, deoblique, orientation,
     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
     extract_exterior_CSF, extract_WM, n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,

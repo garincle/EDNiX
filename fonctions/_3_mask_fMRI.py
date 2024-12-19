@@ -85,6 +85,7 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
     json_object = json.dumps(dictionary, indent=2)
     with open(opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.json'), "w") as outfile:
         outfile.write(json_object)
+
     mean_haxby.to_filename(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test.nii.gz'))
     dictionary = {"Sources": MEAN_im_list_1,
                   "Description": 'mean image (mean_image, nilearn).', }
@@ -126,7 +127,6 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
     json_object = json.dumps(dictionary, indent=2)
     with open(opj(dir_fMRI_Refth_RS_prepro3, 'BASE_SS_fMRI.json'), "w") as outfile:
         outfile.write(json_object)
-
 
     # create anat space dir
     if ope(dir_fMRI_Refth_RS_prepro2) == False:
@@ -172,6 +172,23 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
         diary.write(f'\n{nl}')
         print(nl)
 
+        ## creat an image, with the func resolution, in the anat space... this is necessary to avoid all the problem generate by the lost of obliquity
+        command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 200 -S 200 -A 200 -P 200 -L 200 -R 200 -S 200 -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test_shift.nii.gz') + ' ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz') + ' -overwrite'
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
+        command = 'singularity run' + s_bind + afni_sif + '3dAllineate -final NN' + overwrite + ' -overwrite -1Dmatrix_apply ' + opj(dir_prepro,ID + '_brain_for_Align_Center.1D') + \
+                  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test_shift.nii.gz') + \
+                  ' -input  ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test_shift.nii.gz')
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        ### to reapply the original obliquity
+        caca2 = resample_to_img(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test_shift.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
+                                interpolation='nearest')
+        caca2.to_filename(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test_shift.nii.gz'))
+
         # doesn't work for two different 1d matrices... so let's do it separately....
         for input1, output2 in zip([anat_subject, brainmask,
                                     opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz'), V_mask, W_mask, G_mask],
@@ -196,8 +213,8 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
                 diary.write(f'\n{nl}')
                 print(nl)
 
-
-                caca2 = resample_to_img(output2, opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz'), interpolation='nearest')
+                ### to reapply the original obliquity
+                caca2 = resample_to_img(output2, opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_test_shift.nii.gz'), interpolation='nearest')
                 caca2.to_filename(output2)
 
                 dictionary = {"Sources": [input1,
@@ -245,10 +262,12 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
                     print(nl)
 
                     # skullstrip the anat
-
                     command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz') + \
                               ' -b ' + anat_subject + \
                               ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2,'orig_anat_for_fMRI.nii.gz') + ' -expr "a*b"'
+                    nl = spgo(command)
+                    diary.write(f'\n{nl}')
+                    print(nl)
 
                     command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \
                     ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz') + \
@@ -290,7 +309,6 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
     ############################### ############################### ############################### 
     ############################ put anat IN Mean image space ##################################
     ############################### ############################### ###############################
-
 
     if doMaskingfMRI == True:
         if ope(opj(dir_fMRI_Refth_RS_prepro1,'manual_mask.nii.gz')):

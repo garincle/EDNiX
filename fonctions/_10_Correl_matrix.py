@@ -70,11 +70,9 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                 atlas_filename = opj(dir_fMRI_Refth_RS_prepro1, atlas + '.nii.gz')
 
                 output_results = opj(dir_fMRI_Refth_RS_prepro1, '10_Results')
-                output_results = opj(dir_fMRI_Refth_RS_prepro1, '10_Results/correl_matrix')
-
                 if not os.path.exists(output_results):
                     os.mkdir(output_results)
-
+                output_results = opj(dir_fMRI_Refth_RS_prepro1, '10_Results', 'correl_matrix')
                 if not os.path.exists(output_results):
                     os.mkdir(output_results)
 
@@ -365,7 +363,7 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                 flattened_df['Session'] = Session
 
                 # Display the flattened DataFrame
-                nl = flattened_df
+                nl = str(flattened_df)
                 print(bcolors.OKGREEN + nl + bcolors.ENDC)
                 diary.write(f'\n{nl}')
 

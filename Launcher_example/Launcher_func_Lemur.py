@@ -187,6 +187,32 @@ T1_eq = 5 # int
 #### Choose which image you want to use as ref (0 the first one, 1 the second run, ect...)
 REF_int = 0 # int
 
+### calculated using bruker file:
+
+# Given data
+slice_offsets = [
+    -10.204718606018, -9.20471860601796, -8.20471860601796, -7.20471860601796,
+    -6.20471860601796, -5.20471860601796, -4.20471860601796, -3.20471860601796,
+    -2.20471860601796, -1.20471860601796, -0.204718606017958, 0.795281393982042,
+    1.79528139398204, 2.79528139398204, 3.79528139398204, 4.79528139398204,
+    5.79528139398204, 6.79528139398204, 7.79528139398204, 8.79528139398204,
+    9.79528139398204, 10.795281393982, 11.795281393982]
+
+acq_order = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22,
+    1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21]
+
+# Reorder the slice offsets according to the acquisition order
+reordered_offsets = [0] * len(slice_offsets)
+
+# Reorder the offsets
+for anatomical_index, acquisition_index in enumerate(acq_order):
+    reordered_offsets[acquisition_index] = slice_offsets[anatomical_index]
+
+# Now, assuming a TR of 1 second:
+TR = 1  # Repetition time in seconds
+#Slice_timing_info =  list([TR * (offset - min(reordered_offsets)) / (max(reordered_offsets) - min(reordered_offsets)) for offset in reordered_offsets])
+lice_timing_info = '-tpattern alt+z'
+
 #### ==> you need to check in the json or on the image map what is the encoding direction
 # For exemple if  phase encoding direction is "j-" you should put physical coordinates y- (ijk = xyz) (info: if image orientation is LPI it means that your image has been acquired from P to A)
 ###################for fudge and anat to func!!!
@@ -374,7 +400,7 @@ extract_GS = False # True or False
 ### Band path filtering
 band = '0.01 0.1' # string
 #Smooth
-blur = 1 # float
+blur = 0.7 # float
 #Dilate the functional brain mask by n layers
 dilate_mask = 0 # int
 #retrain the analysis to the gray matter
@@ -463,12 +489,13 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [100,200]
+Skip_step = [200]
+
     ############################################################
     ######################## START de pipeline #################
     ############################################################
 
-fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, anat_func_same_space,
+fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
     correction_direction, REF_int, study_fMRI_Refth, SBAspace, erod_seed, deoblique, orientation,
     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
     extract_exterior_CSF, extract_WM, n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,

@@ -90,7 +90,6 @@ def fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orient
         with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO[:-7] + '.json'), "w") as outfile:
             outfile.write(json_object)
 
-
     diary.write(f'\n{nl}')
     print(nl)
     diary.write(f'\n')

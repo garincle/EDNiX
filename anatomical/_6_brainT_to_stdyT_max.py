@@ -113,8 +113,8 @@ def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Sessi
         with open(opj(dir_prepro, Timage + '_to_template_SyN_final_max.json'), "w") as outfile:
             outfile.write(json_object)
 
-        if not ope(opj(bids_dir + 'QC','anat_to_template')): os.mkdir(opj(bids_dir + 'QC','anat_to_template'))
-        if not ope(opj(bids_dir + 'QC','template_to_anat')): os.mkdir(opj(bids_dir + 'QC','template_to_anat'))
+        if not ope(opj(bids_dir, 'QC','anat_to_template')): os.mkdir(opj(bids_dir, 'QC','anat_to_template'))
+        if not ope(opj(bids_dir, 'QC','template_to_anat')): os.mkdir(opj(bids_dir, 'QC','template_to_anat'))
 
         ####plot the QC
         try:
@@ -122,13 +122,13 @@ def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Sessi
                                          display_mode='mosaic', dim=4)
             display.add_contours(opj(dir_prepro, Timage + '_to_template_SyN_final_max.nii.gz'),
                                  linewidths=.2, colors=['red'])
-            display.savefig(opj(bids_dir + 'QC','anat_to_template' + ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png'))
+            display.savefig(opj(bids_dir, 'QC','anat_to_template' + ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png'))
             # Don't forget to close the display
             display.close()
         except:
             display = plotting.plot_anat(opj(dir_prepro,'template_to_' + Timage + '_SyN_final_test_matrix_max.nii.gz'), threshold='auto',
                                          display_mode='mosaic', dim=4)
-            display.savefig(opj(bids_dir + 'QC','template_to_anat' + ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png'))
+            display.savefig(opj(bids_dir, 'QC','template_to_anat' + ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png'))
             # Don't forget to close the display
             display.close()
 

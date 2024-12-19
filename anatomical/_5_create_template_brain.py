@@ -98,8 +98,8 @@ def create_indiv_template_brain(dir_prepro, type_of_transform, ID, aff_metric_an
             outfile.write(json_object)
 
     ## plot several QC of the first skullstriped brain (check  that it is ok)
-    if not os.path.exists(opj(bids_dir + 'QC','skullstrip_step2')):
-        os.mkdir(opj(bids_dir + 'QC','skullstrip_step2'))
+    if not os.path.exists(opj(bids_dir, 'QC','skullstrip_step2')):
+        os.mkdir(opj(bids_dir, 'QC','skullstrip_step2'))
 
     for Timage in listTimage:
         ####plot the Reffile
@@ -108,13 +108,13 @@ def create_indiv_template_brain(dir_prepro, type_of_transform, ID, aff_metric_an
                                          display_mode='mosaic', dim=4)
             display.add_contours(opj(volumes_dir,ID + Timage + '_brain_step_1.nii.gz'),
                                  linewidths=.2, colors=['red'])
-            display.savefig(opj(bids_dir + 'QC','skullstrip_step2' + ID + '_' + str(Session) + '_' + Timage + '_brain.png'))
+            display.savefig(opj(bids_dir, 'QC','skullstrip_step2' + ID + '_' + str(Session) + '_' + Timage + '_brain.png'))
             # Don't forget to close the display
             display.close()
         except:
             display = plotting.plot_anat(opj(volumes_dir,ID + Timage + '_brain_step_1.nii.gz'),
                                          display_mode='mosaic', dim=4)
-            display.savefig(opj(bids_dir + 'QC','skullstrip_step2' + ID + '_' + str(Session) + '_' + Timage + '_brain.png'))
+            display.savefig(opj(bids_dir, 'QC','skullstrip_step2' + ID + '_' + str(Session) + '_' + Timage + '_brain.png'))
             # Don't forget to close the display
             display.close()
 
