@@ -69,7 +69,7 @@ def fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orient
             outfile.write(json_object)
 
     elif deoblique == 'WARP' or deoblique == 'header_WO_deob':
-        command = 'singularity run' + s_bind + afni_sif + '3drefit ' + overwrite + ' -orient ' + orientation + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI)
+        command = 'singularity run' + s_bind + afni_sif + '3drefit ' + overwrite + '-oblique_origin -orient ' + orientation + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI)
         nl = spgo(command)
 
         shutil.copyfile(opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI), opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO))
@@ -80,7 +80,7 @@ def fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orient
             outfile.write(json_object)
 
     elif deoblique == 'header':
-        command = 'singularity run' + s_bind + afni_sif + '3drefit ' + overwrite + ' -deoblique -orient ' + orientation + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI)
+        command = 'singularity run' + s_bind + afni_sif + '3drefit ' + overwrite + '-oblique_origin -deoblique -orient ' + orientation + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI)
         nl = spgo(command)
 
         shutil.copyfile(opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI), opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO))
