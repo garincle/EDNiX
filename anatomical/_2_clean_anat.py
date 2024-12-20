@@ -262,27 +262,25 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
 
 
         ####### optional crop !! save as "ID_acpc_cropped.nii.gz" #######
-        if do_manual_crop == True:
-            command = 'singularity run' + s_bind + fs_sif + 'freeview -v ' + opj(dir_prepro, ID + '_acpc' + Timage + '.nii.gz')
-        else:
-            if Timage in [str(type_norm), str(otheranat)]:
-                command = 'singularity run' + s_bind + afni_sif + '3dAutobox' + overwrite + ' -input ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + \
-                          ' -prefix ' + opj(dir_prepro, ID + '_acpc_cropped' + Timage + '.nii.gz') + ' -noclust  -overwrite'
-                nl = spgo(command)
-                diary.write(f'\n{nl}')
-                print(nl)
 
-                dictionary = {"Sources": opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz'),
-                              "Description": 'Crop.', }
-                json_object = json.dumps(dictionary, indent=2)
-                with open( opj(dir_prepro, ID + '_acpc_cropped' + Timage + '.json'), "w") as outfile:
-                    outfile.write(json_object)
+        if Timage in [str(type_norm), str(otheranat)]:
+            command = 'singularity run' + s_bind + afni_sif + '3dAutobox' + overwrite + ' -input ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + \
+                      ' -prefix ' + opj(dir_prepro, ID + '_acpc_cropped' + Timage + '.nii.gz') + ' -noclust  -overwrite'
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
 
-                command = 'singularity run' + s_bind + afni_sif + '3dAutobox' + overwrite + ' -input ' + opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz') + \
-                          ' -prefix ' + opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz') + ' -noclust  -overwrite'
-                nl = spgo(command)
-                diary.write(f'\n{nl}')
-                print(nl)
+            dictionary = {"Sources": opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz'),
+                          "Description": 'Crop.', }
+            json_object = json.dumps(dictionary, indent=2)
+            with open( opj(dir_prepro, ID + '_acpc_cropped' + Timage + '.json'), "w") as outfile:
+                outfile.write(json_object)
+
+            command = 'singularity run' + s_bind + afni_sif + '3dAutobox' + overwrite + ' -input ' + opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz') + \
+                      ' -prefix ' + opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz') + ' -noclust  -overwrite'
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
 
     for Timage in listTimage:
         ####### optional manual acpc center #######

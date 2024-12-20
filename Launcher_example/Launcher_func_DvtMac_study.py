@@ -143,6 +143,10 @@ for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session,
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
     if ID in ["Quantum"] and Session in [3]:
         removelist.append(num)
+    if ID in ["Roshan"] and Session in [11,10]:
+        removelist.append(num)
+    if ID in ["Oliver", "Quantum", "Pickle"]:
+        removelist.append(num)
 
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
 all_Session =  [item for i, item in enumerate(all_Session) if i not in removelist]

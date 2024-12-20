@@ -272,7 +272,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         ##### apply the recenter fmri
         #######!!!!!! I don't know why if deoblique1=WARP no gridset if exception2 require gridset!!!!!
         if deoblique == 'header':
-            command = 'singularity run' + s_bind + afni_sif + '3drefit -deoblique ' + overwrite + ' -orient ' + orientation + ' ' + output2
+            command = 'singularity run' + s_bind + afni_sif + '3drefit -oblique_origin -deoblique ' + overwrite + ' -orient ' + orientation + ' ' + output2
             nl = spgo(command)
             diary.write(f'\n{nl}')
             print(nl)
@@ -284,7 +284,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
 
         elif deoblique == 'WARP' or deoblique == 'WARP_without_3drefit':
             # reorient the fields according to the json file
-            command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix ' + output2 + \
+            command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + '-oblique_origin -deoblique -NN -prefix ' + output2 + \
                       ' ' + output2
             nl = spgo(command)
             diary.write(f'\n{nl}')
@@ -297,7 +297,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
 
         elif deoblique == 'WARP_Gridset':  # do nothing
             # reorient the fiedls according to the json file
-            command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix '\
+            command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + '-oblique_origin -deoblique -NN -prefix '\
                       + output2 + ' -gridset ' + output2 + ' ' + output2
             nl = spgo(command)
             diary.write(f'\n{nl}')
@@ -309,7 +309,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
                 outfile.write(json_object)
 
         elif deoblique == 'header_WO_deob':
-            command = 'singularity run' + s_bind + afni_sif + '3drefit ' + overwrite + ' -orient ' + orientation + ' ' + output2
+            command = 'singularity run' + s_bind + afni_sif + '3drefit ' + overwrite + '-oblique_origin -orient ' + orientation + ' ' + output2
             nl = spgo(command)
             diary.write(f'\n{nl}')
             print(nl)
@@ -346,6 +346,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
             diary.write(f'\n{nl}')
             print(nl)
 
+            ### delet zeropad and add master mean image in 3D Allineate?
             command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -overwrite -interp NN -1Dmatrix_apply ' + \
                       opj(dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D') + \
                       ' -prefix ' + output3 + \

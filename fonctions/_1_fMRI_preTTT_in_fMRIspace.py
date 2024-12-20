@@ -4,7 +4,8 @@ import ants
 import datetime
 import json
 import numpy as np
-
+import nibabel as nib
+import nilearn
 
 class bcolors:
     HEADER = '\033[95m'
@@ -219,16 +220,23 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR, S
 
         # realignment intra-run (volreg)
         # register each volume to the base image
-        command = 'singularity run' + s_bind + afni_sif + '3dvolreg' + overwrite + ' -verbose -zpad 1 -base ' + opj(
-            dir_fMRI_Refth_RS_prepro1, root + '_xdt_mean.nii.gz') + \
+        command = 'singularity run' + s_bind + afni_sif + '3dvolreg' + overwrite + ' -verbose -zpad 1 -base ' + \
+                  opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt_mean.nii.gz') + \
                   ' -1Dfile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_dfile.1D') + \
                   ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr.nii.gz ') + \
                   ' -cubic' + \
+                  ' -twodup ' + \
                   ' -1Dmatrix_save ' + opj(dir_fMRI_Refth_RS_prepro1, root + '.aff12.1D') + ' ' + \
                   opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz')
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
+
+        #with stat values
+        extracted_data = nib.load(opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr.nii.gz')).get_fdata()
+        labeled_img2 = nilearn.image.new_img_like(opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz'), extracted_data, copy_header=True )
+        labeled_img2.to_filename(opj(dir_fMRI_Refth_RS_prepro1, root + '_xdtr.nii.gz'))
+
         dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz'),
                                   opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt_mean.nii.gz')],
                       "Description": 'Rigid realignment (3dVolreg from AFNI).', }

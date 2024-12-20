@@ -130,7 +130,6 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
 
     # create anat space dir
     if ope(dir_fMRI_Refth_RS_prepro2) == False:
-
         os.makedirs(dir_fMRI_Refth_RS_prepro2)
         os.makedirs(opj(dir_fMRI_Refth_RS_prepro2,'tmp'))
 
@@ -172,32 +171,13 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
         diary.write(f'\n{nl}')
         print(nl)
 
-        ## creat an image, with the func resolution, in the anat space... this is necessary to avoid all the problem generate by the lost of obliquity
-        command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 200 -S 200 -A 200 -P 200 -L 200 -R 200 -S 200 -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test_shift.nii.gz') + ' ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz') + ' -overwrite'
-        nl = spgo(command)
-        diary.write(f'\n{nl}')
-        print(nl)
-
-        command = 'singularity run' + s_bind + afni_sif + '3dAllineate -final NN' + overwrite + ' -overwrite -1Dmatrix_apply ' + opj(dir_prepro,ID + '_brain_for_Align_Center.1D') + \
-                  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test_shift.nii.gz') + \
-                  ' -input  ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test_shift.nii.gz')
-        nl = spgo(command)
-        diary.write(f'\n{nl}')
-        print(nl)
-        ### to reapply the original obliquity
-        caca2 = resample_to_img(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test_shift.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
-                                interpolation='nearest')
-        caca2.to_filename(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test_shift.nii.gz'))
-
-        # doesn't work for two different 1d matrices... so let's do it separately....
-        for input1, output2 in zip([anat_subject, brainmask,
-                                    opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz'), V_mask, W_mask, G_mask],
+        # move the atlases to the space before the AFNI shift
+        for input1, output2 in zip([anat_subject, brainmask, opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz'), V_mask, W_mask, G_mask],
             [opj(dir_fMRI_Refth_RS_prepro2,'orig_anat_for_fMRI.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'mask_ref.nii.gz'),
              opj(dir_fMRI_Refth_RS_prepro2,'maskDilat.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'Vmask.nii.gz'),
             opj(dir_fMRI_Refth_RS_prepro2,'Wmask.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'Gmask.nii.gz')]):
 
             if ope(input1):
-
                 ##### apply the recenter fmri
                 command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 200 -S 200 -A 200 -P 200 -L 200 -R 200 -S 200 -prefix ' + output2 + \
                           ' ' + input1 + ' -overwrite'
@@ -214,7 +194,7 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
                 print(nl)
 
                 ### to reapply the original obliquity
-                caca2 = resample_to_img(output2, opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_test_shift.nii.gz'), interpolation='nearest')
+                caca2 = resample_to_img(output2, opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'), interpolation='nearest')
                 caca2.to_filename(output2)
 
                 dictionary = {"Sources": [input1,
@@ -232,7 +212,6 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
                 diary.write(f'\n{nl}')
 
         # skullstrip the anat
-
         command = ('singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilat.nii.gz') +
                    ' -b ' + opj(dir_fMRI_Refth_RS_prepro2, 'orig_anat_for_fMRI.nii.gz') +
                   ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz') + ' -expr "a*b"')
@@ -284,7 +263,6 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
                     with open(opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.json'), "w") as outfile:
                         outfile.write(json_object)
 
-
                 else:
                     command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \
                     ' -prefix ' + output2 + \
@@ -299,8 +277,6 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
                     json_object = json.dumps(dictionary, indent=2)
                     with open(output2[:-7] + '.json', "w") as outfile:
                         outfile.write(json_object)
-
-
             else:
                 print(bcolors.WARNING + 'WARNING:'
                       + str(input1) + ' not found!!! this may be because you have not provided an aseg file, then no '
@@ -322,7 +298,6 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
                 json_object = json.dumps(dictionary, indent=2)
                 with open(opj(dir_fMRI_Refth_RS_prepro1,'maskDilat_Allineate_in_func.json'), "w") as outfile:
                     outfile.write(json_object)
-
 
         else:
             if anat_func_same_space == True:

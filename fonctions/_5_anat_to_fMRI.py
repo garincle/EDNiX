@@ -249,7 +249,7 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
                 print(nl)
 
                 caca = resample_to_img(opj(dir_fMRI_Refth_RS_prepro2, opb(atlas)),
-                                       opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_unwarped.nii.gz'),  interpolation='nearest')
+                                       opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz'),  interpolation='nearest')
                 caca.to_filename(opj(dir_fMRI_Refth_RS_prepro2, opb(atlas)))
 
                 dictionary = {"Sources": [opj(labels_dir, TfMRI + opb(atlas)),
