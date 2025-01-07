@@ -224,10 +224,9 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
         # Check the func runs
 
         list_RS = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endfmri)))
-        nb_run  = len(list_RS)
         RS      = [os.path.basename(i) for i in list_RS]
 
-        if nb_run == 0:
+        if len(list_RS) == 0:
             nl = 'ERROR : No func image found, we are look for an image define such as opj(dir_fMRI_Refth_RS, endfmri) and here it is ' + str(opj(dir_fMRI_Refth_RS, endfmri)) + ' I would check how you define "endfmri"'
             diary.write(f'\n{nl}')
             raise ValueError(bcolors.FAIL + nl + bcolors.ENDC)
@@ -263,8 +262,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 print(bcolors.WARNING + nl + bcolors.ENDC)
                 diary.write(f'\n{nl}')
 
-
-
+        nb_run  = len(list_RS)
         # Setup for distortion correction using Fieldmaps
 
         list_map = sorted(glob.glob(opj(dir_fMRI_Refth_map, endmap)))
