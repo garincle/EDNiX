@@ -279,8 +279,7 @@ def WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2
         print(nl)
 
         for atlas in list_atlases_2:
-            N = opb(atlas).splt('.')
-            name = N[0]
+            name = opb(atlas).split('.')[0]
             cmd = 'singularity run' + s_bind + fs_sif + 'mris_convert_v6 --annot ' + opj(FS_dir, animal_folder, 'label', Hmin[h] + 'h.' + animal_folder + '_' + opb(atlas) + '.annot') + \
                   ' ' + opj(FS_dir, animal_folder, 'surf', Hmin[h] + 'h.white') + ' ' + opj(dir_native_resol, animal_folder + '_' + name + '.' + Hmin[h] + '.native.label.gii') + \
                   ';singularity run' + s_bind + wb_sif + 'wb_command -set-structure ' + opj(dir_native_resol, animal_folder + '_' + name + '.' + Hmin[h] + '.native.label.gii') + ' ' + CORTEX[h] + \
@@ -340,6 +339,7 @@ def WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2
     print(nl)
 
     for atlas in list_atlases_2:
+        name = opb(atlas).split('.')[0]
         cmd = 'singularity run' + s_bind + wb_sif + 'wb_command -cifti-create-label ' + opj(dir_native_resol, animal_folder + '_' + name + '.dlabel.nii') + \
               ' -left-label ' + opj(dir_native_resol, animal_folder + '_' + name + '.l.native.label.gii') + ' -roi-left ' + opj(dir_native_resol, animal_folder + '.l.roi.shape.gii') + \
               ' -right-label ' + opj(dir_native_resol, animal_folder + '_' + name + '.r.native.label.gii') + ' -roi-right ' + opj(dir_native_resol, animal_folder + '.r.roi.shape.gii') + \
