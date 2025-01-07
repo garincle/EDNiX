@@ -48,7 +48,7 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR, S
     diary.write(f'\n{nl}')
 
     for i in range(0, int(nb_run)):
-        nl = 'work on ' + str(dir_fMRI_Refth_RS_prepro1) + ' run ' + str(i)
+        nl = 'work on ' + str(dir_fMRI_Refth_RS_prepro1) + ' run ' + str(i +1)
         print(bcolors.OKGREEN + nl + bcolors.ENDC)
         diary.write(f'\n{nl}')
         root = extract_filename(RS[i])

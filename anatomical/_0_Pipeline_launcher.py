@@ -163,8 +163,8 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
 
     ###### STOP THE LOOP ######
     if creat_study_template==True:
-        
-
+        if not ope(study_template_atlas_folder): os.mkdir(study_template_atlas_folder)
+        if not ope(dir_out): os.mkdir(dir_out)
         ct = datetime.datetime.now()
         diary_name = 'Study_template_BLOCK1.txt'
         diary_file = opj(study_template_atlas_folder, diary_name)

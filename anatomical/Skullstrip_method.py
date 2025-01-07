@@ -38,7 +38,7 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 
-def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas_forlder, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, BASE_SS_coregistr, BASE_SS_mask,
+def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas_folder, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, BASE_SS_coregistr, BASE_SS_mask,
     type_of_transform, ID, aff_metric_ants, check_visualy_final_mask, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif, strip_sif,diary_file):
     ct = datetime.datetime.now()
     nl = 'Run anatomical.Skullstrip_method.Skullstrip_method'
@@ -49,7 +49,7 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
     nl = 'INFO: If you can not find a good solution for Skullstriping due to bad image quality, you can always modify it by hands and save it as: ' + \
          opj(masks_dir, ID + masking_img + 'final_mask.nii.gz') + ' for step 1' + \
          opj(masks_dir, ID + masking_img + 'final_mask_2.nii.gz') + ' for step 2' + \
-         opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask.nii.gz') + ' for step "sty template"'
+         opj(study_template_atlas_folder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask.nii.gz') + ' for step "sty template"'
     print(bcolors.OKGREEN + nl + bcolors.ENDC)
     diary.write(f'\n{nl}')
 
@@ -81,12 +81,12 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
 
     elif step_skullstrip == 3:
         masking_img = type_norm
-        input_for_msk = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'warped_3_adjusted_mean.nii.gz')
-        output_for_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_mask.nii.gz')
+        input_for_msk = opj(study_template_atlas_folder, 'studytemplate2_' + type_norm, 'warped_3_adjusted_mean.nii.gz')
+        output_for_mask = opj(study_template_atlas_folder, 'studytemplate2_' + type_norm, 'study_template_mask.nii.gz')
         brain_skullstrip = template_skullstrip
-        process_dir = study_template_atlas_forlder + '/studytemplate2_' + type_norm + '/'
+        process_dir = study_template_atlas_folder + '/studytemplate2_' + type_norm + '/'
         nl1 = "INFO: brain_skullstrip method is " + brain_skullstrip
-        nl2 = 'INFO: looking for manual segmentation named:' + opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask.nii.gz') + '...'
+        nl2 = 'INFO: looking for manual segmentation named:' + opj(study_template_atlas_folder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask.nii.gz') + '...'
 
     else:
         nl1 ='No step_skullstrip ?'
@@ -137,11 +137,11 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
         print(bcolors.OKGREEN + nl2 + bcolors.ENDC)
         diary.write(f'\n{nl2}')
 
-    elif os.path.exists(opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask.nii.gz')) and step_skullstrip == 3:
+    elif os.path.exists(opj(study_template_atlas_folder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask.nii.gz')) and step_skullstrip == 3:
         nl1 = 'WARNING: We found a final mask for Skullstriping the study template, no Skullstrip will be calculated!'
-        nl2 = 'INFO: please delete' + opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask.nii.gz') + ' if you want retry to create a skulstripp images'
-        shutil.copyfile(opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask.nii.gz'), output_for_mask)
-        dictionary = {"Sources": opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask.nii.gz'),
+        nl2 = 'INFO: please delete' + opj(study_template_atlas_folder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask.nii.gz') + ' if you want retry to create a skulstripp images'
+        shutil.copyfile(opj(study_template_atlas_folder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask.nii.gz'), output_for_mask)
+        dictionary = {"Sources": opj(study_template_atlas_folder, 'studytemplate2_' + type_norm, 'studytemplate_final_mask.nii.gz'),
                       "Description": 'Copy.', }
         json_object = json.dumps(dictionary, indent=2)
         with open(output_for_mask[:-7] + '.json', "w") as outfile:
@@ -1224,9 +1224,9 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
             elif os.path.exists(opj(masks_dir, ID + masking_img + 'final_mask_2.nii.gz')):
                 shutil.copyfile(opj(masks_dir, ID + masking_img + 'final_mask.nii.gz'), output_for_mask)
 
-            elif os.path.exists(opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
+            elif os.path.exists(opj(study_template_atlas_folder, 'studytemplate2_' + type_norm,
                               'studytemplate_final_mask_study_template.nii.gz')):
-                shutil.copyfile(opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm,
+                shutil.copyfile(opj(study_template_atlas_folder, 'studytemplate2_' + type_norm,
                               'studytemplate_final_mask_study_template.nii.gz'), output_for_mask)
 
             dictionary = {"Sources": input_for_msk,
