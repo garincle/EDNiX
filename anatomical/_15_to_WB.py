@@ -213,7 +213,7 @@ def WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2
             diary.write(f'\n{nl}')
             print(nl)
                 
-        ##### apply transfo aux fichier informations (that color the vertex) XXX
+        ##### apply transfo aux fichier information (that color the vertex) XXX
 
         # sulc thickness and curvature for native brain
         command = 'singularity run' + s_bind + fs_sif + 'mris_convert_v6 -c ' + opj(FS_dir, animal_folder, 'surf',Hmin[h] + 'h.sulc') + \
@@ -278,15 +278,15 @@ def WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2
         diary.write(f'\n{nl}')
         print(nl)
 
-
-
         for atlas in list_atlases_2:
+            N = opb(atlas).splt('.')
+            name = N[0]
             cmd = 'singularity run' + s_bind + fs_sif + 'mris_convert_v6 --annot ' + opj(FS_dir, animal_folder, 'label', Hmin[h] + 'h.' + animal_folder + '_' + opb(atlas) + '.annot') + \
-                  ' ' + opj(FS_dir, animal_folder, 'surf', Hmin[h] + 'h.white') + ' ' + opj(dir_native_resol, opb(atlas) + '.' + Hmin[h] + '.native.label.gii') + \
-                  ';singularity run' + s_bind + wb_sif + 'wb_command -set-structure ' + opj(dir_native_resol, opb(atlas) + '.' + Hmin[h] + '.native.label.gii') + ' ' + CORTEX[h] + \
-                  ';singularity run' + s_bind + wb_sif + 'wb_command -set-map-names ' + opj(dir_native_resol, opb(atlas) + '.' + Hmin[h] + '.native.label.gii') + ' -map 1 atlas' + \
-                  ';singularity run' + s_bind + wb_sif + 'wb_command -gifti-label-add-prefix ' + opj(dir_native_resol, opb(atlas) + '.' + Hmin[h] + '.native.label.gii') + \
-                  ' ' + Hmin[h] + '_ ' + opj(dir_native_resol, opb(atlas) + '.' + Hmin[h] + '.native.label.gii')
+                  ' ' + opj(FS_dir, animal_folder, 'surf', Hmin[h] + 'h.white') + ' ' + opj(dir_native_resol, animal_folder + '_' + name + '.' + Hmin[h] + '.native.label.gii') + \
+                  ';singularity run' + s_bind + wb_sif + 'wb_command -set-structure ' + opj(dir_native_resol, animal_folder + '_' + name + '.' + Hmin[h] + '.native.label.gii') + ' ' + CORTEX[h] + \
+                  ';singularity run' + s_bind + wb_sif + 'wb_command -set-map-names ' + opj(dir_native_resol, animal_folder + '_' + name + '.' + Hmin[h] + '.native.label.gii') + ' -map 1 atlas' + \
+                  ';singularity run' + s_bind + wb_sif + 'wb_command -gifti-label-add-prefix ' + opj(dir_native_resol, animal_folder + '_' + name + '.' + Hmin[h] + '.native.label.gii') + \
+                  ' ' + Hmin[h] + '_ ' + opj(dir_native_resol, animal_folder + '_' + name + '.' + Hmin[h] + '.native.label.gii')
             nl = spgo(command)
             diary.write(f'\n{nl}')
             print(nl)
@@ -340,11 +340,11 @@ def WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2
     print(nl)
 
     for atlas in list_atlases_2:
-        cmd = 'singularity run' + s_bind + wb_sif + 'wb_command -cifti-create-label ' + opj(dir_native_resol, opb(atlas) + '.dlabel.nii') + \
-              ' -left-label ' + opj(dir_native_resol, opb(atlas) + '.l.native.label.gii') + ' -roi-left ' + opj(dir_native_resol, animal_folder + '.l.roi.shape.gii') + \
-              ' -right-label ' + opj(dir_native_resol, opb(atlas) + '.r.native.label.gii') + ' -roi-right ' + opj(dir_native_resol, animal_folder + '.r.roi.shape.gii') + \
-              ';singularity run' + s_bind + wb_sif + 'wb_command -set-map-names ' + opj(dir_native_resol, opb(atlas) + '.dlabel.nii') + ' -map 1 atlas' + \
-              ';singularity run' + s_bind + wb_sif + 'wb_command -add-to-spec-file ' + opj(dir_native_resol, animal_folder + '_native_LR.wb.spec') + ' INVALID ' +opj(dir_native_resol, opb(atlas) + '.dlabel.nii')
+        cmd = 'singularity run' + s_bind + wb_sif + 'wb_command -cifti-create-label ' + opj(dir_native_resol, animal_folder + '_' + name + '.dlabel.nii') + \
+              ' -left-label ' + opj(dir_native_resol, animal_folder + '_' + name + '.l.native.label.gii') + ' -roi-left ' + opj(dir_native_resol, animal_folder + '.l.roi.shape.gii') + \
+              ' -right-label ' + opj(dir_native_resol, animal_folder + '_' + name + '.r.native.label.gii') + ' -roi-right ' + opj(dir_native_resol, animal_folder + '.r.roi.shape.gii') + \
+              ';singularity run' + s_bind + wb_sif + 'wb_command -set-map-names ' + opj(dir_native_resol, animal_folder + '_' + name + '.dlabel.nii') + ' -map 1 atlas' + \
+              ';singularity run' + s_bind + wb_sif + 'wb_command -add-to-spec-file ' + opj(dir_native_resol, animal_folder + '_native_LR.wb.spec') + ' INVALID ' +opj(dir_native_resol, animal_folder + '_' + name + '.dlabel.nii')
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -369,6 +369,7 @@ def WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2
     nl = spgo(command)
     diary.write(f'\n{nl}')
     print(nl)
+
 
     nl = 'Creation of the cifti files: done!'
     print(bcolors.OKGREEN + nl + bcolors.ENDC)
