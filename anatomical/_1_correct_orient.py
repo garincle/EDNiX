@@ -322,7 +322,6 @@ def correct_orient(BIDStype,
             with open(opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.json'), "w") as outfile:
                 outfile.write(json_object)
 
-
         #work
         elif deoblique=='WARP':
             if str(nx)=="b'1\\n1\\n'":
@@ -380,6 +379,22 @@ def correct_orient(BIDStype,
                             opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz'))
             dictionary = {"Sources": opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz'),
                           "Description": 'Copy .', }
+            json_object = json.dumps(dictionary, indent=2)
+            with open(opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.json'), "w") as outfile:
+                outfile.write(json_object)
+
+        elif deoblique == 'deob_WO_orient':  # do nothing
+            command = 'singularity run' + s_bind + afni_sif + '3drefit -deoblique' + overwrite + \
+            ' ' + opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz')
+            nl= spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+
+            shutil.copyfile(opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz'),
+                            opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz'))
+
+            dictionary = {"Sources": opj(dir_prepro, ID + 'template_indiv' + Timage + '.nii.gz'),
+                          "Description": 'Correction of the fields orientation .', }
             json_object = json.dumps(dictionary, indent=2)
             with open(opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.json'), "w") as outfile:
                 outfile.write(json_object)

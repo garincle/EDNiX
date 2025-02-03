@@ -161,6 +161,26 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
         print(bcolors.OKGREEN + nl2 + bcolors.ENDC)
         diary.write(f'\n{nl2}')
 
+        #### species specific ######################################## MACAQUE ####################################
+
+        if brain_skullstrip == '3dSkullStrip_macaque':
+            command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
+                '-input ' + input_for_msk + ' -blur_fwhm 1 -orig_vol -mask_vol -monkey'
+            nl= spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+            command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
+            ' -input ' + output_for_mask + ' -fill_holes -dilate_input 4'
+            nl= spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+
+            dictionary = {"Sources": input_for_msk,
+                          "Description": 'Brain mask (3dSkullStrip from AFNI).', }
+            json_object = json.dumps(dictionary, indent=2)
+            with open(output_for_mask[:-7] + '.json', "w") as outfile:
+                outfile.write(json_object)
+
 
         #### species specific ######################################## MARMOSET ####################################
 
@@ -182,6 +202,23 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
             with open(output_for_mask[:-7] + '.json', "w") as outfile:
                 outfile.write(json_object)
 
+        if brain_skullstrip == '3dSkullStrip_dog_macaque':
+            command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
+                '-input ' + input_for_msk + ' -blur_fwhm 2 -orig_vol -mask_vol -monkey'
+            nl= spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+            command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
+            ' -input ' + output_for_mask + ' -fill_holes -dilate_input 4 -4'
+            nl= spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+
+            dictionary = {"Sources": input_for_msk,
+                          "Description": 'Brain mask (3dSkullStrip from AFNI).', }
+            json_object = json.dumps(dictionary, indent=2)
+            with open(output_for_mask[:-7] + '.json', "w") as outfile:
+                outfile.write(json_object)
 
         #################################### BABOON ####################################
 
@@ -270,6 +307,7 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
             json_object = json.dumps(dictionary, indent=2)
             with open(output_for_mask[:-7] + '.json', "w") as outfile:
                 outfile.write(json_object)
+
 
         #################################### BAT ####################################
 
@@ -401,6 +439,34 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
             json_object = json.dumps(dictionary, indent=2)
             with open(output_for_mask[:-7] + '.json', "w") as outfile:
                 outfile.write(json_object)
+
+        elif brain_skullstrip == 'sammba_dog':
+            command = 'singularity run' + s_bind + fs_sif + 'mri_convert -odt float ' + input_for_msk + ' ' + input_for_msk[:-7] + '_float.nii.gz'
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+            nichols_masker = Histrogram_mask_EMB.HistogramMask()
+            nichols_masker.inputs.in_file = input_for_msk[:-7] + '_float.nii.gz'
+            #nichols_masker.inputs.volume_threshold = 2500
+            nichols_masker.inputs.upper_cutoff = 0.85
+            nichols_masker.inputs.lower_cutoff = 0.7
+            # nichols_masker.inputs.intensity_threshold = 500
+            nichols_masker.inputs.opening = 2
+            nichols_masker.inputs.closing = 10
+            nichols_masker.inputs.dilation_size = (1, 2, 3)
+            nichols_masker.inputs.connected = True
+            nichols_masker.inputs.out_file = output_for_mask
+            res = nichols_masker.run()  # doctest: +SKIP
+            dictionary = {"Sources": input_for_msk,
+                          "Description": 'Brain mask (Histrogram_mask_EMB from sammba).', }
+            json_object = json.dumps(dictionary, indent=2)
+            with open(output_for_mask[:-7] + '.json', "w") as outfile:
+                outfile.write(json_object)
+            command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
+                      ' -input ' + output_for_mask + ' -fill_holes -dilate_input -5 7'
+            nl= spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
 
         elif brain_skullstrip == 'custum_rat':
             # convert to float

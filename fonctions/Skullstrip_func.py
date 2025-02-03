@@ -192,6 +192,31 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         with open(output_for_mask[:-7] + '.json', "w") as outfile:
             outfile.write(json_object)
 
+    elif brain_skullstrip == '3dSkullStrip_dog':
+        command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
+            '-input ' + input_for_msk + ' -orig_vol -mask_vol -monkey -use_skull'
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + output_for_mask + ' -expr "step(a-4)" -prefix ' + output_for_mask + ' -overwrite'
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
+        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
+        ' -input ' + output_for_mask + ' -fill_holes'
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
+        dictionary = {"Sources": input_for_msk,
+                      "Description": ['binary brain mask (3dSkullStrip, AFNI)',
+                                      'fill holes  (3dmask_tool,AFNI).'], }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
+
     elif brain_skullstrip == '3dSkullStrip_marmoset':
         command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
             '-input ' + input_for_msk + ' -blur_fwhm 1 -orig_vol -mask_vol -marmoset'

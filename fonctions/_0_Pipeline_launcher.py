@@ -255,12 +255,31 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                     nl = "INFO: We will not analyze " + str(imageF) + " because there are not enough time points"
                     print(bcolors.WARNING +nl + bcolors.ENDC)
                     diary.write(f'\n{nl}')
+
+                    diary_file_WARNING = opj(opd(opd(dir_fMRI_Refth_RS_prepro1)), 'MAJOR_WARNING.txt')
+                    if not opi(diary_file_WARNING):
+                        diary_file_WARNING_file = open(diary_file_WARNING, "w")
+                        diary_file_WARNING_file.write(f'\n{nl}')
+                    else:
+                        diary_file_WARNING_file = open(diary_file_WARNING, "a")
+                        diary_file_WARNING_file.write(f'\n{nl}')
+                    diary_file_WARNING_file.close()
+
                     list_RS.pop(index_of_imageF)
                     list_pop_index.append(index_of_imageF)
             else:
-                nl = "INFO: This is not a 4D fMRI image"
+                nl = "INFO: " + str(imageF) + " is not a 4D fMRI image"
                 print(bcolors.WARNING + nl + bcolors.ENDC)
                 diary.write(f'\n{nl}')
+
+                diary_file_WARNING = opj(opd(opd(dir_fMRI_Refth_RS_prepro1)), 'MAJOR_WARNING.txt')
+                if not opi(diary_file_WARNING):
+                    diary_file_WARNING_file = open(diary_file_WARNING, "w")
+                    diary_file_WARNING_file.write(f'\n{nl}')
+                else:
+                    diary_file_WARNING_file = open(diary_file_WARNING, "a")
+                    diary_file_WARNING_file.write(f'\n{nl}')
+                diary_file_WARNING_file.close()
 
         nb_run  = len(list_RS)
         # Setup for distortion correction using Fieldmaps
@@ -386,6 +405,15 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                         nl = "WARNING: Slice Timing not found, this will be particularly DANGEROUS, you SHOULD PROVIDE MANUALLY ONE!"
                         print(bcolors.WARNING + nl + bcolors.ENDC)
                         diary.write(f'\n{nl}')
+
+                        diary_file_WARNING = opj(opd(opd(dir_fMRI_Refth_RS_prepro1)), 'MAJOR_WARNING.txt')
+                        if not opi(diary_file_WARNING):
+                            diary_file_WARNING_file = open(diary_file_WARNING, "w")
+                            diary_file_WARNING_file.write(f'\n{nl}')
+                        else:
+                            diary_file_WARNING_file = open(diary_file_WARNING, "a")
+                            diary_file_WARNING_file.write(f'\n{nl}')
+                        diary_file_WARNING_file.close()
 
             elif isinstance(Slice_timing_info, list) == True:
                 nl = "INFO: SliceTiming = " + str(Slice_timing_info)

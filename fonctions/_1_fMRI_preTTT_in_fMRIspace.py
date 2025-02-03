@@ -158,6 +158,16 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR, S
                     nl = "WARNING: Slice Timing not found, this will be particularly DANGEROUS, you SHOULD PROVIDE MANUALLY ONE!"
                     print(bcolors.WARNING + nl + bcolors.ENDC)
                     diary.write(f'\n{nl}')
+
+                    diary_file_WARNING = opj(opd(opd(dir_fMRI_Refth_RS_prepro1)), 'MAJOR_WARNING.txt')
+                    if not opi(diary_file_WARNING):
+                        diary_file_WARNING_file = open(diary_file_WARNING, "w")
+                        diary_file_WARNING_file.write(f'\n{nl}')
+                    else:
+                        diary_file_WARNING_file = open(diary_file_WARNING, "a")
+                        diary_file_WARNING_file.write(f'\n{nl}')
+                    diary_file_WARNING_file.close()
+
                     command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz') + \
                               ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.nii.gz') + ' -expr "a"' + overwrite
                     nl = spgo(command)
@@ -166,6 +176,7 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR, S
                     dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root + '_xd.nii.gz'),
                                   "Description": 'copy.', }
                     json_object = json.dumps(dictionary, indent=2)
+
                     with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_xdt.json'), "w") as outfile:
                         outfile.write(json_object)
         elif isinstance(Slice_timing_info, list) == False and Slice_timing_info.split(' ')[0] == '-tpattern':

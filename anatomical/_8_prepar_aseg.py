@@ -4,7 +4,7 @@ import ants
 from nilearn import plotting
 import datetime
 import json
-
+import matplotlib.pyplot as plt
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -55,6 +55,13 @@ def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_
     nl = spgo(command)
     diary.write(f'\n{nl}')
     print(nl)
+
+    if IgotbothT1T2 == True:
+        Ref_file_other = opj(volumes_dir, ID + otheranat + '_brain.nii.gz')
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + opj(volumes_dir, ID + otheranat + '_brain_step_1.nii.gz') + ' -expr "a" -prefix ' + Ref_file_other
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
 
     brain_img  = ants.image_read(Ref_file)
     MSK = ants.image_read(BASE_SS_mask)
@@ -153,14 +160,16 @@ def prepar_aseg(IgotbothT1T2, Ref_file, labels_dir, volumes_dir, masks_dir, dir_
             display = plotting.plot_anat(Ref_file, display_mode='mosaic', dim=4)
             display.add_contours(opj(dir_prepro,'template_in_anat_DC.nii.gz'),
             linewidths=.2, colors=['red'])
-            display.savefig(opj(bids_dir, 'QC','FinalQC' + ID + '_' + str(Session) + '_' + type_norm + '_final_template_to_anat.png'))
+            display.savefig(opj(bids_dir, 'QC','FinalQC', ID + '_' + str(Session) + '_' + type_norm + '_final_template_to_anat.png'))
             # Don't forget to close the display
             display.close()
+            plt.close('all')
         except:
             display = plotting.plot_anat(Ref_file, display_mode='mosaic', dim=4)
-            display.savefig(opj(bids_dir, 'QC','FinalQC' + ID + '_' + str(Session) + '_' + type_norm + '_final_template_to_anat.png'))
+            display.savefig(opj(bids_dir, 'QC','FinalQC', ID + '_' + str(Session) + '_' + type_norm + '_final_template_to_anat.png'))
             # Don't forget to close the display
             display.close()
+            plt.close('all')
 
     #### apply to asegLR
     if ope(Aseg_refLR):

@@ -46,7 +46,6 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
     diary.write(f'\n{ct}')
     diary.write(f'\n{nl}')
 
-
     stdy_template = opj(study_template_atlas_folder, 'studytemplate2_' + Atemplate_to_Stemplate, 'study_template.nii.gz')
 
     #######################################################################
@@ -67,28 +66,23 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
     if Aseg_refLR:
         list_atlases2.extend([Aseg_refLR])
 
-    command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + ' -overwrite' + ' -warp shift_rotate -cmass -source ' + BASE_SS + \
-    ' -nomask -final NN' + \
-    ' -prefix ' + opj(dir_out, 'template_in_stdy_template.nii.gz') + \
-    ' -base ' + stdy_template + ' -1Dmatrix_save ' + opj(dir_out,'Align_Center_shft.1D')
-    nl = spgo(command)
-    diary.write(f'\n{nl}')
-    print(nl)
-
     ###### Coregistration!!!!
-
+    print(stdy_template)
+    print(BASE_SS)
     REF = ants.image_read(stdy_template)
-    IMG = ants.image_read(opj(dir_out, 'template_in_stdy_template.nii.gz'))
+    IMG = ants.image_read(BASE_SS)
 
     mtx1 = ants.registration(fixed=IMG, moving=REF, type_of_transform='Translation',
                              outprefix=opj(dir_out,'NMT_to_anat_SyN_final_shift_'))
     MEAN_tr = ants.apply_transforms(fixed=IMG, moving=REF, transformlist=mtx1['fwdtransforms'],
                                     interpolator=n_for_ANTS)
     ants.image_write(MEAN_tr, opj(dir_out,'NMT_to_anat_SyN_final_shift.nii.gz'), ri=False)
-    dictionary = {"Sources": [opj(dir_out, 'template_in_stdy_template.nii.gz'),
+
+    dictionary = {"Sources": [BASE_SS,
                               stdy_template],
                   "Description": 'Co-registration (translation,ANTspy).', }
     json_object = json.dumps(dictionary, indent=2)
+
     with open(opj(dir_out, 'NMT_to_anat_SyN_final_shift.json'), "w") as outfile:
         outfile.write(json_object)
 
@@ -114,7 +108,7 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
     TRANS = ants.apply_transforms(fixed=REF, moving=IMG,
                                       transformlist=mTx['fwdtransforms'], interpolator=n_for_ANTS)
     ants.image_write(TRANS, opj(dir_out,'NMT_to_anat_SyN_final.nii.gz'), ri=False)
-    dictionary = {"Sources": [opj(dir_out, 'template_in_stdy_template.nii.gz'),
+    dictionary = {"Sources": [BASE_SS,
                               stdy_template],
                   "Description": 'Co-registration (non linear,ANTspy).', }
     json_object = json.dumps(dictionary, indent=2)
@@ -128,15 +122,7 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
         print(bcolors.OKGREEN + 'INFO: Working in sending ' + atlas + ' in anat space')
         if ope(atlas):
 
-            command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -final NN -1Dmatrix_apply ' + opj(dir_out,'Align_Center_shft.1D') + \
-            ' -prefix ' + opj(dir_out, opb(ops(ops(atlas)[0])[0]) + '_Allin.nii.gz') + \
-            ' -master ' + stdy_template + \
-            ' -input  ' + atlas
-            nl = spgo(command)
-            diary.write(f'\n{nl}')
-            print(nl)
-
-            IMG = ants.image_read(opj(dir_out, opb(ops(ops(atlas)[0])[0]) + '_Allin.nii.gz'))
+            IMG = ants.image_read(atlas)
             TRANS = ants.apply_transforms(fixed=REF, moving=IMG,
                                           transformlist=mTx['fwdtransforms'], interpolator='nearestNeighbor')
             ants.image_write(TRANS, opj(dir_out, opb(atlas)), ri=False)

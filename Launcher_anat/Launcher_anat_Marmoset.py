@@ -203,7 +203,7 @@ dir_out = bids_dir + '/sty_template/atlases'
 
 #do you want to use all the data or only the last one of each subject (for longitud inal co-registration)
 which_on = 'all' # all or max
-type_of_transform_stdyT = 'SyN'
+type_of_transform_stdyT = 'SyNCC'
 aff_metric_ants = 'MI'
 
 ###use type_norm or otheranat for atlas template to study template co-registration
@@ -277,10 +277,10 @@ opj(diratlas_orig, 'atlaslvl2.nii.gz'),
 opj(diratlas_orig, 'atlaslvl3.nii.gz'),
 opj(diratlas_orig, 'atlaslvl4.nii.gz')]
 
-FreeSlabel_ctab_list = [opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt'),
-opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt'),
-opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt'),
-opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')]
+FreeSlabel_ctab_list = [opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT_Dual.txt'),
+opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT_Dual.txt'),
+opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT_Dual.txt'),
+opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT_Dual.txt')]
 
 
 ######### define other usefull paramater automatically (do no touch)#########
@@ -291,9 +291,9 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [1,2,3,4,5,6,9,10,11,12,13,14,15,100,200]
+Skip_step = [1,2,3,10,11,12,13,14,15,100,200]
 
-Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
+Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT_Dual.txt')
 
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,

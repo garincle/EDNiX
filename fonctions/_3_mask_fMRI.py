@@ -140,7 +140,7 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
     ##### first you need to re-create a dilate ref anat image (works better for co-registration anat to fMRI)
     # dilate a little bit MORE the "maskDilat"
 
-    if dilate_mask >0:
+    if dilate_mask != 0:
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz') + \
         ' -input ' + brainmask + ' -fill_holes -dilate_input ' + str(dilate_mask)
     else:
@@ -158,16 +158,19 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
 
 
     if anat_func_same_space == True:
-        command = 'singularity run' + s_bind + afni_sif + 'cat_matvec ' + opj(dir_prepro,ID + '_brain_for_Align_Center.1D') + \
+        command = 'singularity run' + s_bind + afni_sif + 'cat_matvec ' + opj(dir_prepro, ID + '_brain_for_Align_Center.1D') + \
         ' | tail -n +3 >' + opj(dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D')
         nl = spgo(command)
+        print(command)
         diary.write(f'\n{nl}')
         print(nl)
 
-        mvt_shft = opj(dir_prepro,ID + '_brain_for_Align_Center_inv.1D')
-        command = 'singularity run' + s_bind + afni_sif + 'cat_matvec ' + opj(dir_prepro,ID + '_brain_for_Align_Center.1D') + \
+        mvt_shft = opj(dir_prepro, ID + '_brain_for_Align_Center_inv.1D')
+        command = 'singularity run' + s_bind + afni_sif + 'cat_matvec ' + opj(dir_prepro, ID + '_brain_for_Align_Center.1D') + \
         ' -I | tail -n +3 > ' + mvt_shft
         nl = spgo(command)
+        print(command)
+        print(nl)
         diary.write(f'\n{nl}')
         print(nl)
 
