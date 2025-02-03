@@ -296,7 +296,7 @@ deoblique_exeption2 = [] # list
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
 type_of_transform = 'SyNBold'
-aff_metric_ants = 'mattes'
+aff_metric_ants = 'CC'
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
 ### define the acronyme/suffix of the anat as in the BIDS
@@ -466,7 +466,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [200]
+Skip_step = [100, 200]
     ############################################################
     ######################## START de pipeline #################
     ############################################################

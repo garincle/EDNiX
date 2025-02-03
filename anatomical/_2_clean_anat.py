@@ -7,6 +7,7 @@ from nilearn.image import resample_to_img
 import anatomical.Skullstrip_method
 import datetime
 import json
+import matplotlib.pyplot as plt
 
 class bcolors:
     HEADER = '\033[95m'
@@ -87,11 +88,13 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
             display.savefig(opj(bids_dir, 'QC','skullstrip_step1', ID + '_' + str(Session) + '_' + Timage + '_skullstriped.png'))
             # Don't forget to close the display
             display.close()
+            plt.close('all')
         except:
             display = plotting.plot_anat(opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz'), display_mode='x', cut_coords=10)
             display.savefig(opj(bids_dir, 'QC','skullstrip_step1', ID + '_' + str(Session) + '_' + Timage + '_skullstriped.png'))
             # Don't forget to close the display
             display.close()
+            plt.close('all')
 
         ####################################################################################
         ########################## transfo rigid to atlas template (BASE_SS)   #############
@@ -246,7 +249,7 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
 
         if Timage in [str(type_norm), str(otheranat)]:
             command = 'singularity run' + s_bind + afni_sif + '3dAllineate -overwrite -interp NN -1Dmatrix_apply ' + opj(dir_prepro, ID + '_brain_for_Align_Center.1D') + \
-                      ' -prefix ' + opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.*gz') + \
+                      ' -prefix ' + opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz') + \
                       ' -master ' + opj(dir_prepro, ID + '_acpc_64' + Timage + '.nii.gz') + \
                       ' -input  ' + opj(dir_prepro, ID + '_mprage_reorient' + Timage + '.nii.gz')
             nl= spgo(command)
@@ -311,14 +314,16 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
         try:
             display = plotting.plot_anat(opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz'), display_mode='mosaic', dim=4)
             display.add_contours(BASE_SS_coregistr,linewidths=.2, colors=['red'])
-            display.savefig(opj(bids_dir, 'QC','align_rigid_to_template' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png'))
+            display.savefig(opj(bids_dir, 'QC','align_rigid_to_template', ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png'))
             # Don't forget to close the display
             display.close()
+            plt.close('all')
         except:
             display = plotting.plot_anat(opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz'), display_mode='mosaic', dim=4)
-            display.savefig(opj(bids_dir, 'QC','align_rigid_to_template' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png'))
+            display.savefig(opj(bids_dir, 'QC','align_rigid_to_template', ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png'))
             # Don't forget to close the display
             display.close()
+            plt.close('all')
 
         ####### check visually indiv template #######
         if check_visualy_each_img == True:

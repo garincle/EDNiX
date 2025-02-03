@@ -37,19 +37,8 @@ def fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orient
     print(bcolors.OKGREEN + nl + bcolors.ENDC)
     diary.write(f'\n{nl}')
 
-
-    if deoblique == 'no_deoblique':  # do nothing
-        nl = 'no_deoblique'
-
-        shutil.copyfile(opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgI), opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO))
-        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgI),
-                      "Description": ' Copy', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO[:-7] + '.json'), "w") as outfile:
-            outfile.write(json_object)
-
-    elif deoblique == 'WARP_without_3drefit':  # do nothing
-        nl = 'WARP_without_3drefit'
+    if deoblique == 'WARP_without_3drefit' or deoblique == 'no_deoblique' or deoblique == 'deob_WO_orient':  # do nothing
+        nl = 'do not reorient with 3drefit, just copy'
 
         shutil.copyfile(opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgI), opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO))
         dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgI),
@@ -58,17 +47,7 @@ def fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orient
         with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO[:-7] + '.json'), "w") as outfile:
             outfile.write(json_object)
 
-    elif deoblique == 'WARP_Gridset':  # do nothing
-        nl = 'WARP_Gridset'
-
-        shutil.copyfile(opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgI), opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO))
-        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgI),
-                      "Description": ' Copy', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO[:-7] + '.json'), "w") as outfile:
-            outfile.write(json_object)
-
-    elif deoblique == 'WARP' or deoblique == 'header_WO_deob':
+    elif deoblique == 'WARP' or deoblique == 'header_WO_deob' or deoblique == 'WARP_Gridset':
         command = 'singularity run' + s_bind + afni_sif + '3drefit ' + overwrite + ' -orient ' + orientation + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI)
         nl = spgo(command)
 

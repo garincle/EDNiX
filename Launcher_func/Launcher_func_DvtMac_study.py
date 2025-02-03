@@ -25,6 +25,7 @@ FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
 import fonctions._0_Pipeline_launcher
 
+
 species = 'Macaque'
 bids_dir = opj('/scratch/cgarin/Macaque/BIDS_Cdt_Garin')
 ##########################################
@@ -142,10 +143,6 @@ for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session,
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
     if ID in ["Quantum"] and Session in [3]:
-        removelist.append(num)
-    if ID in ["Roshan"] and Session in [11,10]:
-        removelist.append(num)
-    if ID in ["Oliver", "Quantum", "Pickle"]:
         removelist.append(num)
 
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
@@ -294,7 +291,7 @@ orientation = 'RAI' # string
 # It will have for unfortunate consequence to warp the func multiple times to go in the atlas space and one time in the original space.
 # However, this function can help to solve common space problem.....
 
-deoblique='WARP' #header or WARP
+deoblique='WARP_without_3drefit' #header or WARP
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string

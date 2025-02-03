@@ -3,10 +3,9 @@ import subprocess
 from nilearn.image import resample_to_img
 from fonctions.extract_filename import extract_filename
 import ants
-from nilearn import plotting
 import datetime
 import json
-
+from fonctions.plot_QC_func import plot_qc
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -461,18 +460,6 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
             os.mkdir(opj(bids_dir + '/QC/','mask_to_fMRI_orig'))
 
         ####plot the QC
-        try:
-            display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_deob.nii.gz'), threshold='auto',
-                                         display_mode='mosaic', dim=4)
-            display.add_contours(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'),
-                                 linewidths=.2, colors=['red'])
-            display.savefig(opj(bids_dir, 'QC','mask_to_fMRI_orig', root_RS + '_mask_final_in_fMRI_orig.png'))
-            # Don't forget to close the display
-            display.close()
-        except:
-            display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_deob.nii.gz'), threshold='auto',
-                                         display_mode='mosaic', dim=4)
-            display.savefig(opj(bids_dir, 'QC','mask_to_fMRI_orig', root_RS + '_mask_final_in_fMRI_orig.png'))
-            # Don't forget to close the display
-            display.close()
+        plot_qc(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_deob.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'), opj(bids_dir, 'QC', 'mask_to_fMRI_orig', root_RS + '_mask_final_in_fMRI_orig.png'))
+
     diary.close()

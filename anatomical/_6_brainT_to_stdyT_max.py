@@ -4,7 +4,7 @@ from nilearn import plotting
 import ants
 import json
 import datetime
-
+import matplotlib.pyplot as plt
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -122,15 +122,17 @@ def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Sessi
                                          display_mode='mosaic', dim=4)
             display.add_contours(opj(dir_prepro, Timage + '_to_template_SyN_final_max.nii.gz'),
                                  linewidths=.2, colors=['red'])
-            display.savefig(opj(bids_dir, 'QC','anat_to_template' + ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png'))
+            display.savefig(opj(bids_dir, 'QC','anat_to_template', ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png'))
             # Don't forget to close the display
             display.close()
+            plt.close('all')
         except:
             display = plotting.plot_anat(opj(dir_prepro,'template_to_' + Timage + '_SyN_final_test_matrix_max.nii.gz'), threshold='auto',
                                          display_mode='mosaic', dim=4)
-            display.savefig(opj(bids_dir, 'QC','template_to_anat' + ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png'))
+            display.savefig(opj(bids_dir, 'QC','template_to_anat', ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png'))
             # Don't forget to close the display
             display.close()
+            plt.close('all')
 
 
     if creat_study_template == True and IgotbothT1T2 == True:

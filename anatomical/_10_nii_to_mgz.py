@@ -24,7 +24,7 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-def nii_to_mgz(ID, Session, FS_dir, Ref_file, labels_dir, volumes_dir, otheranat, IgotbothT1T2, type_norm, overwrite,s_bind,fs_sif,diary_file):
+def nii_to_mgz(ID, Session, FS_dir, Ref_file, labels_dir, volumes_dir, otheranat, IgotbothT1T2, type_norm, overwrite, s_bind,fs_sif,diary_file):
     ct = datetime.datetime.now()
     nl = 'Run anatomical._10_nii_to_mgz.nii_to_mgz'
     diary = open(diary_file, "a")
@@ -49,6 +49,7 @@ def nii_to_mgz(ID, Session, FS_dir, Ref_file, labels_dir, volumes_dir, otheranat
     elif orient_raw == 'LSP': reorient = ' -r 1 -2 -3 '
     elif orient_raw == 'RPS': reorient = ' -r -1 -3 -2 '
     elif orient_raw == 'LPS': reorient = ' -r 1 -3 -2 '
+
     else:
         nl = 'ERROR: ' + orient_raw + ' not found in the list'
         print(bcolors.FAIL + nl + bcolors.ENDC)

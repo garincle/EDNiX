@@ -2,10 +2,9 @@ import os
 import subprocess
 from fonctions.extract_filename import extract_filename
 import ants
-from nilearn import plotting
 import datetime
 import json
-
+from fonctions.plot_QC_func import plot_qc
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -84,9 +83,9 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         ############################### apply transfo to anat space to Mean_Image image for test ######
         ############################### ############################### ###############################
 
-    for input2, output2, output3 in zip([opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, 'Ref_anat_in_fMRI.nii.gz')],
-                               [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_SS_pre.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, 'Ref_anat_in_fMRI_test_pre.nii.gz')],
-                                [opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz'), opj(dir_fMRI_Refth_RS_prepro3, 'Ref_anat_in_fMRI_test_in_template.nii.gz')]):
+    for input2, output2, output3 in zip([opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, 'Ref_anat_in_fMRI_anat_resolution.nii.gz')],
+                               [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_SS_pre.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, 'Ref_anat_in_fMRI_anat_resolution_pre.nii.gz')],
+                                [opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz'), opj(dir_fMRI_Refth_RS_prepro3, 'Ref_anat_in_fMRI_anat_resolution_test_in_template.nii.gz')]):
 
         command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + input2 + \
         ' -prefix ' + output2 + ' -expr "a"'
@@ -103,9 +102,6 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         diary.write(f'\n{nl}')
 
         ##### apply the recenter fmri
-
-        #######!!!!!! I don't know why if deoblique1=WARP no gridset if exception2 require gridset!!!!!
-
         if deoblique == 'header':
             command = 'singularity run' + s_bind + afni_sif + '3drefit -deoblique ' + overwrite + ' -orient ' + orientation + ' ' + output2
             nl = spgo(command)
@@ -174,8 +170,6 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
                 outfile.write(json_object)
             raise Exception(bcolors.FAIL + nl + bcolors.ENDC)
 
-
-
         if anat_func_same_space == True:
             command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 50 -S 50 -A 50 -P 50 -L 50 -R 50 -S 50 -prefix ' +  output2 + ' ' +  output2 + ' -overwrite'
             nl = spgo(command)
@@ -191,7 +185,6 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
             print(nl)
 
         ## test on mean img (to see spatially that is works)
-
         nl = "starting func to template space on mean image and anat test transformation"
         print(bcolors.OKGREEN + nl + bcolors.ENDC)
         diary.write(f'\n{nl}')
@@ -221,24 +214,13 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
     if not os.path.exists(opj(bids_dir, 'QC','meanIMG_in_template')):
         os.mkdir(opj(bids_dir, 'QC','meanIMG_in_template'))
 
-    try:
-        display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz'),
-                                     threshold='auto',
-                                     display_mode='mosaic', dim=4)
-        display.add_contours(opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz'),
-                             linewidths=.2, colors=['red'])
-        display.savefig(opj(bids_dir, 'QC','meanIMG_in_template','Mean_Image_RcT_SS_in_anat.png'))
-        # Don't forget to close the display
-        display.close()
-    except:
-        display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz'),
-                                     threshold='auto',
-                                     display_mode='mosaic', dim=4)
-        display.savefig(opj(bids_dir, 'QC','meanIMG_in_template','Mean_Image_RcT_SS_in_anat.png'))
-        # Don't forget to close the display
-        display.close()
+    # Extract ID
+    sub_path = os.path.normpath(dir_fMRI_Refth_RS_prepro3).split(os.sep)
+    ID = [segment.split('-')[1] for segment in sub_path if segment.startswith('sub-')][0]
 
-
+    plot_qc(opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz'),
+            opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz'),
+            opj(bids_dir, 'QC','meanIMG_in_template', ID + 'meanIMG_in_template.png'))
 
     ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
     ##                                Work on all FUNC                                                          ## ##
@@ -248,12 +230,13 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         ##### go for BOLD img preTTT
 
         root_RS = extract_filename(RS[i])
-
+        residual_in_template = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz')
         output3 = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_anat_sfht.nii.gz')
         output2 = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_anat_reorient.nii.gz')
         input2  = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
 
         if ope(input2) == False:
+            residual_in_template = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template_failed.nii.gz')
             output3 = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_3dDeconvolve_failed_in_anat_sfht.nii.gz')
             output2 = opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_3dDeconvolve_failed_in_anat_reorient.nii.gz')
             input2  = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_3dDeconvolve_failed.nii.gz')
@@ -272,7 +255,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         ##### apply the recenter fmri
         #######!!!!!! I don't know why if deoblique1=WARP no gridset if exception2 require gridset!!!!!
         if deoblique == 'header':
-            command = 'singularity run' + s_bind + afni_sif + '3drefit -oblique_origin -deoblique ' + overwrite + ' -orient ' + orientation + ' ' + output2
+            command = 'singularity run' + s_bind + afni_sif + '3drefit -deoblique ' + overwrite + ' -orient ' + orientation + ' ' + output2
             nl = spgo(command)
             diary.write(f'\n{nl}')
             print(nl)
@@ -282,9 +265,31 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
             with open(output2[:-7] + '.json', "w") as outfile:
                 outfile.write(json_object)
 
+        elif deoblique == 'deob_WO_orient':
+            command = 'singularity run' + s_bind + afni_sif + '3drefit -deoblique ' + overwrite + ' ' + output2
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+            dictionary = {"Sources": input2,
+                          "Description": 'change header orientation + deoblique (3drefit, AFNI).'},
+            json_object = json.dumps(dictionary, indent=2)
+            with open(output2[:-7] + '.json', "w") as outfile:
+                outfile.write(json_object)
+
+        elif deoblique == 'header_WO_deob':
+            command = 'singularity run' + s_bind + afni_sif + '3drefit ' + overwrite + ' -orient ' + orientation + ' ' + output2
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+            dictionary = {"Sources": input2,
+                          "Description": 'change header orientation (3drefit, AFNI).'},
+            json_object = json.dumps(dictionary, indent=2)
+            with open(output2[:-7] + '.json', "w") as outfile:
+                outfile.write(json_object)
+
         elif deoblique == 'WARP' or deoblique == 'WARP_without_3drefit':
             # reorient the fields according to the json file
-            command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + '-oblique_origin -deoblique -NN -prefix ' + output2 + \
+            command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix ' + output2 + \
                       ' ' + output2
             nl = spgo(command)
             diary.write(f'\n{nl}')
@@ -297,24 +302,13 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
 
         elif deoblique == 'WARP_Gridset':  # do nothing
             # reorient the fiedls according to the json file
-            command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + '-oblique_origin -deoblique -NN -prefix '\
+            command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix '\
                       + output2 + ' -gridset ' + output2 + ' ' + output2
             nl = spgo(command)
             diary.write(f'\n{nl}')
             print(nl)
             dictionary = {"Sources": input2,
                           "Description": 'reorientation + deoblique (3dWarp, AFNI).'},
-            json_object = json.dumps(dictionary, indent=2)
-            with open(output2[:-7] + '.json', "w") as outfile:
-                outfile.write(json_object)
-
-        elif deoblique == 'header_WO_deob':
-            command = 'singularity run' + s_bind + afni_sif + '3drefit ' + overwrite + '-oblique_origin -orient ' + orientation + ' ' + output2
-            nl = spgo(command)
-            diary.write(f'\n{nl}')
-            print(nl)
-            dictionary = {"Sources": input2,
-                          "Description": 'change header orientation (3drefit, AFNI).'},
             json_object = json.dumps(dictionary, indent=2)
             with open(output2[:-7] + '.json', "w") as outfile:
                 outfile.write(json_object)
@@ -364,15 +358,13 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
             FUNC = ants.image_read(input2)
             img_name = input2
 
-
         #  transfo
-
         TRANS = ants.apply_transforms(fixed=REF, moving=FUNC,
                                       transformlist=transfo_concat_Anat + mvt_shft_ANTs,
                                       interpolator='nearestNeighbor',
                                       whichtoinvert=w2inv_Anat + w2inv_fwd,imagetype=3)
-        ants.image_write(TRANS, opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz'), ri=False)
 
+        ants.image_write(TRANS, residual_in_template, ri=False)
         dictionary = {"Sources": [img_name,
                                   opj(dir_fMRI_Refth_RS_prepro3, 'BASE_SS_fMRI.nii.gz')],
                       "Description": ' Non linear normalization (ANTspy).'},
@@ -380,18 +372,19 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         with open(opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.json'), "w") as outfile:
             outfile.write(json_object)
 
+
     if anat_func_same_space == True:
         root_RS = extract_filename(RS[REF_int])
 
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz')
+    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + residual_in_template
     delta_x = str(abs(round(float(spgo(command).split('\n')[-1]), 10)))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dj ' + opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz')
+    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dj ' + residual_in_template
     delta_y = str(abs(round(float(spgo(command).split('\n')[-1]), 10)))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dk ' + opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz')
+    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dk ' + residual_in_template
     delta_z = str(abs(round(float(spgo(command).split('\n')[-1]), 10)))
 
     ## in anat space resample to func
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -orient ' + opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz')
+    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -orient ' + residual_in_template
     orient_meanimg = spgo(command).split('\n')[-1]
 
 
@@ -407,7 +400,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
             diary.write(f'\n{nl}')
             print(nl)
             dictionary = {"Sources": [atlas,
-                                      opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz')],
+                                      residual_in_template],
                           "Description": ' Resampling (3dresample, AFNI).'},
             json_object = json.dumps(dictionary, indent=2)
             with open(opj(dir_fMRI_Refth_RS_prepro3, opb(atlas)[:-7] + '.json'), "w") as outfile:
@@ -428,7 +421,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
     diary.write(f'\n{nl}')
     print(nl)
     dictionary = {"Sources": [BASE_SS_mask,
-                              opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz')],
+                              residual_in_template],
                   "Description": ' Resampling (3dresample, AFNI).'},
     json_object = json.dumps(dictionary, indent=2)
     with open(opj(dir_fMRI_Refth_RS_prepro3, 'mask_brain.json'), "w") as outfile:
@@ -449,7 +442,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
     diary.write(f'\n{nl}')
     print(nl)
     dictionary = {"Sources": [MASK,
-                              opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz')],
+                              residual_in_template],
                   "Description": ' Resampling (3dresample, AFNI).'},
     json_object = json.dumps(dictionary, indent=2)
     with open(opj(dir_fMRI_Refth_RS_prepro3, 'Gmask.json'), "w") as outfile:

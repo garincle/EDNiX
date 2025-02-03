@@ -14,6 +14,7 @@ import json
 import datetime
 import ants
 import numpy as np
+import matplotlib.pyplot as plt
 
 class bcolors:
     HEADER    = '\033[95m'
@@ -108,15 +109,17 @@ def create_indiv_template_brain(dir_prepro, type_of_transform, ID, aff_metric_an
                                          display_mode='mosaic', dim=4)
             display.add_contours(opj(volumes_dir,ID + Timage + '_brain_step_1.nii.gz'),
                                  linewidths=.2, colors=['red'])
-            display.savefig(opj(bids_dir, 'QC','skullstrip_step2' + ID + '_' + str(Session) + '_' + Timage + '_brain.png'))
+            display.savefig(opj(bids_dir, 'QC','skullstrip_step2', ID + '_' + str(Session) + '_' + Timage + '_brain.png'))
             # Don't forget to close the display
             display.close()
+            plt.close('all')
         except:
             display = plotting.plot_anat(opj(volumes_dir,ID + Timage + '_brain_step_1.nii.gz'),
                                          display_mode='mosaic', dim=4)
-            display.savefig(opj(bids_dir, 'QC','skullstrip_step2' + ID + '_' + str(Session) + '_' + Timage + '_brain.png'))
+            display.savefig(opj(bids_dir, 'QC','skullstrip_step2', ID + '_' + str(Session) + '_' + Timage + '_brain.png'))
             # Don't forget to close the display
             display.close()
+            plt.close('all')
 
     ###N4BiasFieldCorrection
     try:

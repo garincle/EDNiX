@@ -15,6 +15,7 @@ import scipy.ndimage as ndimage
 import ants
 import datetime
 import json
+import matplotlib.pyplot as plt
 
 class bcolors:
     HEADER = '\033[95m'
@@ -33,6 +34,7 @@ opb = os.path.basename
 opn = os.path.normpath
 opd = os.path.dirname
 ope = os.path.exists
+opi = os.path.isfile
 
 spco = subprocess.check_output
 spgo = subprocess.getoutput
@@ -120,7 +122,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                     outfile.write(json_object)
 
                 brain_masker = NiftiMasker(standardize="zscore", smoothing_fwhm=None,
-                                           memory_level=1, verbose=1,
+                                           memory_level=0, verbose=1,
                                            mask_img=opj(direction_results, 'cortical_mask_funcrsp.nii.gz'))
                 brain_time_series = brain_masker.fit_transform(func_filename)
 
@@ -184,6 +186,15 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                             nl = "WARNING: The NIfTI image is empty (all voxel values are zero)."
                             print(nl)
                             diary.write(f'\n{nl}')
+
+                            diary_file_WARNING = opj(opd(opd(dir_fMRI_Refth_RS_prepro1)), 'SEED_' + str(Seed_name) + '_EMPTY_WARNING.txt')
+                            if not opi(diary_file_WARNING):
+                                diary_file_WARNING_file = open(diary_file_WARNING, "w")
+                                diary_file_WARNING_file.write(f'\n{nl}')
+                            else:
+                                diary_file_WARNING_file = open(diary_file_WARNING, "a")
+                                diary_file_WARNING_file.write(f'\n{nl}')
+                            diary_file_WARNING_file.close()
 
                         else:
                             ## to prevent as much as possible the occurrence of spatial overlaps between the seeds
@@ -264,7 +275,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
 
                             seed_masker = NiftiLabelsMasker(labels_img=opj(output_folder,Seed_name + 'rsp.nii.gz'),
                                                             standardize='zscore', resampling_target= 'data', smoothing_fwhm=None,
-                                                            memory_level=1, verbose=1)
+                                                            memory_level=0, verbose=1)
                             seed_time_serie = seed_masker.fit_transform(func_filename)
 
                             ###########################################################################################
@@ -309,66 +320,62 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                             with open(opj(output_folder, root_RS + '_correlations_fish.json'), "w") as outfile:
                                 outfile.write(json_object)
 
+                            correlation_img = ants.image_read(opj(output_folder, root_RS + '_correlations_fish.nii.gz'))
+                            correlation_val = np.unique(correlation_img.numpy())  # Assumes label 0 is background
 
-                            #### Remove an arbitrary percentage of the Zscore map
+                            # Check if all the values in the image are zero
+                            if np.all(correlation_val == 0):
+                                nl = "WARNING: The NIfTI image is empty (all voxel values are zero)."
+                                print(nl)
+                                diary.write(f'\n{nl}')
 
-                            thresholded_map = opj(output_folder, 'higher_threshold.nii.gz')
-                            threshold_val99 = 99
-                            loadimg         = nib.load(opj(output_folder, root_RS + '_correlations_fish.nii.gz')).get_fdata()
+                            else:
 
-                            loadimgsort99 =  np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val99)
-                            custom_thresh =  np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val)
+                                #### Remove an arbitrary percentage of the Zscore map
+                                thresholded_map = opj(output_folder, 'higher_threshold.nii.gz')
+                                threshold_val99 = 99
+                                loadimg         = nib.load(opj(output_folder, root_RS + '_correlations_fish.nii.gz')).get_fdata()
 
-                            mask_imag = nilearn.image.threshold_img(opj(output_folder, root_RS + '_correlations_fish.nii.gz'), custom_thresh)
-                            mask_imag.to_filename(thresholded_map)
+                                loadimgsort99 =  np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val99)
+                                custom_thresh =  np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val)
+
+                                mask_imag = nilearn.image.threshold_img(opj(output_folder, root_RS + '_correlations_fish.nii.gz'), custom_thresh)
+                                mask_imag.to_filename(thresholded_map)
 
 
-                            labels_img = resample_to_img(thresholded_map,studytemplatebrain, interpolation='nearest')
-                            labels_img.to_filename(thresholded_map)
-                            extracted_data2 = nib.load(thresholded_map).get_fdata()
-                            labeled_img2    = image.new_img_like(studytemplatebrain,extracted_data2, copy_header=True)
-                            labeled_img2.to_filename(thresholded_map)
+                                labels_img = resample_to_img(thresholded_map,studytemplatebrain, interpolation='nearest')
+                                labels_img.to_filename(thresholded_map)
+                                extracted_data2 = nib.load(thresholded_map).get_fdata()
+                                labeled_img2    = image.new_img_like(studytemplatebrain,extracted_data2, copy_header=True)
+                                labeled_img2.to_filename(thresholded_map)
 
-                            dictionary = {"Sources": opj(output_folder, root_RS + '_correlations_fish_custom_thresh.nii.gz'),
-                                          "Description": ' remove the ' + str(custom_thresh) + ' percent', },
-                            json_object = json.dumps(dictionary, indent=2)
-                            with open(thresholded_map[:-7] + '.json', "w") as outfile:
-                                outfile.write(json_object)
+                                dictionary = {"Sources": opj(output_folder, root_RS + '_correlations_fish_custom_thresh.nii.gz'),
+                                              "Description": ' remove the ' + str(custom_thresh) + ' percent', },
+                                json_object = json.dumps(dictionary, indent=2)
+                                with open(thresholded_map[:-7] + '.json', "w") as outfile:
+                                    outfile.write(json_object)
 
-                            # PLot the results
+                                # PLot the results
+                                if direction_results == dir_fMRI_Refth_RS_prepro1:
+                                    display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
+                                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
+                                    display.savefig(opj(output_folder, root_RS + '_.jpg'))
+                                    display.close()
+                                    plt.close('all')
 
-                            if direction_results == dir_fMRI_Refth_RS_prepro1:
-                                display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
-                                    colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
-                                display.savefig(opj(output_folder, root_RS + '_.jpg'))
-                                display.close()
+                                elif direction_results == dir_fMRI_Refth_RS_prepro2:
+                                    display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
+                                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
+                                    display.savefig(opj(output_folder, root_RS + '_.jpg'))
+                                    display.close()
+                                    plt.close('all')
 
-                            elif direction_results == dir_fMRI_Refth_RS_prepro2:
-                                display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
-                                    colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
-                                display.savefig(opj(output_folder, root_RS + '_.jpg'))
-                                display.close()
-
-                            elif direction_results == dir_fMRI_Refth_RS_prepro3:
-                                display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
-                                    colorbar=True, bg_img=studytemplatebrain, display_mode='x', cut_coords=cut_coordsX)
-                                display.savefig(opj(output_folder,root_RS + '_x_.jpg'))
-                                display.close()
-
-                                display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
-                                    colorbar=True, bg_img=studytemplatebrain, display_mode='y', cut_coords=cut_coordsY)
-                                display.savefig(opj(output_folder, root_RS + '_y_.jpg'))
-                                display.close()
-
-                                display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
-                                    colorbar=True, bg_img=studytemplatebrain, display_mode='z', cut_coords=cut_coordsZ)
-                                display.savefig(opj(output_folder, root_RS + '_z_.jpg'))
-                                display.close()
-
-                                display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
-                                    colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
-                                display.savefig(opj(output_folder, root_RS + '_.jpg'))
-                                display.close()
+                                elif direction_results == dir_fMRI_Refth_RS_prepro3:
+                                    display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
+                                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
+                                    display.savefig(opj(output_folder, root_RS + '_.jpg'))
+                                    display.close()
+                                    plt.close('all')
             else:
                 nl = 'WARNING: ' + str(func_filename) + ' not found!!'
                 print(bcolors.WARNING + nl + bcolors.ENDC)

@@ -41,7 +41,8 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
     for Timage in listTimage:
         direction          = opj(labels_dir)
         atlas_filename_rsp = opj(direction, type_norm + 'atlaslvl1_LRrspQC' + Timage + '.nii.gz')
-        atlas_filename     = opj(direction, type_norm + 'atlaslvl1_LR.nii.gz')
+        atlas_filename_orig     = opj(direction, type_norm + 'atlaslvl1_LR.nii.gz')
+        atlas_filename = opj(direction, type_norm + 'atlaslvl1_LR_rsp_anat.nii.gz')
         lines              = []
         anat_filename      = opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz')
         brain_mask         = opj(masks_dir, Timage + 'brain_mask_final_QCrsp.nii.gz')
@@ -50,13 +51,13 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
         if not ope(output_results): os.mkdir(output_results)
         
         if ope(anat_filename):
-            if ope(atlas_filename) == False:
+            if ope(atlas_filename_orig) == False:
                 nl = 'WARNING: no atlas lvl 1 LR found, this is a requirement for some of QC analysis'
                 print(bcolors.WARNING +  + bcolors.ENDC)
                 diary.write(f'\n{nl}')
             else:
                 # Load the NIfTI images
-                img1 = nib.load(atlas_filename)
+                img1 = nib.load(atlas_filename_orig)
                 img2 = nib.load(anat_filename)
 
                 # Extract headers
@@ -89,14 +90,16 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                         nl = f"  Image 2: {values[1]}"
                         print(bcolors.OKGREEN + nl + bcolors.ENDC)
                         diary.write(f'\n{nl}')
-                        caca = nilearn.image.resample_to_img(atlas_filename, anat_filename, interpolation='nearest')
+                        caca = nilearn.image.resample_to_img(atlas_filename_orig, anat_filename, interpolation='nearest')
                         caca.to_filename(atlas_filename)
+
                         extracted_data = nib.load(atlas_filename).get_fdata()
                         extracted_data = np.rint(extracted_data).astype(np.int32)
                         labeled_img2 = nilearn.image.new_img_like(anat_filename, extracted_data, copy_header=True)
                         labeled_img2.to_filename(atlas_filename_rsp)
                         atlas_filename = opj(direction, type_norm + 'atlaslvl1_LRrspQC' + Timage + '.nii.gz')
                 else:
+                    atlas_filename = opj(direction, type_norm + 'atlaslvl1_LR.nii.gz')
                     nl = "No differences found in the specified fields."
                     print(bcolors.WARNING + nl + bcolors.ENDC)
                     diary.write(f'\n{nl}')

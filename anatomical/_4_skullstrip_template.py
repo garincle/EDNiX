@@ -62,7 +62,7 @@ def skullstrip_T(BASE_SS, BASE_mask, dir_prepro, ID, Session,
 
     ## extract brain
     command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + stdy_template_mask + ' -b ' + warp_adj + \
-              ' -expr "(a*b)" -prefix ' + opj(study_template_atlas_folder, 'studytemplate2_' + type_norm, 'study_template_not_align.nii.gz')
+              ' -expr "(a*b)" -prefix ' + stdy_template
     nl = spgo(command)
     diary.write(f'\n{nl}')
     print(nl)
@@ -70,54 +70,7 @@ def skullstrip_T(BASE_SS, BASE_mask, dir_prepro, ID, Session,
                               warp_adj],
                   "Description": 'Skull stripping.', }
     json_object = json.dumps(dictionary, indent=2)
-    with open(opj(study_template_atlas_folder, 'studytemplate2_' + type_norm, 'study_template_not_align.json'), "w") as outfile:
+    with open(opj(study_template_atlas_folder, 'studytemplate2_' + type_norm, 'study_template.json'), "w") as outfile:
         outfile.write(json_object)
 
-    ##align template to BASE_SS (atlas template)
-    command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -warp shift_rotate -cmass -overwrite -base ' + BASE_SS + \
-              ' -nomask -onepass -final NN' + \
-              ' -master ' + opj(study_template_atlas_folder, 'studytemplate2_' + type_norm, 'study_template_not_align.nii.gz') + \
-              ' -prefix ' + stdy_template + \
-              ' -source ' + opj(study_template_atlas_folder, 'studytemplate2_' + type_norm, 'study_template_not_align.nii.gz') + ' -1Dmatrix_save ' + \
-              opj(study_template_atlas_folder , 'studytemplate2_' + type_norm, 'align_template_to_stdy_template.1D')
-    nl = spgo(command)
-    diary.write(f'\n{nl}')
-    print(nl)
-
-    dictionary = {"Sources": [opj(study_template_atlas_folder, 'studytemplate2_' + type_norm, 'study_template_not_align.nii.gz'),
-                             BASE_SS],
-                 "Description": 'Co-registration.', }
-    json_object = json.dumps(dictionary, indent=2)
-    with open(stdy_template[:-7] + '.json',"w") as outfile:
-        outfile.write(json_object)
-
-    '''
-    current_working_directory = os.getcwd()
-    os.chdir(study_template_atlas_folder + '/studytemplate2_' + type_norm)
-    command = 'singularity run' + s_bind + afni_sif + '@Align_Centers -base ' + BASE_SS + \
-    ' -dset ' + opj(study_template_atlas_folder, 'studytemplate2_' + type_norm, 'study_template_not_align.nii.gz') + ' -cm -prefix ' + 'align_template_to_stdy_template' + overwrite
-    spco([command], shell=True)
-    os.chdir(str(current_working_directory))
-    '''
-
-    command = 'singularity run' + s_bind + afni_sif + '3dAllineate -overwrite -final NN -1Dmatrix_apply ' + \
-        opj(study_template_atlas_folder , 'studytemplate2_' + type_norm, 'align_template_to_stdy_template.1D') + \
-              ' -prefix ' + stdy_template_mask + \
-              ' -master ' + stdy_template + \
-              ' -input  ' + stdy_template_mask
-    nl = spgo(command)
-    diary.write(f'\n{nl}')
-    print(nl)
-    '''
-    dictionary = {
-        "Sources": [stdy_template_mask,
-                    stdy_template],
-        "Description": 'Co-registration.', }
-    json_object = json.dumps(dictionary, indent=2)
-    with open(stdy_template_mask[:-7] + '_coreg.json', "w") as outfile:
-        outfile.write(json_object)
-    '''
-
-
-    diary.write(f'\n')
     diary.close()

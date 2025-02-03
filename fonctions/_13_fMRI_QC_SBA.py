@@ -23,7 +23,7 @@ opb = os.path.basename
 opn = os.path.normpath
 opd = os.path.dirname
 ope = os.path.exists
-
+opi = os.path.isfile
 #################################################################################################
 ####Seed base analysis
 #################################################################################################
@@ -73,7 +73,6 @@ def fMRI_QC_SBA(SBAspace, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
             if ope(output_results_result):
                 shutil.rmtree(output_results_result)
             os.mkdir(output_results_result)
-
 
             for i in range(0, int(nb_run)):
                 root_RS = extract_filename(RS[i])

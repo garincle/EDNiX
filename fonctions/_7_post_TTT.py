@@ -203,7 +203,21 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                 json_object = json.dumps(dictionary, indent=2)
                 with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_3dDeconvolve_failed.json'), "w") as outfile:
                     outfile.write(json_object)
+                os.chdir(original_dir)
 
+            if not ope(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')):
+                root_RS = extract_filename(RS[i])
+                command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + \
+                          ' -a ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
+                          ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_3dDeconvolve_failed.nii.gz') + ' -expr "a"'
+                nl = spgo(command)
+                diary.write(f'\n{nl}')
+                print(nl)
+                dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz'),
+                              "Description": 'Copy'},
+                json_object = json.dumps(dictionary, indent=2)
+                with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_3dDeconvolve_failed.json'), "w") as outfile:
+                    outfile.write(json_object)
                 os.chdir(original_dir)
     else:
         for i in range(0, int(nb_run)):

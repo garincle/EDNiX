@@ -1,10 +1,9 @@
 import os
 from fonctions.extract_filename import extract_filename
 import ants
-from nilearn import plotting
 import datetime
 import json
-
+from fonctions.plot_QC_func import plot_qc
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -84,23 +83,13 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
     if not os.path.exists(opj(bids_dir,'QC','meanIMG_in_anat')):
         os.mkdir(opj(bids_dir,'QC','meanIMG_in_anat'))
 
-    ### plot the QC
-    try:
-        display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz'),
-                                     threshold='auto',
-                                     display_mode='mosaic', dim=4)
-        display.add_contours(opj(dir_fMRI_Refth_RS_prepro2, 'Mean_Image_RcT_SS_in_anat.nii.gz'),
-                             linewidths=.2, colors=['red'])
-        display.savefig(opj(bids_dir,'QC','meanIMG_in_anat','Mean_Image_RcT_SS_in_anat.png'))
-        # Don't forget to close the display
-        display.close()
-    except:
-        display = plotting.plot_anat(opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz'),
-                                     threshold='auto',
-                                     display_mode='mosaic', dim=4)
-        display.savefig(opj(bids_dir,'QC','meanIMG_in_anat','Mean_Image_RcT_SS_in_anat.png'))
-        # Don't forget to close the display
-        display.close()
+    # Extract ID
+    sub_path = os.path.normpath(dir_fMRI_Refth_RS_prepro2).split(os.sep)
+    ID = [segment.split('-')[1] for segment in sub_path if segment.startswith('sub-')][0]
+
+    plot_qc(opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz'),
+            opj(dir_fMRI_Refth_RS_prepro2, 'Mean_Image_RcT_SS_in_anat.nii.gz'),
+            opj(bids_dir,'QC','meanIMG_in_anat', ID + '_Mean_Image_RcT_SS_in_anat.png'))
 
     for i in range(int(nb_run)):
         root_RS = extract_filename(RS[i])

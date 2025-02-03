@@ -4,6 +4,7 @@ from nilearn import plotting
 import ants
 import json
 import datetime
+import matplotlib.pyplot as plt
 
 class bcolors:
     HEADER = '\033[95m'
@@ -117,15 +118,33 @@ def brainT_to_T(dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, ty
                                          display_mode='mosaic', dim=4)
             display.add_contours(opj(dir_prepro, Timage + '_to_template_SyN_final.nii.gz'),
                                  linewidths=.2, colors=['red'])
-            display.savefig(opj(bids_dir, 'QC','anat_to_template' + ID + '_' + str(Session) + '_' + Timage + 'to_template.png'))
+            display.savefig(opj(bids_dir, 'QC','anat_to_template', ID + '_' + str(Session) + '_' + Timage + 'to_template.png'))
             # Don't forget to close the display
             display.close()
+            plt.close('all')
         except:
-            display = plotting.plot_anat(opj(dir_prepro,'template_to_' + Timage + '_SyN_final_test_matrix.nii.gz'), threshold='auto',
+            display = plotting.plot_anat(opj(dir_prepro, Timage + '_to_template_SyN_final.nii.gz'), threshold='auto',
                                          display_mode='mosaic', dim=4)
-            display.savefig(opj(bids_dir, 'QC','template_to_anat' + ID + '_' + str(Session) + '_' + Timage + 'to_template.png'))
+            display.savefig(opj(bids_dir, 'QC','anat_to_template', ID + '_' + str(Session) + '_' + Timage + 'to_template.png'))
             # Don't forget to close the display
             display.close()
+            plt.close('all')
 
+        try:
+            display = plotting.plot_anat(Ref_file, threshold='auto',
+                                         display_mode='mosaic', dim=4)
+            display.add_contours(opj(dir_prepro,'template_to_' + type_norm + '_SyN_final.nii.gz'),
+                                 linewidths=.2, colors=['red'])
+            display.savefig(opj(bids_dir, 'QC','template_to_anat', ID + '_' + str(Session) + '_' + Timage + 'to_template.png'))
+            # Don't forget to close the display
+            display.close()
+            plt.close('all')
+        except:
+            display = plotting.plot_anat(opj(dir_prepro,'template_to_' + type_norm + '_SyN_final.nii.gz'), threshold='auto',
+                                         display_mode='mosaic', dim=4)
+            display.savefig(opj(bids_dir, 'QC','template_to_anat', ID + '_' + str(Session) + '_' + Timage + 'to_template.png'))
+            # Don't forget to close the display
+            display.close()
+            plt.close('all')
     diary.write(f'\n')
     diary.close()
