@@ -329,7 +329,7 @@ deoblique_exeption2 = [] # list
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
 type_of_transform = 'SyNBold'
-aff_metric_ants = 'CC'
+aff_metric_ants = 'mattes'
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
 ### define the acronyme/suffix of the anat as in the BIDS

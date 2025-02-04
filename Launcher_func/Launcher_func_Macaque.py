@@ -305,7 +305,7 @@ deoblique='header' #header or WARP
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
-type_of_transform = 'SyNBold'
+type_of_transform = 'SyNOnly'
 aff_metric_ants = 'CC'
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
