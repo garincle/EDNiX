@@ -6,6 +6,9 @@
 import os
 import subprocess
 import ants
+import datetime
+import json
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -23,20 +26,27 @@ opb = os.path.basename
 opn = os.path.normpath
 opd = os.path.dirname
 ope = os.path.exists
-spco = subprocess.check_output
-spgo = subprocess.getoutput
 ops = os.path.splitext
 
+spco = subprocess.check_output
+spgo = subprocess.getoutput
+
+
+
 #################################################
-########    creat brain image of animal  ########
+########    create brain image of animal  ########
 #################################################
 
 
-def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_ANTS, aff_metric_ants, study_template_atlas_forlder, Atemplate_to_Stemplate, type_of_transform_stdyT, overwrite,
-                    s_bind,afni_sif):
+def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_ANTS, aff_metric_ants, study_template_atlas_folder, Atemplate_to_Stemplate, type_of_transform_stdyT, overwrite,
+                    s_bind,afni_sif,diary_file):
+    ct = datetime.datetime.now()
+    nl = 'Run anatomical._7_stdyT_to_AtlasT.stdyT_to_AtlasT'
+    diary = open(diary_file, "a")
+    diary.write(f'\n{ct}')
+    diary.write(f'\n{nl}')
 
-
-    stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + Atemplate_to_Stemplate, 'study_template.nii.gz')
+    stdy_template = opj(study_template_atlas_folder, 'studytemplate2_' + Atemplate_to_Stemplate, 'study_template.nii.gz')
 
     #######################################################################
     ################coregistration temaplte to template####################
@@ -56,22 +66,25 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
     if Aseg_refLR:
         list_atlases2.extend([Aseg_refLR])
 
-    command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + ' -overwrite' + ' -warp shift_rotate -cmass -source ' + BASE_SS + \
-    ' -nomask -final NN' + \
-    ' -prefix ' + opj(dir_out, 'template_in_stdy_template.nii.gz') + \
-    ' -base ' + stdy_template + ' -1Dmatrix_save ' + opj(dir_out,'Align_Center_shft.1D')
-    spco(command, shell=True)
-
-    ######Coregistration!!!!
-
+    ###### Coregistration!!!!
+    print(stdy_template)
+    print(BASE_SS)
     REF = ants.image_read(stdy_template)
-    IMG = ants.image_read(opj(dir_out, 'template_in_stdy_template.nii.gz'))
+    IMG = ants.image_read(BASE_SS)
 
     mtx1 = ants.registration(fixed=IMG, moving=REF, type_of_transform='Translation',
                              outprefix=opj(dir_out,'NMT_to_anat_SyN_final_shift_'))
     MEAN_tr = ants.apply_transforms(fixed=IMG, moving=REF, transformlist=mtx1['fwdtransforms'],
                                     interpolator=n_for_ANTS)
     ants.image_write(MEAN_tr, opj(dir_out,'NMT_to_anat_SyN_final_shift.nii.gz'), ri=False)
+
+    dictionary = {"Sources": [BASE_SS,
+                              stdy_template],
+                  "Description": 'Co-registration (translation,ANTspy).', }
+    json_object = json.dumps(dictionary, indent=2)
+
+    with open(opj(dir_out, 'NMT_to_anat_SyN_final_shift.json'), "w") as outfile:
+        outfile.write(json_object)
 
     mTx  = ants.registration(fixed=REF,moving=IMG,
                               type_of_transform=type_of_transform_stdyT,
@@ -95,6 +108,12 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
     TRANS = ants.apply_transforms(fixed=REF, moving=IMG,
                                       transformlist=mTx['fwdtransforms'], interpolator=n_for_ANTS)
     ants.image_write(TRANS, opj(dir_out,'NMT_to_anat_SyN_final.nii.gz'), ri=False)
+    dictionary = {"Sources": [BASE_SS,
+                              stdy_template],
+                  "Description": 'Co-registration (non linear,ANTspy).', }
+    json_object = json.dumps(dictionary, indent=2)
+    with open(opj(dir_out,'NMT_to_anat_SyN_final.json'), "w") as outfile:
+        outfile.write(json_object)
 
 
     ####################################################################################
@@ -103,17 +122,25 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
         print(bcolors.OKGREEN + 'INFO: Working in sending ' + atlas + ' in anat space')
         if ope(atlas):
 
-            command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -final NN -1Dmatrix_apply ' + opj(dir_out,'Align_Center_shft.1D') + \
-            ' -prefix ' + opj(dir_out, opb(ops(ops(atlas)[0])[0]) + '_Allin.nii.gz') + \
-            ' -master ' + stdy_template + \
-            ' -input  ' + atlas
-            spco([command], shell=True)
-            IMG = ants.image_read(opj(dir_out, opb(ops(ops(atlas)[0])[0]) + '_Allin.nii.gz'))
+            IMG = ants.image_read(atlas)
             TRANS = ants.apply_transforms(fixed=REF, moving=IMG,
                                           transformlist=mTx['fwdtransforms'], interpolator='nearestNeighbor')
             ants.image_write(TRANS, opj(dir_out, opb(atlas)), ri=False)
+
+            dictionary = {"Sources": [atlas,
+                                      stdy_template],
+                          "Description": 'Co-registration (non linear,ANTspy).', }
+            json_object = json.dumps(dictionary, indent=2)
+            with open(opj(dir_out, opb(atlas[:-7])) + '.json', "w") as outfile:
+                outfile.write(json_object)
+
         else:
-            print(bcolors.WARNING + 'WARNING: ' + str(atlas) + ' not found in list_atlases, we can continue but it might restrict several outcome of the script' + bcolors.ENDC)
+            nl = 'WARNING: ' + str(atlas) + ' not found in list_atlases, we can continue but it might restrict several outcome of the script'
+            print(bcolors.WARNING + nl + bcolors.ENDC)
+            diary.write(f'\n{nl}')
+
+    diary.write(f'\n')
+    diary.close()
 
 
 

@@ -13,6 +13,9 @@ from nilearn.image import math_img
 import numpy as np
 from nilearn.masking import compute_epi_mask
 from anatomical import Histrogram_mask_EMB
+import datetime
+import json
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -34,105 +37,258 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 
-def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, overwrite, costAllin, lower_cutoff, upper_cutoff, type_of_transform, aff_metric_ants, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif):
+def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, overwrite, costAllin, lower_cutoff, upper_cutoff, type_of_transform, aff_metric_ants,
+                    s_bind, afni_sif, fsl_sif, fs_sif, itk_sif,diary_file):
 
-    input_for_msk = opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz')
-    output_for_mask = opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz')
-    master = opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz')
+    ct = datetime.datetime.now()
+    diary = open(diary_file, "a")
+    diary.write(f'\n{ct}')
+    nl = '##  Working on step ' + str(3) + '(function: Skullstrip_func).  ##'
+    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+    diary.write(f'\n{nl}')
+
+    input_for_msk    = opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz')
+    output_for_mask  = opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz')
+    master           = opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz')
     brain_skullstrip = Method_mask_func
+
 
     if brain_skullstrip == "3dAllineate":
         ##### mask the func img
         command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -cmass -EPI -final NN -float -twobest 5 -fineblur 0 -nomask -base ' + \
-                  master + ' -prefix ' + opj(
-            dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz') + \
-                  ' -source ' + opj(dir_fMRI_Refth_RS_prepro1,
-                                    'Mean_Image.nii.gz') + ' -' + costAllin + ' -1Dmatrix_save ' + \
+                  master + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz') + \
+                  ' -source ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz') + ' -' + costAllin + ' -1Dmatrix_save ' + \
                   opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.1D') + \
                   ' -master ' + master
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
+                                  master],
+                      "Description": 'Co-registration (3dAllineate,AFNI).', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.json'), "w") as outfile:
+            outfile.write(json_object)
 
         command = 'singularity run' + s_bind + afni_sif + 'cat_matvec ' + opj(dir_fMRI_Refth_RS_prepro1,
                                                                               'Mean_Image_RcT_for_mask.1D') + \
                   ' -I | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask_INV.1D')
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
 
         command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -final NN -1Dmatrix_apply ' + opj(
             dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask_INV.1D') + \
-                  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz') + \
+                  ' -prefix ' + output_for_mask + \
                   ' -master ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz') + \
                   ' -input  ' + opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz')
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz'),
+                                  opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
+                                  opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask_INV.1D')],
+                      "Description": 'Co-registration (3dAllineate,AFNI).', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
+
 
     elif brain_skullstrip == "nilearn":
         # convert to float
-        command = 'singularity run' + s_bind + fs_sif + 'mri_convert -odt float ' + opj(dir_fMRI_Refth_RS_prepro1,
-                                                                                        'Mean_Image.nii.gz') + ' ' + opj(
-            dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz')[:-7] + '_float.nii.gz'
-        spco([command], shell=True)
-        mask_img = compute_epi_mask(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz')[:-7] + '_float.nii.gz',
+        command = 'singularity run' + s_bind + fs_sif + 'mri_convert -odt float ' + \
+                  opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz') + \
+                  ' ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_float.nii.gz')
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
+                      "Description": 'convert to float (mri_convert,Freesurfer).', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_float.json'), "w") as outfile:
+            outfile.write(json_object)
+
+        mask_img = compute_epi_mask(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_float.nii.gz'),
                                     lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff,
                                     connected=True, opening=1,
                                     exclude_zeros=False, ensure_finite=True)
         mask_img.to_filename(opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat_nilearn.nii.gz'))
-        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + opj(
-            dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz') + \
-                  ' -input ' + opj(dir_fMRI_Refth_RS_prepro2,
-                                   'maskDilat_nilearn.nii.gz') + ' -fill_holes -dilate_input -1 1'
-        spco(command, shell=True)
+        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
+                      "Description": 'binary brain mask (compute_epi_mask,nilearn).', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat_nilearn.json'), "w") as outfile:
+            outfile.write(json_object)
+
+        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + \
+                  output_for_mask + \
+                  ' -input ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilat_nilearn.nii.gz') + \
+                  ' -fill_holes -dilate_input -1 1'
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro2,'maskDilat_nilearn.nii.gz'),
+                      "Description": 'fill holes and dilation (3dmask_tool,AFNI).', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
 
     elif brain_skullstrip == '3dSkullStrip':
         command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
             '-input ' + input_for_msk + ' -blur_fwhm 2 -orig_vol -mask_vol'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
         ' -input ' + output_for_mask + ' -fill_holes -dilate_input -1 1'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": input_for_msk,
+                      "Description": ['binary brain mask (3dSkullStrip, AFNI)',
+                                      'fill holes and dilation (3dmask_tool,AFNI).'], }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
 
     elif brain_skullstrip == '3dSkullStrip_monkey':
+
         command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
             '-input ' + input_for_msk + ' -blur_fwhm 2 -orig_vol -mask_vol -monkey'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
         ' -input ' + output_for_mask + ' -fill_holes -dilate_input 2'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": input_for_msk,
+                      "Description": ['binary brain mask (3dSkullStrip, AFNI)',
+                                      'fill holes and dilation (3dmask_tool,AFNI).'], }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
+
 
     elif brain_skullstrip == '3dSkullStrip_monkeynodil':
         command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
             '-input ' + input_for_msk + ' -blur_fwhm 2 -orig_vol -mask_vol -monkey'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
         ' -input ' + output_for_mask + ' -fill_holes'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
+        dictionary = {"Sources": input_for_msk,
+                      "Description": ['binary brain mask (3dSkullStrip, AFNI)',
+                                      'fill holes  (3dmask_tool,AFNI).'], }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
+
+    elif brain_skullstrip == '3dSkullStrip_dog':
+        command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
+            '-input ' + input_for_msk + ' -orig_vol -mask_vol -monkey -use_skull'
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + output_for_mask + ' -expr "step(a-4)" -prefix ' + output_for_mask + ' -overwrite'
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
+        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
+        ' -input ' + output_for_mask + ' -fill_holes'
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
+        dictionary = {"Sources": input_for_msk,
+                      "Description": ['binary brain mask (3dSkullStrip, AFNI)',
+                                      'fill holes  (3dmask_tool,AFNI).'], }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
 
     elif brain_skullstrip == '3dSkullStrip_marmoset':
         command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
             '-input ' + input_for_msk + ' -blur_fwhm 1 -orig_vol -mask_vol -marmoset'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
         ' -input ' + output_for_mask + ' -fill_holes -dilate_input 1'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": input_for_msk,
+                      "Description": ['binary brain mask (3dSkullStrip, AFNI)',
+                                      'fill holes and dilation (3dmask_tool,AFNI).'], }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
 
     elif brain_skullstrip =='bet2':
-        #####creat an approximate brain mask
+        ##### create an approximate brain mask
         command = 'singularity run' + s_bind + fsl_sif + 'bet2 ' + input_for_msk + ' ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz') + \
         ' -f 0.70'
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": input_for_msk,
+                      "Description": 'skull stripping (bet2,FSL).', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.json'), "w") as outfile:
+            outfile.write(json_object)
+
         command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz') + ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz'),
+                      "Description": 'binary mask (3dcalc "step(x)", AFNI)', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
+
 
     elif brain_skullstrip.startswith('_bet'):
+        # only difference with bet2 : the "-f 70" parameter
+
         # Extract the last two digits to use as the -f value
         f_value = brain_skullstrip[-4:]
         # Create the approximate brain mask using bet2
         command = f'singularity run {s_bind}{fsl_sif} bet2 {input_for_msk} ' \
                   f'{opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")} -f {f_value}'
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": input_for_msk,
+                      "Description": 'skull stripping (bet2,FSL).', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.json'), "w") as outfile:
+            outfile.write(json_object)
+
         # Run the AFNI 3dcalc command to create the final mask
         command = f'singularity run {s_bind}{afni_sif} 3dcalc -a ' \
                   f'{opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")} ' \
                   f'-expr "step(a)" -prefix {output_for_mask} -overwrite'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz'),
+                      "Description": 'binary mask (3dcalc "step(x)", AFNI)', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
 
     elif brain_skullstrip.startswith('CustumNilearn_'):
         # Extract the cutoff values from the string
@@ -142,14 +298,20 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
 
         # Convert to float
         command = f'singularity run {s_bind}{fs_sif} mri_convert -odt float {input_for_msk} {opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")}'
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
         # Compute the EPI mask using nilearn with the given cutoff values
         mask_img = compute_epi_mask(f'{opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")}', lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff, connected=True, opening=3,
                                     exclude_zeros=False, ensure_finite=True)
         mask_img.to_filename(output_for_mask)
+
+
         # Use AFNI to process the mask
         command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 1'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
         tmp_mask1 = ants.image_read(output_for_mask)
         spacing = tmp_mask1.spacing  # This will give you the voxel size in x, y, z (e.g., (1.0, 1.0, 1.2) mm)
         # Use voxel size as sigma for Gaussian smoothing
@@ -162,7 +324,18 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         ants.image_write(binary_smoothed_mask, output_for_mask, ri=False)
         # Resample the mask image
         command = f'singularity run {s_bind}{afni_sif} 3dresample -master {input_for_msk} -prefix {output_for_mask} -input {output_for_mask} -overwrite -bound_type SLAB'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": [input_for_msk,
+                                  opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")],
+                      "Description": ['convertion to float (mri_convert, Freesurfer)',
+                                      'binary brain mask (compute_epi_mask,nilearn).',
+                                      'fill holes and dilation (3dmask_tool, AFNI'],}
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
+
 
     elif brain_skullstrip.startswith('CustumNilearnExcludeZeros_'):
         # Extract the cutoff values from the string
@@ -171,7 +344,9 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         upper_cutoff = float(upper_cutoff)
         # Convert to float
         command = f'singularity run {s_bind}{fs_sif} mri_convert -odt float {input_for_msk} {opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")}'
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
 
         # Compute the EPI mask using nilearn with the given cutoff values
         mask_img = compute_epi_mask(f'{opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")}', lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff, connected=True, opening=3,
@@ -179,7 +354,9 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         mask_img.to_filename(output_for_mask)
         # Use AFNI to process the mask
         command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 1'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
         tmp_mask1 = ants.image_read(output_for_mask)
         spacing = tmp_mask1.spacing  # This will give you the voxel size in x, y, z (e.g., (1.0, 1.0, 1.2) mm)
         # Use voxel size as sigma for Gaussian smoothing
@@ -192,9 +369,20 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         ants.image_write(binary_smoothed_mask, output_for_mask, ri=False)
         # Resample the mask image
         command = f'singularity run {s_bind}{afni_sif} 3dresample -master {input_for_msk} -prefix {output_for_mask} -input {output_for_mask} -overwrite -bound_type SLAB'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": [input_for_msk,
+                                  opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")],
+                      "Description": ['convertion to float (mri_convert, Freesurfer)',
+                                      'binary brain mask (compute_epi_mask,nilearn).',
+                                      'fill holes and dilation (3dmask_tool, AFNI',
+                                      'smooth and threshold (ANTSpy)'], }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
 
-    # Handle 'Custum' type skullstripping dynamically for percentile
+    # Handle 'Custom' type skullstripping dynamically for percentile
     elif brain_skullstrip.startswith('CustumThreshold_'):
         # Extract the percentile from the string
         percentile = int(brain_skullstrip.split('_')[1])
@@ -209,7 +397,9 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
 
         # Use AFNI to process the mask
         command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 1'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
         tmp_mask1 = ants.image_read(output_for_mask)
         spacing = tmp_mask1.spacing  # This will give you the voxel size in x, y, z (e.g., (1.0, 1.0, 1.2) mm)
         # Use voxel size as sigma for Gaussian smoothing
@@ -222,13 +412,25 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         ants.image_write(binary_smoothed_mask, output_for_mask, ri=False)
         # Resample the mask image
         command = f'singularity run {s_bind}{afni_sif} 3dresample -master {input_for_msk} -prefix {output_for_mask} -input {output_for_mask} -overwrite -bound_type SLAB'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": input_for_msk,
+                      "Description": ['binary brain mask (threshold_img,nilearn).',
+                                      'fill holes and dilation (3dmask_tool, AFNI',
+                                      'smooth and threshold (ANTSpy)'], }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
 
     elif brain_skullstrip.startswith('Vol_sammba_'):
         volume = int(brain_skullstrip.split('_')[2])
 
         command = 'singularity run' + s_bind + fs_sif + 'mri_convert -odt float ' + input_for_msk + ' ' + input_for_msk[:-7] + '_float.nii.gz'
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
         nichols_masker = Histrogram_mask_EMB.HistogramMask()
         nichols_masker.inputs.in_file = input_for_msk[:-7] + '_float.nii.gz'
         nichols_masker.inputs.volume_threshold = int(volume)
@@ -242,6 +444,13 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         nichols_masker.inputs.out_file = output_for_mask
         res = nichols_masker.run()  # doctest: +SKIP
 
+        dictionary = {"Sources": input_for_msk,
+                      "Description": ['convertion to float (mri_convert, Freesurfer)',
+                                      'binary brain mask (HistogramMask,Sammba).'], }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
+
     elif brain_skullstrip == 'Custum_ANTS_NL':
         IMG = ants.image_read(input_for_msk)
         REF_IMG = ants.image_read(master)
@@ -252,6 +461,15 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
                                           transformlist=mtx1['fwdtransforms'], interpolator='nearestNeighbor')
         tmp_mask1 = ants.threshold_image(tmp_mask1, 0.5, 1, 1, 0, True)
         tmp_mask1 = ants.iMath(tmp_mask1, operation='GetLargestComponent')
+        ants.image_write(tmp_mask1, output_for_mask, ri=False)
+        dictionary = {"Sources": [input_for_msk,
+                                  master,
+                                  opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz')],
+                      "Description": ['binary brain mask (ANTSpy).'], }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
+
 
     elif brain_skullstrip == 'Custum_ANTS_Garin':
         IMG = ants.image_read(input_for_msk)
@@ -301,34 +519,73 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         ants.image_write(binary_smoothed_mask, output_for_mask, ri=False)
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
                   ' -input ' + output_for_mask + ' -fill_holes'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
         command = f'singularity run {s_bind}{afni_sif} 3dresample -master {input_for_msk} -prefix {output_for_mask} -input {output_for_mask} -overwrite -bound_type SLAB'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": [input_for_msk,
+                                  master,
+                                  opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz')],
+                      "Description": ['binary brain mask (ANTSpy).',
+                                      'fill holes (3dmasktool,AFNI)',
+                                      'resampling (3dresample, AFNI)'], }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
+
 
     elif brain_skullstrip == 'NoSkullStrip':
         command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + input_for_msk + \
                   ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
-        spco(command, shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": input_for_msk,
+                      "Description": 'binary image (3dcalc "step(x)", AFNI).',}
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
 
     elif brain_skullstrip == 'Manual':
-        def run_command_and_wait(command):
-            print(bcolors.OKGREEN + 'INFO: Running command:', command + bcolors.ENDC)
-            result = subprocess.run(command, shell=True)
+        def run_command_and_wait(cmd):
+            nl ='INFO: Running command:' +  cmd
+            print(bcolors.OKGREEN + nl + bcolors.ENDC)
+            result = subprocess.run(cmd, shell=True)
             if result.returncode == 0:
-                print(bcolors.OKGREEN + 'INFO: Command completed successfully.' + bcolors.ENDC)
+                nl = 'INFO: Command completed successfully.'
+                print(bcolors.OKGREEN + nl + bcolors.ENDC)
             else:
-                print(bcolors.WARNING + 'WARNING: Command failed with return code:', result.returncode, bcolors.ENDC)
+                nl = 'WARNING: Command failed with return code: ' +  result.returncode
+                print(bcolors.WARNING + nl +  bcolors.ENDC)
 
-        if not os.path.exists(output_for_mask):
+        if not ope(output_for_mask):
             command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + input_for_msk + ' -expr "step(a)" -prefix ' + output_for_mask
-            spco(command, shell=True)
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+
         command = ('singularity run' + s_bind + itk_sif + 'itksnap -g ' + input_for_msk + ' -s ' + output_for_mask)
         run_command_and_wait(command)
+        nl = command
+        diary.write(f'\n{nl}')
+
+        dictionary = {"Sources": input_for_msk,
+                      "Description": 'Manual binary brain image (itksnap).', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
 
     else:
-        raise Exception(bcolors.FAIL + "ERROR: brain_skullstrip not recognized, check that brain_skullstrip_1 or brain_skullstrip_2 are correctly written!!" + bcolors.ENDC)
+        nl = "ERROR: brain_skullstrip not recognized, check that brain_skullstrip_1 or brain_skullstrip_2 are correctly written!!"
+        diary.write(f'\n{nl}')
+        raise Exception(bcolors.FAIL + nl + bcolors.ENDC)
 
+    diary.write(f'\n')
+    diary.close()
 
-    return(output_for_mask)
+    return output_for_mask
 
 

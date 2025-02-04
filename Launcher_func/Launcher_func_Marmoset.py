@@ -6,6 +6,7 @@ import sys
 from bids import BIDSLayout
 from bids.reports import BIDSReport
 import glob
+
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -18,25 +19,42 @@ spgo = subprocess.getoutput
 ##############################################################  TO DO !! ##############################################################
 
 MAIN_PATH = opj('/','srv','projects','easymribrain')
-s_bind = ' --bind ' + opj('/', 'scratch', 'cgarin/') + ',' + MAIN_PATH
-s_path = opj(MAIN_PATH, 'code', 'singularity')
-
-##### where is EasyMRI_brain?
-sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
+sys.path.append(os.path.join(MAIN_PATH,'code','EasyMRI_brain-master'))
+import anatomical._0_Pipeline_launcher
 import fonctions._0_Pipeline_launcher
 
-species = 'Macaque'
-bids_dir = opj('/scratch/cgarin/Macaque/BIDS_BenHamed')
+MAIN_PATH = opj('/','srv','projects','easymribrain')
+s_bind = ' --bind ' + opj('/', 'scratch', 'cgarin/') + ',' + MAIN_PATH
+s_path = opj(MAIN_PATH, 'code', 'singularity')
+afni_sif    = ' ' + opj(s_path , 'afni_make_build_AFNI_23.1.10.sif') + ' '
+# Freesurfer set up
+FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
+
+################################### if re-use this script auto: ####################################################
+##### Trinity Session 6 (T1 or T2) and Unity Session take the other T1. Otherwise: anat image not in same space ####
+########################################v###########################################################################
+
 ##########################################
 ########### Subject loader################
 ##########################################
 
-layout= BIDSLayout(bids_dir,  validate=True)
+#https://bids-standard.github.io/pybids/reports/index.html
+
+###where to store the BIDS data?
+species = 'Marmoset'
+bids_dir = opj('/scratch/cgarin/'+ species + '/BIDS_NIH')
+
+##########################################
+########### Subject loader################
+##########################################
+
+layout= BIDSLayout(bids_dir,  validate=False)
 print(layout)
 subject = layout.get_subjects()
 print(subject)
 tasks = layout.get_tasks()
 print(tasks)
+
 
 ###report
 report = BIDSReport(layout)
@@ -44,19 +62,17 @@ report = BIDSReport(layout)
 #main_report = counter.most_common()[0][0]
 #print(main_report)
 
-
 # Ask get() to return the ids of subjects that have T1w files #return_type='filename
 T1 = layout.get(return_type='filename', target='subject', suffix='T1w', extension='nii.gz')
 print(T1)
 ###question
 
-
 # Ask get() to return the ids of subjects that have T2w files
-#T2 = layout.get(return_type='filename', target='subject', suffix='T2w', extension='nii.gz')
-#print(T2)
+T2 = layout.get(return_type='filename', target='subject', suffix='T2w', extension='nii.gz')
+print(T2)
 
 # Ask get() to return the ids of subjects that have T1w files
-Bold = layout.get(return_type='filename', target='subject', suffix='bold', extension='nii.gz')
+Bold = layout.get(return_type='filename', target='subject', task='rest', extension='nii.gz')
 
 # Ask get() to return the ids of subjects that have T1w files
 #topup_dir = layout.get(return_type='filename', target='subject', suffix='epi', extension='nii.gz')
@@ -65,65 +81,38 @@ Bold = layout.get(return_type='filename', target='subject', suffix='bold', exten
 df = layout.to_df()
 df.head()
 
-
-allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
-
-#### Session number
-list_of_ones = [1] * len(allinfo_study_c)
-
-
-allinfo_study_c['Session'] = list_of_ones
-allinfo_study_c.rename(columns={'subject': 'ID'}, inplace=True)
-allinfo_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
-
-folders = glob.glob(opj(bids_dir,'sub*'))
-
 ##############################################################  TO DO !! ##############################################################
 
 #### Create a pandas sheet for the dataset (I like it, it help to know what you are about to process
-allinfo_study_c = df[(df['suffix'] == 'T1w') & (df['extension'] == '.nii.gz')]
-list_of_ones = [1] * len(allinfo_study_c)
-allinfo_study_c['Session'] = list_of_ones
+allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
+allinfo_study_c.rename(columns={'session': 'Session'}, inplace=True)
 allinfo_study_c.rename(columns={'subject': 'ID'}, inplace=True)
 allinfo_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
-
 filter1 = allinfo_study_c["ID"].isin([])
-
 allinfo_study_c_formax = allinfo_study_c.copy()
 
-############################################################## NOTHING TO DO HERE ##############################################################
-
-#### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### ####
-#### #### now, we need to creat the list of variable to feed to function "_0_Pipeline_launcher" #### ####
-#### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### ####
+##############Select all the monkey of the study
+### equal to allinfo_study_c, espcially if not longitudinal  and you have not selected specific subjects
 
 #########creat lists of indiv and usefull variables
-# just a list of all datapath
 all_data_path = []
-# just a list of all subject ID
 all_ID = []
-# just a list of all Session
 all_Session = []
-
-### for longitudinal datasets, you may want to know which session is the last, this is the way to handle it
 all_data_path_max = []
 all_ID_max = []
 max_session = []
 max_sessionlist = []
-
-### this is just to list all subject in a ID + 'ses-' + str(Session) way (usefull for the variable "deoblique_exeption")
 animal_ID = []
 
-#let's add all the the string to those lists
 for ID in pd.unique(allinfo_study_c_formax.ID):
     list_session = allinfo_study_c_formax.loc[allinfo_study_c_formax['ID'] == ID].Session.dropna()
     listereverse = list(list_session)
     listereverse.reverse()
+    listereverse = list(map(int, listereverse))
     max_session.append(np.array(listereverse).max())
 
-    for Session in listereverse:
-        print('session numuber ' + str(Session))
-
+    for Session in pd.unique(listereverse):
+        print('session number ' + str(Session))
         # Organization of the folders
         data_path = opj(bids_dir,'sub-' + ID,'ses-' + str(Session))
         all_data_path.append(data_path)
@@ -132,33 +121,32 @@ for ID in pd.unique(allinfo_study_c_formax.ID):
         max_sessionlist.append(np.array(listereverse).max())
         animal_ID.append(ID + 'ses-' + str(Session))
 
+
 for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
     # Organization of the folders
     data_path = opj(bids_dir,'sub-' + ID,'ses-' + str(Session))
     all_data_path_max.append(data_path)
     all_ID_max.append(ID)
 
-##############################################################  TO DO !!!! ##############################################################
 
-######## sometime you aleady analysed some subjects, and you don't want to do it again,
-# this can not be done in the previous step, as if you are working with the longitudinal dataset it can mess up your analysis
-######## select animals that have been analyzed already
-
+######## select animals that have not been analyzed yet
 removelist = []
-
-######### select the indiv you want to remove !!!
+######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
     if ID in []:
         removelist.append(num)
 
-############################################################## NOTHING TO DO HERE ##############################################################
-
-#### apply this to the already created lists
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
+all_Session =  [item for i, item in enumerate(all_Session) if i not in removelist]
 all_Session =  [item for i, item in enumerate(all_Session) if i not in removelist]
 all_data_path =  [item for i, item in enumerate(all_data_path) if i not in removelist]
 max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i not in removelist]
 
+
+#all_ID =  ['m26']
+#all_Session =  [1]
+#all_data_path =  [opj(bids_dir,'sub-' + 'm26','ses-' + str(1))]
+#max_sessionlist =  [1]
 ##############################################################  TO DO !!!! ##############################################################
                                 ##############################################################
                                 ########### 2. variable specific of you dataset ##############
@@ -171,7 +159,7 @@ overwrite_option = True #True or False overwrite previous analysis if in BIDS
 #### if you don't have an anat image!!  not great but sometine you don't have the choice
 IhaveanANAT = True # True or False
 
-#####if IhaveanANAT = False
+#################### ONLY if IhaveanANAT = False ####################
 ### you will need to put in the folderforTemplate_Anat
 
 folderforTemplate_Anat = ''
@@ -180,11 +168,12 @@ brainmask     = opj(folderforTemplate_Anat,'brainmask.nii.gz') # string
 V_mask        = opj(folderforTemplate_Anat,'V_mask.nii.gz') # string
 W_mask = opj(folderforTemplate_Anat,'W_mask.nii.gz') # string
 G_mask = opj(folderforTemplate_Anat,'G_mask.nii.gz') # string
+####################################################################################################
 
 #### find the good fmri image: as it is not always standart, look in you BIDS and help use to know how you fmri dataset end by ?:
 ### specify the suffix to be used by glob.glob to select all fmri image (or map) in their respective folders
-endfmri = '*_task-rest_*.nii.gz' # string
-endjson = '*_task-rest_*.json' # string
+endfmri = '*_rest_*.nii.gz' # string
+endjson = '*_rest_*.json' # string
 
 ####find on image in the opposite direction of th BOLD aquistion either one per run or one per session or none !!!
 ### if the pipeline doesn't find the image it will continue anyway so be carefull!
@@ -195,7 +184,7 @@ endmap = '*_map.nii.gz' # string
 anat_func_same_space = False # True or False
 
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
-TfMRI = 'T1w' # string
+TfMRI = 'T2w' # string
 
 #### Specify if you have a T1 and T2 image in the same space
 IgotbothT1T2 = False # True or False
@@ -205,6 +194,34 @@ IgotbothT1T2 = False # True or False
 T1_eq = 5 # int
 #### Choose which image you want to use as ref (0 the first one, 1 the second run, ect...)
 REF_int = 0 # int
+# Given data
+slice_offsets = slice_offsets = [
+    0.210436882112241, 0.710436882112241, 1.21043688211224, 1.71043688211224,
+    2.21043688211224, 2.71043688211224, 3.21043688211224, 3.71043688211224,
+    4.21043688211224, 4.71043688211224, 5.21043688211224, 5.71043688211224,
+    6.21043688211224, 6.71043688211224, 7.21043688211224, 7.71043688211224,
+    8.21043688211224, 8.71043688211224, 9.21043688211224, 9.71043688211224,
+    10.2104368821122, 10.7104368821122, 11.2104368821122, 11.7104368821122,
+    12.2104368821122, 12.7104368821122, 13.2104368821122, 13.7104368821122,
+    14.2104368821122, 14.7104368821122, 15.2104368821122, 15.7104368821122,
+    16.2104368821122, 16.7104368821122, 17.2104368821122, 17.7104368821122,
+    18.2104368821122, 18.7104368821122
+]
+
+acq_order = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36,
+  1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37]
+
+# Reorder the slice offsets according to the acquisition order
+reordered_offsets = [0] * len(slice_offsets)
+
+# Reorder the offsets
+for anatomical_index, acquisition_index in enumerate(acq_order):
+    reordered_offsets[acquisition_index] = slice_offsets[anatomical_index]
+
+# Now, assuming a TR of 1 second:
+TR = 2  # Repetition time in seconds
+
+Slice_timing_info = list([TR * (offset - min(reordered_offsets)) / (max(reordered_offsets) - min(reordered_offsets)) for offset in reordered_offsets])
 
 #### ==> you need to check in the json or on the image map what is the encoding direction
 # For exemple if  phase encoding direction is "j-" you should put physical coordinates y- (ijk = xyz) (info: if image orientation is LPI it means that your image has been acquired from P to A)
@@ -260,7 +277,7 @@ SED = 'Auto' #  "i", "i-", "j", "j-", "k", "k-", 'Auto', 'None'
 
 ### YOU NEED TO PROVIDE A TR if not in .json, otherwise it will fail
 TR = '2'  # 'value du calculate in s', 'Auto', 'None'
-ntimepoint_treshold = 100
+
 ##### masking steps SUPER IMPORTANT!!
 # you can choose to not do it (not advised)
 doMaskingfMRI = True # True or False
@@ -273,7 +290,7 @@ doMaskingfMRI = True # True or False
 #### 3dAllineate is based ont the linerar alignment of the anat to the func to send the anat mask to the func
 
 #### nilearn is a theshold based method (you can play with the threshold level)
-Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = 'Custum_ANTS_Garin' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 
 ### if Method_mask_func=="3dAllineate" choose a method a alignment
 costAllin = '' # string
@@ -281,12 +298,12 @@ costAllin = '' # string
 ### if Method_mask_func=="nilearn" choose a cutoff
 lower_cutoff = 0.05 # int
 upper_cutoff = 0.5 # int
-
+ntimepoint_treshold = 100
 ###############################################################################################################
 ############################################### coregistration steps ##########################################
 ###############################################################################################################
 ########### define orientation############
-orientation = 'LPI' # string
+orientation = 'LAI' # string
 ###############################################################################################################
 ######################## Probably the most "obscure part of the script" ########################
 ###############################################################################################################
@@ -301,15 +318,22 @@ orientation = 'LPI' # string
 
 deoblique='header' #header or WARP
 
+###### needs to be ID + 'ses-' + str(Session)
+#no deoblique will be applied
+deoblique_exeption1 = [] # list
+
+# it is like WARP, but add the option gridset in the 3dWarp AFNI function. Not sure why but it did help for some dataset, again, this is only if you have
+# anat and func in the same space and you want to use the anat mask
+deoblique_exeption2 = [] # list
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
-type_of_transform = 'SyNBoldAff'
-aff_metric_ants = 'MI'
+type_of_transform = 'SyNBold'
+aff_metric_ants = 'mattes'
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
 ### define the acronyme/suffix of the anat as in the BIDS
-type_norm = 'T1w' # T1 or T2
+type_norm = 'T2w' # T1 or T2
 ### define the acronyme/suffix of the other anat as in the BIDS
 otheranat = '' # sting
 
@@ -326,22 +350,22 @@ do_anat_to_func = True # True or False
 #######################################################################
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
-creat_study_template = False # True or False
+creat_study_template = True # True or False
 
 ########## if creat_study_template = True ##########
 
 ######no need to answer this question if you are not doing a study template
 #folder where you stored the stdy template
-study_template_atlas_forlder = ''  # sting
+study_template_atlas_forlder = '/scratch/cgarin/Marmoset/BIDS_NIH/sty_template/'  # sting
 stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_mask.nii.gz') # sting
 stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
-GM_mask_studyT = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'GM_mask.nii.gz') # sting
+GM_mask_studyT = opj(study_template_atlas_forlder, 'atlases', 'Gmask.nii.gz') # sting
 
 ########## if creat_study_template = False ##########
 diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2', species)
 
 # if creat_study_template== False you need to provide this
-BASE_SS     = opj(diratlas_orig, 'template.nii.gz') # sting
+BASE_SS     = opj(diratlas_orig, 'templateT2.nii.gz') # sting
 BASE_mask   = opj(diratlas_orig, 'brain_mask.nii.gz') # sting
 GM_mask     =opj(diratlas_orig, 'Gmask.nii.gz') # sting
 
@@ -386,7 +410,7 @@ extract_GS = False # True or False
 ### Band path filtering
 band = '0.01 0.1' # string
 #Smooth
-blur = 3 # float
+blur = 1.5 # float
 #Dilate the functional brain mask by n layers
 dilate_mask = 0 # int
 #retrain the analysis to the gray matter
@@ -474,14 +498,14 @@ specific_roi_tresh = 0.4
 unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
-############ Right in a list format the steps that you want to skip
-Skip_step = [200]
 
+############ Right in a list format the steps that you want to skipSkip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,200]
+Skip_step = [200]
     ############################################################
     ######################## START de pipeline #################
     ############################################################
 
-fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, anat_func_same_space,
+fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
     correction_direction, REF_int, study_fMRI_Refth, SBAspace, erod_seed, deoblique, orientation,
     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
     extract_exterior_CSF, extract_WM, n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,

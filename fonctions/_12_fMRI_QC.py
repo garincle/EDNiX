@@ -4,8 +4,6 @@ from nilearn import image
 from nilearn.input_data import NiftiLabelsMasker
 import shutil
 import subprocess
-import re
-import os.path as op
 from shutil import copyfile
 import math
 import scipy
@@ -16,6 +14,9 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import datetime
+import json
+
 
 class bcolors:
     HEADER = '\033[95m'
@@ -28,39 +29,63 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-# Path to the excels files and data structure
+
 opj = os.path.join
 opb = os.path.basename
 opn = os.path.normpath
-spco = subprocess.check_output
 opd = os.path.dirname
 ope = os.path.exists
+ops = os.path.splitext
+opa = os.path.abspath
+
+spco = subprocess.check_output
 spgo = subprocess.getoutput
+
 #################################################################################################
 ####Seed base analysis
 #################################################################################################
-def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind, afni_sif):
+def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run,
+            s_bind, afni_sif,diary_file):
 
-    # Several fnctions are extracted from
+    # Several functions were adapted from
     # https://github.com/preprocessed-connectomes-project/quality-assessment-protocol
     # See http://preprocessed-connectomes-project.org/quality-assessment-protocol/#installing-the-qap-package for details on the reasoning
     # and https://hal.science/hal-02326351/file/2018_Neuron_PRIME_DE_NeuroResource_Milham.pdf
-    direction = dir_fMRI_Refth_RS_prepro1
-    output_results = opj(direction, '10_Results')
-    if not os.path.exists(output_results): os.mkdir(output_results)
-    output_results = opj(direction, '10_Results/fMRI_QC_SNR')
-    if os.path.exists(output_results): shutil.rmtree(output_results)
-    if not os.path.exists(output_results): os.mkdir(output_results)
-    atlas_filename = opj(direction, 'atlaslvl1_LR.nii.gz')
+
+    # rajouter estimation nb de composant à partir de mélodic
+
+    ct = datetime.datetime.now()
+    diary = open(diary_file, "a")
+    diary.write(f'\n{ct}')
+    nl = '##  Working on step ' + str(12) + '(function: _12_fMRI_QC).  ##'
+    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+    diary.write(f'\n{nl}')
+
+    dir_path      = dir_fMRI_Refth_RS_prepro1
+    output_results = opj(dir_path, '10_Results', 'fMRI_QC_SNR')
+
+    if not ope(opj(dir_path, '10_Results')):
+        os.mkdir(opj(dir_path, '10_Results'))
+
+    if ope(output_results):
+        shutil.rmtree(output_results)
+        os.mkdir(output_results)
+    else:
+        os.mkdir(output_results)
+
+    atlas_filename = opj(dir_path, 'atlaslvl1_LR.nii.gz')
 
     for i in range(0, int(nb_run)):
         lines = []
         root_RS = extract_filename(RS[i])
-        func_filename = opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtrf_2ref.nii.gz')
+        func_filename = opj(dir_path, root_RS + '_xdtrf_2ref.nii.gz')
+
         if ope(func_filename):
             if ope(atlas_filename) == False:
-                print(
-                    bcolors.WARNING + 'WARNING: no altlas lvl 1 LR found, this is a requirement for some of QC analysis')
+                nl = 'WARNING: no altlas lvl 1 LR found, this is a requirement for some of QC analysis'
+                print(bcolors.WARNING + nl + bcolors.ENDC)
+                diary.write(f'\n{nl}')
+
             else:
                 # Load the NIfTI images
                 img1 = nib.load(atlas_filename)
@@ -82,19 +107,33 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
 
                 # Print differences
                 if differences:
-                    print(bcolors.OKGREEN + "Differences found in the following fields:" + bcolors.ENDC)
+
+                    nl = "Differences found in the following fields:"
+                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                    diary.write(f'\n{nl}')
+
                     for field, values in differences.items():
-                        print(bcolors.OKGREEN + f"{field}:" + bcolors.ENDC)
-                        print(bcolors.OKGREEN + f"  Image 1: {values[0]}" + bcolors.ENDC)
-                        print(bcolors.OKGREEN + f"  Image 2: {values[1]}" + bcolors.ENDC)
-                        caca = nilearn.image.resample_to_img(atlas_filename, func_filename, interpolation='nearest')
-                        caca.to_filename(atlas_filename)
+
+                        nl = f"{field}:"
+                        print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                        diary.write(f'\n{nl}')
+                        nl = f"  Image 1: {values[0]}"
+                        print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                        diary.write(f'\n{nl}')
+                        nl = f"  Image 2: {values[1]}"
+                        print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                        diary.write(f'\n{nl}')
+
+                        dummy = nilearn.image.resample_to_img(atlas_filename, func_filename, interpolation='nearest')
+                        dummy.to_filename(atlas_filename)
                         extracted_data = nib.load(atlas_filename).get_fdata()
                         extracted_data = np.rint(extracted_data).astype(np.int32)
                         labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
                         labeled_img2.to_filename(atlas_filename)
                 else:
-                    print(bcolors.OKGREEN + "No differences found in the specified fields." + bcolors.ENDC)
+                    nl =  "No differences found in the specified fields."
+                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                    diary.write(f'\n{nl}')
 
                 # Atlas labels as described by you
                 labels = {2: '3rd ventricles', 3: '4th ventricles', 7: 'Cerebellum', 5: 'Cerebellum White',
@@ -103,11 +142,13 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                           13: 'Brain stem'}
 
                 # Load the atlas and fMRI data
-                atlas_img = nib.load(atlas_filename)
+
+                atlas_img  = nib.load(atlas_filename)
                 atlas_data = atlas_img.get_fdata()
                 atlas_data = np.rint(atlas_data).astype(np.int32)
-                fmri_img = nib.load(func_filename)
-                fmri_data = fmri_img.get_fdata()
+
+                fmri_img   = nib.load(func_filename)
+                fmri_data  = fmri_img.get_fdata()
 
                 # Function to calculate SNR for each region and hemisphere
                 def compute_snr(atlas_data, fmri_data, labels, hemisphere_offset=1000):
@@ -118,14 +159,14 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                         snr_values[region_name] = {'Left': [], 'Right': []}
 
                         # Left hemisphere
-                        left_mask = atlas_data == label
+                        left_mask   = atlas_data == label
                         left_signal = fmri_data[left_mask]  # Shape should be (voxels, time_points)
 
                         if left_signal.ndim == 1:
                             left_signal = left_signal[:, np.newaxis]  # Add a new axis if it's 1D
 
                         # Right hemisphere
-                        right_mask = atlas_data == label + hemisphere_offset
+                        right_mask   = atlas_data == label + hemisphere_offset
                         right_signal = fmri_data[right_mask]
 
                         if right_signal.ndim == 1:
@@ -133,21 +174,21 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
 
                         for t in range(time_points):
                             # Signal at time point t (mean of region)
-                            left_signal_t = np.mean(left_signal[:, t])
+                            left_signal_t  = np.mean(left_signal[:, t])
                             right_signal_t = np.mean(right_signal[:, t])
 
                             # Compute noise from bottom 10% of the histogram for the whole brain at t, excluding zero values
-                            brain_values = fmri_data[:, :, :, t].flatten()
+                            brain_values    = fmri_data[:, :, :, t].flatten()
                             non_zero_values = brain_values[brain_values > 0]  # Exclude zeros
                             if len(non_zero_values) > 0:
                                 noise_threshold = np.percentile(non_zero_values, 10)
-                                noise_values = non_zero_values[non_zero_values <= noise_threshold]
-                                noise = np.std(noise_values)
+                                noise_values    = non_zero_values[non_zero_values <= noise_threshold]
+                                noise           = np.std(noise_values)
                             else:
-                                raise ValueError(bcolors.FAIL + '10% of noise is just 0... so calculation of noise can not be calculated correctly')
+                                raise ValueError(bcolors.FAIL + '10% of noise is just 0... so calculation of noise cannot be calculated correctly')
 
                             # SNR = signal / noise
-                            left_snr = left_signal_t / noise
+                            left_snr  = left_signal_t / noise
                             right_snr = right_signal_t / noise
 
                             snr_values[region_name]['Left'].append(left_snr)
@@ -161,11 +202,11 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 # Create DataFrame and save to CSV
                 data = {'Time': np.arange(fmri_data.shape[-1])}
                 for region, hemispheres in snr_results.items():
-                    data[f'{region}_Left'] = hemispheres['Left']
+                    data[f'{region}_Left']  = hemispheres['Left']
                     data[f'{region}_Right'] = hemispheres['Right']
 
                 df = pd.DataFrame(data)
-                df.to_csv(output_results + '/' + root_RS + 'snr_regions.csv', index=False)
+                df.to_csv(opj(output_results, root_RS + 'snr_regions.csv'), index=False)
 
                 # Plot the results
                 plt.figure(figsize=(10, 6))
@@ -178,7 +219,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 plt.title('SNR of Brain Regions Over Time')
                 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
                 plt.tight_layout()
-                plt.savefig(output_results + '/' + root_RS + 'snr_plot.png')
+                plt.savefig(opj(output_results, root_RS + 'snr_plot.png'))
                 plt.close()
 
                 # Function to compute average SNR across all regions for gray and white matter (no left and right separation)
@@ -191,13 +232,15 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                         # Average gray matter SNR
                         gray_snr = []
                         for region in gray_regions:
-                            gray_snr.append(np.mean([snr_results[region]['Left'][t], snr_results[region]['Right'][t]]))
+                            gray_snr.append(np.mean([snr_results[region]['Left'][t],
+                                                     snr_results[region]['Right'][t]]))
                         avg_gray_snr.append(np.mean(gray_snr))
 
                         # Average white matter SNR
                         white_snr = []
                         for region in white_regions:
-                            white_snr.append(np.mean([snr_results[region]['Left'][t], snr_results[region]['Right'][t]]))
+                            white_snr.append(np.mean([snr_results[region]['Left'][t],
+                                                      snr_results[region]['Right'][t]]))
                         avg_white_snr.append(np.mean(white_snr))
 
                     return avg_gray_snr, avg_white_snr
@@ -225,12 +268,11 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 plt.tight_layout()
 
                 # Save the plot to file
-                output_gray_white_plot = output_results + '/' + root_RS + 'snr_gray_white_plot.png'
-                plt.savefig(output_gray_white_plot)
+                plt.savefig(opj(output_results, root_RS + 'snr_gray_white_plot.png'))
                 plt.close()
 
                 # Save to a new CSV file with the averages of gray and white matter SNR
-                output_avg_csv = output_results + '/' + root_RS + 'snr_gray_white.csv'
+                output_avg_csv = opj(output_results,root_RS + 'snr_gray_white.csv')
                 df[['Time', 'Gray_Matter', 'White_Matter']].to_csv(output_avg_csv, index=False)
 
                 # Extract the average SNR across all time points for each region, including gray and white
@@ -238,7 +280,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
 
                 # Compute the average SNR for each region
                 for region, hemispheres in snr_results.items():
-                    avg_left_snr = np.mean(hemispheres['Left'])
+                    avg_left_snr  = np.mean(hemispheres['Left'])
                     avg_right_snr = np.mean(hemispheres['Right'])
                     average_snr_results[region] = {'Left': avg_left_snr, 'Right': avg_right_snr}
 
@@ -247,12 +289,19 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 average_snr_results['White_Matter'] = np.mean(avg_white_snr)
 
                 # Print the average SNR for each region
-                print("Average SNR for each region:")
+                nl = "Average SNR for each region:"
+                print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                diary.write(f'\n{nl}')
+
                 for region, values in average_snr_results.items():
+
                     if isinstance(values, dict):
-                        print(f"{region}: Left = {values['Left']:.2f}, Right = {values['Right']:.2f}")
+                        nl = f"{region}: Left = {values['Left']:.2f}, Right = {values['Right']:.2f}"
                     else:
-                        print(f"{region}: Average SNR = {values:.2f}")
+                        nl = f"{region}: Average SNR = {values:.2f}"
+
+                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                    diary.write(f'\n{nl}')
 
                 # Build the `line_snr` variable, including the average SNR for gray and white matter, and for each brain region.
                 line_snr = [
@@ -269,33 +318,42 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                             line_snr.append(f"  avg snr {region}: {str(values)}")
 
                 cnr_val = np.abs(average_snr_results['Gray_Matter'] - average_snr_results['White_Matter']) / noise
-                cortical_contrast = (average_snr_results['White_Matter'] - average_snr_results['Gray_Matter']) / ((average_snr_results['White_Matter'] + average_snr_results['Gray_Matter']) / 2)
+                cortical_contrast = ((average_snr_results['White_Matter'] - average_snr_results['Gray_Matter'])
+                                     / ((average_snr_results['White_Matter'] + average_snr_results['Gray_Matter']) / 2))
 
                 line_QC_func_atlaslvl1 = [f"  cortical_contrast: {cortical_contrast}",
-                                f"  cnr: {cnr_val}",
-                                f"  average_snr_Gray_Matter: {str(average_snr_results['Gray_Matter'])}",
-                                f"  average_snr_White_Matter: {str(average_snr_results['White_Matter'])}",]
+                                          f"  cnr: {cnr_val}",
+                                          f"  average_snr_Gray_Matter: {str(average_snr_results['Gray_Matter'])}",
+                                          f"  average_snr_White_Matter: {str(average_snr_results['White_Matter'])}",]
 
-                ##### extract signal of TNSR values in the test regions
-                # Step 1: Load the NIfTI image (functional or structural)
-                for imageQC, QCexplain in zip([opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_stdev.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_tsnr1.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_tsnr2.nii.gz')],['stdev', 'TSNRcvarinv', 'TSNR']):
+                ##### extract signal of Tsnr values in the test regions
+
+                # Step 1: Extract the time series from the image
+
+                for imageQC, QCexplain in zip([opj(dir_path, root_RS + '_xdtrfwS_stdev.nii.gz'),
+                                               opj(dir_path, root_RS + '_xdtrfwS_tsnr1.nii.gz'),
+                                               opj(dir_path, root_RS + '_xdtrfwS_tsnr2.nii.gz')],
+                                              ['stdev', 'TSNRcvarinv', 'TSNR']):
+
                     nifti_img = image.load_img(imageQC)
-                    masker = NiftiLabelsMasker(
-                        labels_img=atlas_filename,
-                        detrend=False,
-                        smoothing_fwhm=None,
-                        standardize=False,
-                        low_pass=None,
-                        high_pass=None,
-                        t_r=None,
-                        memory=None, verbose=5)
-                    # Step 4: Extract the time series from the image
+
+                    masker = NiftiLabelsMasker(labels_img= atlas_filename,detrend=False,smoothing_fwhm=None,
+                                               standardize=False,low_pass=None,high_pass=None,t_r=None,
+                                               memory=None, verbose=5)
+
+
                     time_series = masker.fit_transform(nifti_img)
+
                     # Step 5: The result is a 2D array (time points x regions)
-                    print(bcolors.OKGREEN + "Time series shape (time points x regions): " + str(time_series.shape) + bcolors.ENDC)
+
+                    nl = "Time series shape (time points x regions): " + str(time_series.shape)
+                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                    diary.write(f'\n{nl}')
 
                     mean_signal_per_region = np.mean(time_series, axis=1)
-                    print(bcolors.OKGREEN + "Mean signal per region: " + str(mean_signal_per_region) + bcolors.ENDC)
+                    nl = "Mean signal per region: " + str(mean_signal_per_region)
+                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                    diary.write(f'\n{nl}')
 
                     if QCexplain == 'stdev':
                         stdev = mean_signal_per_region
@@ -311,101 +369,72 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 lines.append(line_snr)
 
             #################### QC that doesn't require atlaslvl1 ####################
-            line_QC_func = []
+
+            line_QC_func  = []
             line_QC_func2 = []
+
             try:
-                # FWHM Calculation
-                def fwhm(anat_file, mask_file):
-                    """Calculate the FWHM of the input i
-                    mage using AFNI's 3dFWHMx.
-                    - Uses AFNI 3dFWHMx. More details here:
-                        https://afni.nimh.nih.gov/pub/dist/doc/program_help/3dFWHMx.html
+                anat_file = opj(dir_path, root_RS + '_residual.nii.gz')
+                mask_file = opj(dir_path,'maskDilat.nii.gz')
 
-                    :type anat_file: str
-                    :param anat_file: The filepath to the anatomical image NIFTI file.
-                    :type mask_file: str
-                    :param mask_file: The filepath to the binary head mask NIFTI file.
-                    :type out_vox: bool
-                    :param out_vox: (default: False) Output the FWHM as number of voxels
-                                    instead of mm (the default).
-                    :rtype: tuple
-                    :return: A tuple of the FWHM values (x, y, z, and combined).
-                    """
+                # Step 1: Save the current working directory
+                original_dir = os.getcwd()
+                os.chdir(dir_path)
 
-                    command = f'singularity run {s_bind} {afni_sif} 3dFWHMx -overwrite -combined ' \
-                              f'-mask {mask_file} ' \
-                              f'-input {anat_file}'
-                    fwhm_string_list = spgo([command])
-                    print(fwhm_string_list)
+                command = 'singularity run' + s_bind + afni_sif + '3dFWHMx -overwrite -combined' + \
+                              ' -mask ' + mask_file + ' -input ' + anat_file + \
+                              ' -acf ' + anat_file[:-7] + '.acf.txt' + \
+                              '> ' + anat_file[:-7] + '_FWHMx.txt'
+                nl = spgo([command])
+                os.chdir(original_dir)
+                print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                diary.write(f'\n{nl}')
 
-                    try:
-                        # Use regex to find the line with the four numeric values
-                        match = re.search(r'(\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+)', fwhm_string_list)
-                        if match:
-                            retcode = str(match.group(1))
-                            print(retcode)
-                        vals = np.array(retcode.split(), dtype=np.float64)
+                df = pd.read_csv(anat_file[:-7] + '.acf.txt',sep='\s+',
+                                 names=["a","b","c", "combined_estimation"])
 
-                    except Exception as e:
-                        err = "\n\n[!] Something went wrong with AFNI's 3dFWHMx. Error " \
-                              "details: %s\n\n" % e
-                        raise Exception(err)
+                fwhm_val = np.float64(df["combined_estimation"][1])
 
-                    return list(vals)[3]
+                if not np.isnan(fwhm_val):
+                    nl = str(fwhm_val)
+                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                    diary.write(f'\n{nl}')
+                    line_QC_func.append(f"  fwhm_val: {nl}")
 
-                fwhm_val = fwhm(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz'),
-                                opj(dir_fMRI_Refth_RS_prepro1,'maskDilat.nii.gz'))
-                print(fwhm_val)
-                line_QC_func.append(f"  fwhm_val: {fwhm_val}")
+                else:
+                    nl = "[!] Something went wrong with AFNI's 3dFWHMx."
+                    print(bcolors.FAIL + nl + bcolors.ENDC)
+                    diary.write(f'\n{nl}')
+
             except:
-                print(bcolors.WARNING + 'FWHM calculation failed (the fix is complicated, but it is not a big deal)' + bcolors.ENDC)
+                nl = 'FWHM calculation failed (the fix is complicated, but it is not a big deal)'
+                print(bcolors.WARNING + nl + bcolors.ENDC)
+                diary.write(f'\n{nl}')
 
             def load(func_file, mask_file):
-                """Load the functional timeseries data from a NIFTI file into Nibabel data
+                """
+                Load the functional timeseries data from a NIFTI file into Nibabel data
                 format, check/validate the data, and remove voxels with zero variance.
-
-                :type func_file: str
-                :param func_file: Filepath to the NIFTI file containing the 4D functional
-                                  timeseries.
-                :type mask_file: str
-                :param mask_file: Filepath to the NIFTI file containing the binary
-                                  functional brain mask.
-                :type check4d: bool
-                :param check4d: (default: True) Check the timeseries data to ensure it is
-                                four dimensional.
-                :rtype: Nibabel data
-                :return: The validated functional timeseries data with voxels of zero
-                         variance excluded.
                 """
                 try:
                     func_img = nib.load(func_file)
                     mask_img = nib.load(mask_file)
                 except:
                     raise Exception(bcolors.FAIL + 'ERROR' + bcolors.ENDC)
+
                 mask = mask_img.get_fdata()
+                mask_var_filtered = mask
                 func = func_img.get_fdata().astype(float)
-                mask_var_filtered = remove_zero_variance_voxels(func, mask, threshold=1e-6)
+
+                # Calculate variance across time for each voxel
+                variance_map = func.var(axis=-1)
+
+                # Update the mask to exclude voxels with variance below the threshold
+                mask_var_filtered[variance_map < 1e-6] = 0
+
                 func = func[mask_var_filtered.nonzero()].T  # will have ntpts x nvoxs
                 return func
 
-            def remove_zero_variance_voxels(func_timeseries, mask, threshold=1e-6):
-                """
-                Modify a head mask to exclude timeseries voxels which have zero or near-zero variance.
-
-                :type func_timeseries: Nibabel data
-                :param func_timeseries: The 4D functional timeseries.
-                :type mask: Nibabel data
-                :param mask: The binary head mask.
-                :type threshold: float
-                :param threshold: Variance threshold below which voxels will be excluded from the mask.
-                :rtype: Nibabel data
-                :return: The binary head mask, but with voxels of near-zero variance excluded.
-                """
-                # Calculate variance across time for each voxel
-                variance_map = func_timeseries.var(axis=-1)
-                # Update the mask to exclude voxels with variance below the threshold
-                mask[variance_map < threshold] = 0
-                return mask
 
             def fd_jenkinson(in_file, rmax=80., out_file=None, out_array=True):
                 """Calculate Jenkinson's Mean Framewise Displacement (aka RMSD) and save
@@ -441,8 +470,8 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 """
 
                 if out_file is None:
-                    fname, ext = op.splitext(op.basename(in_file))
-                    out_file = op.abspath('%s_fdfile%s' % (fname, ext))
+                    fname, ext = ops(opb(in_file))
+                    out_file   = opa('%s_fdfile%s' % (fname, ext))
 
                 # if in_file (coordinate_transformation) is actually the rel_mean output
                 # of the MCFLIRT command, forward that file
@@ -492,7 +521,10 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                     return np.array(X).reshape(-1)
                 else:
                     return out_file
-            fd_jenkinson_array = fd_jenkinson(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '.aff12.1D'), rmax=80., out_file=None, out_array=True)
+
+            fd_jenkinson_array = fd_jenkinson(opj(dir_path, root_RS + '.aff12.1D'), rmax=80.,
+                                              out_file=opj(dir_path, root_RS + '.aff12_fdfile.1D'),
+                                              out_array=True)
 
             try:
                 # Define timepoints (assuming each value in fd_jenkinson_val represents one timepoint)
@@ -510,11 +542,13 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 plt.grid()
                 # Optimize layout and save the plot if desired
                 plt.tight_layout()
-                plt.savefig(f"{output_results}/{root_RS}_fd_jenkinson_plot.png")
+                plt.savefig(opj(output_results, root_RS + '_fd_jenkinson_plot.png'))
                 plt.close()
                 mean_fd = np.mean(fd_jenkinson_array)
                 line_QC_func2.append(f"  mean_fd: {mean_fd}")
             except:
+                print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                diary.write(f'\n{nl}')
                 print(bcolors.WARNING + 'mean_fd calculation failed (the fix is complicated, but it is not a big deal)' + bcolors.ENDC)
 
             try:
@@ -564,13 +598,17 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
 
                     return gcor
 
-                gcor_val =  global_correlation(opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtr_deob.nii.gz'),
-                                               opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
-                print(gcor_val)
+                gcor_val =  global_correlation(opj(dir_path, root_RS + '_xdtr_deob.nii.gz'),
+                                               opj(dir_path, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
+                nl = str(gcor_val)
+                print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                diary.write(f'\n{nl}')
                 line_QC_func2.append(f"  gcor: {gcor_val}")
             except:
+                nl = 'gcor calculation failed (the fix is complicated, but it is not a big deal)'
+                diary.write(f'\n{nl}')
+                print(bcolors.WARNING + nl + bcolors.ENDC)
                 raise ValueError()
-                print(bcolors.WARNING + 'gcor calculation failed (the fix is complicated, but it is not a big deal)' + bcolors.ENDC)
 
             try:
                 def robust_stdev(func):
@@ -685,8 +723,8 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
 
                     return out
 
-                calc_dvars_array = calc_dvars(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_deob.nii.gz'),
-                                               opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
+                calc_dvars_array = calc_dvars(opj(dir_path, root_RS + '_xdtr_deob.nii.gz'),
+                                              opj(dir_path, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
 
                 timepoints = np.arange(len(calc_dvars_array))
                 plt.figure(figsize=(10, 6))
@@ -701,13 +739,15 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
 
                 # Optimize layout and save the plot if desired
                 plt.tight_layout()
-                plt.savefig(output_results + '/' + root_RS + '_dvars_plot.png')
+                plt.savefig(opj(output_results,root_RS + '_dvars_plot.png'))
                 plt.close()
                 mean_dvars_val = np.mean(calc_dvars_array)
                 line_QC_func2.append(f"  mean_dvar: {mean_dvars_val}")
             except:
-                raise ValueError()
-                print(bcolors.WARNING + 'mean_dvar calculation failed (the fix is complicated, but it is not a big deal)' + bcolors.ENDC)
+                nl = 'mean_dvar calculation failed (the fix is complicated, but it is not a big deal)'
+                diary.write(f'\n{nl}')
+                raise ValueError(bcolors.WARNING + nl + bcolors.ENDC)
+
 
             def plot_motion_parameters(motion_file, output_results):
                 # Load the motion parameters
@@ -734,11 +774,11 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 plt.tight_layout()
 
                 # Save the plot
-                plt.savefig(f"{output_results}/{root_RS}_motion_parameters_plot.png")
+                plt.savefig(opj(output_results, root_RS + '_motion_parameters_plot.png'))
                 plt.close()
 
             # Example usage
-            plot_motion_parameters(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_dfile.1D'), output_results)
+            plot_motion_parameters(opj(dir_path, root_RS + '_dfile.1D'), output_results)
 
             def ghost_direction(epi_data_path, mask_data_path, direction="y", ref_file=None,
                                 out_file=None):
@@ -770,7 +810,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 # first we need to make a nyquist ghost mask, we do this by circle
                 # shifting the original mask by N/2 and then removing the intersection
                 # with the original mask
-                epi_img = nib.load(epi_data_path)
+                epi_img  = nib.load(epi_data_path)
                 epi_data = epi_img.get_fdata()
 
                 mask_img = nib.load(mask_data_path)
@@ -822,14 +862,27 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 elif correction_direction in ['x', 'x-']:
                     direct_aqc = 'x'
 
-                ghost_direction_val = ghost_direction(opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtr_deob.nii.gz'),
-                                        opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'), direction=direct_aqc,
-                                         ref_file=opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtr_deob.nii.gz'),
-                                          out_file=opj(output_results,root_RS + '_ghost_mask.nii.gz'))
+                ghost_direction_val = ghost_direction(opj(dir_path,root_RS + '_xdtr_deob.nii.gz'),
+                                                      opj(dir_path, root_RS + '_mask_final_in_fMRI_orig.nii.gz'),
+                                                      direction=direct_aqc,
+                                                      ref_file=opj(dir_path,root_RS + '_xdtr_deob.nii.gz'),
+                                                      out_file=opj(output_results,root_RS + '_ghost_mask.nii.gz'))
+
+                dictionary = {"Sources": [opj(dir_path, root_RS + '_xdtr_deob.nii.gz'),
+                                          opj(dir_path, root_RS + '_mask_final_in_fMRI_orig.nii.gz')],
+                              "Description": 'ghost_direction.'},
+                json_object = json.dumps(dictionary, indent=2)
+                with open(opj(output_results,root_RS + '_ghost_mask.json'), "w") as outfile:
+                    outfile.write(json_object)
+
 
                 line_QC_func.append(f"  ghost_acq_direction: {ghost_direction_val}")
-                print(line_QC_func)
-                print(ghost_direction_val)
+                nl = str(line_QC_func)
+                print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                diary.write(f'\n{nl}')
+                nl = str(ghost_direction_val)
+                print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                diary.write(f'\n{nl}')
 
             def ghost_all(epi_data, mask_data):
                 """Call the 'ghost_direction' function on all possible phase encoding
@@ -848,12 +901,16 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
 
                 return tuple(gsrs + [None])
 
-            ghost_all_val = ghost_all(opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtr_deob.nii.gz'),
-                                    opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
+            ghost_all_val = ghost_all(opj(dir_path,root_RS + '_xdtr_deob.nii.gz'),
+                                    opj(dir_path, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
 
             line_QC_func.append(f"  ghost_all_direction: {ghost_all_val}")
-            print(line_QC_func)
-            print(ghost_all_val)
+            nl = str(line_QC_func)
+            print(bcolors.OKGREEN + nl + bcolors.ENDC)
+            diary.write(f'\n{nl}')
+            nl = str(ghost_all_val)
+            print(bcolors.OKGREEN + nl + bcolors.ENDC)
+            diary.write(f'\n{nl}')
 
             def compute_snr_brain_mask(gray_mask_path, fmri_data_path, output_path, root_name):
                 """
@@ -892,8 +949,8 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                             raise ValueError("No non-zero values found in the brain data; check your fMRI data.")
 
                         noise_threshold = np.percentile(brain_values, threshold)
-                        noise_values = brain_values[brain_values <= noise_threshold]
-                        noise = np.std(noise_values)
+                        noise_values    = brain_values[brain_values <= noise_threshold]
+                        noise           = np.std(noise_values)
 
                         if noise > 0:
                             break  # Valid noise found, break out of loop
@@ -908,7 +965,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                     snr_values.append(snr)
 
                 # Save SNR values
-                snr_output_path = os.path.join(output_path, f"{root_name}_snr_values.npy")
+                snr_output_path = opj(output_path, root_name + '_snr_values.npy')
                 np.save(snr_output_path, snr_values)
                 print(f"SNR values saved to {snr_output_path}")
 
@@ -923,7 +980,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
                 plt.tight_layout()
 
                 # Save the plot
-                plot_output_path = os.path.join(output_path, f"{root_name}_snr_plot.png")
+                plot_output_path = opj(output_path, root_name + '_snr_plot.png')
                 plt.savefig(plot_output_path)
                 print(f"SNR plot saved to {plot_output_path}")
 
@@ -934,32 +991,46 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
 
             # Example usage
             compute_snr_brain_mask_val = compute_snr_brain_mask(
-                opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'),
-                opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_deob.nii.gz'),
+                opj(dir_path, root_RS + '_mask_final_in_fMRI_orig.nii.gz'),
+                opj(dir_path, root_RS + '_xdtr_deob.nii.gz'),
                 output_results, root_RS)
+
             line_QC_func.append(f"  snr_brain_mask {compute_snr_brain_mask_val}")
 
             ####### motion metrics #####
+
             # Step 1: Load the motion metrics
-            motion_enorm = np.loadtxt(opj(dir_fMRI_Refth_RS_prepro1, root_RS + 'motion_enorm.1D'))  # Euclidean norm values
-            derivatives = np.loadtxt(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_deriv.1D'))  # Derivatives (velocity)
-            censor_1d = np.loadtxt(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_censor.1D'))  # Censored time points
-            outcount = np.loadtxt(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdt_outcount.r.1D'), skiprows=2)  # Censored time points
+            motion_enorm = np.loadtxt(opj(dir_path, root_RS + 'motion_enorm.1D'))   # Euclidean norm values
+            derivatives  = np.loadtxt(opj(dir_path, root_RS + '_xdtr_deriv.1D'))    # Derivatives (velocity)
+            censor_1d    = np.loadtxt(opj(dir_path, root_RS + '_xdtr_censor.1D'))   # Censored time points
+            outcount     = np.loadtxt(opj(dir_path, root_RS + '_xdt_outcount.r.1D'),
+                                      skiprows=2)                                   # Censored time points
 
             # Step 2: Calculate Average Euclidean Norm
             avg_enorm = np.mean(motion_enorm)
+
             # Step 3: Calculate the Censor Fraction
+
             # The censor file has 1s for good time points and 0s for censored ones
             censor_fraction = 1 - np.mean(censor_1d)  # Censored fraction is the inverse of the mean (1 means kept)
+
             # Step 4: Calculate Average Absolute Velocity (from the derivatives)
             # The derivatives file has six columns (3 translations, 3 rotations), we average their absolute values
             avg_outcount = np.mean(outcount)
             avg_velocity = np.mean(np.abs(derivatives), axis=0).mean()
 
-            print(bcolors.OKGREEN + f"  avg motion velocity: {avg_velocity}" + bcolors.ENDC)
-            print(bcolors.OKGREEN + f"  avg motion magnitude: {avg_enorm}" + bcolors.ENDC)
-            print(bcolors.OKGREEN + f"  censor_fraction: {censor_fraction}" + bcolors.ENDC)
-            print(bcolors.OKGREEN + f"  outlier proportions: {avg_outcount}" + bcolors.ENDC)
+            nl = f"  avg motion velocity: {avg_velocity}"
+            print(bcolors.OKGREEN + nl + bcolors.ENDC)
+            diary.write(f'\n{nl}')
+            nl = f"  avg motion magnitude: {avg_enorm}"
+            print(bcolors.OKGREEN + nl + bcolors.ENDC)
+            diary.write(f'\n{nl}')
+            nl = f"  censor_fraction: {censor_fraction}"
+            print(bcolors.OKGREEN + nl + bcolors.ENDC)
+            diary.write(f'\n{nl}')
+            nl = f"  outlier proportions: {avg_outcount}"
+            print(bcolors.OKGREEN + nl + bcolors.ENDC)
+            diary.write(f'\n{nl}')
 
             line_motion = [f"  avg motion velocity: {avg_velocity}", f"  avg motion magnitude: {avg_enorm}", f"  censor_fraction: {censor_fraction}", f"  outlier proportions: {avg_outcount}"]
 
@@ -968,11 +1039,18 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind,
             lines.append(line_QC_func2)
             flattened_list = [item for sublist in lines for item in sublist]
 
-            print(bcolors.OKGREEN + 'QC will look like ' + str(flattened_list) + bcolors.ENDC)
+            nl = 'QC will look like ' + str(flattened_list)
+            print(bcolors.OKGREEN + nl + bcolors.ENDC)
+            diary.write(f'\n{nl}')
 
-            with open(output_results + '/' + root_RS + 'QC_result.txt', 'w') as f:
+            with open(opj(output_results, root_RS + 'QC_result.txt'), 'w') as f:
                 for line in flattened_list:
                     f.write(line)
                     f.write('\n')
         else:
-            print(bcolors.WARNING + 'WARNING: ' + str(func_filename) + ' not found!!' + bcolors.ENDC)
+            nl = 'WARNING: ' + str(func_filename) + ' not found!!'
+            print(bcolors.WARNING + nl + bcolors.ENDC)
+            diary.write(f'\n{nl}')
+
+    diary.write(f'\n')
+    diary.close()

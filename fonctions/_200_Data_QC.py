@@ -2,6 +2,7 @@
 ##see fMRI prep²
 import os
 import subprocess
+import datetime
 
 class bcolors:
     HEADER = '\033[95m'
@@ -24,19 +25,31 @@ spgo = subprocess.getoutput
 
 from fonctions.extract_filename import extract_filename
 
-def _itk_check_coregistr(dir_fMRI_Refth_RS_prepro3, BASE_SS_coregistr,s_bind,itk_sif):
+def _itk_check_coregistr(dir_fMRI_Refth_RS_prepro3, BASE_SS_coregistr,s_bind,itk_sif,diary_file):
+
+    ct = datetime.datetime.now()
+    diary = open(diary_file, "a")
+    diary.write(f'\n{ct}')
+    nl = '##  Working on step ' + str(200) + '(function: 200_Data_QC).  ##'
+    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+    diary.write(f'\n{nl}')
+
 
     def run_command_and_wait(command):
         print(bcolors.OKGREEN + "INFO: Running command:" + bcolors.ENDC, command)
         result = subprocess.run(command, shell=True)
         if result.returncode == 0:
-            print(bcolors.OKGREEN + "INFO: Command completed successfully." + bcolors.ENDC)
+            nl = "INFO: Command completed successfully."
+            print(bcolors.OKGREEN + nl + bcolors.ENDC)
+            diary.write(f'\n{nl}')
         else:
-            print(bcolors.OKGREEN + "INFO: Command failed with return code:" + bcolors.ENDC, result.returncode)
+            nl = "INFO: Command failed with return code: "  + result.returncode
+            print(bcolors.WARNING + nl + bcolors.ENDC)
 
     # Example usage
     command = ('singularity run' + s_bind + itk_sif + 'itksnap -g ' + opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz') + \
               ' -o ' + opj(dir_fMRI_Refth_RS_prepro3, 'BASE_SS_fMRI.nii.gz'))
     run_command_and_wait(command)
 
-
+    diary.write(f'\n')
+    diary.close()
