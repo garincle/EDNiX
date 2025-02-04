@@ -2,7 +2,9 @@ import os
 import subprocess
 from nilearn import plotting
 import ants
-
+import json
+import datetime
+import matplotlib.pyplot as plt
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -22,20 +24,33 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
 def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Session, listTimage, n_for_ANTS,
                     dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv,
                     study_template_atlas_forlder, otheranat, bids_dir, type_of_transform,
                     which_on, all_data_path_max, IgotbothT1T2, all_data_path,
-                    s_bind, afni_sif):
+                    s_bind, afni_sif,diary_file):
+
+    ct = datetime.datetime.now()
+    nl = 'Run anatomical._6_brainT_to_stdyT_max.brainT_to_T_max'
+    diary = open(diary_file, "a")
+    diary.write(f'\n{ct}')
+    diary.write(f'\n{nl}')
 
     #################################################################### coregistration with ANTs ####################################################################
     ######Coregistration!!!! (template to anat)
     IMG = ants.image_read(Ref_file)
     REF = ants.image_read(BASE_SS_coregistr)
 
-    print(bcolors.OKGREEN + 'INFO: Co-registration ready' + bcolors.ENDC)
-    print(bcolors.OKGREEN + 'INFO: WE WILL COREGISTER: ' + Ref_file + '(the anat img)' + ' to ' + BASE_SS_coregistr + '(the template)' + bcolors.ENDC)
-    print(bcolors.OKGREEN + 'INFO: type_of_transform=' + type_of_transform + bcolors.ENDC)
+    nl = 'INFO: Co-registration ready'
+    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+    diary.write(f'\n{nl}')
+    nl = 'INFO: WE WILL COREGISTER: ' + Ref_file + '(the anat img)' + ' to ' + BASE_SS_coregistr + '(the template)'
+    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+    diary.write(f'\n{nl}')
+    nl = 'INFO: type_of_transform=' + type_of_transform
+    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+    diary.write(f'\n{nl}')
 
     mtx1 = ants.registration(fixed=IMG, moving=REF, type_of_transform='Translation',
                              outprefix=opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_shift_'))
@@ -43,6 +58,14 @@ def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Sessi
     MEAN_tr = ants.apply_transforms(fixed=IMG, moving=REF, transformlist=mtx1['fwdtransforms'],
                                     interpolator=n_for_ANTS)
     ants.image_write(MEAN_tr, opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_shift.nii.gz'), ri=False)
+
+    dictionary = {"Sources": [Ref_file,
+                              BASE_SS_coregistr],
+                  "Description": 'Co-registration (translation).', }
+    json_object = json.dumps(dictionary, indent=2)
+    with open(opj(dir_prepro, 'template_to_' + type_norm + '_SyN_final_max_shift.json'), "w") as outfile:
+        outfile.write(json_object)
+
 
     mTx  = ants.registration(fixed=IMG,moving=REF,
                               outprefix=opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_'),
@@ -66,6 +89,12 @@ def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Sessi
     TRANS = ants.apply_transforms(fixed=IMG, moving=REF,
                                   transformlist=mTx['fwdtransforms'], interpolator=n_for_ANTS)
     ants.image_write(TRANS, opj(dir_prepro, 'template_to_' + type_norm + '_SyN_final_max.nii.gz'), ri=False)
+    dictionary = {"Sources": [Ref_file,
+                              BASE_SS_coregistr],
+                  "Description": 'Co-registration (non linear,ANTspy).', }
+    json_object = json.dumps(dictionary, indent=2)
+    with open(opj(dir_prepro, 'template_to_' + type_norm + '_SyN_final_max.json'), "w") as outfile:
+        outfile.write(json_object)
 
 
     ######### apply the transformation to the original images to see the reverse transfo paramters works
@@ -77,8 +106,15 @@ def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Sessi
                                       interpolator=n_for_ANTS, whichtoinvert=w2inv_inv)
         ants.image_write(TRANS, opj(dir_prepro, Timage + '_to_template_SyN_final_max.nii.gz'), ri=False)
 
-        if not os.path.exists(bids_dir + '/QC/anat_to_template/'): os.mkdir(bids_dir + '/QC/anat_to_template/')
-        if not os.path.exists(bids_dir + '/QC/template_to_anat/'): os.mkdir(bids_dir + '/QC/template_to_anat/')
+        dictionary = {"Sources": [opj(volumes_dir, ID + Timage + '_brain_step_1.nii.gz'),
+                                  BASE_SS_coregistr],
+                      "Description": 'Co-registration (non linear,ANTspy).', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(dir_prepro, Timage + '_to_template_SyN_final_max.json'), "w") as outfile:
+            outfile.write(json_object)
+
+        if not ope(opj(bids_dir, 'QC','anat_to_template')): os.mkdir(opj(bids_dir, 'QC','anat_to_template'))
+        if not ope(opj(bids_dir, 'QC','template_to_anat')): os.mkdir(opj(bids_dir, 'QC','template_to_anat'))
 
         ####plot the QC
         try:
@@ -86,15 +122,17 @@ def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Sessi
                                          display_mode='mosaic', dim=4)
             display.add_contours(opj(dir_prepro, Timage + '_to_template_SyN_final_max.nii.gz'),
                                  linewidths=.2, colors=['red'])
-            display.savefig(bids_dir + '/QC/anat_to_template/' + ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png')
+            display.savefig(opj(bids_dir, 'QC','anat_to_template', ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png'))
             # Don't forget to close the display
             display.close()
+            plt.close('all')
         except:
             display = plotting.plot_anat(opj(dir_prepro,'template_to_' + Timage + '_SyN_final_test_matrix_max.nii.gz'), threshold='auto',
                                          display_mode='mosaic', dim=4)
-            display.savefig(bids_dir + '/QC/template_to_anat/' + ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png')
+            display.savefig(opj(bids_dir, 'QC','template_to_anat', ID + '_' + str(Session) + '_' + Timage + 'to_template_max.png'))
             # Don't forget to close the display
             display.close()
+            plt.close('all')
 
 
     if creat_study_template == True and IgotbothT1T2 == True:
@@ -108,13 +146,13 @@ def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Sessi
 
         second_template = []
         for data_path in all_data_path_temp:
-            path_anat = opj(data_path, 'anat/')
+            path_anat  = opj(data_path, 'anat')
             dir_native = opj(path_anat, 'native')
             dir_prepro = opj(dir_native, '01_preprocess')
             second_template.append(opj(dir_prepro, Timage + '_to_template_test_matrix_max.nii.gz'))
 
         # Check if all paths exist
-        all_paths_exist = all(os.path.exists(path) for path in second_template)
+        all_paths_exist = all(ope(path) for path in second_template)
 
         if all_paths_exist:
             TEMP = ' '.join(second_template)
@@ -122,4 +160,15 @@ def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Sessi
                 opj(study_template_atlas_forlder, 'studytemplate2_' + otheranat))
 
             command = 'singularity run' + s_bind + afni_sif + '3dMean -prefix ' + opj(study_template_atlas_forlder, 'studytemplate2_' + otheranat, 'study_template.nii.gz') + ' ' + TEMP
-            spco([command], shell=True)
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+
+            dictionary = {"Sources": TEMP,
+                          "Description": 'Mean.', }
+            json_object = json.dumps(dictionary, indent=2)
+            with open(opj(study_template_atlas_forlder, 'studytemplate2_' + otheranat, 'study_template.json'), "w") as outfile:
+                outfile.write(json_object)
+
+        diary.write(f'\n')
+        diary.close()

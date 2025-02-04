@@ -1,5 +1,8 @@
 import os
 import subprocess
+import datetime
+import json
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -22,36 +25,50 @@ from fonctions.extract_filename import extract_filename
 
 def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_RS_ICA_native,
     nb_run, RS, blur, TR, melodic_prior_post_TTT, extract_exterior_CSF, extract_WM, do_not_correct_signal, band, extract_Vc, extract_GS, overwrite,
-                      s_bind,afni_sif):
+                      s_bind,afni_sif,diary_file):
+
+    ct = datetime.datetime.now()
+    diary = open(diary_file, "a")
+    diary.write(f'\n{ct}')
+    nl = '##  Working on step ' + str(7) + '(function: _7_post_TTT).  ##'
+    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+    diary.write(f'\n{nl}')
 
     for i in range(0, int(nb_run)):
         root_RS = extract_filename(RS[i])
+
         if melodic_prior_post_TTT == True:
-            command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_RS_ICA_native, root_RS + '_norm_final_clean.nii.gz') + \
-            ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + ' -expr "a"'
-            spco([command], shell=True)
+            input = opj(dir_RS_ICA_native, root_RS + '_norm_final_clean.nii.gz')
         else:
-            command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_2ref_RcT_masked.nii.gz') + \
-            ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + ' -expr "a"'
-            spco([command], shell=True)
+            input = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_2ref_RcT_masked.nii.gz')
+
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + input + \
+                  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + ' -expr "a"'
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": input,
+                      "Description": 'Copy.'},
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.json'), "w") as outfile:
+            outfile.write(json_object)
+
 
     # 4.2 Get the SVD values from the masks
     for i in range(0, int(nb_run)):
         root_RS = extract_filename(RS[i])
 
-        if extract_exterior_CSF == True:
-            command = 'singularity run' + s_bind + afni_sif + '3dmaskSVD' + overwrite + ' -polort 2 -vnorm -mask ' + opj(dir_fMRI_Refth_RS_prepro1,'exterior_ligne.nii.gz') + \
-            ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
-            ' | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_NonB.1D')
-            spco([command], shell=True)
-
-        if extract_WM == True:
-            command = 'singularity run' + s_bind + afni_sif + '3dBrickStat -count -non-zero ' + opj(dir_fMRI_Refth_RS_prepro1,'Wmask.nii.gz')
-            count = spgo([command])
-            command = 'singularity run' + s_bind + afni_sif + '3dmaskSVD' + overwrite + ' -polort 2 -vnorm -mask ' + opj(dir_fMRI_Refth_RS_prepro1,'Wmask.nii.gz') + \
-            ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
-            ' | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_Wc.1D')
-            spco([command], shell=True)
+        for extract_type, img_name ,suffix in zip([extract_exterior_CSF, extract_WM, extract_GS],
+                                                  ['exterior_ligne.nii.gz', 'Wmask.nii.gz', 'maskDilat.nii.gz'],
+                                                  ['_NonB','_Wc','-GS']):
+            if extract_type == True:
+                command = 'singularity run' + s_bind + afni_sif + '3dmaskSVD' + overwrite + ' -polort 2 -vnorm -mask ' + \
+                          opj(dir_fMRI_Refth_RS_prepro1, img_name) + \
+                          ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
+                          ' | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS' + suffix + '.1D')
+                nl = spgo(command)
+                diary.write(f'\n{nl}')
+                print(nl)
 
         if extract_Vc == True:
                 command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dROIstats -nomeanout -nzvoxels -mask ' + \
@@ -67,42 +84,50 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                     command = 'singularity run' + s_bind + afni_sif + '3dmaskSVD' + overwrite + ' -polort 2 -vnorm -mask ' + opj(dir_fMRI_Refth_RS_prepro1,'Vmask.nii.gz') + \
                     ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
                     ' | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_Vc.1D')
-                    spco([command], shell=True)
+                    nl = spgo(command)
+                    diary.write(f'\n{nl}')
+                    print(nl)
 
-        if extract_GS == True:
-            command = 'singularity run' + s_bind + afni_sif + '3dmaskSVD' + overwrite + ' -polort 2 -vnorm -mask ' + opj(dir_fMRI_Refth_RS_prepro1,'maskDilat.nii.gz') + \
-            ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
-            ' | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_GS.1D')
-            spco([command], shell=True)
 
-        command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -cvarinv -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_tsnr1.nii.gz') + \
-        ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz')
-        spco([command], shell=True)
-        command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -cvar -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_cvar.nii.gz') + \
-        ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz')
-        spco([command], shell=True)
-        command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -tsnr -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_tsnr2.nii.gz') + \
-        ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz')
-        spco([command], shell=True)
-        command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -stdev -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_stdev.nii.gz') + \
-        ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz')
-        spco([command], shell=True)
+
+        for option_type, suffix,descript in zip([' -cvarinv',' -cvar', ' -tsnr',' -stdev'],
+                                                ['_tsnr1','_cvar','_tsnr2','_stdev'],
+                                                ['fabs(mean)/stdev (with detrend)',
+                                                 'stdev/fabs(mean) (with detrend)',
+                                                 'fabs(mean)/stdev NOT DETRENDED',
+                                                 'standard deviation with detrend']):
+
+            command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + option_type + \
+                      ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS' + suffix + '.nii.gz') + \
+                      ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz')
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+            dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz'),
+                          "Description": descript + ' (3dTstat, AFNI)'},
+            json_object = json.dumps(dictionary, indent=2)
+            with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS' + suffix + '.json'), "w") as outfile:
+                outfile.write(json_object)
 
         ############################### ############################### ###############################
-        ############################### Corrections of the signal  ####################################
+        ##                                Corrections of the signal                                  ##
         ############################### ############################### ###############################
+
         # 5.0 Regress out most of the noise from the data: bandpass filter, motion correction white mater noise and cbf noise , plus drift and derivatives
         # after filtering : blur within the mask and normalise the data.
 
         # Get the volume nb
-        command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -nv ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz')
+        command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + \
+                  '3dinfo -nv ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz')
         nb = spgo(command).split('\n')
         NumberofTR = str(int(nb[-1]))
 
         # create bandpass regressors (instead of using 3dBandpass, say)
         command = 'singularity run' + s_bind + afni_sif + '1dBport' + overwrite + ' -nodata ' + NumberofTR + ' ' + str(TR) + ' -band ' + band + \
                   ' -invert -nozero | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + 'bandpass_rall.1D')
-        spco([command], shell=True)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
 
         if ope(dir_RS_ICA_native) == False:
             os.makedirs(dir_RS_ICA_native)
@@ -111,6 +136,9 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
         for i in range(0, int(nb_run)):
             try:
                 root_RS = extract_filename(RS[i])
+                original_dir = os.getcwd()
+                os.chdir(dir_fMRI_Refth_RS_prepro1)
+
                 command = 'singularity run' + s_bind + afni_sif + '3dDeconvolve -input ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
                 ' -mask ' + opj(dir_fMRI_Refth_RS_prepro1,'maskDilat.nii.gz') + \
                 ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1,root_RS + 'bandpass_rall.1D') + ' bandpass_rall' + \
@@ -128,19 +156,17 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                 ' -x1D_stop ' +                                                          \
                 ' -bucket ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + 'statssubj')
 
-                if extract_exterior_CSF == True:
-                    command = command + ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_NonB.1D') + ' residual_norm_NonB '
+                for extract_type, suffix in zip([extract_exterior_CSF, extract_WM, extract_GS,extract_Vc],
+                                                ['_NonB', '_Wc', '-GS','-Vc']):
+                    if extract_type == True:
+                        command = command + ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS' + suffix + '.1D') + ' residual_norm' + suffix + ' '
 
-                elif extract_WM == True:
-                    command = command + ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_Wc.1D') + ' residual_norm_Wc '
-
-                elif extract_Vc == True:
-                    command = command + ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_Vc.1D') + ' residual_norm_Vc '
-
-                elif extract_GS == True:
-                    command = command + ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_GS.1D') + ' residual_norm_Vc '
-                print(bcolors.OKGREEN + 'INFO: 3dDeconvolve command is ' + command + bcolors.ENDC)
-                spco([command], shell=True)
+                nl = 'INFO: 3dDeconvolve command is ' + command
+                print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                diary.write(f'\n{nl}')
+                nl = spgo(command)
+                diary.write(f'\n{nl}')
+                print(nl)
 
                 command = 'singularity run' + s_bind + afni_sif + '3dTproject -polort 0' + overwrite + ' -input ' + \
                 opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
@@ -149,16 +175,63 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                 ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
                 if blur>0:
                     command = command + ' -blur ' + str(blur)
-                spco([command], shell=True)
+                nl = spgo(command)
+                diary.write(f'\n{nl}')
+                print(nl)
+
+                dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz'),
+                                          opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat.nii.gz'),
+                                          opj(dir_fMRI_Refth_RS_prepro1, root_RS + 'bandpass_rall.1D'),
+                                          opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_demean.1D'),
+                                          opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_deriv.1D'),
+                                          opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_censor.1D')],
+                              "Description": 'Filtering and blurring: ' + str(blur) + ' (3dDeconvolve and 3dTproject, AFNI)'},
+                json_object = json.dumps(dictionary, indent=2)
+                with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.json'), "w") as outfile:
+                    outfile.write(json_object)
+
             except:
                 root_RS = extract_filename(RS[i])
-                command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(
-                    dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
+                command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + \
+                          ' -a ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
                           ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_3dDeconvolve_failed.nii.gz') + ' -expr "a"'
-                spco([command], shell=True)
+                nl = spgo(command)
+                diary.write(f'\n{nl}')
+                print(nl)
+                dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz'),
+                              "Description": 'Copy'},
+                json_object = json.dumps(dictionary, indent=2)
+                with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_3dDeconvolve_failed.json'), "w") as outfile:
+                    outfile.write(json_object)
+                os.chdir(original_dir)
+
+            if not ope(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')):
+                root_RS = extract_filename(RS[i])
+                command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + \
+                          ' -a ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
+                          ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_3dDeconvolve_failed.nii.gz') + ' -expr "a"'
+                nl = spgo(command)
+                diary.write(f'\n{nl}')
+                print(nl)
+                dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz'),
+                              "Description": 'Copy'},
+                json_object = json.dumps(dictionary, indent=2)
+                with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_3dDeconvolve_failed.json'), "w") as outfile:
+                    outfile.write(json_object)
+                os.chdir(original_dir)
     else:
         for i in range(0, int(nb_run)):
             root_RS = extract_filename(RS[i])
             command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
                       ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz') + ' -expr "a"'
-            spco([command], shell=True)
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+            dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz'),
+                          "Description": 'Copy'},
+            json_object = json.dumps(dictionary, indent=2)
+            with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.json'), "w") as outfile:
+                outfile.write(json_object)
+
+    diary.write(f'\n')
+    diary.close()

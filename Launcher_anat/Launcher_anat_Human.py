@@ -21,7 +21,7 @@ spco = subprocess.check_output
 MAIN_PATH = opj('/','srv','projects','easymribrain')
 s_bind = ' --bind ' + opj('/', 'scratch', 'cgarin/') + ',' + MAIN_PATH
 s_path = opj(MAIN_PATH, 'code', 'singularity')
-
+afni_sif    = ' ' + opj(s_path , 'afni_make_build_AFNI_23.1.10.sif') + ' '
 # Freesurfer set up
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
@@ -39,20 +39,20 @@ import anatomical._0_Pipeline_launcher
 #https://bids-standard.github.io/pybids/reports/index.html
 
 ###where to store the BIDS data?
-bids_dir = opj(MAIN_PATH,'data','MRI','Bat','BIDS_bat')
-###should be the same as in the ATLAS folder
-species = 'Bat'
+species = 'Human'
+bids_dir = opj('/scratch/cgarin/'+ species + '/BIDS_HBN')
 
 ##########################################
 ########### Subject loader################
 ##########################################
 
-layout= BIDSLayout(bids_dir,  validate=True)
+layout= BIDSLayout(bids_dir,  validate=False)
 print(layout)
 subject = layout.get_subjects()
 print(subject)
 tasks = layout.get_tasks()
 print(tasks)
+
 
 ###report
 report = BIDSReport(layout)
@@ -61,38 +61,37 @@ report = BIDSReport(layout)
 #print(main_report)
 
 
-# Ask get() to return the ids of subjects that have T1w files #return_type='filename
+# Ask get() to return the ids of subjects that have acq-VNav_T1w files #return_type='filename
 T1 = layout.get(return_type='filename', target='subject', suffix='T1w', extension='nii.gz')
 print(T1)
 ###question
 
 
-# Ask get() to return the ids of subjects that have T2w files
+# Ask get() to return the ids of subjects that have acq-VNav_T2w files
 T2 = layout.get(return_type='filename', target='subject', suffix='T2w', extension='nii.gz')
 print(T2)
 
-# Ask get() to return the ids of subjects that have T1w files
-Bold = layout.get(return_type='filename', target='subject', suffix='bold', extension='nii.gz')
+# Ask get() to return the ids of subjects that have acq-VNav_T1w files
+Bold = layout.get(return_type='filename', target='subject', suffix='epi', extension='nii.gz')
 
-# Ask get() to return the ids of subjects that have T1w files
-topup_dir = layout.get(return_type='filename', target='subject', suffix='epi', extension='nii.gz')
+# Ask get() to return the ids of subjects that have acq-VNav_T1w files
+#topup_dir = layout.get(return_type='filename', target='subject', suffix='epi', extension='nii.gz')
 
 # Convert the layout to a pandas dataframe
 df = layout.to_df()
 df.head()
 
-
 ##############################################################  TO DO !! ##############################################################
 
-allinfo_study_c = df[(df['task'] == 'restingstate') & (df['extension'] == '.nii')]
-allinfo_study_c['Session'] = allinfo_study_c['session']
+#### Create a pandas sheet for the dataset (I like it, it help to know what you are about to process
+allinfo_study_c = df[(df['suffix'] == 'T1w') & (df['extension'] == '.nii.gz') & (df['acquisition'] == 'VNav')]
+list_of_ones = [1] * len(allinfo_study_c)
+allinfo_study_c['Session'] = list_of_ones
 allinfo_study_c.rename(columns={'subject': 'ID'}, inplace=True)
 allinfo_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
 
-folders = glob.glob(opj(bids_dir,'sub*'))
-
-filter1 = allinfo_study_c["ID"].isin([])
 allinfo_study_c_formax = allinfo_study_c.copy()
+
 
 
 ##############Select all the monkey of the study
@@ -110,12 +109,13 @@ animal_ID = []
 
 for ID in pd.unique(allinfo_study_c_formax.ID):
     list_session = allinfo_study_c_formax.loc[allinfo_study_c_formax['ID'] == ID].Session.dropna()
-    listereverse = list(map(int, list_session))
+    listereverse = list(list_session)
     listereverse.reverse()
+    listereverse = list(map(int, listereverse))
     max_session.append(np.array(listereverse).max())
 
     for Session in pd.unique(listereverse):
-        print('session numuber ' + str(Session))
+        print('session number ' + str(Session))
 
         # Organization of the folders
         data_path = opj(bids_dir,'sub-' + ID,'ses-' + str(Session))
@@ -135,17 +135,16 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 
 ######## select animals that have not been analyzed yet
 removelist = []
-''' 
+#sub-NDARHK987WDZ to ckeck
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
     if ID in []:
         removelist.append(num)
-'''
+
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
 all_Session =  [item for i, item in enumerate(all_Session) if i not in removelist]
 all_data_path =  [item for i, item in enumerate(all_data_path) if i not in removelist]
 max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i not in removelist]
-
 
 ##########################################
 ################To Do ####################
@@ -157,32 +156,34 @@ check_visualy_each_img = False #YES or NO
 do_manual_crop = False #YES or NO
 
 #### only use this option if T1 and T2 are in the same space!!!!!
-IgotbothT1T2 = False #YES or NO
+IgotbothT1T2 = True #YES or NO
 
 check_visualy_final_mask = False #YES or NO
-deoblique='no_deoblique' #header or WARP
+deoblique='WARP_without_3drefit' #header or WARP or no_deoblique or WARP_without_3drefit
 n_for_ANTS='hammingWindowedSinc'
 overwrite_option = True #YES or NO
-aff_metric_ants = 'MI'
+type_of_transform = 'SyNRA'
+aff_metric_ants = 'mattes'
 
 ####Choose to normalize using T1 or T2
-type_norm = 'acq-coronal_T2w'
-otheranat = '' #NA if none
+type_norm = 'acq-VNav_T1w' # T1 or T2
+otheranat = 'acq-VNav_T2w' #NA if none
 ###masking
 #ruf XXX!!!!!!
 ###img use for masking in Skullstrip 1 'maybe this need to be change'!!!!!! because Skullstrip 2 is in auto equal to type_norm.... not sure that it will not creat problem in the futur
-masking_img = 'acq-coronal_T2w'
+masking_img = 'acq-VNav_T2w'
 
-brain_skullstrip_1 ='bet2' # bet2_ANTS or MachinL
+brain_skullstrip_1 ='_bet0.45' # bet2_ANTS or MachinL
 
 #precise
-brain_skullstrip_2 ='NoSkullStrip' # bet2_ANTS or MachinL
+brain_skullstrip_2 ='synthstrip' # bet2_ANTS or MachinL
+
+#template
+template_skullstrip = 'muSkullStrip_Human'
 
 do_fMRImasks = True
 Align_img_to_template = '@Align_Centers' #3dAllineate or No or @Align_Centers
-cost3dAllineate = ''
-type_of_transform_stdyT = 'SyNBold'
-type_of_transform = 'SyNBold'
+cost3dAllineate = 'lpa'
 '''
 ls   *OR*  leastsq         = Least Squares [Pearson Correlation]
 mi   *OR*  mutualinfo      = Mutual Information [H(b)+H(s)-H(b,s)]
@@ -201,19 +202,20 @@ lpa+ *OR*  localPcorAbs+Others= Local Pearson Abs + Others
 #######################################################################
 
 #creat_study_template with type_norm img
-creat_study_template = True
+creat_study_template = False
+
 #folder where you want to store the stdy template
-study_template_atlas_forlder = '/srv/projects/easymribrain/data/MRI/Bat/BIDS_bat/sty_template'
-#then
-dir_out = study_template_atlas_forlder + 'template_in_stdy_template'
+study_template_atlas_forlder = bids_dir + '/sty_template'
+#then where do you want your atlases in sty template to be
+dir_out = bids_dir + '/sty_template/atlases'
+
 #do you want to use all the data or only the last one of each subject (for longitud inal co-registration)
 which_on = 'all' # all or max
+type_of_transform_stdyT = 'SyN'
 
-###use type_norm or otheranat (the name) for atlas template to study template co-registration
-Atemplate_to_Stemplate = 'acq-coronal_T2w'
-template_skullstrip = 'Manual' #'Manual':'Custum_Macaque2':'Manual':'Custum_QWARPT2':'3dSkullStrip':'bet2':
-
-do_surfacewith = '' #'T1' 'T1andT2'
+###use type_norm or otheranat for atlas template to study template co-registration
+Atemplate_to_Stemplate = 'acq-VNav_T1w'
+do_surfacewith = 'T1andT2' #'T1' 'T1andT2'
 
     ##########################################
     ###########define orientation#############
@@ -222,16 +224,16 @@ do_surfacewith = '' #'T1' 'T1andT2'
 ###question
 ####WITH deoblique='WARP'
 ##orig LPI
-orientation = 'LAI'
+orientation = 'RPI'
 ####WITH deoblique='header'
 #orientation = 'LSP'
 
 #if BIDStype == 1:
-#    list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_ses-' + str(Session) + '_*' + Timage + '.nii.gz')))
+#    list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_ses-' + str(Session) + '_run-*' + Timage + '.nii.gz')))
 #if BIDStype == 2:
 #    list_anat = sorted(glob.glob(opj(path_anat, 'sub-' + ID + '_' + Timage + '.nii.gz')))
 
-BIDStype = 1
+BIDStype = 2
 
 ####### attention!! change LPS -r based on what you can observe =====  RAI => LSP ;  LIP => LAS ; LSP => LPS (xxxchange RL?)
 #RAI
@@ -247,22 +249,40 @@ FS_buckner40_GCS = opj(FS_dir,'MacaqueYerkes19')
     ##### define atlases and tempates ########
     ##########################################
 
-diratlas_orig = '/srv/projects/easymribrain/data/Atlas/13_Atlas_project/Atlases_V2/' + species
-list_atlases = [opj('/srv/projects/easymribrain/data/Atlas/13_Atlas_project/0_Atlas_modify/Atlas/Bat', 'atlas.nii.gz'), opj(diratlas_orig, 'TTS.nii.gz')]
-list_atlases.append(opj(diratlas_orig,'Gmask.nii.gz'))
-list_atlases.append(opj(diratlas_orig,'Wmask.nii.gz'))
+##### if yu don't have any aseg and want to work with functional images, please add a ventricle and whitte matter mask in the template space named Vmask, Wmask
+diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2',species) # sting # sting
 
-BASE_SS     = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'templateT2.nii.gz') # sting
-BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','0_Atlas_modify','Atlas',species,'brain_mask.nii.gz') # sting
+list_atlases = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4.nii.gz'),
+opj(diratlas_orig, 'atlaslvl1_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3_LR.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4_LR.nii.gz'),
+opj(diratlas_orig,'Gmask.nii.gz'),
+opj(diratlas_orig, 'Wmask.nii.gz')]
+
+fMRImasks = 'aseg' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
+
+BASE_SS     = opj(diratlas_orig,'template.nii.gz') # sting
+BASE_mask   = opj(diratlas_orig,'brain_mask.nii.gz') # sting # sting
 
 ####atlases files
-Aseg_ref    = ''
-Aseg_refLR  = ''
-fMRImasks = 'custom' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
+Aseg_ref    = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2',species,'atlas_forSEG_final.nii.gz')
+Aseg_refLR  = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2',species,'atlas_forSEG_final_LR.nii.gz')
 
 #### for 14 ####
-list_atlases_2 = []
-FreeSlabel_ctab_list = []
+list_atlases_2 = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
+opj(diratlas_orig, 'atlaslvl2.nii.gz'),
+opj(diratlas_orig, 'atlaslvl3.nii.gz'),
+opj(diratlas_orig, 'atlaslvl4.nii.gz')]
+
+FreeSlabel_ctab_list = [opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT_Dual.txt'),
+opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT_Dual.txt'),
+opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT_Dual.txt'),
+opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT_Dual.txt')]
+
 
 ######### define other usefull paramater automatically (do no touch)#########
 Hmin     = ['l','r']
@@ -272,9 +292,9 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [1,3,4,5,6,10,11,12,13,14,15,100,200]
+Skip_step = [10,11,12,13,14,15,100,200]
 
-Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT.txt')
+Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT_Dual.txt')
 
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step, check_visualy_each_img, do_manual_crop, do_fMRImasks,
@@ -282,4 +302,3 @@ anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, 
     IgotbothT1T2, list_atlases, Aseg_ref, Aseg_refLR, dir_out, FS_dir, do_surfacewith, Atemplate_to_Stemplate,
     FS_buckner40_TIF,FS_buckner40_GCS, Hmin, Lut_file, otheranat, type_norm, max_sessionlist, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list, list_atlases_2, cost3dAllineate, Align_img_to_template,
     species, type_of_transform, type_of_transform_stdyT, fMRImasks, overwrite_option,MAIN_PATH, s_bind, s_path)
-

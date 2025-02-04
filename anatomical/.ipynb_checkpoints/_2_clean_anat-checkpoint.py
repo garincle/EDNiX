@@ -1,13 +1,9 @@
 import os
 import subprocess
-import glob
-import shutil
-import sys
-import nilearn
 from nilearn import plotting
 from nilearn.image import resample_to_img
 import anatomical.Skullstrip_method
-
+import matplotlib.pyplot as plt
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -53,11 +49,13 @@ def clean_anat(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, ot
         display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + '_skullstrip.png')
         # Don't forget to close the display
         display.close()
+        plt.close('all')
     except:
         display = plotting.plot_anat(opj(dir_prepro, ID + '_brain_for_Align_Center' + Timage + '.nii.gz'), display_mode='x', cut_coords=10)
         display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + '_skullstrip.png')
         # Don't forget to close the display
         display.close()
+        plt.close('all')
 
         ####################################################################################
         ########################## transfo rigid to atlas template (BASE_SS)   #############
@@ -174,11 +172,13 @@ def clean_anat(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, ot
             display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png')
             # Don't forget to close the display
             display.close()
+            plt.close('all')
         except:
             display = plotting.plot_anat(opj(volumes_dir, ID + '_' + Timage + '_template.nii.gz'), display_mode='mosaic', dim=4)
             display.savefig(bids_dir + '/QC/' + ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png')
             # Don't forget to close the display
             display.close()
+            plt.close('all')
 
         ####### check visualy indiv template #######
         if check_visualy_each_img == True:

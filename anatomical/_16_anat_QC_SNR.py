@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.ndimage import zoom
+import datetime
 
 class bcolors:
     HEADER = '\033[95m'
@@ -23,31 +24,40 @@ class bcolors:
 opj = os.path.join
 opb = os.path.basename
 opn = os.path.normpath
-spco = subprocess.check_output
 opd = os.path.dirname
 ope = os.path.exists
+spco = subprocess.check_output
 spgo = subprocess.getoutput
 #################################################################################################
 ####Seed base analysis
 #################################################################################################
-def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind, afni_sif):
+def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind, afni_sif,diary_file):
+    ct = datetime.datetime.now()
+    nl = 'Run anatomical._16_anat_QC_SNR.anat_QC'
+    diary = open(diary_file, "a")
+    diary.write(f'\n{ct}')
+    diary.write(f'\n{nl}')
 
     for Timage in listTimage:
-        direction = opj(labels_dir)
+        direction          = opj(labels_dir)
         atlas_filename_rsp = opj(direction, type_norm + 'atlaslvl1_LRrspQC' + Timage + '.nii.gz')
-        atlas_filename = opj(direction, type_norm + 'atlaslvl1_LR.nii.gz')
-        lines = []
-        anat_filename = opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz')
-        brain_mask = opj(masks_dir, Timage + 'brain_mask_final_QCrsp.nii.gz')
-        output_results =  opj(dir_prepro, 'QC_anat')
-        if not os.path.exists(output_results): os.mkdir(output_results)
+        atlas_filename_orig     = opj(direction, type_norm + 'atlaslvl1_LR.nii.gz')
+        atlas_filename = opj(direction, type_norm + 'atlaslvl1_LR_rsp_anat.nii.gz')
+        lines              = []
+        anat_filename      = opj(dir_prepro, ID + '_acpc_test_QC_' + Timage + '.nii.gz')
+        brain_mask         = opj(masks_dir, Timage + 'brain_mask_final_QCrsp.nii.gz')
+        output_results     =  opj(dir_prepro, 'QC_anat')
+
+        if not ope(output_results): os.mkdir(output_results)
         
         if ope(anat_filename):
-            if ope(atlas_filename) == False:
-                print(bcolors.WARNING + 'WARNING: no altlas lvl 1 LR found, this is a requirement for some of QC analysis')
+            if ope(atlas_filename_orig) == False:
+                nl = 'WARNING: no atlas lvl 1 LR found, this is a requirement for some of QC analysis'
+                print(bcolors.WARNING +  + bcolors.ENDC)
+                diary.write(f'\n{nl}')
             else:
                 # Load the NIfTI images
-                img1 = nib.load(atlas_filename)
+                img1 = nib.load(atlas_filename_orig)
                 img2 = nib.load(anat_filename)
 
                 # Extract headers
@@ -66,20 +76,33 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
 
                 # Print differences
                 if differences:
-                    print(bcolors.OKGREEN + "Differences found in the following fields:" + bcolors.ENDC)
+                    nl = "Differences found in the following fields:"
+                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                    diary.write(f'\n{nl}')
+
                     for field, values in differences.items():
-                        print(bcolors.OKGREEN + f"{field}:" + bcolors.ENDC)
-                        print(bcolors.OKGREEN + f"  Image 1: {values[0]}" + bcolors.ENDC)
-                        print(bcolors.OKGREEN + f"  Image 2: {values[1]}" + bcolors.ENDC)
-                        caca = nilearn.image.resample_to_img(atlas_filename, anat_filename, interpolation='nearest')
+                        nl = field + ':'
+                        print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                        diary.write(f'\n{nl}')
+                        nl = "  Image 1: " + str(values[0])
+                        print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                        diary.write(f'\n{nl}')
+                        nl = f"  Image 2: {values[1]}"
+                        print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                        diary.write(f'\n{nl}')
+                        caca = nilearn.image.resample_to_img(atlas_filename_orig, anat_filename, interpolation='nearest')
                         caca.to_filename(atlas_filename)
+
                         extracted_data = nib.load(atlas_filename).get_fdata()
                         extracted_data = np.rint(extracted_data).astype(np.int32)
                         labeled_img2 = nilearn.image.new_img_like(anat_filename, extracted_data, copy_header=True)
                         labeled_img2.to_filename(atlas_filename_rsp)
                         atlas_filename = opj(direction, type_norm + 'atlaslvl1_LRrspQC' + Timage + '.nii.gz')
                 else:
-                    print(bcolors.OKGREEN + "No differences found in the specified fields." + bcolors.ENDC)
+                    atlas_filename = opj(direction, type_norm + 'atlaslvl1_LR.nii.gz')
+                    nl = "No differences found in the specified fields."
+                    print(bcolors.WARNING + nl + bcolors.ENDC)
+                    diary.write(f'\n{nl}')
 
                 # Atlas labels as described by you
                 labels = {2: '3rd ventricles', 3: '4th ventricles', 7: 'Cerebellum', 5: 'Cerebellum White',
@@ -217,12 +240,19 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                 average_snr_results['White_Matter'] = avg_white_snr
 
                 # Print the average SNR for each region
-                print("Average SNR for each region:")
+                nl  = "Average SNR for each region:"
+                print(nl)
+                diary.write(f'\n{nl}')
+
                 for region, values in average_snr_results.items():
                     if isinstance(values, dict):
-                        print(f"{region}: Left = {values['Left']:.2f}, Right = {values['Right']:.2f}")
+                        nl = f"{region}: Left = {values['Left']:.2f}, Right = {values['Right']:.2f}"
+                        print(nl)
+                        diary.write(f'\n{nl}')
                     else:
-                        print(f"{region}: Average SNR = {values:.2f}")
+                        nl=f"{region}: Average SNR = {values:.2f}"
+                        print(nl)
+                        diary.write(f'\n{nl}')
 
                 # Build the `line_snr` variable, including the average SNR for gray and white matter, and each brain region
                 line_snr = [
@@ -268,11 +298,15 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                     :return: A tuple of the FWHM values (x, y, z, and combined).
                     """
 
+                    original_dir = os.getcwd()
+                    os.chdir(dir_prepro)
+
                     command = f'singularity run {s_bind} {afni_sif} 3dFWHMx -overwrite ' \
                               f'-mask {mask_file} ' \
                               f'-input {anat_file}'
                     fwhm_string_list = spgo([command])
                     print(fwhm_string_list)
+                    os.chdir(original_dir)
 
                     try:
                         # Use regex to find the line with the four numeric values
@@ -386,11 +420,18 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
             lines.append(line_QC_func)
             flattened_list = [item for sublist in lines for item in sublist]
 
-            print(bcolors.OKGREEN + 'QC will look like ' + str(flattened_list) + bcolors.ENDC)
+            nl = 'QC will look like ' + str(flattened_list)
+            print(bcolors.OKGREEN + nl + bcolors.ENDC)
+            diary.write(f'\n{nl}')
 
-            with open(output_results + '/' + Timage + 'QC_result.txt', 'w') as f:
+            with open(opj(output_results, Timage + 'QC_result.txt'), 'w') as f:
                 for line in flattened_list:
                     f.write(line)
                     f.write('\n')
         else:
-            print(bcolors.WARNING + 'WARNING: ' + str(anat_filename) + ' not found!!' + bcolors.ENDC)
+            nl = 'WARNING: ' + str(anat_filename) + ' not found!!'
+            print(bcolors.WARNING + nl + bcolors.ENDC)
+            diary.write(f'\n{nl}')
+
+    diary.write(f'\n')
+    diary.close()

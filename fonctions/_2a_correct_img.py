@@ -4,6 +4,9 @@ import nibabel as nb
 import numpy as np
 from math import pi
 from fonctions.extract_filename import extract_filename
+import datetime
+import json
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -23,58 +26,173 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-def correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, study_fMRI_Refth, i, r, overwrite,s_bind,afni_sif,fsl_sif,topup_file):
+def correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings,
+				overwrite,s_bind,afni_sif,fsl_sif,topup_file,diary_file):
 
-	root = extract_filename(RS_map[i])
-	root_RS = extract_filename(RS[r])
+	ct = datetime.datetime.now()
+	diary = open(diary_file, "a")
+	diary.write(f'\n{ct}')
+	nl = '##  Working on step ' + str(2) + '(function: _2a_correct_img).  ##'
+	print(bcolors.OKGREEN + nl + bcolors.ENDC)
+	diary.write(f'\n{nl}')
 
-	#copy map imag in new location
-	command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + list_map[i] + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[i]) + ' -expr "a"'
-	spco([command], shell=True)
+	if recordings == '2_mapdir':
+		for z in [0, 1]:
+			root = extract_filename(RS_map[z])
 
-	#mean of the map img
-	command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -mean -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre.nii.gz') + ' ' + \
-			  opj(dir_fMRI_Refth_RS_prepro1, RS_map[i])
-	spco([command], shell=True)
+			# copy map imag in new location
+			command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + list_map[z] + \
+					  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[z]) + ' -expr "a"'
+			nl = spgo(command)
+			diary.write(f'\n{nl}')
+			print(nl)
+			dictionary = {"Sources": list_map[z],
+						  "Description": 'Copy.', }
+			json_object = json.dumps(dictionary, indent=2)
+			with open(opj(dir_fMRI_Refth_RS_prepro1, RS_map[z][:-7] + '.json'), "w") as outfile:
+				outfile.write(json_object)
 
-	# register each volume to the base image
-	command = 'singularity run' + s_bind + afni_sif + '3dvolreg' + overwrite + ' -verbose -zpad 1 -base ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre.nii.gz') + \
-			  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align.nii.gz') + \
-			  ' -cubic ' + \
-			  opj(dir_fMRI_Refth_RS_prepro1, RS_map[i])
-	spco([command], shell=True)
+			# mean of the map img
+			command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -mean -prefix ' + \
+					  opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre' + str(z) + '.nii.gz') + ' ' + \
+					  opj(dir_fMRI_Refth_RS_prepro1, RS_map[z])
+			nl = spgo(command)
+			diary.write(f'\n{nl}')
+			print(nl)
+			dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, RS_map[z]),
+						  "Description": '4D Mean (3dTstat, AFNI).', }
+			json_object = json.dumps(dictionary, indent=2)
+			with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre' + str(z) + '.json'), "w") as outfile:
+				outfile.write(json_object)
 
-	'''
-	# realignment intra-run
-	command = 'singularity run' + s_bind + fsl_sif + 'mcflirt -in ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[i]) + \
-	' -out ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align.nii.gz') + \
-	' -mats -plots -reffile ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre.nii.gz') + ' -rmsrel -rmsabs -spline_final'
-	spco([command], shell=True)
-	'''
-	#mean of the map img to ref img
-	command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -mean -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean.nii.gz') + ' ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[i])
-	spco([command], shell=True)
+			# register each volume to the base image
+			command = 'singularity run' + s_bind + afni_sif + '3dvolreg' + overwrite + ' -verbose -zpad 1 -base ' + \
+					  opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre' + str(z) + '.nii.gz') + \
+					  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align' + str(z) + '.nii.gz') + \
+					  ' -cubic ' + \
+					  opj(dir_fMRI_Refth_RS_prepro1, RS_map[z])
+			nl = spgo(command)
+			diary.write(f'\n{nl}')
+			print(nl)
+			dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, RS_map[z]),
+									  opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre' + str(z) + '.nii.gz')],
+						  "Description": 'Rigid Realignment (3dvolreg,AFNI).', }
+			json_object = json.dumps(dictionary, indent=2)
+			with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align' + str(z) + '.json'), "w") as outfile:
+				outfile.write(json_object)
 
-	#####################FRANCK????????????????????????????,
-	#dell? ==> do the job ?? opj(dir_fMRI_Refth_RS_prepro1, RS[r].replace('.nii.gz','_xdtr_mean.nii.gz'))
-	#command = '3dTcat -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,RS[int(ref_nb)-1].replace('.nii.gz','_fMRI_Ref.nii.gz')) + ' ' + opj(dir_fMRI_Refth_RS_prepro1, RS[int(ref_nb)-1]) + '[0-9]'
-	#spco([command], shell=True)
-	#command = '3dTstat -mean -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[i].replace('.nii.gz','_fMRI_Ref_mean.nii.gz')) + \
-	#' ' + opj(dir_fMRI_Refth_RS_prepro1,RS[int(ref_nb)-1].replace('.nii.gz','_fMRI_Ref.nii.gz'))
-	#spco([command], shell=True)
-	#os.remove(opj(dir_fMRI_Refth_RS_prepro1,RS[int(ref_nb)-1].replace('.nii.gz','_fMRI_Ref.nii.gz')))
-	###resemple anat to func #XXX change opj(dir_prepro, ID + '_mprage_reorient_NU.nii.gz') for opj(dir_prepro,ID + '_mprage_reorient_NU.nii.gz')
+			# mean of the map img to ref img
+			command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -mean -prefix ' + \
+					  opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean' + str(z) + '.nii.gz') + ' ' + \
+					  opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align' + str(z) + '.nii.gz')
+			nl = spgo(command)
+			diary.write(f'\n{nl}')
+			print(nl)
+			dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align' + str(z) + '.nii.gz'),
+						  "Description": '4D Mean (3dTstat, AFNI).', }
+			json_object = json.dumps(dictionary, indent=2)
+			with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean' + str(z) + '.json'), "w") as outfile:
+				outfile.write(json_object)
 
-	####### a foutu la merde sans raison!!!!!
-	#command = '3dresample -master ' + opj(dir_fMRI_Refth_RS_prepro1, RS[r].replace('.nii.gz','_xdtr_mean.nii.gz')) + \
-	#' -prefix ' +  opj(dir_fMRI_Refth_RS_prepro1, RS_map[i].replace('.nii.gz','_map_mean_reso.nii.gz')) + \
-	#' -input ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[i].replace('.nii.gz','_map_mean.nii.gz'))
-	#spco([command], shell=True)
 
-	command = 'singularity run' + s_bind + afni_sif + '3dTcat' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se.nii.gz') + \
-	' ' + opj(dir_fMRI_Refth_RS_prepro1, opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean.nii.gz')) + \
-	' ' + opj(dir_fMRI_Refth_RS_prepro1, opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean.nii.gz'))
-	spco([command], shell=True)
+		root = extract_filename(RS_map[0])
+		root1 = extract_filename(RS_map[1])
+
+		command = 'singularity run' + s_bind + afni_sif + '3dTcat' + overwrite + \
+				  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se.nii.gz') + \
+				  ' ' + opj(dir_fMRI_Refth_RS_prepro1, root1 + '_map_mean' + str(1) + '.nii.gz') + \
+				  ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean' + str(0) + '.nii.gz')
+		nl = spgo(command)
+		diary.write(f'\n{nl}')
+		print(nl)
+		dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root1 + '_map_mean' + str(1) + '.nii.gz'),
+								  opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean' + str(0) + '.nii.gz')],
+					  "Description": 'concatenation in 4D (3dTcat,AFNI).', }
+		json_object = json.dumps(dictionary, indent=2)
+		with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_se.json'), "w") as outfile:
+			outfile.write(json_object)
+
+	else:
+		root    = extract_filename(RS_map[i])
+		root_rs = extract_filename(RS[r])
+
+		#copy map imag in new location
+		command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + list_map[i] + \
+			  	' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[i]) + ' -expr "a"'
+		nl = spgo(command)
+		diary.write(f'\n{nl}')
+		print(nl)
+		dictionary = {"Sources": list_map[i],
+					  "Description": 'Copy.', }
+		json_object = json.dumps(dictionary, indent=2)
+		with open(opj(dir_fMRI_Refth_RS_prepro1, RS_map[i][:-7] + '.json'), "w") as outfile:
+			outfile.write(json_object)
+
+		# mean of the map img
+		command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -mean -prefix ' \
+			  	+ opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre.nii.gz') + ' ' + \
+			  	opj(dir_fMRI_Refth_RS_prepro1, RS_map[i])
+		nl = spgo(command)
+		diary.write(f'\n{nl}')
+		print(nl)
+		dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, RS_map[i]),
+					  "Description": '4D Mean (3dTstat, AFNI).', }
+		json_object = json.dumps(dictionary, indent=2)
+		with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre.json'), "w") as outfile:
+			outfile.write(json_object)
+
+		# register each volume to the base image
+		command = 'singularity run' + s_bind + afni_sif + '3dvolreg' + overwrite + ' -verbose -zpad 1 -base ' + \
+			  	opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre.nii.gz') + \
+			  	' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align.nii.gz') + \
+			  	' -cubic ' + \
+			  	opj(dir_fMRI_Refth_RS_prepro1, RS_map[i])
+		nl = spgo(command)
+		diary.write(f'\n{nl}')
+		print(nl)
+		dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, RS_map[i]),
+								  opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre.nii.gz')],
+					  "Description": 'Rigid Realignment (3dvolreg,AFNI).', }
+		json_object = json.dumps(dictionary, indent=2)
+		with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align.json'), "w") as outfile:
+			outfile.write(json_object)
+
+		# mean of the map img to ref img
+		command = 'singularity run' + s_bind + afni_sif + '3dTstat' + overwrite + ' -mean -prefix ' + \
+			  	opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean.nii.gz') + ' ' + \
+			  	opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align.nii.gz')
+		nl = spgo(command)
+		diary.write(f'\n{nl}')
+		print(nl)
+		dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align.nii.gz'),
+					  "Description": '4D Mean (3dTstat, AFNI).', }
+		json_object = json.dumps(dictionary, indent=2)
+		with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean.json'), "w") as outfile:
+			outfile.write(json_object)
+
+
+		command = 'singularity run' + s_bind + afni_sif + '3dTcat' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se.nii.gz') + \
+		' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean.nii.gz') + \
+		' ' + opj(dir_fMRI_Refth_RS_prepro1, root_rs + '_xdtr_mean.nii.gz')
+		nl = spgo(command)
+		diary.write(f'\n{nl}')
+		print(nl)
+		dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean.nii.gz'),
+								  opj(dir_fMRI_Refth_RS_prepro1, root_rs + '_xdtr_mean.nii.gz')],
+					  "Description": 'concatenation in 4D (3dTcat,AFNI).', }
+		json_object = json.dumps(dictionary, indent=2)
+		with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_se.json'), "w") as outfile:
+			outfile.write(json_object)
+
+
+
+
+
+
+
+
+
+
 
 	#####correct image for topup (i.e. remove the slices that do not fit topup requirement)
 	#fslroi <input> <output> <xmin> <xsize> <ymin> <ysize> <zmin> <zsize>
@@ -88,32 +206,34 @@ def correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, study_fMRI_Reft
 	#I agree with Matt that you probably have an odd number of voxels in one direction (usually in the slice direction). 
 	#In topup, for various reasons, the images dimensions has to be an integer multiple of each sub-sampling level one uses. 
 	#We usually just throw away the top or bottom slice (provided it is outside the brain) in these cases.
-	"""
-	if 'x' in correction_direction:
-		intofencod = 0
 
-	elif 'y' in correction_direction:
-		intofencod = 1
+	#### zeropad ?? add a slice instead of removing!!!
 
-	elif 'z' in correction_direction:
-		intofencod = 2
-	"""
-	#### zeropad?? add a slice instead of removing!!!
 	im = nb.load(opj(dir_fMRI_Refth_RS_prepro1, root + '_se.nii.gz'))
 	imdata = im.get_fdata()
 	s = imdata.shape
-	dests = np.array(s)
+
 	hdr = im.header.copy()
 	hdr.set_data_shape(imdata.shape)
 	for b, d in enumerate(s):
 		if b < 3:
 			if (d % 2) == 0:
-				print(bcolors.OKGREEN + "{0} est paire, no need to remove a slice" + bcolors.ENDC)
+				nl = "{0} is even, no need to remove a slice"
+
 			else:
-				print(bcolors.OKGREEN + "{0} est impaire, we will have to remove a slice" + bcolors.ENDC)
+				nl = "{0} is odd, we will have to remove a slice"
 				imdata = imdata.take(range(d - 1), axis=b)
-	
+
+			print(bcolors.OKGREEN + nl + bcolors.ENDC)
+			diary.write(f'\n{nl}')
+
 	nb.Nifti1Image(imdata, im.affine, hdr).to_filename(opj(dir_fMRI_Refth_RS_prepro1, root + '_se1.nii.gz'))
+	dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root + '_se.nii.gz'),
+				  "Description": 'Make sure that the number of voxels are even in each dimension. (Nifti1Image, nilearn)', }
+	json_object = json.dumps(dictionary, indent=2)
+	with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_se1.json'), "w") as outfile:
+		outfile.write(json_object)
+
 
 	### se_map don't change but 1 -1
 	### b02b0 don't change 
@@ -123,14 +243,42 @@ def correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, study_fMRI_Reft
 	' --config=' + topup_file[1] + \
 	' --fout=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap.nii.gz') + \
 	' --iout=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_unwarped.nii.gz')
-	spco([command], shell=True)
+	nl = spgo(command)
+	diary.write(f'\n{nl}')
+	print(nl)
+	dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root + '_se1.nii.gz'),
+							  topup_file[0],
+							  topup_file[1]],
+				  "Description": 'Create fieldmaps. (topup, FSL)', }
+	json_object = json.dumps(dictionary, indent=2)
+	with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap.json'), "w") as outfile:
+		outfile.write(json_object)
 
 	##### for fugue
 	command = 'singularity run' + s_bind + fsl_sif + 'fslmaths ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap.nii.gz') + ' -mul ' + str(2*pi) + \
 	' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads.nii.gz')
-	spco([command], shell=True)
+	nl = spgo(command)
+	diary.write(f'\n{nl}')
+	print(nl)
+	dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap.nii.gz'),
+				  "Description": 'conversion into rads. (fslmaths, FSL)', }
+	json_object = json.dumps(dictionary, indent=2)
+	with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads.json'), "w") as outfile:
+		outfile.write(json_object)
+
 
 	command = 'singularity run' + s_bind + fsl_sif + 'fslmaths ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_unwarped.nii.gz') + \
 	' -Tmean ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_mag.nii.gz')
-	spco([command], shell=True)
+	nl = spgo(command)
+	diary.write(f'\n{nl}')
+	print(nl)
+	dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root + '_unwarped.nii.gz'),
+				  "Description": '4D Mean (fslmaths, FSL).', }
+	json_object = json.dumps(dictionary, indent=2)
+	with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_mag.json'), "w") as outfile:
+		outfile.write(json_object)
+
+	diary.write(f'\n')
+	diary.close()
+
 
