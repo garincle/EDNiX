@@ -176,7 +176,7 @@ endmap = '*_map.nii.gz' # string
 
 ##### is your anat and func in the same same space ? iff they are you can put anat_func_same_space = True  and it will use the mask of the anat to help
 # with the co-registration. It also add other problem, so even if they are in the same space you can put anat_func_same_space = False
-anat_func_same_space = False # True or False
+anat_func_same_space = True # True or False
 
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
 TfMRI = 'acq-RARE_T2w' # string
@@ -295,8 +295,9 @@ deoblique_exeption2 = [] # list
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
-type_of_transform = 'SyNBold'
-aff_metric_ants = 'mattes'
+type_of_transform = 'SyNOnly'
+aff_metric_ants = 'CC'
+registration_fast = True
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
 ### define the acronyme/suffix of the anat as in the BIDS
@@ -317,7 +318,7 @@ do_anat_to_func = True # True or False
 #######################################################################
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
-creat_study_template = True # True or False
+creat_study_template = False # True or False
 
 ########## if creat_study_template = True ##########
 
@@ -466,7 +467,8 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [100, 200]
+Skip_step = [1,2,3,4,100,200]
+
     ############################################################
     ######################## START de pipeline #################
     ############################################################
@@ -477,4 +479,4 @@ fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_pat
     extract_exterior_CSF, extract_WM, n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
     cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
     folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff, selected_atlases_matrix,
-    specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH, DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, s_bind, s_path)
+    specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH, DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, s_bind, s_path)

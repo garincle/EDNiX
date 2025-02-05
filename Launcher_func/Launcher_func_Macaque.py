@@ -65,7 +65,6 @@ Bold = layout.get(return_type='filename', target='subject', suffix='bold', exten
 df = layout.to_df()
 df.head()
 
-
 allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
 
 #### Session number
@@ -148,7 +147,7 @@ removelist = []
 
 ######### select the indiv you want to remove !!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in []:
+    if ID in ['Elak', 'Samourai']:
         removelist.append(num)
 
 ############################################################## NOTHING TO DO HERE ##############################################################
@@ -307,6 +306,7 @@ deoblique='header' #header or WARP
 n_for_ANTS = 'hammingWindowedSinc' # string
 type_of_transform = 'SyNOnly'
 aff_metric_ants = 'CC'
+registration_fast = False
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
 ### define the acronyme/suffix of the anat as in the BIDS
@@ -487,4 +487,4 @@ fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_pat
     extract_exterior_CSF, extract_WM, n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
     cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
     folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff, selected_atlases_matrix,
-    specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH, DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, s_bind, s_path)
+    specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH, DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, s_bind, s_path)
