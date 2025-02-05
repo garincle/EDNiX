@@ -27,7 +27,7 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run, ID, dir_prepro,
-                       n_for_ANTS, aff_metric_ants, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform,
+                       n_for_ANTS, aff_metric_ants, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform, registration_fast,
                        overwrite, s_bind, afni_sif,diary_file):
 
     ct = datetime.datetime.now()
@@ -106,41 +106,78 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
         elif 'None' in SED:
             restrict = (1, 1, 1)
 
-        MEAN = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'))
-        ANAT = ants.image_read(opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz'))
+        if registration_fast == False:
+            MEAN = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'))
+            ANAT = ants.image_read(opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz'))
 
-        mtx1 = ants.registration(fixed=ANAT, moving=MEAN,type_of_transform='Translation', outprefix=opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_'))
-        MEAN_tr = ants.apply_transforms(fixed=ANAT, moving=MEAN,transformlist=mtx1['fwdtransforms'],interpolator=n_for_ANTS)
-        ants.image_write(MEAN_tr, opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift.nii.gz'), ri=False)
-        dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
-                                  opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz')],
-                      "Description": 'Co-registration (translation, ANTspy).', },
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift.json'), "w") as outfile:
-            outfile.write(json_object)
+            mtx1 = ants.registration(fixed=ANAT, moving=MEAN,type_of_transform='Translation', outprefix=opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_'))
+            MEAN_tr = ants.apply_transforms(fixed=ANAT, moving=MEAN,transformlist=mtx1['fwdtransforms'],interpolator=n_for_ANTS)
+            ants.image_write(MEAN_tr, opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift.nii.gz'), ri=False)
+            dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
+                                      opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz')],
+                          "Description": 'Co-registration (translation, ANTspy).', },
+            json_object = json.dumps(dictionary, indent=2)
+            with open(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift.json'), "w") as outfile:
+                outfile.write(json_object)
 
-        mTx2 = ants.registration(fixed=ANAT, moving=MEAN,
-                                 type_of_transform=type_of_transform,
-                                 initial_transform=mtx1['fwdtransforms'],
-                                 outprefix=opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_'),
-                                 grad_step=0.1,flow_sigma=3,total_sigma=0,aff_sampling=32,
-                                 aff_random_sampling_rate=0.2,
-                                 syn_sampling=32,
-                                 aff_iterations=(1000, 500, 250, 100),
-                                 aff_shrink_factors=(8, 4, 2, 1),
-                                 aff_smoothing_sigmas=(3, 2, 1, 0),
-                                 reg_iterations=(1000, 500, 250, 100),
-                                 reg_smoothing_sigmas=(3, 2, 1, 0),
-                                 reg_shrink_factors=(8, 4, 2, 1),
-                                 verbose=True,
-                                 aff_metric=aff_metric_ants,
-                                 restrict_transformation=restrict)
+            mTx2 = ants.registration(fixed=ANAT, moving=MEAN,
+                                     type_of_transform=type_of_transform,
+                                     initial_transform=mtx1['fwdtransforms'],
+                                     outprefix=opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_'),
+                                     grad_step=0.1,flow_sigma=3,total_sigma=0,aff_sampling=32,
+                                     aff_random_sampling_rate=0.2,
+                                     syn_sampling=32,
+                                     aff_iterations=(1000, 500, 250, 100),
+                                     aff_shrink_factors=(8, 4, 2, 1),
+                                     aff_smoothing_sigmas=(3, 2, 1, 0),
+                                     reg_iterations=(1000, 500, 250, 100),
+                                     reg_smoothing_sigmas=(3, 2, 1, 0),
+                                     reg_shrink_factors=(8, 4, 2, 1),
+                                     verbose=True,
+                                     aff_metric=aff_metric_ants,
+                                     restrict_transformation=restrict)
+
+        if registration_fast == True:
+            print("registration_fast selected")
+            MEAN = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'))
+            ANAT = ants.image_read(opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz'))
+
+            mtx1 = ants.registration(fixed=ANAT, moving=MEAN, type_of_transform='Translation',
+                                     outprefix=opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_'))
+            MEAN_tr = ants.apply_transforms(fixed=ANAT, moving=MEAN, transformlist=mtx1['fwdtransforms'],
+                                            interpolator=n_for_ANTS)
+            ants.image_write(MEAN_tr, opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift.nii.gz'), ri=False)
+            dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
+                                      opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz')],
+                          "Description": 'Co-registration (translation, ANTspy).', },
+            json_object = json.dumps(dictionary, indent=2)
+            with open(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift.json'), "w") as outfile:
+                outfile.write(json_object)
+
+            mTx2 = ants.registration(fixed=ANAT, moving=MEAN,
+                                     type_of_transform=type_of_transform,
+                                     initial_transform=mtx1['fwdtransforms'],
+                                     outprefix=opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_'),
+                                     grad_step=0.1,  # Step size for Rigid transform
+                                     flow_sigma=3, total_sigma=0,  # Flow sigma
+                                     aff_sampling=32,  # Sampling rate
+                                     aff_random_sampling_rate=0.25,  # Random sampling rate
+                                     aff_iterations=(100, 50, 25, 10),  # Number of iterations
+                                     aff_shrink_factors=(8, 4, 2, 1),  # Shrink factors
+                                     aff_smoothing_sigmas=(3, 2, 1, 0),  # Smoothing sigmas
+                                     aff_metric_params=(ANAT, MEAN, 1, 32, 'Regular', 0.25),  # Metric parameters
+                                     convergence=(1e-6, 10),  # Convergence criteria
+                                     verbose=True,
+                                     aff_metric=aff_metric_ants,
+                                     restrict_transformation=restrict)
+
 
         transfo_concat = \
             [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
              opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')]
 
-        MEAN_trAff = ants.apply_transforms(fixed=ANAT, moving=MEAN,transformlist=transfo_concat, interpolator='nearestNeighbor')
+        MEAN_trAff = ants.apply_transforms(fixed=ANAT, moving=MEAN, transformlist=transfo_concat,
+                                           interpolator='nearestNeighbor')
         ants.image_write(MEAN_trAff, opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped.nii.gz'), ri=False)
 
         dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
@@ -150,7 +187,6 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
         json_object = json.dumps(dictionary, indent=2)
         with open(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped.json'), "w") as outfile:
             outfile.write(json_object)
-
 
     if do_anat_to_func == True:
         mvt_shft_INV_ANTs = []
