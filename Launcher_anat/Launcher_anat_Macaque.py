@@ -294,13 +294,14 @@ opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT_Du
 
 ######### define other usefull paramater automatically (do no touch)#########
 Hmin     = ['l','r']
+
 ### Block1: step 1,2,3
 ### Block2: step 4,5
 ### Block3: step 6 (template)
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [10,11,12,13,14,15,100,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,100,200]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT_Dual.txt')
 

@@ -48,18 +48,6 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
     delta_z = str(abs(round(float(ADK[-1]), 10)))
 
 
-    if ope(opj(dir_fMRI_Refth_RS_prepro1, 'manual_mask.nii.gz')):
-        command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro1, 'manual_mask.nii.gz') + \
-                  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz') + ' -expr "a"'
-        nl = spgo(command)
-        diary.write(f'\n{nl}')
-        print(nl)
-        dictionary = {"ADD_from_Sources": opj(dir_fMRI_Refth_RS_prepro1, 'manual_mask.nii.gz'),
-                      "ADD_Description": 'Copy.', },
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.json'), "a") as outfile:
-            outfile.write(json_object)
-
     #### apply skull stripping
     command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro1,'maskDilat_Allineate_in_func.nii.gz') + \
               ' -b ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz') + \
@@ -84,6 +72,11 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
     ####################################################################################
     ########################## use template and transfo to anat (average indiv anat)  ##
     ####################################################################################
+    ## remove previous transfo files:
+    if ope(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')):
+        os.remove(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat'))
+    if ope(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1InverseWarp.nii.gz')):
+        os.remove(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1InverseWarp.nii.gz'))
 
     if anat_func_same_space == True and do_anat_to_func == False:
         nl = 'No anat to func step required'
@@ -171,10 +164,14 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
                                      aff_metric=aff_metric_ants,
                                      restrict_transformation=restrict)
 
-
-        transfo_concat = \
-            [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
-             opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')]
+            #[opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
+            #opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')]
+        transfo_concat = []
+        for elem1 in (opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
+            opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')):
+            if ope(elem1):
+                transfo_concat.append(elem1)
+        print(transfo_concat)
 
         MEAN_trAff = ants.apply_transforms(fixed=ANAT, moving=MEAN, transformlist=transfo_concat,
                                            interpolator='nearestNeighbor')
@@ -191,7 +188,7 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
     if do_anat_to_func == True:
         mvt_shft_INV_ANTs = []
         w2inv_inv = []
-        for elem1, elem2 in zip([  # opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
+        for elem1, elem2 in zip([
             opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat'),
             opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1InverseWarp.nii.gz')],
                 [True, False]):

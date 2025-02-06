@@ -46,6 +46,7 @@ import fonctions._13_fMRI_QC_SBA
 import fonctions._14_fMRI_QC_matrix
 import fonctions._100_Data_Clean
 import fonctions._200_Data_QC
+from fonctions.extract_filename import extract_filename
 
 def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
     correction_direction, REF_int, study_fMRI_Refth, SBAspace, erod_seed, deoblique, orientation,
@@ -184,7 +185,6 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
         ################# longitudinal co-registration  Yes or No ######################################################
 
         if coregistration_longitudinal == True:                   # Yes
-
             if creat_study_template == True:
                 BASE_SS_coregistr = stdy_template
                 BASE_SS_mask      = stdy_template_mask
@@ -267,6 +267,10 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
 
                     list_RS.pop(index_of_imageF)
                     list_pop_index.append(index_of_imageF)
+
+            if ope(opj(opd(imageF), extract_filename(imageF) + '_confounds.tsv')):
+
+
             else:
                 nl = "INFO: " + str(imageF) + " is not a 4D fMRI image"
                 print(bcolors.WARNING + nl + bcolors.ENDC)
