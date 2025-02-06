@@ -37,7 +37,7 @@ import anatomical._0_Pipeline_launcher
 #https://bids-standard.github.io/pybids/reports/index.html
 
 ###where to store the BIDS data?
-bids_dir = opj('/scratch/cgarin/Rat/BIDS_Gd/')
+bids_dir = opj('/srv/projects/easymribrain/data/MRI/Rat/BIDS_Gd/')
 species = 'RatWHS'
 
 ##########################################
@@ -299,7 +299,7 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [3,4,7,10,11,12,13,14,15,100,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,100,200]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT_Dual.txt')
 

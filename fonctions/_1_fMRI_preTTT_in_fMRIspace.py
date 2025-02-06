@@ -32,7 +32,6 @@ spgo = subprocess.getoutput
 
 from fonctions.extract_filename import extract_filename
 
-
 ##### XXX add ICA or DL to visualize pre-processing effect
 
 def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR, Slice_timing_info,

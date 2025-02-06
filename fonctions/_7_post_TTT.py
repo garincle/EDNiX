@@ -156,10 +156,24 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                 ' -x1D_stop ' +                                                          \
                 ' -bucket ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + 'statssubj')
 
-                for extract_type, suffix in zip([extract_exterior_CSF, extract_WM, extract_GS,extract_Vc],
+                for extract_type, suffix in zip([extract_exterior_CSF, extract_WM, extract_GS, extract_Vc],
                                                 ['_NonB', '_Wc', '-GS','-Vc']):
                     if extract_type == True:
                         command = command + ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS' + suffix + '.1D') + ' residual_norm' + suffix + ' '
+
+                if ope(regressor_of_non_interest):
+                    # Load the fMRI NIfTI image
+                    fmri_image = nib.load(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz'))
+                    # Get the shape of the image (x, y, z, t)
+                    image_shape = fmri_image.shape
+                    ntimepoint = image_shape[3]  # The 4th dimension represents time
+                    nl = "INFO: " + f"Number of time points: {ntimepoint}"
+                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                    diary.write(f'\n{nl}')
+
+
+                    for regressor_of_non_interest in regressors_of_non_interests:
+                        command = command + ' -ortvec ' + regressor_of_non_interest + ' residual_norm' + suffix + ' '
 
                 nl = 'INFO: 3dDeconvolve command is ' + command
                 print(bcolors.OKGREEN + nl + bcolors.ENDC)
