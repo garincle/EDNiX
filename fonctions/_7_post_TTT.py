@@ -2,7 +2,7 @@ import os
 import subprocess
 import datetime
 import json
-
+import pandas as pd
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -89,7 +89,6 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                     print(nl)
 
 
-
         for option_type, suffix,descript in zip([' -cvarinv',' -cvar', ' -tsnr',' -stdev'],
                                                 ['_tsnr1','_cvar','_tsnr2','_stdev'],
                                                 ['fabs(mean)/stdev (with detrend)',
@@ -161,19 +160,16 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                     if extract_type == True:
                         command = command + ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS' + suffix + '.1D') + ' residual_norm' + suffix + ' '
 
-                if ope(regressor_of_non_interest):
-                    # Load the fMRI NIfTI image
-                    fmri_image = nib.load(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz'))
-                    # Get the shape of the image (x, y, z, t)
-                    image_shape = fmri_image.shape
-                    ntimepoint = image_shape[3]  # The 4th dimension represents time
-                    nl = "INFO: " + f"Number of time points: {ntimepoint}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
+                if ope(opj(dir_fMRI_Refth_RS_prepro1, extract_filename(imageF) + '_confounds_correct.tsv')):
+                    confounds_df = pd.read_csv(opj(dir_fMRI_Refth_RS_prepro1, extract_filename(imageF) + '_confounds_correct.tsv'), sep='\t')
 
+                    for column in confounds_df.columns:
+                        column_file = opj(dir_fMRI_Refth_RS_prepro1, root_RS + f"_{column}.1D")
+                        confounds_df[[column]].to_csv(column_file, sep=' ', index=False, header=False)
 
-                    for regressor_of_non_interest in regressors_of_non_interests:
-                        command = command + ' -ortvec ' + regressor_of_non_interest + ' residual_norm' + suffix + ' '
+                        # Append the column file to the command
+                        command += f' -ortvec {column_file} residual_norm_{column} '
+
 
                 nl = 'INFO: 3dDeconvolve command is ' + command
                 print(bcolors.OKGREEN + nl + bcolors.ENDC)

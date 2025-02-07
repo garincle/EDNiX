@@ -7,7 +7,7 @@ import sys
 import nibabel as nib
 import datetime
 import numpy as np
-
+import pandas as pd
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -220,7 +220,6 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             w2inv_Anat = [True, False]
 
 
-
         # Check the func runs
 
         list_RS = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endfmri)))
@@ -267,10 +266,6 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
 
                     list_RS.pop(index_of_imageF)
                     list_pop_index.append(index_of_imageF)
-
-            if ope(opj(opd(imageF), extract_filename(imageF) + '_confounds.tsv')):
-
-
             else:
                 nl = "INFO: " + str(imageF) + " is not a 4D fMRI image"
                 print(bcolors.WARNING + nl + bcolors.ENDC)
@@ -288,6 +283,52 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
         nb_run  = len(list_RS)
         # Setup for distortion correction using Fieldmaps
 
+        #### find and correct the counfound files
+        for imageF in list_RS:
+            # Load the fMRI NIfTI image
+            fmri_image = nib.load(imageF)
+            # Get the shape of the image (x, y, z, t)
+            image_shape = fmri_image.shape
+            # Check the number of time points (4th dimension)
+            ntimepoint = image_shape[3]  # The 4th dimension represents time
+
+            if ope(opj(opd(imageF), extract_filename(imageF) + '_confounds.tsv')):
+                confounds_df = pd.read_csv(opj(opd(imageF), extract_filename(imageF) + '_confounds.tsv'), sep='\t')
+
+                # Check if the number of rows in the confounds file matches the number of time points
+                if len(confounds_df) != ntimepoint:
+                    print(f"Mismatch in the number of time points: {len(confounds_df)} in confounds file vs {ntimepoint} in fMRI image.")
+
+                    diary_file_WARNING = opj(opd(opd(dir_fMRI_Refth_RS_prepro1)), 'MAJOR_WARNING.txt')
+                    if not opi(diary_file_WARNING):
+                        diary_file_WARNING_file = open(diary_file_WARNING, "w")
+                        diary_file_WARNING_file.write(f'\n{f"Mismatch in the number of time points: {len(confounds_df)} in confounds file vs {ntimepoint} in fMRI image."}')
+                    else:
+                        diary_file_WARNING_file = open(diary_file_WARNING, "a")
+                        diary_file_WARNING_file.write(f'\n{f"Mismatch in the number of time points: {len(confounds_df)} in confounds file vs {ntimepoint} in fMRI image."}')
+                    diary_file_WARNING_file.close()
+
+                # Remove the first T1_eq rows from the confounds DataFrame
+                if T1_eq > 0:
+                    # Preserve the first column (assuming it's a label or name)
+                    first_column = confounds_df.iloc[:, 0]
+                    remaining_columns = confounds_df.iloc[:, 1:]
+
+                    # Remove the first T1_eq rows from the remaining columns
+                    remaining_columns = remaining_columns.iloc[T1_eq:]
+
+                    # Concatenate the first column with the remaining columns
+                    confounds_df = pd.concat([first_column, remaining_columns], axis=1)
+
+                    # Save the modified confounds DataFrame back to the TSV file
+                    confounds_df.to_csv(opj(dir_fMRI_Refth_RS_prepro1, extract_filename(imageF) + '_confounds_correct.tsv'), sep='\t', index=False)
+                    print(f"Removed the first {T1_eq} TRs from the confounds file.")
+                else:
+                    print("T1_eq is not positive; no rows removed.")
+            else:
+                print(f"Confounds file not found: {opj(opd(imageF), extract_filename(imageF) + '_confounds.tsv')}")
+
+        #### find and correct the fmap files
         list_map = sorted(glob.glob(opj(dir_fMRI_Refth_map, endmap)))
         nl = "looking for fmap image with the command glob.glob(" + str(opj(dir_fMRI_Refth_map, endmap))
         print(bcolors.OKGREEN + nl + bcolors.ENDC)
@@ -298,9 +339,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
         if len(list_RS)>0:
             RS_map   = [os.path.basename(i) for i in list_map]
 
-            ############################################
-            #### choose TOPUP strategy ################
-            ############################################
+            ######### choose TOPUP strategy ##########
             if len(list_map) == 0:
                 recordings = 'very_old'
                 nl = 'WARNING: There is no image available for building a fieldmaps'
@@ -330,7 +369,6 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                         list_map.pop(index)
                 if not len(list_map) == len(list_RS):
                     nl = 'ERROR: Check the runs. There is probably one or two broken files that has been repeated and that you should remove !'
-
                     raise NameError(bcolors.FAIL + nl + bcolors.ENDC)
 
             nl = 'INFO: recordings type detected: ' + str(recordings)
@@ -338,8 +376,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             diary.write(f'\n{nl}')
             list_json = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endjson)))
 
-            # get useful information about the func images #############################################################
 
+            # get useful information about the func images #############################################################
             ### check if we found some .json file
             if not list_json:
                 nl = 'WARNING: no .json found!!, you will need to at least provide the TR. Beware that no TOPUP correction can be applied if you do not provide the DwellT as well.'
