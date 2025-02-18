@@ -13,6 +13,7 @@ import nibabel as nib
 import numpy.ma as ma
 from nilearn.masking import compute_epi_mask
 import matplotlib.pyplot as plt
+import ants
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -27,8 +28,8 @@ spgo = subprocess.getoutput
 #################################################################################################
 ####Seed base analysis
 #################################################################################################
-def dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, alpha, component_list,
-              cut_coordsZ, bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, afni_sif, s_bind):
+def dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, alpha_dic, component_list,
+              cut_coordsZ, bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, afni_sif, s_bind, templatelow, templatehigh):
 
     #### DL analysis and functional atlas building
     output_results1 = opj(bids_dir, 'Results')
@@ -51,12 +52,14 @@ def dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut
     nl = spgo(command)
     print(nl)
 
-    command = 'singularity run' + s_bind + afni_sif + '3dresample -master ' + mask_func + ' -prefix ' + opj(output_results1, 'mask_mean_func.nii.gz') + ' -input ' + opj(output_results1, 'mask_mean_func.nii.gz') + ' -overwrite -bound_type SLAB'
+    # Resample to match the mask function
+    command = f"singularity run {s_bind} {afni_sif} 3dresample -master {opj(output_results1, 'mask_mean_func.nii.gz')} -prefix {opj(output_results1, 'mask_mean_func_orig.nii.gz')} " \
+              f"-input {mask_func} -overwrite -bound_type SLAB"
     nl = spgo(command)
     print(nl)
 
     command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(output_results1, 'mask_mean_func.nii.gz') + \
-                ' -b ' + mask_func + \
+                ' -b ' + opj(output_results1, 'mask_mean_func_orig.nii.gz') + \
               ' -expr "a*b" -prefix ' + opj(output_results1, 'mask_mean_func_overlapp.nii.gz') + ' -overwrite'
     nl = spgo(command)
     print(nl)
@@ -67,7 +70,7 @@ def dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut
         if not os.path.exists(result_dir): os.mkdir(result_dir)
 
         print(component)
-        dict_learning = DictLearning(mask= opj(output_results1, 'mask_mean_func_overlapp.nii.gz'),n_components=component, alpha=alpha,
+        dict_learning = DictLearning(mask= opj(output_results1, 'mask_mean_func_overlapp.nii.gz'),n_components=component, alpha=alpha_dic,
                                      verbose=10, random_state=0, n_jobs=-3, smoothing_fwhm=False, detrend=False)
 
         components_imgs = []
@@ -78,6 +81,18 @@ def dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut
         # Drop output maps to a Nifti   file
         components_img = masker.inverse_transform(dict_learning.components_)
         components_img.to_filename(result_dir + '/DL' + str(component) + 'cpts_DicL.nii.gz')
+
+
+        #transfo from low to high
+        # Load images
+        lowresanat = ants.image_read(templatelow)  # Low-resolution atlas
+        anat = ants.image_read(templatehigh)   # High-resolution anatomical image
+        # Perform affine + SyN nonlinear registration
+        reg = ants.registration(
+            fixed=anat,  # High-resolution anatomical image (target)
+            moving=lowresanat,  # Low-resolution atlas (source)
+            type_of_transform="SyN")  # Symmetric normalization (nonlinear)
+
 
         #load images
         Dl_i = result_dir + '/DL' + str(component) + 'cpts_DicL.nii.gz'
@@ -141,6 +156,12 @@ def dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut
         if not os.path.exists(result_dir + 'atlas/'): os.mkdir(result_dir + 'atlas/')
         labeled_img.to_filename(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat.nii.gz')
 
+        # Resample to match the mask function
+        command = f"singularity run {s_bind} {afni_sif} 3dresample -master {mask_func} -prefix {result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat_anatR.nii.gz'} " \
+                  f"-input {result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat.nii.gz'} -overwrite -bound_type SLAB"
+        nl = spgo(command)
+        print(nl)
+
         display = plotting.plot_roi(
             result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat.nii.gz',
             view_type="contours",
@@ -161,3 +182,20 @@ def dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut
         extracted_data2 = img2.get_fdata()
         labeled_img2 = nilearn.image.new_img_like(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat.nii.gz', extracted_data2, copy_header=True)
         labeled_img2.to_filename(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat_break.nii.gz')
+
+        atlas = ants.image_read(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat.nii.gz')
+
+        # Apply transformation with nearest-neighbor interpolation to preserve labels
+        registered_atlas = ants.apply_transforms(
+            fixed=anat,
+            moving=atlas,
+            transformlist=reg["fwdtransforms"],
+            interpolator="nearestNeighbor" ) # Critical for label preservation
+        # Save output
+        registered_atlas.to_filename(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat_anatR.nii.gz')
+
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat_anatR.nii.gz' + \
+                ' -b ' + templatehigh  + \
+                ' -expr "a*step(b)" -prefix ' + result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat_anatR.nii.gz' + ' -overwrite'
+        nl = spgo(command)
+        print(nl)

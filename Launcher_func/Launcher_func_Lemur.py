@@ -132,13 +132,16 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 removelist = []
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in []:
+    if ID in ['300BA'] and Session in ['02']:
+        removelist.append(num)
+    elif ID in ['314CA'] and Session in ['01']:
         removelist.append(num)
 
-all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
-all_Session =  [item for i, item in enumerate(all_Session) if i not in removelist]
-all_data_path =  [item for i, item in enumerate(all_data_path) if i not in removelist]
-max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i not in removelist]
+all_ID =  [item for i, item in enumerate(all_ID) if i in removelist]
+all_Session =  [item for i, item in enumerate(all_Session) if i in removelist]
+all_data_path =  [item for i, item in enumerate(all_data_path) if i in removelist]
+max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i in removelist]
+
 
 ##############################################################  TO DO !!!! ##############################################################
                                 ##############################################################
@@ -318,8 +321,8 @@ deoblique_exeption2 = [] # list
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
-type_of_transform = 'SyNOnly'
-aff_metric_ants = 'CC'
+type_of_transform = 'BOLDAffine'
+aff_metric_ants = 'meansquares'
 registration_fast = False
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
@@ -408,7 +411,6 @@ dilate_mask = 0 # int
 use_cortical_mask_func = False # True or False
 
 #######for seed analysis (step 11)
-#### name of the atlases  you want to use for the seed base analysis
 selected_atlases = ['atlaslvl3_LR.nii.gz', 'atlaslvl4_LR.nii.gz'] #liste
 
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
@@ -433,7 +435,6 @@ panda_files = [pd.DataFrame({'region':[
 'BA 32',
 'BA 9',
 'OB'],'label':[162,128,114,112,107,153]})] # liste of pandas dataframe
-
 
 #### coordinate of the template plot in list form, each number will be a slice (plotting.plot_stat_map = cut_coords)
 cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
@@ -490,7 +491,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,100,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,100]
 
     ############################################################
     ######################## START de pipeline #################

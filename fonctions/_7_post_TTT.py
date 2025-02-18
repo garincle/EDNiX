@@ -160,8 +160,8 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                     if extract_type == True:
                         command = command + ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS' + suffix + '.1D') + ' residual_norm' + suffix + ' '
 
-                if ope(opj(dir_fMRI_Refth_RS_prepro1, extract_filename(imageF) + '_confounds_correct.tsv')):
-                    confounds_df = pd.read_csv(opj(dir_fMRI_Refth_RS_prepro1, extract_filename(imageF) + '_confounds_correct.tsv'), sep='\t')
+                if ope(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_confounds_correct.tsv')):
+                    confounds_df = pd.read_csv(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_confounds_correct.tsv'), sep='\t')
 
                     for column in confounds_df.columns:
                         column_file = opj(dir_fMRI_Refth_RS_prepro1, root_RS + f"_{column}.1D")

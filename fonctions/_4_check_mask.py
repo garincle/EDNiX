@@ -29,6 +29,18 @@ spgo = subprocess.getoutput
 from fonctions.extract_filename import extract_filename
 
 def _itk_check_masks(dir_fMRI_Refth_RS_prepro1,s_bind,itk_sif,diary_file):
+
+    def run_command_and_wait(command):
+        print(bcolors.OKGREEN + "INFO: Running command:" + bcolors.ENDC, command)
+        result = subprocess.run(command, shell=True)
+        if result.returncode == 0:
+            nl = "INFO: Command completed successfully."
+            print(bcolors.OKGREEN + nl + bcolors.ENDC)
+            diary.write(f'\n{nl}')
+        else:
+            nl = "INFO: Command failed with return code: "  + str(result.returncode)
+            print(bcolors.WARNING + nl + bcolors.ENDC)
+
     ct = datetime.datetime.now()
     diary = open(diary_file, "a")
     diary.write(f'\n{ct}')
@@ -51,9 +63,9 @@ def _itk_check_masks(dir_fMRI_Refth_RS_prepro1,s_bind,itk_sif,diary_file):
     print(bcolors.WARNING + nl + bcolors.ENDC)
     diary.write(f'\n{nl}')
 
-    command = 'gnome-terminal -- singularity run ' + s_bind + itk_sif + 'itksnap -g ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_test.nii.gz') + \
+    command = 'singularity run' + s_bind + itk_sif + 'itksnap -g ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_test.nii.gz') + \
               ' -s ' + opj(dir_fMRI_Refth_RS_prepro1,'maskDilat_Allineate_in_func.nii.gz')
-    subprocess.run(f"gnome-terminal --wait -- bash -c '{command}; exec bash'", shell=True)
+    run_command_and_wait(command)
 
     if COND == 0:
         if opi(opj(dir_fMRI_Refth_RS_prepro1, 'manual_mask.nii.gz')):

@@ -19,7 +19,7 @@ spgo = subprocess.getoutput
 ##############################################################  TO DO !! ##############################################################
 
 MAIN_PATH = opj('/','srv','projects','easymribrain')
-sys.path.append(os.path.join(MAIN_PATH,'code','EasyMRI_brain-master'))
+sys.path.append(opj('/home/cgarin/PycharmProjects/EasyMRIbrain_sing/'))
 import anatomical._0_Pipeline_launcher
 import fonctions._0_Pipeline_launcher
 
@@ -129,7 +129,10 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 removelist = []
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in []:
+    if ID in ['sub-jgrAesAWc11R',
+'sub-jgrAesAWc11R1L',
+'sub-jgrAesAWc12R',
+'sub-jgrAesAWc1NT']:
         removelist.append(num)
 print("you removed: " + str(removelist))
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
@@ -258,7 +261,7 @@ doMaskingfMRI = True # True or False
 #### 3dAllineate is based ont the linerar alignment of the anat to the func to send the anat mask to the func
 
 #### nilearn is a theshold based method (you can play with the threshold level)
-Method_mask_func = 'Vol_sammba_350' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = 'Vol_sammba_400' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 
 ### if Method_mask_func=="3dAllineate" choose a method a alignment
 costAllin = 'lpc' # string
@@ -380,7 +383,7 @@ band = '0.01 0.1' # string
 #Smooth
 blur = 0.2 # float
 #Dilate the functional brain mask by n layers
-dilate_mask = 0 # int
+dilate_mask = 4 # int
 #retrain the analysis to the gray matter
 use_cortical_mask_func = False # True or False
 
@@ -467,7 +470,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [100,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,100]
 
     ############################################################
     ######################## START de pipeline #################
