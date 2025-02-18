@@ -20,12 +20,11 @@ spgo = subprocess.getoutput
 ##############################################################  TO DO !! ##############################################################
 
 MAIN_PATH = opj('/','srv','projects','easymribrain')
-sys.path.append(opj('/home/cgarin/PycharmProjects/EasyMRIbrain_sing/'))
+sys.path.append(os.path.join(MAIN_PATH,'code','EasyMRI_brain-master'))
 import fonctions
 from fonctions.extract_filename import extract_filename
 import analyses
 import analyses._Groupe_anal__func_DicLearn
-import analyses._Groupe_anal_func_network_torch
 import analyses._Group_anal_3dMEMA
 import analyses._Groupe_anal_3dTtest
 import analyses._Group_anal_3dLME_SBA
@@ -33,7 +32,7 @@ import analyses._Group_anal_3dLME_SBA
 
 s_bind = ' --bind ' + opj('/', 'scratch', 'cgarin/') + ',' + MAIN_PATH
 s_path = opj(MAIN_PATH, 'code', 'singularity')
-afni_sif    = ' ' + opj(s_path , 'afni_make_build_AFNI_23.1.10.sif') + ' '
+afni_sif    = ' ' + opj(s_path , 'afni_make_build_latest.sif') + ' '
 # Freesurfer set up
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 
@@ -41,8 +40,8 @@ FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
 import fonctions._0_Pipeline_launcher
 
-species = 'CatinDog'
-bids_dir = opj('/','srv','projects','easymribrain','data', 'MRI', 'Dog', 'BIDS_k9')
+species = 'Macaque'
+bids_dir = opj('/scratch/cgarin/Macaque/BIDS_Cdt_Garin')
 ##########################################
 ########### Subject loader################
 ##########################################
@@ -82,21 +81,54 @@ df = layout.to_df()
 df.head()
 
 
-allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
-
-allinfo_study_c.rename(columns={'session': 'Session'}, inplace=True)
-allinfo_study_c.rename(columns={'subject': 'ID'}, inplace=True)
-allinfo_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
-
+xcell_extrernal_data_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
+xcell_extrernal_data_study_c.rename(columns={'session': 'Session'}, inplace=True)
+xcell_extrernal_data_study_c.rename(columns={'subject': 'ID'}, inplace=True)
+xcell_extrernal_data_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
 folders = glob.glob(opj(bids_dir,'sub*'))
 
+
+ml_excel = opn(opj(bids_dir, '/Garin_macaque.xlsx'))
+animalinfo = pd.read_excel(ml_excel, sheet_name='animalinfo')
+MRIsessions = pd.read_excel(ml_excel, sheet_name='MRIsessions')
+MRIsessions12 = pd.read_excel(ml_excel, sheet_name='MRIsessions12')
+DVPT = pd.read_excel(ml_excel, sheet_name='DVPT')
+
+#### Concate all excels
+xcell_extrernal_data = pd.concat([MRIsessions, MRIsessions12])
+xcell_extrernal_data = pd.merge(animalinfo, xcell_extrernal_data, on='ID')
+xcell_extrernal_data = pd.merge(xcell_extrernal_data, DVPT, on=['ID', 'DOS'])
+
+##############calculate Growth_plates date (2) for each monkey (will be limit mature non mature)
+animalinfo_2 = pd.DataFrame()
+for indiv in pd.unique(animalinfo.ID):
+    xcell_extrernal_data_indiv = xcell_extrernal_data[xcell_extrernal_data['ID'].isin([indiv])]
+    equal2 = xcell_extrernal_data_indiv[xcell_extrernal_data_indiv['GROWTH PLATES (Number closed)'].isin([2])]
+    # xcell_extrernal_data_indiv['GROWTH PLATES (Number closed)']==2
+    Growth_platesvale = equal2['DATE'].min()
+
+    dataGrowth_plates = pd.DataFrame({'ID': [indiv], 'Growth_plates': [Growth_platesvale]})
+    animalinfo_2 = pd.concat([animalinfo_2, dataGrowth_plates])
+
+animalinfo_2['Growth_plates'] = animalinfo_2['Growth_plates'].fillna(pd.to_datetime('today').normalize())
+xcell_extrernal_data = pd.merge(animalinfo_2, xcell_extrernal_data, on='ID')
+
+##############Calculate diff between date of scane and age of maturity
+age = xcell_extrernal_data.DOS - xcell_extrernal_data.Growth_plates
+age = age.astype('timedelta64[M]')
+
+xcell_extrernal_data = pd.concat([xcell_extrernal_data,
+                     pd.DataFrame({'age': age})],
+                    axis=1)
+
+##############Column for differientiating Mature ('M') and non Mature ('NM')
+xcell_extrernal_data['maturity'] = np.where(xcell_extrernal_data['age'] >= 0, 'M', 'NM')
+age = xcell_extrernal_data.DOS - xcell_extrernal_data.Growth_plates
+age = age.astype('timedelta64[M]')
+
 ##############################################################  TO DO !! ##############################################################
-
-
-allinfo_study_c_formax = allinfo_study_c.copy()
-
+xcell_extrernal_data_study_c_formax = xcell_extrernal_data_study_c.copy()
 ############################################################## NOTHING TO DO HERE ##############################################################
-
 #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### ####
 #### #### now, we need to creat the list of variable to feed to function "_0_Pipeline_launcher" #### ####
 #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### ####
@@ -120,8 +152,8 @@ max_sessionlist = []
 animal_ID = []
 
 #let's add all the the string to those lists
-for ID in pd.unique(allinfo_study_c_formax.ID):
-    list_session = allinfo_study_c_formax.loc[allinfo_study_c_formax['ID'] == ID].Session.dropna()
+for ID in pd.unique(xcell_extrernal_data_study_c_formax.ID):
+    list_session = xcell_extrernal_data_study_c_formax.loc[xcell_extrernal_data_study_c_formax['ID'] == ID].Session.dropna()
     listereverse = list(list_session)
     listereverse.reverse()
     if len(list(list_session))>1:
@@ -143,7 +175,7 @@ for ID in pd.unique(allinfo_study_c_formax.ID):
             max_sessionlist.append(np.array(listereverse))
         animal_ID.append(ID + 'ses-' + str(Session))
 
-for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
+for ID, Session in zip(pd.unique(xcell_extrernal_data_study_c_formax.ID), max_session):
     # Organization of the folders
     data_path = opj(bids_dir,'sub-' + ID,'ses-' + str(Session))
     all_data_path_max.append(data_path)

@@ -102,6 +102,8 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
         if registration_fast == False:
             MEAN = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'))
             ANAT = ants.image_read(opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz'))
+            mask = ants.image_read(opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz'))
+            moving_mask = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz'))
 
             mtx1 = ants.registration(fixed=ANAT, moving=MEAN,type_of_transform='Translation', outprefix=opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_'))
             MEAN_tr = ants.apply_transforms(fixed=ANAT, moving=MEAN,transformlist=mtx1['fwdtransforms'],interpolator=n_for_ANTS)
@@ -127,13 +129,18 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
                                      reg_smoothing_sigmas=(3, 2, 1, 0),
                                      reg_shrink_factors=(8, 4, 2, 1),
                                      verbose=True,
+                                     mask=mask,
+                                     moving_mask=moving_mask,
                                      aff_metric=aff_metric_ants,
+
                                      restrict_transformation=restrict)
 
         if registration_fast == True:
             print("registration_fast selected")
             MEAN = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'))
             ANAT = ants.image_read(opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz'))
+            mask = ants.image_read(opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz'))
+            moving_mask = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz'))
 
             mtx1 = ants.registration(fixed=ANAT, moving=MEAN, type_of_transform='Translation',
                                      outprefix=opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_'))
@@ -161,6 +168,8 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
                                      aff_metric_params=(ANAT, MEAN, 1, 32, 'Regular', 0.25),  # Metric parameters
                                      convergence=(1e-6, 10),  # Convergence criteria
                                      verbose=True,
+                                     mask=mask,
+                                     moving_mask=moving_mask,
                                      aff_metric=aff_metric_ants,
                                      restrict_transformation=restrict)
 

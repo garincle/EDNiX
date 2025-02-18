@@ -147,7 +147,7 @@ removelist = []
 
 ######### select the indiv you want to remove !!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in ['Elak', 'Samourai']:
+    if ID in []:
         removelist.append(num)
 
 ############################################################## NOTHING TO DO HERE ##############################################################
@@ -476,7 +476,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,100,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,100]
     ############################################################
     ######################## START de pipeline #################
     ############################################################

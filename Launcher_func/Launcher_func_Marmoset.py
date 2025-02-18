@@ -19,7 +19,7 @@ spgo = subprocess.getoutput
 ##############################################################  TO DO !! ##############################################################
 
 MAIN_PATH = opj('/','srv','projects','easymribrain')
-sys.path.append(os.path.join(MAIN_PATH,'code','EasyMRI_brain-master'))
+sys.path.append(opj('/home/cgarin/PycharmProjects/EasyMRIbrain_sing/'))
 import anatomical._0_Pipeline_launcher
 import fonctions._0_Pipeline_launcher
 
@@ -133,15 +133,13 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 removelist = []
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in []:
+    if ID in ['m20', 'm21', 'm22','m23', 'm24', 'm25','m26', 'm27', 'm28','m29']:
         removelist.append(num)
 
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
 all_Session =  [item for i, item in enumerate(all_Session) if i not in removelist]
-all_Session =  [item for i, item in enumerate(all_Session) if i not in removelist]
 all_data_path =  [item for i, item in enumerate(all_data_path) if i not in removelist]
 max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i not in removelist]
-
 
 #all_ID =  ['m26']
 #all_Session =  [1]
@@ -500,7 +498,7 @@ Seed_name = 'Periarchicortex'
 
 
 ############ Right in a list format the steps that you want to skipSkip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,200]
-Skip_step = [100,200]
+Skip_step = [1,2,4,100,200]
 
     ############################################################
     ######################## START de pipeline #################
