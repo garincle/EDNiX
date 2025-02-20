@@ -41,7 +41,7 @@ FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 
 ###where to store the BIDS data?
 species = 'Mouse_lemur'
-bids_dir = opj('/scratch/cgarin/'+ species + '/BIDS_Garin')
+bids_dir = opj('/srv/projects/easymribrain/data/MRI/Mouse_lemur/BIDS_Garin')
 
 ##########################################
 ########### Subject loader################
@@ -137,10 +137,10 @@ for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session,
     elif ID in ['314CA'] and Session in ['01']:
         removelist.append(num)
 
-all_ID =  [item for i, item in enumerate(all_ID) if i in removelist]
-all_Session =  [item for i, item in enumerate(all_Session) if i in removelist]
-all_data_path =  [item for i, item in enumerate(all_data_path) if i in removelist]
-max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i in removelist]
+all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
+all_Session =  [item for i, item in enumerate(all_Session) if i not in removelist]
+all_data_path =  [item for i, item in enumerate(all_data_path) if i not in removelist]
+max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i not in removelist]
 
 
 ##############################################################  TO DO !!!! ##############################################################

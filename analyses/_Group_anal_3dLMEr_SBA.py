@@ -24,8 +24,8 @@ spgo = subprocess.getoutput
 #################################################################################################
 #### Seed base analysis
 #################################################################################################
-def _3dLME_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold):
+def _3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
+              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold, interaction_sessrun, gltCode):
 
     from fonctions.extract_filename import extract_filename
 
@@ -174,71 +174,123 @@ def _3dLME_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, c
                 os.remove(design_matrix_txt)
             panda_disign_matrix.to_csv(design_matrix_txt, index=False, sep='\t')
 
-
-            if os.path.exists(output_folder + '3dLME_glt.nii.gz'):
-                os.remove(output_folder + '3dLME_glt.nii.gz')
-                os.remove(output_folder + 'resid.nii.gz')
+            stat_maps = output_folder + '/3dLME_glt.nii.gz'
+            if os.path.exists(stat_maps):
+                os.remove(stat_maps)
+            if os.path.exists(output_folder + '/resid.nii.gz'):
+                os.remove(output_folder + '/resid.nii.gz')
 
             # Set model for fixed and random effects
             # Set model for fixed and random effects
-            model = '"Sess*run+(1|Subj)+(1|Sess:Subj)+(1|run:Subj)" '
+            if interaction_sessrun == True:
+                model = '"Sess*run+(1|Subj)+(1|Sess:Subj)+(1|run:Subj)" '
+            else:
+                model = '"Sess+run+(1|Subj)+(1|Sess:Subj)+(1|run:Subj)" '
             os.chdir(output_results)
 
             # Run GLM command with the design matrix and random effects
-            command = f'singularity run {s_bind} {afni_sif} 3dLMEr -prefix {output_folder}/3dLME_glt.nii.gz ' \
+            command = f'singularity run {s_bind} {afni_sif} 3dLMEr -prefix {stat_maps} ' \
                       f'-jobs 20 -mask {opj(output_results1, "mask_mean_func_overlapp.nii.gz")} ' \
                       f'-model {model}' \
+                      f" {gltCode} " \
                       f'-dataTable @{output_folder}/design_matrix.txt -resid {output_folder}/resid.nii.gz'
             print(command)
             spco(command, shell=True)
 
             # Further analysis with 3dFWHMx, ClustSim, etc. (remaining code...)
-
-            command = f"singularity run {s_bind} {afni_sif} 3dFWHMx -detrend {subprocess.list2cmdline(all_images)} " \
-                      f" -input {output_results + 'resid.nii.gz'}  -unif"
-            spco(command, shell=True)
+            #command = f"singularity run {s_bind} {afni_sif} 3dFWHMx -detrend {subprocess.list2cmdline(all_images)} " \
+            #          f" -input {output_results + 'resid.nii.gz'}  -unif"
+            #spco(command, shell=True)
 
             command = f"singularity run {s_bind} {afni_sif} 3dClustSim -mask " \
-            f" {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -prefix {output_folder + '/Clust_'}"
+            f" {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -LOTS -prefix {output_folder + '/Clust_'}"
             spco(command, shell=True)
 
-            # Loop through the statistical maps and apply clustering
-            stat_maps = sorted(glob.glob(opj(output_results, '*.nii.gz')))  # Adjust the pattern based on your file names
+            if interaction_sessrun == True:
+                list1 = [0,1,2,3,4]
+                list2 = ['SessE', 'RunE', 'Sess_runE ', 'groupeffect', 'groupeffectZ']
+            else:
+                list1 = [0,1,2,3]
+                list2 = ['SessE', 'RunE', 'Sess_runE ', 'groupeffect', 'groupeffectZ']
 
-            for stat_map in stat_maps:
-                cluster_size_command = f'singularity run {s_bind} {afni_sif} 1d_tool.py -infile {stat_map} -csim_show_clustsize -verb 0 -csim_pthr {str(alpha)}'
-                cluster_size_output = run_command(cluster_size_command)
+            os.chdir(output_results)
+            for i, gltlabel in zip(list1, list2):
+                if gltlabel == 'groupeffect':
+                    img_glt = output_folder + '/' + Seed_name + '_' + str(gltlabel) + '.nii.gz'
+                    output_z = nib.load(stat_maps).get_fdata()[:, :, :, 0, i]
+                    output_z = nilearn.image.new_img_like(stat_maps, output_z, copy_header=True)
+                    output_z.to_filename(img_glt)
 
-                # Extract cluster size
-                try:
-                    for line in cluster_size_output.splitlines():
-                        if line.strip().isdigit():
-                            cluster_size = int(line.strip())
-                            print(f"Extracted Cluster Size: {cluster_size}")
-                            break
-                    else:
-                        raise ValueError("Cluster size not found.")
-                except ValueError as e:
-                    print(f"Error extracting cluster size: {e}")
-                    cluster_size = 0
+                    # Visualization
+                    display = plotting.plot_stat_map(img_glt, dim=0,
+                                                     colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=10)
+                    display.savefig(opj(output_folder, Seed_name + '_' + str(gltlabel) + '_thresholded_stat_mosaic.jpg'))
+                    display.close()
+                    plt.close('all')
 
-                print(f"Cluster size: {cluster_size}")
+                else:
+                    img_glt = output_folder + '/' + Seed_name + '_' + str(gltlabel) + '.nii.gz'
+                    output_z = nib.load(stat_maps).get_fdata()[:, :, :, 0, i]
+                    output_z = nilearn.image.new_img_like(stat_maps, output_z, copy_header=True)
+                    output_z.to_filename(img_glt)
 
-                # Apply thresholding
-                z_map = opj(output_folder, Seed_name + '_ttest-stat_fisher_zmap.nii.gz')
-                loadimg = nib.load(z_map).get_fdata()
-                loadimgsort99 = np.percentile(np.abs(loadimg)[np.abs(loadimg) > 0], 99)
+                    cluster_file = output_folder + '/Clust_.NN1_2sided.1D'
+                    def extract_cluster_threshold(filename, pthr, alpha):
+                        # Read the file
+                        with open(filename, 'r') as f:
+                            lines = f.readlines()
 
-                z_score = norm.ppf(1 - alpha / 2)
-                print(f"The z-score corresponding to an alpha level of {alpha} is {z_score:.2f}")
+                        # Extract alpha values from the header
+                        header_line = lines[6]  # The alpha values are located in the 4th line
+                        alpha_values = [float(a) for a in header_line.split("|")[1].split()]
 
-                # Threshold the image
-                mask_imag = nilearn.image.threshold_img(z_map, z_score, cluster_threshold=int(cluster_size))
-                mask_imag.to_filename(opj(output_folder, Seed_name + '_thresholded_ttest-stat_fisher.nii.gz'))
+                        # Check if the requested alpha exists in the file
+                        if alpha not in alpha_values:
+                            print(f"Invalid alpha={alpha}. Available alphas: {alpha_values}")
+                            return
 
-                # Visualization
-                display = plotting.plot_stat_map(opj(output_folder, Seed_name + '_thresholded_ttest-stat_fisher.nii.gz'), dim=0, threshold=z_score, vmax=loadimgsort99,
-                                                 colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=10)
-                display.savefig(opj(output_folder, Seed_name + '_thresholded_stat_mosaic.jpg'))
-                display.close()
-                plt.close('all')
+                        # Find the column index for the specified alpha
+                        col_idx = alpha_values.index(alpha) + 1  # Adjust for 0-based indexing
+
+                        # Load the numeric data (skip comments)
+                        data = np.loadtxt(filename, comments="#")
+
+                        # Find the row index for the specified pthr
+                        row_idx = np.where(np.isclose(data[:, 0], pthr, atol=1e-6))[0]
+                        if len(row_idx) == 0:
+                            print(f"No matching pthr={pthr} found in {filename}.")
+                            return
+
+                        # Extract the cluster size from the data
+                        cluster_size = data[row_idx[0], col_idx]
+
+                        # Print the result
+                        print(f"Cluster size threshold for pthr={pthr}, alpha={alpha}: {cluster_size:.1f} voxels")
+                        return cluster_size
+
+                    # Example usage:
+                    cluster_size = extract_cluster_threshold(cluster_file,
+                        0.05,
+                        alpha)
+
+                    # Apply thresholding
+                    loadimg = nib.load(img_glt).get_fdata()
+                    loadimgsort99 = np.percentile(np.abs(loadimg)[np.abs(loadimg) > 0], 99)
+
+                    z_score = norm.ppf(1 - alpha / 2)
+                    print(f"The z-score corresponding to an alpha level of {alpha} is {z_score:.2f}")
+
+                    # Threshold the image
+                    mask_imag = nilearn.image.threshold_img(img_glt, z_score, cluster_threshold=float(cluster_size))
+                    mask_imag.to_filename(
+                        opj(output_folder, Seed_name + '_' + str(gltlabel) + '_thresholded_ttest-stat_fisher.nii.gz'))
+
+                    # Visualization
+                    display = plotting.plot_stat_map(
+                        opj(output_folder, Seed_name + '_' + str(gltlabel) + '_thresholded_ttest-stat_fisher.nii.gz'),
+                        dim=0, threshold=z_score, vmax=loadimgsort99,
+                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=10)
+                    display.savefig(
+                        opj(output_folder, Seed_name + '_' + str(gltlabel) + '_thresholded_stat_mosaic.jpg'))
+                    display.close()
+                    plt.close('all')

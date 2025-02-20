@@ -9,11 +9,11 @@ import glob
 import nibabel as nib
 from fonctions.extract_filename import extract_filename
 import analyses
-import analyses._Groupe_anal__func_DicLearn
+import analyses._Group_anal__func_DicLearn
 import analyses._Groupe_anal_func_network_torch
 import analyses._Group_anal_3dMEMA
-import analyses._Groupe_anal_3dTtest
-import analyses._Group_anal_3dLME_SBA
+import analyses._Group_anal_3dTtest
+import analyses._Group_anal_3dLMEr_SBA
 
 #Path to the excels files and data structure
 opj = os.path.join

@@ -129,10 +129,12 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 removelist = []
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in [
+    if ID in ['jgrAesAWc11R',
+'jgrAesAWc11R1L',
 'jgrAesAWc12R',
 'jgrAesAWc1NT']:
         removelist.append(num)
+
 print("you removed: " + str(removelist))
 all_ID =  [item for i, item in enumerate(all_ID) if i in removelist]
 all_Session =  [item for i, item in enumerate(all_Session) if i in removelist]
@@ -297,8 +299,8 @@ deoblique_exeption2 = [] # list
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
-type_of_transform = 'SyNOnly'
-aff_metric_ants = 'CC'
+type_of_transform = 'BOLDAffine'
+aff_metric_ants = 'GC'
 registration_fast = False
 
 ####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
@@ -469,8 +471,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,100,200]
-
+Skip_step = [1,2,3,4,100]
     ############################################################
     ######################## START de pipeline #################
     ############################################################

@@ -129,10 +129,10 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 removelist = []
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in ['sub-jgrAesAWc11R',
-'sub-jgrAesAWc11R1L',
-'sub-jgrAesAWc12R',
-'sub-jgrAesAWc1NT']:
+    if ID in ['jgrAesAWc11R',
+'jgrAesAWc11R1L',
+'jgrAesAWc12R',
+'jgrAesAWc1NT']:
         removelist.append(num)
 print("you removed: " + str(removelist))
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]

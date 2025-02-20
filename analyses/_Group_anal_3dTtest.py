@@ -24,7 +24,7 @@ spgo = subprocess.getoutput
 #################################################################################################
 #### Seed base analysis
 #################################################################################################
-def _3dMEMA_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
+def _3dttest_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
               lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold):
 
     from fonctions.extract_filename import extract_filename
@@ -68,9 +68,9 @@ def _3dMEMA_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, 
 
     # Iterate through each atlas and corresponding region
     for panda_file, atlas in zip(panda_files, selected_atlases):
-        output_results = opj(output_results1, 'Grp_SBA_3dMEMA')
-        if not os.path.exists(opj(output_results1, 'Grp_SBA_3dMEMA')):
-            os.mkdir(opj(output_results1, 'Grp_SBA_3dMEMA'))
+        output_results = opj(output_results1, 'Grp_SBA_3dTTEST')
+        if not os.path.exists(opj(output_results1, 'Grp_SBA_3dTTEST')):
+            os.mkdir(opj(output_results1, 'Grp_SBA_3dTTEST'))
         if not os.path.exists(output_results):
             os.mkdir(output_results)
 
@@ -98,66 +98,63 @@ def _3dMEMA_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, 
             if not os.path.exists(output_folder):
                 os.mkdir(output_folder)
 
-            # List to store individual runs (not averaged) for each subject
-            all_runs_data = []
-            subject_run_labels = []
-
+            # List to store individual subject Fisher maps for averaging later
+            mean_per_subject = []
             # Loop over all subjects and collect their Fisher maps for each region
-            for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, max_sessionlist):
-                dir_fMRI_Refth_RS = opj(data_path, 'func')
-                dir_fMRI_Refth_RS_prepro = opj(dir_fMRI_Refth_RS, '01_prepro')
-                dir_fMRI_Refth_RS_prepro3 = opj(dir_fMRI_Refth_RS_prepro, '03_atlas_space')
 
-                # Check the func runs
-                list_RS = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endfmri)))
-                RS = [os.path.basename(i) for i in list_RS]
+            unique_IDs = np.unique(all_ID)  # Liste des ID uniques
 
-                if len(list_RS) == 0:
-                    raise ValueError(f'ERROR: No func image found at {opj(dir_fMRI_Refth_RS, endfmri)}')
+            for ID in unique_IDs:
+                # Trouver les index où l'ID correspond
+                indices = [i for i, x in enumerate(all_ID) if x == ID]
 
-                list_pop_index = []
-                for imageF in list_RS.copy():
-                    fmri_image = nib.load(imageF)
-                    image_shape = fmri_image.shape
+                subject_results = []
 
-                    if len(image_shape) == 4 and image_shape[3] < ntimepoint_treshold:
-                        list_RS.remove(imageF)
-                        list_pop_index.append(list_RS.index(imageF))
+                for idx in indices:
+                    Session = all_Session[idx]
+                    data_path = all_data_path[idx]
 
-                nb_run = len(list_RS)
-                for i in range(nb_run):
-                    root_RS = extract_filename(RS[i])
-                    input_results = opj(dir_fMRI_Refth_RS_prepro3, '10_Results', 'SBA', Seed_name)
+                    dir_fMRI_Refth_RS = opj(data_path, 'func')
+                    dir_fMRI_Refth_RS_prepro = opj(dir_fMRI_Refth_RS, '01_prepro')
+                    dir_fMRI_Refth_RS_prepro3 = opj(dir_fMRI_Refth_RS_prepro, '03_atlas_space')
 
-                    if ope(opj(input_results, root_RS + '_correlations_fish.nii.gz')):
-                        all_runs_data.append(opj(input_results, root_RS + '_correlations_fish.nii.gz'))
-                        subject_run_labels.append(f"sub-{ID}_run-{i + 1}")
+                    list_RS = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endfmri)))
+                    list_RS_list = list_RS.copy()
 
-            if len(all_runs_data) > 1:
+                    for imageF in list_RS_list:
+                        fmri_image = nib.load(imageF)
+                        image_shape = fmri_image.shape
+
+                        if len(image_shape) == 4 and image_shape[3] >= ntimepoint_treshold:
+                            root_RS = extract_filename(os.path.basename(imageF))
+                            input_results = opj(dir_fMRI_Refth_RS_prepro3, '10_Results', 'SBA', Seed_name)
+
+                            if ope(opj(input_results, root_RS + '_correlations_fish.nii.gz')):
+                                subject_results.append(opj(input_results, root_RS + '_correlations_fish.nii.gz'))
+
+                if subject_results:
+                    output_file = opj(output_folder, f"{ID}_avg_fisher_map.nii.gz")
+                    if ope(output_file):
+                        os.remove(output_file)
+
+                    command = f"singularity run {s_bind} {afni_sif} 3dMean -prefix {output_file} {subprocess.list2cmdline(subject_results)}"
+                    nl = spgo(command)
+                    print(nl)
+
+                # **AVERAGE the Fisher maps across subjects** for each region
+                if ope(opj(output_folder, str(ID) + '_avg_fisher_map.nii.gz')):
+                    if ope(opj(output_folder, str(ID) + '_avg_fisher_map.nii.gz')):
+                        mean_per_subject.append(opj(output_folder, str(ID) + '_avg_fisher_map.nii.gz'))
+            if len(mean_per_subject)>1:
+                # Perform t-test (Level 1) on the averaged Fisher map across subjects
+                if os.path.exists(output_folder + 'ttest-stat_fisher.nii.gz'):
+                    os.remove(output_folder + 'ttest-stat_fisher.nii.gz')
+
                 os.chdir(output_folder)
-
-                # Prepare and run `3dMEMA`
-                mema_output = opj(output_folder, Seed_name + '_mema-stat_fisher.nii.gz')
-
-                # Building `3dMEMA` command properly
-                mema_input_list = []
-                for subject, run_data in zip(subject_run_labels, all_runs_data):
-                    mema_input_list.append(f"{subject} {run_data}")
-
-                mema_input_str = " \\\n    ".join(mema_input_list)
-
-                mema_command = f"""
-                singularity run {s_bind} {afni_sif} 3dMEMA \\
-                    -prefix {mema_output} \\
-                    -jobs 8 \\
-                    -set {Seed_name} \\
-                    {mema_input_str} \\
-                    -max_zeros 4 \\
-                    -model_outliers \\
-                    -residual_Z
-                """
-
-                nl = spgo(mema_command)
+                print(subprocess.list2cmdline(mean_per_subject))
+                command = f"singularity run {s_bind} {afni_sif} 3dttest++ -setA {subprocess.list2cmdline(mean_per_subject)} " \
+                          f"-toz -Clustsim -mask {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} "
+                nl = spgo(command)
                 print(nl)
 
                 command = f"singularity run {s_bind} {afni_sif} 3dcalc -overwrite -a {opj(output_folder, 'TTnew+orig.HEAD[1]')} -expr a -prefix {opj(output_folder, Seed_name + 'ttest-stat_fisher_zmap.nii.gz')}"
@@ -165,7 +162,7 @@ def _3dMEMA_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, 
                 print(nl)
 
                 # Extract cluster size information
-                cluster_size_command = f'singularity run {s_bind} {afni_sif} 1d_tool.py -infile {output_folder}/TTnew.CSimA.NN1_2sided.1D -csim_show_clustsize -verb 0 -csim_pthr {str(alpha)}'
+                cluster_size_command = f'singularity run {s_bind} {afni_sif} 1d_tool.py -infile {output_folder}/TTnew.CSimA.NN1_2sided.1D -csim_show_clustsize -verb 0 -csim_pthr 0.05 -csim_alpha {str(alpha)}'
                 cluster_size_output = run_command(cluster_size_command)
                 # Extract the cluster size from the output
                 try:

@@ -20,28 +20,23 @@ spgo = subprocess.getoutput
 ##############################################################  TO DO !! ##############################################################
 
 MAIN_PATH = opj('/','srv','projects','easymribrain')
-sys.path.append(os.path.join(MAIN_PATH,'code','EasyMRI_brain-master'))
-import fonctions
+sys.path.append(opj('/home/cgarin/PycharmProjects/EasyMRIbrain_sing/'))
+
 from fonctions.extract_filename import extract_filename
-import analyses
-import analyses._Groupe_anal__func_DicLearn
-import analyses._Group_anal_3dMEMA
-import analyses._Groupe_anal_3dTtest
-import analyses._Group_anal_3dLME_SBA
+import analyses._Group_anal__func_DicLearn
+import analyses._Group_anal_3dLME_dvt_SBA
+import analyses._Group_anal_3dTtest
+import analyses._Group_anal_3dLMEr_SBA
 ##############################################################  TO DO !! ##############################################################
 
 s_bind = ' --bind ' + opj('/', 'scratch', 'cgarin/') + ',' + MAIN_PATH
 s_path = opj(MAIN_PATH, 'code', 'singularity')
-afni_sif    = ' ' + opj(s_path , 'afni_make_build_latest.sif') + ' '
+afni_sif    = ' ' + opj(s_path , 'afni_ub24_latest.sif') + ' '
 # Freesurfer set up
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 
-##### where is EasyMRI_brain?
-sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
-import fonctions._0_Pipeline_launcher
-
 species = 'Macaque'
-bids_dir = opj('/scratch/cgarin/Macaque/BIDS_Cdt_Garin')
+bids_dir = opj('/srv/projects/easymribrain/data/MRI/Macaque/BIDS_Cdt_Garin/')
 ##########################################
 ########### Subject loader################
 ##########################################
@@ -80,15 +75,15 @@ Bold = layout.get(return_type='filename', target='subject', suffix='bold', exten
 df = layout.to_df()
 df.head()
 
-
-xcell_extrernal_data_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
-xcell_extrernal_data_study_c.rename(columns={'session': 'Session'}, inplace=True)
-xcell_extrernal_data_study_c.rename(columns={'subject': 'ID'}, inplace=True)
-xcell_extrernal_data_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
+# datatable generated with BIDS file
+allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
+allinfo_study_c.rename(columns={'session': 'Session'}, inplace=True)
+allinfo_study_c.rename(columns={'subject': 'ID'}, inplace=True)
+allinfo_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
 folders = glob.glob(opj(bids_dir,'sub*'))
 
-
-ml_excel = opn(opj(bids_dir, '/Garin_macaque.xlsx'))
+# datatable generated with external info
+ml_excel = opn('/srv/projects/easymribrain/data/MRI/Macaque/BIDS_Cdt_Garin/Garin_macaque.xlsx')
 animalinfo = pd.read_excel(ml_excel, sheet_name='animalinfo')
 MRIsessions = pd.read_excel(ml_excel, sheet_name='MRIsessions')
 MRIsessions12 = pd.read_excel(ml_excel, sheet_name='MRIsessions12')
@@ -115,20 +110,25 @@ xcell_extrernal_data = pd.merge(animalinfo_2, xcell_extrernal_data, on='ID')
 
 ##############Calculate diff between date of scane and age of maturity
 age = xcell_extrernal_data.DOS - xcell_extrernal_data.Growth_plates
-age = age.astype('timedelta64[M]')
+age_months = age.dt.days / 30.44  # Approximate months
+age_months = age_months.astype(int)  #
 
 xcell_extrernal_data = pd.concat([xcell_extrernal_data,
-                     pd.DataFrame({'age': age})],
+                     pd.DataFrame({'age': age_months})],
                     axis=1)
 
 ##############Column for differientiating Mature ('M') and non Mature ('NM')
 xcell_extrernal_data['maturity'] = np.where(xcell_extrernal_data['age'] >= 0, 'M', 'NM')
 age = xcell_extrernal_data.DOS - xcell_extrernal_data.Growth_plates
-age = age.astype('timedelta64[M]')
+age = age.astype('timedelta64[ms]')
+
+xcell_extrernal_data.rename(columns={'ID': 'Subj'}, inplace=True)
+xcell_extrernal_data.rename(columns={'Session': 'Sess'}, inplace=True)
+
 
 ##############################################################  TO DO !! ##############################################################
-xcell_extrernal_data_study_c_formax = xcell_extrernal_data_study_c.copy()
-############################################################## NOTHING TO DO HERE ##############################################################
+allinfo_study_c_formax = allinfo_study_c.copy()
+
 #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### ####
 #### #### now, we need to creat the list of variable to feed to function "_0_Pipeline_launcher" #### ####
 #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### ####
@@ -152,10 +152,10 @@ max_sessionlist = []
 animal_ID = []
 
 #let's add all the the string to those lists
-for ID in pd.unique(xcell_extrernal_data_study_c_formax.ID):
-    list_session = xcell_extrernal_data_study_c_formax.loc[xcell_extrernal_data_study_c_formax['ID'] == ID].Session.dropna()
-    listereverse = list(list_session)
-    listereverse.reverse()
+for ID in pd.unique(allinfo_study_c_formax.ID):
+    list_session = allinfo_study_c_formax.loc[allinfo_study_c_formax['ID'] == ID].Session.dropna()
+    listereverse = list(map(int, list_session))  # Convert list to integers
+    listereverse.sort(reverse=True)  # Ensure it's sorted in descending order
     if len(list(list_session))>1:
         max_session.append(np.array(listereverse).max())
     else:
@@ -175,7 +175,7 @@ for ID in pd.unique(xcell_extrernal_data_study_c_formax.ID):
             max_sessionlist.append(np.array(listereverse))
         animal_ID.append(ID + 'ses-' + str(Session))
 
-for ID, Session in zip(pd.unique(xcell_extrernal_data_study_c_formax.ID), max_session):
+for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
     # Organization of the folders
     data_path = opj(bids_dir,'sub-' + ID,'ses-' + str(Session))
     all_data_path_max.append(data_path)
@@ -202,7 +202,7 @@ all_data_path =  [item for i, item in enumerate(all_data_path) if i not in remov
 max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i not in removelist]
 
 ntimepoint_treshold = 100
-endfmri = '*_task-rest_*.nii.gz' # string
+endfmri = '*_task-rest_*.nii' # string
 
 images_dir = []
 mean_imgs = []
@@ -269,7 +269,7 @@ cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
 cut_coordsY = [-7, -6, -5, -3, -2, 0, 1, 3, 4, 5] #list of int
 cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 print(images_dir)
-alpha = 0.01
+alpha = 0.05
 alpha_dic = 9
 component_list = [7, 17]
 lower_cutoff = 0.1
@@ -305,17 +305,16 @@ panda_files = [pd.DataFrame({'region':[
 'OB'],'label':[162,128,114,112,107,153]})] # liste of pandas dataframe
 
 treshold_or_stat = 'stat'
-templatelow = "/srv/projects/easymribrain/data/MRI/Dog/BIDS_k9/sub-28/ses-1/func/01_prepro/03_atlas_space/BASE_SS_fMRI.nii.gz"  # Low-resolution atlas
+templatelow = "/srv/projects/easymribrain/data/MRI/Macaque/BIDS_Cdt_Garin/sub-Trinity/ses-11/func/01_prepro/03_atlas_space/BASE_SS_fMRI.nii.gz"  # Low-resolution atlas
 templatehigh = mask_func   # High-resolution anatomical image
 
-#analyses._Groupe_anal_3dTtest._3dttest_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
-#              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold)
 
-#analyses._Group_anal_3dMEMA._3dMEMA_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
-#              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold)
+analyses._Group_anal_3dLME_dvt_SBA._3dLME_dev_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, xcell_extrernal_data, panda_files, selected_atlases,
+              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs,
+                ntimepoint_treshold)
 
-#analyses._Groupe_anal__func_DicLearn.dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, alpha_dic, component_list,
-#              cut_coordsZ, bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, afni_sif, s_bind, templatelow, templatehigh)
-
-analyses._Group_anal_3dLME_SBA._3dLME_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
+analyses._Group_anal_3dTtest._3dttest_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
               lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold)
+
+analyses._Group_anal__func_DicLearn.dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, alpha_dic, component_list,
+              cut_coordsZ, bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, afni_sif, s_bind, templatelow, templatehigh)

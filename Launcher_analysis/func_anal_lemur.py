@@ -23,14 +23,14 @@ sys.path.append(os.path.join(MAIN_PATH,'code','EasyMRI_brain-master'))
 import fonctions
 from fonctions.extract_filename import extract_filename
 import analyses
-import analyses._Groupe_anal__func_DicLearn
+import analyses._Group_anal__func_DicLearn
 
 
 ##############################################################  TO DO !! ##############################################################
 
 s_bind = ' --bind ' + opj('/','srv','projects','easymribrain') + ',' + MAIN_PATH
 s_path = opj(MAIN_PATH, 'code', 'singularity')
-afni_sif    = ' ' + opj(s_path , 'afni_make_build_AFNI_23.1.10.sif') + ' '
+afni_sif    = ' ' + opj(s_path , 'afni_ub24_latest.sif') + ' '
 # Freesurfer set up
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 
@@ -137,7 +137,9 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
 removelist = []
 ######### select the indiv you want to analyse!!!
 for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in []:
+    if ID in ['300BA'] and Session in ['02']:
+        removelist.append(num)
+    elif ID in ['314CA'] and Session in ['01']:
         removelist.append(num)
 
 all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
@@ -206,7 +208,8 @@ cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
 cut_coordsY = [-7, -6, -5, -3, -2, 0, 1, 3, 4, 5] #list of int
 cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 print(images_dir)
-alpha = 10
+alpha = 0.005
+alpha_dic = 9
 component_list = [10, 20]
 
 lower_cutoff = 0.9
@@ -243,10 +246,12 @@ treshold_or_stat = 'stat'
 templatelow = "/srv/projects/easymribrain/data/MRI/Dog/BIDS_k9/sub-28/ses-1/func/01_prepro/03_atlas_space/BASE_SS_fMRI.nii.gz"  # Low-resolution atlas
 templatehigh = mask_func   # High-resolution anatomical image
 
+interaction_sessrun = False
+gltCode = "-gltCode groupeffect 'Sess : 0.5*01 +0.5*02'"
 
-import analyses._Group_anal_3dLME_SBA
-analyses._Group_anal_3dLME_SBA._3dLME_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold)
+import analyses._Group_anal_3dLMEr_SBA
+analyses._Group_anal_3dLMEr_SBA._3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
+              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold, interaction_sessrun, gltCode)
 
-#analyses._Groupe_anal__func_DicLearn.dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, alpha, component_list,
-#              cut_coordsZ, bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, afni_sif, s_bind)
+analyses._Groupe_anal__func_DicLearn.dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, alpha_dic, component_list,
+             cut_coordsZ, bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, afni_sif, s_bind, templatelow, templatehigh)
