@@ -362,7 +362,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         TRANS = ants.apply_transforms(fixed=REF, moving=FUNC,
                                       transformlist=transfo_concat_Anat + mvt_shft_ANTs,
                                       interpolator='nearestNeighbor',
-                                      whichtoinvert=w2inv_Anat + w2inv_fwd,imagetype=3)
+                                      whichtoinvert=w2inv_Anat + w2inv_fwd, imagetype=3)
 
         ants.image_write(TRANS, residual_in_template, ri=False)
         dictionary = {"Sources": [img_name,
@@ -371,7 +371,6 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         json_object = json.dumps(dictionary, indent=2)
         with open(opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.json'), "w") as outfile:
             outfile.write(json_object)
-
 
     if anat_func_same_space == True:
         root_RS = extract_filename(RS[REF_int])

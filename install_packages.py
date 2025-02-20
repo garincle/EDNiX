@@ -8,7 +8,7 @@ packages = {
     "glob": "built-in (no version)",
     "json": "built-in (no version)",
     "nilearn": "0.10.4",
-    "ants": "0.4.2",
+    "antspyx": "0.4.2",
     "nipype": "1.8.6",
     "sklearn": "1.5.0",
     "copy": "built-in (no version)",

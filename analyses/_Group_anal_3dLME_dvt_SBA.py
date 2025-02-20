@@ -162,13 +162,18 @@ def _3dLME_dev_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlase
 
             # Design matrix for GLM
             # Create a DataFrame with unique subject-run pairs
-            panda_disign_matrix = pd.DataFrame({'Subj': all_ID_updated, 'Sess': all_Session_updated, 'run': all_Run_updated, 'InputFile': all_images})
+            panda_design_matrix = pd.DataFrame({'Subj': all_ID_updated, 'Sess': all_Session_updated, 'run': all_Run_updated, 'InputFile': all_images})
 
             ### add extra variable
-            panda_disign_matrix['maturity'] = xcell_extrernal_data[['maturity']]
+            panda_design_matrix = panda_design_matrix.merge(
+                xcell_extrernal_data[['Subj', 'Sess', 'maturity', 'age']],
+                on=['Subj', 'Sess'],
+                how='left'  # Use 'inner' if you only want matching rows
+            )
+            panda_design_matrix = panda_design_matrix[['Subj', 'Sess', 'run', 'maturity', 'age', 'InputFile']]
 
             # Ensure no duplicates and sort for consistency
-            panda_disign_matrix = panda_disign_matrix.drop_duplicates().sort_values(by=['Subj', 'run'])
+            panda_design_matrix = panda_design_matrix.drop_duplicates().sort_values(by=['Subj', 'run'])
 
             # Save design matrix
             base_filename = 'design_matrix.txt'
@@ -176,76 +181,100 @@ def _3dLME_dev_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlase
 
             if os.path.exists(design_matrix_txt):
                 os.remove(design_matrix_txt)
-            panda_disign_matrix.to_csv(design_matrix_txt, index=False, sep='\t')
+            panda_design_matrix.to_csv(design_matrix_txt, index=False, sep='\t')
 
 
-            if os.path.exists(output_folder + '3dLME_glt.nii.gz'):
-                os.remove(output_folder + '3dLME_glt.nii.gz')
-                os.remove(output_folder + 'resid.nii.gz')
+            stat_maps = output_folder + '/3dLME_glt.nii.gz'
+            if os.path.exists(stat_maps):
+                os.remove(stat_maps)
+            if os.path.exists(output_folder + '/resid.nii.gz'):
+                os.remove(output_folder + '/resid.nii.gz')
 
             # Set model for fixed and random effects
             # Set model for fixed and random effects
             os.chdir(output_results)
-            command = 'singularity run {s_bind} {afni_sif} 3dLME' + \
-                      ' -prefix ' + output_folder + '3dLME_glt.nii.gz' + \
+            command = f"singularity run {s_bind} {afni_sif} 3dLME" + \
+                      ' -prefix ' + output_folder + '/3dLME_glt.nii.gz' + \
                       ' -jobs' + ' 20' + ' -mask ' + opj(output_results1, 'mask_mean_func_overlapp.nii.gz') + \
-                      ' -model' + ' "maturity*age"' + \
-                      ' -qVars' + ' "age"' + ' -ranEff' + ' "~1+age"' + ' -num_glt' + ' 4' + \
+                      ' -model' + ' "maturity*age+(1|run:Subj)"' + \
+                      ' -qVars' + ' "age"' + ' -ranEff' + ' "~1+age"' + ' -num_glt' + ' 5' + \
                       ' -gltLabel 1 "ageNM" -gltCode 1 "age :" -gltLabel 2 "1MNM" -gltCode 2 "maturity : ' + \
                       '1*M -1*NM age :" -gltLabel 3 "1M" -gltCode 3 "maturity : 1*M age :" -gltLabel 4 ' + \
-                      '"1NM" -gltCode 4 "maturity : 1*NM age :" -dataTable' + ' @' + \
-                      output_folder + 'disign_matrix.txt' + ' -resid ' + output_folder + 'resid.nii.gz'
+                      '"1NM" -gltCode 4 "maturity : 1*NM age :" -gltLabel 5 "groupeffect" -gltCode 5 "run : 1*0" -dataTable' + ' @' + \
+                      output_folder + '/design_matrix.txt' + ' -resid ' + output_folder + '/resid.nii.gz'
             spco(command, shell=True)
 
             # Further analysis with 3dFWHMx, ClustSim, etc. (remaining code...)
-            command = f"singularity run {s_bind} {afni_sif} 3dFWHMx -detrend {subprocess.list2cmdline(all_images)} " \
-                      f" -input {output_results + 'resid.nii.gz'}  -unif"
-            spco(command, shell=True)
+            #command = f"singularity run {s_bind} {afni_sif} 3dFWHMx -detrend {subprocess.list2cmdline(all_images)} " \
+            #          f" -input {output_results + 'resid.nii.gz'}  -unif"
+            #spco(command, shell=True)
 
             command = f"singularity run {s_bind} {afni_sif} 3dClustSim -mask " \
-            f" {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -prefix {output_folder + '/Clust_'}"
+            f" {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -LOTS -prefix {output_folder + '/Clust_'}"
             spco(command, shell=True)
 
-            stat_maps = output_folder + '3dLME_glt.nii.gz'
+            stat_maps = output_folder + '/3dLME_glt.nii.gz'
 
-            for i, gltlabel in zip([5, 7, 9, 11], ['age', '1MNM', '1M', '1NM']):
-                img_glt = output_folder + 'Seed_' + Seed_name + '_' + str(gltlabel) + '.nii.gz'
+            for i, gltlabel in zip([5, 7, 9, 11, 13], ['age', '1MNM', '1M', '1NM', 'groupeffect']):
+
+                img_glt = output_folder + '/' + Seed_name + '_' + str(gltlabel) + '.nii.gz'
                 output_z = nib.load(stat_maps).get_fdata()[:, :, :, 0, i]
                 output_z = nilearn.image.new_img_like(stat_maps, output_z, copy_header=True)
                 output_z.to_filename(img_glt)
 
-                cluster_size_command = f'singularity run {s_bind} {afni_sif} 1d_tool.py -infile {img_glt} -csim_show_clustsize -verb 0 -csim_pthr {str(alpha)}'
-                cluster_size_output = run_command(cluster_size_command)
+                cluster_file = output_folder + '/Clust_.NN1_2sided.1D'
 
-                # Extract cluster size
-                try:
-                    for line in cluster_size_output.splitlines():
-                        if line.strip().isdigit():
-                            cluster_size = int(line.strip())
-                            print(f"Extracted Cluster Size: {cluster_size}")
-                            break
-                    else:
-                        raise ValueError("Cluster size not found.")
-                except ValueError as e:
-                    print(f"Error extracting cluster size: {e}")
-                    cluster_size = 0
+                def extract_cluster_threshold(filename, pthr, alpha):
+                    # Read the file
+                    with open(filename, 'r') as f:
+                        lines = f.readlines()
 
-                print(f"Cluster size: {cluster_size}")
+                    # Extract alpha values from the header
+                    header_line = lines[6]  # The alpha values are located in the 4th line
+                    alpha_values = [float(a) for a in header_line.split("|")[1].split()]
+
+                    # Check if the requested alpha exists in the file
+                    if alpha not in alpha_values:
+                        print(f"Invalid alpha={alpha}. Available alphas: {alpha_values}")
+                        return
+
+                    # Find the column index for the specified alpha
+                    col_idx = alpha_values.index(alpha) + 1  # Adjust for 0-based indexing
+
+                    # Load the numeric data (skip comments)
+                    data = np.loadtxt(filename, comments="#")
+
+                    # Find the row index for the specified pthr
+                    row_idx = np.where(np.isclose(data[:, 0], pthr, atol=1e-6))[0]
+                    if len(row_idx) == 0:
+                        print(f"No matching pthr={pthr} found in {filename}.")
+                        return
+
+                    # Extract the cluster size from the data
+                    cluster_size = data[row_idx[0], col_idx]
+
+                    # Print the result
+                    print(f"Cluster size threshold for pthr={pthr}, alpha={alpha}: {cluster_size:.1f} voxels")
+                    return cluster_size
+
+                # Example usage:
+                cluster_size = extract_cluster_threshold(cluster_file,
+                                                         0.05,
+                                                         alpha)
 
                 # Apply thresholding
-                z_map = opj(output_folder, Seed_name + '_' + str(gltlabel) + '_ttest-stat_fisher_zmap.nii.gz')
-                loadimg = nib.load(z_map).get_fdata()
+                loadimg = nib.load(img_glt).get_fdata()
                 loadimgsort99 = np.percentile(np.abs(loadimg)[np.abs(loadimg) > 0], 99)
 
                 z_score = norm.ppf(1 - alpha / 2)
                 print(f"The z-score corresponding to an alpha level of {alpha} is {z_score:.2f}")
 
                 # Threshold the image
-                mask_imag = nilearn.image.threshold_img(z_map, z_score, cluster_threshold=int(cluster_size))
-                mask_imag.to_filename(opj(output_folder, Seed_name + '_' + str(gltlabel) + '_thresholded_ttest-stat_fisher.nii.gz'))
+                mask_imag = nilearn.image.threshold_img(img_glt, z_score, cluster_threshold=float(cluster_size))
+                mask_imag.to_filename(opj(output_folder, Seed_name + '_' + str(gltlabel) + '_thresholded.nii.gz'))
 
                 # Visualization
-                display = plotting.plot_stat_map(opj(output_folder, Seed_name + '_' + str(gltlabel) + '_thresholded_ttest-stat_fisher.nii.gz'), dim=0, threshold=z_score, vmax=loadimgsort99,
+                display = plotting.plot_stat_map(opj(output_folder, Seed_name + '_' + str(gltlabel) + '_thresholded.nii.gz'), dim=0, threshold=z_score, vmax=loadimgsort99,
                                                  colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=10)
                 display.savefig(opj(output_folder, Seed_name + '_' + str(gltlabel) + '_thresholded_stat_mosaic.jpg'))
                 display.close()

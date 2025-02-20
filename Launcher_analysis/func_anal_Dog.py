@@ -24,11 +24,9 @@ sys.path.append(opj('/home/cgarin/PycharmProjects/EasyMRIbrain_sing/'))
 import fonctions
 from fonctions.extract_filename import extract_filename
 import analyses
-import analyses._Groupe_anal__func_DicLearn
-import analyses._Groupe_anal_func_network_torch
-import analyses._Group_anal_3dMEMA
-import analyses._Groupe_anal_3dTtest
-import analyses._Group_anal_3dLME_SBA
+import analyses._Group_anal__func_DicLearn
+import analyses._Group_anal_3dTtest
+import analyses._Group_anal_3dLMEr_SBA
 ##############################################################  TO DO !! ##############################################################
 
 s_bind = ' --bind ' + opj('/', 'scratch', 'cgarin/') + ',' + MAIN_PATH
@@ -83,11 +81,9 @@ df.head()
 
 
 allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
-
 allinfo_study_c.rename(columns={'session': 'Session'}, inplace=True)
 allinfo_study_c.rename(columns={'subject': 'ID'}, inplace=True)
 allinfo_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
-
 folders = glob.glob(opj(bids_dir,'sub*'))
 
 ##############################################################  TO DO !! ##############################################################
@@ -237,7 +233,7 @@ cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
 cut_coordsY = [-7, -6, -5, -3, -2, 0, 1, 3, 4, 5] #list of int
 cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 print(images_dir)
-alpha = 0.01
+alpha = 0.001
 alpha_dic = 9
 component_list = [7, 17]
 lower_cutoff = 0.1
@@ -276,14 +272,8 @@ treshold_or_stat = 'stat'
 templatelow = "/srv/projects/easymribrain/data/MRI/Dog/BIDS_k9/sub-28/ses-1/func/01_prepro/03_atlas_space/BASE_SS_fMRI.nii.gz"  # Low-resolution atlas
 templatehigh = mask_func   # High-resolution anatomical image
 
-#analyses._Groupe_anal_3dTtest._3dttest_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
-#              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold)
-
-#analyses._Group_anal_3dMEMA._3dMEMA_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
-#              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold)
-
-#analyses._Groupe_anal__func_DicLearn.dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, alpha_dic, component_list,
-#              cut_coordsZ, bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, afni_sif, s_bind, templatelow, templatehigh)
-
-analyses._Group_anal_3dLME_SBA._3dLME_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
+analyses._Group_anal_3dTtest._3dttest_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
               lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold)
+
+analyses._Group_anal__func_DicLearn.dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, alpha_dic, component_list,
+             cut_coordsZ, bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, afni_sif, s_bind, templatelow, templatehigh)
