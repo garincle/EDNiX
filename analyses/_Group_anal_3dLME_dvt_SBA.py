@@ -69,9 +69,9 @@ def _3dLME_dev_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlase
 
     # Iterate through each atlas and corresponding region
     for panda_file, atlas in zip(panda_files, selected_atlases):
-        output_results = opj(output_results1, 'Grp_SBA_3dLME_network')
-        if not os.path.exists(opj(output_results1, 'Grp_SBA_3dLME_network')):
-            os.mkdir(opj(output_results1, 'Grp_SBA_3dLME_network'))
+        output_results = opj(output_results1, 'Grp_SBA_3dLME_network_dvt')
+        if not os.path.exists(opj(output_results1)):
+            os.mkdir(opj(output_results1))
         if not os.path.exists(output_results):
             os.mkdir(output_results)
 
@@ -196,11 +196,11 @@ def _3dLME_dev_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlase
             command = f"singularity run {s_bind} {afni_sif} 3dLME" + \
                       ' -prefix ' + output_folder + '/3dLME_glt.nii.gz' + \
                       ' -jobs' + ' 20' + ' -mask ' + opj(output_results1, 'mask_mean_func_overlapp.nii.gz') + \
-                      ' -model' + ' "maturity*age+(1|run:Subj)"' + \
-                      ' -qVars' + ' "age"' + ' -ranEff' + ' "~1+age"' + ' -num_glt' + ' 5' + \
+                      ' -model' + ' "maturity*age"' + \
+                      ' -qVars' + ' "age"' + ' -ranEff' + ' "~1|Subj"' + ' -num_glt' + ' 5' + \
                       ' -gltLabel 1 "ageNM" -gltCode 1 "age :" -gltLabel 2 "1MNM" -gltCode 2 "maturity : ' + \
                       '1*M -1*NM age :" -gltLabel 3 "1M" -gltCode 3 "maturity : 1*M age :" -gltLabel 4 ' + \
-                      '"1NM" -gltCode 4 "maturity : 1*NM age :" -gltLabel 5 "groupeffect" -gltCode 5 "run : 1*0" -dataTable' + ' @' + \
+                      '"1NM" -gltCode 4 "maturity : 1*NM age :" -gltLabel 5 "groupeffect" -gltCode 5 "maturity : 0.5*M +0.5*NM"' + ' -dataTable @' + \
                       output_folder + '/design_matrix.txt' + ' -resid ' + output_folder + '/resid.nii.gz'
             spco(command, shell=True)
 
@@ -258,10 +258,7 @@ def _3dLME_dev_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlase
                     return cluster_size
 
                 # Example usage:
-                cluster_size = extract_cluster_threshold(cluster_file,
-                                                         0.05,
-                                                         alpha)
-
+                cluster_size = extract_cluster_threshold(cluster_file, alpha, 0.05)
                 # Apply thresholding
                 loadimg = nib.load(img_glt).get_fdata()
                 loadimgsort99 = np.percentile(np.abs(loadimg)[np.abs(loadimg) > 0], 99)
