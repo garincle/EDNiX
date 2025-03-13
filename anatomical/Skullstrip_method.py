@@ -184,14 +184,14 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
 
         #### species specific ######################################## MARMOSET ####################################
 
-        if brain_skullstrip == '3dSkullStrip_marmoset':
+        elif brain_skullstrip == '3dSkullStrip_marmoset':
             command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
-                '-input ' + input_for_msk + ' -blur_fwhm 1 -orig_vol -mask_vol -marmoset'
+                '-input ' + input_for_msk + ' -blur_fwhm 1 -shrink_fac 0.1 -fac 100 -norm_vol -mask_vol -marmoset'
             nl= spgo(command)
             diary.write(f'\n{nl}')
             print(nl)
             command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
-            ' -input ' + output_for_mask + ' -fill_holes -dilate_input 4'
+            ' -input ' + output_for_mask + ' -fill_holes'
             nl= spgo(command)
             diary.write(f'\n{nl}')
             print(nl)
@@ -202,7 +202,7 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
             with open(output_for_mask[:-7] + '.json', "w") as outfile:
                 outfile.write(json_object)
 
-        if brain_skullstrip == '3dSkullStrip_dog_macaque':
+        elif brain_skullstrip == '3dSkullStrip_dog_macaque':
             command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
                 '-input ' + input_for_msk + ' -blur_fwhm 2 -orig_vol -mask_vol -monkey'
             nl= spgo(command)

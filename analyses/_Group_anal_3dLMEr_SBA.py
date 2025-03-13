@@ -25,7 +25,7 @@ spgo = subprocess.getoutput
 #### Seed base analysis
 #################################################################################################
 def _3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold, interaction_sessrun, gltCode):
+              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold, model, gltCode, stat_img):
 
     from fonctions.extract_filename import extract_filename
 
@@ -141,8 +141,8 @@ def _3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, 
                     input_results = opj(dir_fMRI_Refth_RS_prepro3, '10_Results', 'SBA', Seed_name)
                     if ope(opj(input_results, root_RS + '_correlations_fish.nii.gz')):
                         all_images.append(opj(input_results, root_RS + '_correlations_fish.nii.gz'))
-                        all_Run_updated.append(str(i))
-                        all_Session_updated.append(Session)
+                        all_Run_updated.append('run_' + str(i))
+                        all_Session_updated.append('Sess_' + str(Session))
                         all_ID_updated.append(ID)
 
                         if len(all_images) == 1:
@@ -177,17 +177,14 @@ def _3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, 
             stat_maps = output_folder + '/3dLME_glt.nii.gz'
             if os.path.exists(stat_maps):
                 os.remove(stat_maps)
+            print((output_folder + '/3dLME_glt_log.txt'))
+            if os.path.exists(output_folder + '/3dLME_glt_log.txt'):
+                os.remove(output_folder + '/3dLME_glt_log.txt')
+
             if os.path.exists(output_folder + '/resid.nii.gz'):
                 os.remove(output_folder + '/resid.nii.gz')
 
-            # Set model for fixed and random effects
-            # Set model for fixed and random effects
-            if interaction_sessrun == True:
-                model = '"Sess*run+(1|Subj)+(1|Sess:Subj)+(1|run:Subj)" '
-            else:
-                model = '"Sess+run+(1|Subj)+(1|Sess:Subj)+(1|run:Subj)" '
             os.chdir(output_results)
-
             # Run GLM command with the design matrix and random effects
             command = f'singularity run {s_bind} {afni_sif} 3dLMEr -prefix {stat_maps} ' \
                       f'-jobs 20 -mask {opj(output_results1, "mask_mean_func_overlapp.nii.gz")} ' \
@@ -206,15 +203,8 @@ def _3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, 
             f" {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -LOTS -prefix {output_folder + '/Clust_'}"
             spco(command, shell=True)
 
-            if interaction_sessrun == True:
-                list1 = [0,1,2,3,4]
-                list2 = ['SessE', 'RunE', 'Sess_runE ', 'groupeffect', 'groupeffectZ']
-            else:
-                list1 = [0,1,2,3]
-                list2 = ['SessE', 'RunE', 'Sess_runE ', 'groupeffect', 'groupeffectZ']
-
             os.chdir(output_results)
-            for i, gltlabel in zip(list1, list2):
+            for i, gltlabel in enumerate(stat_img):
                 if gltlabel == 'groupeffect':
                     img_glt = output_folder + '/' + Seed_name + '_' + str(gltlabel) + '.nii.gz'
                     output_z = nib.load(stat_maps).get_fdata()[:, :, :, 0, i]
@@ -269,9 +259,7 @@ def _3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, 
                         return cluster_size
 
                     # Example usage:
-                    cluster_size = extract_cluster_threshold(cluster_file,
-                        0.05,
-                        alpha)
+                    cluster_size = extract_cluster_threshold(cluster_file, alpha,0.05)
 
                     # Apply thresholding
                     loadimg = nib.load(img_glt).get_fdata()
@@ -283,11 +271,11 @@ def _3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, 
                     # Threshold the image
                     mask_imag = nilearn.image.threshold_img(img_glt, z_score, cluster_threshold=float(cluster_size))
                     mask_imag.to_filename(
-                        opj(output_folder, Seed_name + '_' + str(gltlabel) + '_thresholded_ttest-stat_fisher.nii.gz'))
+                        opj(output_folder, Seed_name + '_' + str(gltlabel) + '-stat.nii.gz'))
 
                     # Visualization
                     display = plotting.plot_stat_map(
-                        opj(output_folder, Seed_name + '_' + str(gltlabel) + '_thresholded_ttest-stat_fisher.nii.gz'),
+                        opj(output_folder, Seed_name + '_' + str(gltlabel) + '-stat.nii.gz'),
                         dim=0, threshold=z_score, vmax=loadimgsort99,
                         colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=10)
                     display.savefig(

@@ -113,12 +113,21 @@ age = xcell_extrernal_data.DOS - xcell_extrernal_data.Growth_plates
 age_months = age.dt.days / 30.44  # Approximate months
 age_months = age_months.astype(int)  #
 
+# Shift all values to be positive
+min_age = age_months.min()
+if min_age < 0:
+    age_months2 = age_months - 42  # Shift to make all values positive
+
 xcell_extrernal_data = pd.concat([xcell_extrernal_data,
-                     pd.DataFrame({'age': age_months})],
+                     pd.DataFrame({'age_centred': age_months})],
+                    axis=1)
+
+xcell_extrernal_data = pd.concat([xcell_extrernal_data,
+                     pd.DataFrame({'age': age_months2})],
                     axis=1)
 
 ##############Column for differientiating Mature ('M') and non Mature ('NM')
-xcell_extrernal_data['maturity'] = np.where(xcell_extrernal_data['age'] >= 0, 'M', 'NM')
+xcell_extrernal_data['maturity'] = np.where(xcell_extrernal_data['age_centred'] >= 0, 'M', 'NM')
 age = xcell_extrernal_data.DOS - xcell_extrernal_data.Growth_plates
 age = age.astype('timedelta64[ms]')
 
@@ -307,6 +316,14 @@ panda_files = [pd.DataFrame({'region':[
 treshold_or_stat = 'stat'
 templatelow = "/srv/projects/easymribrain/data/MRI/Macaque/BIDS_Cdt_Garin/sub-Trinity/ses-11/func/01_prepro/03_atlas_space/BASE_SS_fMRI.nii.gz"  # Low-resolution atlas
 templatehigh = mask_func   # High-resolution anatomical image
+interaction_sessrun =  False
+gltCode = "-gltCode groupeffect 'run : 1*run_0'"
+#model = '"Sess*run+(1|Subj)+(1|Sess:Subj)+(1|run:Subj)" '
+model = '"Sess*(1|Subj)"'
+stat_img = ['SessE', 'groupeffect', 'groupeffectZ']
+
+analyses._Group_anal_3dLMEr_SBA._3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
+              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold, model, gltCode, stat_img)
 
 
 analyses._Group_anal_3dLME_dvt_SBA._3dLME_dev_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, xcell_extrernal_data, panda_files, selected_atlases,
@@ -318,3 +335,4 @@ analyses._Group_anal_3dTtest._3dttest_EDNiX(bids_dir, BASE_SS, oversample_map, m
 
 analyses._Group_anal__func_DicLearn.dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, alpha_dic, component_list,
               cut_coordsZ, bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, afni_sif, s_bind, templatelow, templatehigh)
+

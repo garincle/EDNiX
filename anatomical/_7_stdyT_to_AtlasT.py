@@ -72,9 +72,9 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
     REF = ants.image_read(stdy_template)
     IMG = ants.image_read(BASE_SS)
 
-    mtx1 = ants.registration(fixed=IMG, moving=REF, type_of_transform='Translation',
+    mtx1 = ants.registration(fixed=REF, moving=IMG, type_of_transform='Translation',
                              outprefix=opj(dir_out,'NMT_to_anat_SyN_final_shift_'))
-    MEAN_tr = ants.apply_transforms(fixed=IMG, moving=REF, transformlist=mtx1['fwdtransforms'],
+    MEAN_tr = ants.apply_transforms(fixed=REF, moving=IMG, transformlist=mtx1['fwdtransforms'],
                                     interpolator=n_for_ANTS)
     ants.image_write(MEAN_tr, opj(dir_out,'NMT_to_anat_SyN_final_shift.nii.gz'), ri=False)
 

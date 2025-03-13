@@ -43,7 +43,7 @@ FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 
 ###where to store the BIDS data?
 species = 'Marmoset'
-bids_dir = opj('/scratch/cgarin/'+ species + '/BIDS_NIH')
+bids_dir = opj('/scratch/cgarin/'+ species + '/BIDS_UWO')
 
 ##########################################
 ########### Subject loader################
@@ -171,8 +171,8 @@ G_mask = opj(folderforTemplate_Anat,'G_mask.nii.gz') # string
 
 #### find the good fmri image: as it is not always standart, look in you BIDS and help use to know how you fmri dataset end by ?:
 ### specify the suffix to be used by glob.glob to select all fmri image (or map) in their respective folders
-endfmri = '*_rest_*.nii.gz' # string
-endjson = '*_rest_*.json' # string
+endfmri = '*_task-rest_*.nii.gz' # string
+endjson = '*_task-rest_*.json' # string
 
 ####find on image in the opposite direction of th BOLD aquistion either one per run or one per session or none !!!
 ### if the pipeline doesn't find the image it will continue anyway so be carefull!
@@ -194,28 +194,6 @@ T1_eq = 5 # int
 #### Choose which image you want to use as ref (0 the first one, 1 the second run, ect...)
 REF_int = 0 # int
 # Given data
-slice_offsets = slice_offsets = [
-    0.210436882112241, 0.710436882112241, 1.21043688211224, 1.71043688211224,
-    2.21043688211224, 2.71043688211224, 3.21043688211224, 3.71043688211224,
-    4.21043688211224, 4.71043688211224, 5.21043688211224, 5.71043688211224,
-    6.21043688211224, 6.71043688211224, 7.21043688211224, 7.71043688211224,
-    8.21043688211224, 8.71043688211224, 9.21043688211224, 9.71043688211224,
-    10.2104368821122, 10.7104368821122, 11.2104368821122, 11.7104368821122,
-    12.2104368821122, 12.7104368821122, 13.2104368821122, 13.7104368821122,
-    14.2104368821122, 14.7104368821122, 15.2104368821122, 15.7104368821122,
-    16.2104368821122, 16.7104368821122, 17.2104368821122, 17.7104368821122,
-    18.2104368821122, 18.7104368821122
-]
-
-acq_order = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36,
-  1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37]
-
-# Reorder the slice offsets according to the acquisition order
-reordered_offsets = [0] * len(slice_offsets)
-
-# Reorder the offsets
-for anatomical_index, acquisition_index in enumerate(acq_order):
-    reordered_offsets[acquisition_index] = slice_offsets[anatomical_index]
 
 # Now, assuming a TR of 1 second:
 TR = 2  # Repetition time in seconds
@@ -302,7 +280,7 @@ ntimepoint_treshold = 100
 ############################################### coregistration steps ##########################################
 ###############################################################################################################
 ########### define orientation############
-orientation = 'LAI' # string
+orientation = 'LPI' # string
 ###############################################################################################################
 ######################## Probably the most "obscure part of the script" ########################
 ###############################################################################################################
@@ -499,7 +477,7 @@ Seed_name = 'Periarchicortex'
 
 
 ############ Right in a list format the steps that you want to skipSkip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,200]
-Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,100]
+Skip_step = [100,200]
     ############################################################
     ######################## START de pipeline #################
     ############################################################

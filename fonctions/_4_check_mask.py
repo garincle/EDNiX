@@ -79,7 +79,7 @@ def _itk_check_masks(dir_fMRI_Refth_RS_prepro1,s_bind,itk_sif,diary_file):
         New = File2.stat().st_mtime
 
         if New - Orig >0:
-            dictionary = {"Modif_from_Sources": [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test.nii.gz'),
+            dictionary = {"Modif_f rom_Sources": [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test.nii.gz'),
                                                  opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz')],
                           "Modif_Description": 'manual modification (itksnap).', }
             json_object = json.dumps(dictionary, indent=2)

@@ -41,7 +41,7 @@ FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 
 ###where to store the BIDS data?
 species = 'Mouse'
-bids_dir = opj('/scratch/cgarin/'+ species + '/BIDS_Gd')
+bids_dir = opj('/srv/projects/easymribrain/data/MRI/Mouse/BIDS_Gd/')
 
 ##########################################
 ########### Subject loader################
@@ -124,7 +124,10 @@ for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
     all_data_path_max.append(data_path)
     all_ID_max.append(ID)
 
-##MEDISOc21R1L_ses-2
+##jgrAesAWc1NT ses-2
+#jgrAesAWc11R ses-1
+#jgrAesAWc11R1L ses-2
+#jgrAesAWc11R1L ses-1
 ######## select animals that have not been analyzed yet
 removelist = []
 ######### select the indiv you want to analyse!!!
@@ -471,7 +474,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,100]
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,100]
     ############################################################
     ######################## START de pipeline #################
     ############################################################

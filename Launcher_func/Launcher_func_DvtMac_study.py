@@ -8,11 +8,6 @@ from bids.reports import BIDSReport
 import glob
 import nibabel as nib
 from fonctions.extract_filename import extract_filename
-import analyses
-import analyses._Group_anal__func_DicLearn
-import analyses._Groupe_anal_func_network_torch
-import analyses._Group_anal_3dMEMA
-import analyses._Group_anal_3dTtest
 import analyses._Group_anal_3dLMEr_SBA
 
 #Path to the excels files and data structure
@@ -31,7 +26,7 @@ s_bind = ' --bind ' + opj('/', 'scratch', 'cgarin/') + ',' + MAIN_PATH
 s_path = opj(MAIN_PATH, 'code', 'singularity')
 # Freesurfer set up
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
-sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
+sys.path.append(opj('/home/cgarin/PycharmProjects/EasyMRIbrain_sing/'))
 import fonctions._0_Pipeline_launcher
 
 

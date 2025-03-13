@@ -145,40 +145,55 @@ def _3dttest_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases,
                 if ope(opj(output_folder, str(ID) + '_avg_fisher_map.nii.gz')):
                     if ope(opj(output_folder, str(ID) + '_avg_fisher_map.nii.gz')):
                         mean_per_subject.append(opj(output_folder, str(ID) + '_avg_fisher_map.nii.gz'))
+
             if len(mean_per_subject)>1:
                 # Perform t-test (Level 1) on the averaged Fisher map across subjects
-                if os.path.exists(output_folder + 'ttest-stat_fisher.nii.gz'):
-                    os.remove(output_folder + 'ttest-stat_fisher.nii.gz')
+                if os.path.exists(output_folder + 'TTnew+orig.HEAD'):
+                    os.remove(output_folder + 'TTnew+orig.HEAD')
+                if os.path.exists(output_folder + 'TTnew+orig.BRIK'):
+                    os.remove(output_folder + 'TTnew+orig.BRIK')
 
                 os.chdir(output_folder)
                 print(subprocess.list2cmdline(mean_per_subject))
-                command = f"singularity run {s_bind} {afni_sif} 3dttest++ -setA {subprocess.list2cmdline(mean_per_subject)} " \
-                          f"-toz -Clustsim -mask {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} "
-                nl = spgo(command)
-                print(nl)
+                if len(mean_per_subject)>14:
+                    command = f"singularity run {s_bind} {afni_sif} 3dttest++ -setA {subprocess.list2cmdline(mean_per_subject)} " \
+                              f"-toz -Clustsim -mask {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} "
+                    nl = spgo(command)
+                    print(nl)
 
-                command = f"singularity run {s_bind} {afni_sif} 3dcalc -overwrite -a {opj(output_folder, 'TTnew+orig.HEAD[1]')} -expr a -prefix {opj(output_folder, Seed_name + 'ttest-stat_fisher_zmap.nii.gz')}"
-                nl = spgo(command)
-                print(nl)
+                    command = f"singularity run {s_bind} {afni_sif} 3dcalc -overwrite -a {opj(output_folder, 'TTnew+orig.HEAD[1]')} -expr a -prefix {opj(output_folder, Seed_name + 'ttest-stat_fisher_zmap.nii.gz')}"
+                    nl = spgo(command)
+                    print(nl)
 
-                # Extract cluster size information
-                cluster_size_command = f'singularity run {s_bind} {afni_sif} 1d_tool.py -infile {output_folder}/TTnew.CSimA.NN1_2sided.1D -csim_show_clustsize -verb 0 -csim_pthr 0.05 -csim_alpha {str(alpha)}'
-                cluster_size_output = run_command(cluster_size_command)
-                # Extract the cluster size from the output
-                try:
-                    # Split the output into lines and find the line containing the cluster size
-                    for line in cluster_size_output.splitlines():
-                        if line.strip().isdigit():  # Check if the line is a number
-                            cluster_size = int(line.strip())
-                            print(f"Extracted Cluster Size: {cluster_size}")
-                            break
-                    else:
-                        raise ValueError("Cluster size not found in the output.")
-                except ValueError as e:
-                    print(f"Error extracting cluster size: {e}")
-                    cluster_size = 0  # Set a default value or handle the error as needed
+                    # Extract cluster size information
+                    cluster_size_command = f'singularity run {s_bind} {afni_sif} 1d_tool.py -infile {output_folder}/TTnew.CSimA.NN1_2sided.1D -csim_show_clustsize -verb 0 -csim_pthr 0.05 -csim_alpha {str(alpha)}'
+                    cluster_size_output = run_command(cluster_size_command)
+                    # Extract the cluster size from the output
+                    try:
+                        # Split the output into lines and find the line containing the cluster size
+                        for line in cluster_size_output.splitlines():
+                            if line.strip().isdigit():  # Check if the line is a number
+                                cluster_size = int(line.strip())
+                                print(f"Extracted Cluster Size: {cluster_size}")
+                                break
+                        else:
+                            raise ValueError("Cluster size not found in the output.")
+                    except ValueError as e:
+                        print(f"Error extracting cluster size: {e}")
+                        cluster_size = 0  # Set a default value or handle the error as needed
+                    print(str(cluster_size))
 
-                print(str(cluster_size))
+                else:
+                    command = f"singularity run {s_bind} {afni_sif} 3dttest++ -setA {subprocess.list2cmdline(mean_per_subject)} " \
+                              f"-toz -mask {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} "
+                    nl = spgo(command)
+                    print(nl)
+                    cluster_size = 10
+
+                    command = f"singularity run {s_bind} {afni_sif} 3dcalc -overwrite -a {opj(output_folder, 'TTnew+orig.HEAD[1]')} -expr a -prefix {opj(output_folder, Seed_name + 'ttest-stat_fisher_zmap.nii.gz')}"
+                    nl = spgo(command)
+                    print(nl)
+
 
                 # Thresholding and visualization
                 z_map = opj(output_folder, Seed_name + 'ttest-stat_fisher_zmap.nii.gz')

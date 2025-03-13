@@ -17,7 +17,7 @@ ope = os.path.exists
 spco = subprocess.check_output
 
 MAIN_PATH = opj('/','srv','projects','easymribrain')
-sys.path.append(os.path.join(MAIN_PATH,'code','EasyMRI_brain-master'))
+sys.path.append(opj('/home/cgarin/PycharmProjects/EasyMRIbrain_sing/'))
 import fonctions._0_Pipeline_launcher
 
 s_bind = ' --bind ' + opj('/', 'scratch', 'cgarin/') + ',' + MAIN_PATH
@@ -464,7 +464,7 @@ unspecific_ROI_thresh = 0.2
 Seed_name = 'Periarchicortex'
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [4,100,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,100]
     ############################################################
     ######################## START de pipeline #################
     ############################################################

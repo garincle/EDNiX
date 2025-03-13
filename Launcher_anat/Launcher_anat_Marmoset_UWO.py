@@ -40,7 +40,7 @@ import anatomical._0_Pipeline_launcher
 
 ###where to store the BIDS data?
 species = 'Marmoset'
-bids_dir = opj('/scratch/cgarin/'+ species + '/BIDS_NIH')
+bids_dir = opj('/scratch/cgarin/'+ species + '/BIDS_UWO')
 
 ##########################################
 ########### Subject loader################
@@ -152,7 +152,7 @@ do_manual_crop = False #YES or NO
 IgotbothT1T2 = False #YES or NO
 
 check_visualy_final_mask = False #YES or NO
-deoblique='WARP_without_3drefit' #header or WARP or no_deoblique or WARP_without_3drefit
+deoblique='deob_WO_orient' #header or WARP or no_deoblique or WARP_without_3drefit
 n_for_ANTS='hammingWindowedSinc'
 overwrite_option = True #YES or NO
 type_of_transform = 'SyNCC'
@@ -168,7 +168,7 @@ masking_img = 'T2w'
 brain_skullstrip_1 ='CustumThreshold_50' # bet2_ANTS or MachinL
 
 #precise
-brain_skullstrip_2 ='Vol_sammba_10000' # bet2_ANTS or MachinL
+brain_skullstrip_2 ='3dSkullStrip_marmoset' # bet2_ANTS or MachinL
 
 #template
 template_skullstrip = 'Custum_ANTS_Garin'
@@ -203,7 +203,7 @@ dir_out = bids_dir + '/sty_template/atlases'
 
 #do you want to use all the data or only the last one of each subject (for longitud inal co-registration)
 which_on = 'all' # all or max
-type_of_transform_stdyT = 'SyN'
+type_of_transform_stdyT = 'SyNCC'
 aff_metric_ants = 'MI'
 
 ###use type_norm or otheranat for atlas template to study template co-registration
@@ -218,7 +218,7 @@ do_surfacewith = 'T2w' #'T1' 'T1andT2'
 ###question
 ####WITH deoblique='WARP'
 ##orig LPI
-orientation = 'LAI'
+orientation = 'LPI'
 ####WITH deoblique='header'
 #orientation = 'LSP'
 
@@ -291,7 +291,7 @@ Hmin     = ['l','r']
 ### Block4: step 7,8 (altases, masks, fmri masks)
 ### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
 
-Skip_step = [1,2,3,10,11,12,13,14,15,100,200]
+Skip_step = [1,2,3,4,5,6,9,10,11,12,13,14,15,16,17,100,200]
 
 Lut_file = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','LUT_files','Multispecies_LUT_Dual.txt')
 
