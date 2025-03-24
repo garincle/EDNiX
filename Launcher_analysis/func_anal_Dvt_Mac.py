@@ -322,17 +322,16 @@ gltCode = "-gltCode groupeffect 'run : 1*run_0'"
 model = '"Sess*(1|Subj)"'
 stat_img = ['SessE', 'groupeffect', 'groupeffectZ']
 
-analyses._Group_anal_3dLMEr_SBA._3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold, model, gltCode, stat_img)
-
-
 analyses._Group_anal_3dLME_dvt_SBA._3dLME_dev_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, xcell_extrernal_data, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs,
+              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs,
                 ntimepoint_treshold)
 
+analyses._Group_anal_3dLMEr_SBA._3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
+              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold, model, gltCode, stat_img)
+
 analyses._Group_anal_3dTtest._3dttest_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold)
+              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold)
 
 analyses._Group_anal__func_DicLearn.dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, alpha_dic, component_list,
-              cut_coordsZ, bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, afni_sif, s_bind, templatelow, templatehigh)
+              cut_coordsZ, bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, templatelow, templatehigh)
 

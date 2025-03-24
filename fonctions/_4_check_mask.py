@@ -28,7 +28,7 @@ spgo = subprocess.getoutput
 
 from fonctions.extract_filename import extract_filename
 
-def _itk_check_masks(dir_fMRI_Refth_RS_prepro1,s_bind,itk_sif,diary_file):
+def _itk_check_masks(dir_fMRI_Refth_RS_prepro1,s_bind,itk_sif,diary_file, afni_sif, overwrite):
 
     def run_command_and_wait(command):
         print(bcolors.OKGREEN + "INFO: Running command:" + bcolors.ENDC, command)
@@ -89,6 +89,19 @@ def _itk_check_masks(dir_fMRI_Refth_RS_prepro1,s_bind,itk_sif,diary_file):
             nl = 'the file: ' + opj(dir_fMRI_Refth_RS_prepro1, 'manual_mask.nii.gz') + 'has been manually modified'
             print(bcolors.OKGREEN + nl + bcolors.ENDC)
             diary.write(f'\n{nl}')
+
+            command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(
+                dir_fMRI_Refth_RS_prepro1, 'manual_mask.nii.gz') + \
+                      ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz') + ' -expr "a"'
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+            dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, 'manual_mask.nii.gz'),
+                          "Description": 'Copy.', }
+            json_object = json.dumps(dictionary, indent=2)
+            with open(opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.json'), "w") as outfile:
+                outfile.write(json_object)
+
 
     diary.write(f'\n')
     diary.close()

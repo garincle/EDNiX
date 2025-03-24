@@ -3,13 +3,9 @@
 ###################################
 import subprocess
 import os
-import sys
-import shutil
 import nibabel as nib
 import ants
-import math
 import nilearn
-from nilearn.image import math_img
 import numpy as np
 from nilearn.masking import compute_epi_mask
 from anatomical import Histrogram_mask_EMB
@@ -37,8 +33,9 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 
-def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, overwrite, costAllin, lower_cutoff, upper_cutoff, type_of_transform, aff_metric_ants,
-                    s_bind, afni_sif, fsl_sif, fs_sif, itk_sif,diary_file):
+def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+                                                      overwrite, costAllin, type_of_transform,
+                                                      aff_metric_ants, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif,diary_file):
 
     ct = datetime.datetime.now()
     diary = open(diary_file, "a")
@@ -89,45 +86,6 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
                                   opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
                                   opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask_INV.1D')],
                       "Description": 'Co-registration (3dAllineate,AFNI).', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(output_for_mask[:-7] + '.json', "w") as outfile:
-            outfile.write(json_object)
-
-
-    elif brain_skullstrip == "nilearn":
-        # convert to float
-        command = 'singularity run' + s_bind + fs_sif + 'mri_convert -odt float ' + \
-                  opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz') + \
-                  ' ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_float.nii.gz')
-        nl = spgo(command)
-        diary.write(f'\n{nl}')
-        print(nl)
-        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
-                      "Description": 'convert to float (mri_convert,Freesurfer).', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_float.json'), "w") as outfile:
-            outfile.write(json_object)
-
-        mask_img = compute_epi_mask(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_float.nii.gz'),
-                                    lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff,
-                                    connected=True, opening=1,
-                                    exclude_zeros=False, ensure_finite=True)
-        mask_img.to_filename(opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat_nilearn.nii.gz'))
-        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
-                      "Description": 'binary brain mask (compute_epi_mask,nilearn).', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat_nilearn.json'), "w") as outfile:
-            outfile.write(json_object)
-
-        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + \
-                  output_for_mask + \
-                  ' -input ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilat_nilearn.nii.gz') + \
-                  ' -fill_holes -dilate_input -1 1'
-        nl = spgo(command)
-        diary.write(f'\n{nl}')
-        print(nl)
-        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro2,'maskDilat_nilearn.nii.gz'),
-                      "Description": 'fill holes and dilation (3dmask_tool,AFNI).', }
         json_object = json.dumps(dictionary, indent=2)
         with open(output_for_mask[:-7] + '.json', "w") as outfile:
             outfile.write(json_object)
@@ -205,7 +163,7 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         print(nl)
 
         command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
-        ' -input ' + output_for_mask + ' -fill_holes'
+        ' -input ' + output_for_mask + ' -fill_holes -dilate_input -1 2'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)

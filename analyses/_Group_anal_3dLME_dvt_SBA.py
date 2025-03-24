@@ -9,7 +9,8 @@ import nibabel as nib
 from nilearn.masking import compute_epi_mask
 import matplotlib.pyplot as plt
 from scipy.stats import norm
-
+import Tools.Load_EDNiX_requirement
+from fonctions.extract_filename import extract_filename
 #################################################################################################
 #### LOADER YUNG LEMUR
 #################################################################################################
@@ -24,20 +25,20 @@ spgo = subprocess.getoutput
 #################################################################################################
 #### Seed base analysis
 #################################################################################################
-def _3dLME_dev_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, xcell_extrernal_data, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs,
+def _3dLME_dev_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, folder_atlases, xcell_extrernal_data, panda_files, selected_atlases,
+              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs,
                 ntimepoint_treshold):
 
-    from fonctions.extract_filename import extract_filename
-
+    s_path, afni_sif, fsl_sif, fs_sif, itk_sif, wb_sif, strip_sif, s_bind = Tools.Load_EDNiX_requirement.load_requirement(
+        MAIN_PATH, bids_dir, FS_dir)
     output_results1 = opj(bids_dir, 'Results')
     if not os.path.exists(output_results1): os.mkdir(output_results1)
 
     # If oversampling is enabled, use the base template, else use a predefined atlas
     if oversample_map == True:
-        studytemplatebrain = BASE_SS
+        studytemplatebrain = templatehigh
     else:
-        studytemplatebrain = opj(folder_atlases, 'BASE_SS_fMRI.nii.gz')
+        studytemplatebrain = templatelow
 
     # Concatenate all the images in `mean_imgs`
     mean_imgs_rs = nilearn.image.concat_imgs(mean_imgs, ensure_ndim=None, memory=None, memory_level=0,
@@ -184,11 +185,11 @@ def _3dLME_dev_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlase
             panda_design_matrix.to_csv(design_matrix_txt, index=False, sep='\t')
 
 
-            stat_maps = output_folder + '/3dLME_glt.nii.gz'
+            stat_maps = opj(output_folder, '3dLME_glt.nii.gz')
             if os.path.exists(stat_maps):
                 os.remove(stat_maps)
-            if os.path.exists(output_folder + '/resid.nii.gz'):
-                os.remove(output_folder + '/resid.nii.gz')
+            if os.path.exists(opj(output_folder, 'resid.nii.gz')):
+                os.remove(opj(output_folder, 'resid.nii.gz'))
 
             # Set model for fixed and random effects
             # Set model for fixed and random effects

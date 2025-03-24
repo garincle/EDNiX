@@ -9,7 +9,8 @@ import nibabel as nib
 from nilearn.masking import compute_epi_mask
 import matplotlib.pyplot as plt
 from scipy.stats import norm
-
+import Tools.Load_EDNiX_requirement
+from fonctions.extract_filename import extract_filename
 #################################################################################################
 #### LOADER YUNG LEMUR
 #################################################################################################
@@ -24,19 +25,20 @@ spgo = subprocess.getoutput
 #################################################################################################
 #### Seed base analysis
 #################################################################################################
-def _3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold, model, gltCode, stat_img):
+def _3dLMEr_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, folder_atlases, cut_coords, panda_files, selected_atlases,
+              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs,
+                                              ntimepoint_treshold, model, gltCode, stat_img):
 
-    from fonctions.extract_filename import extract_filename
-
+    s_path, afni_sif, fsl_sif, fs_sif, itk_sif, wb_sif, strip_sif, s_bind = Tools.Load_EDNiX_requirement.load_requirement(
+        MAIN_PATH, bids_dir, FS_dir)
     output_results1 = opj(bids_dir, 'Results')
     if not os.path.exists(output_results1): os.mkdir(output_results1)
 
     # If oversampling is enabled, use the base template, else use a predefined atlas
     if oversample_map == True:
-        studytemplatebrain = BASE_SS
+        studytemplatebrain = templatehigh
     else:
-        studytemplatebrain = opj(folder_atlases, 'BASE_SS_fMRI.nii.gz')
+        studytemplatebrain = templatelow
 
     # Concatenate all the images in `mean_imgs`
     mean_imgs_rs = nilearn.image.concat_imgs(mean_imgs, ensure_ndim=None, memory=None, memory_level=0,
@@ -174,15 +176,15 @@ def _3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, 
                 os.remove(design_matrix_txt)
             panda_disign_matrix.to_csv(design_matrix_txt, index=False, sep='\t')
 
-            stat_maps = output_folder + '/3dLME_glt.nii.gz'
+            stat_maps = opj(output_folder + '3dLME_glt.nii.gz')
             if os.path.exists(stat_maps):
                 os.remove(stat_maps)
-            print((output_folder + '/3dLME_glt_log.txt'))
-            if os.path.exists(output_folder + '/3dLME_glt_log.txt'):
-                os.remove(output_folder + '/3dLME_glt_log.txt')
+            print((opj(output_folder + '3dLME_glt_log.txt')))
+            if os.path.exists(opj(output_folder + '3dLME_glt_log.txt')):
+                os.remove(opj(output_folder + '3dLME_glt_log.txt'))
 
-            if os.path.exists(output_folder + '/resid.nii.gz'):
-                os.remove(output_folder + '/resid.nii.gz')
+            if os.path.exists(opj(output_folder + 'resid.nii.gz')):
+                os.remove(opj(output_folder + 'resid.nii.gz'))
 
             os.chdir(output_results)
             # Run GLM command with the design matrix and random effects
@@ -213,7 +215,7 @@ def _3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, 
 
                     # Visualization
                     display = plotting.plot_stat_map(img_glt, dim=0,
-                                                     colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=10)
+                                                     colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=cut_coords)
                     display.savefig(opj(output_folder, Seed_name + '_' + str(gltlabel) + '_thresholded_stat_mosaic.jpg'))
                     display.close()
                     plt.close('all')
@@ -277,7 +279,7 @@ def _3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, 
                     display = plotting.plot_stat_map(
                         opj(output_folder, Seed_name + '_' + str(gltlabel) + '-stat.nii.gz'),
                         dim=0, threshold=z_score, vmax=loadimgsort99,
-                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=10)
+                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=cut_coords)
                     display.savefig(
                         opj(output_folder, Seed_name + '_' + str(gltlabel) + '_thresholded_stat_mosaic.jpg'))
                     display.close()

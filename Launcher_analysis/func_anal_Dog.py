@@ -4,7 +4,13 @@ import pandas as pd
 import sys
 from bids import BIDSLayout
 from bids.reports import BIDSReport
-
+MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
+sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
+import analyses._Group_anal__func_DicLearn
+import analyses._Group_anal_3dTtest
+import analyses._Group_anal_3dLMEr_SBA
+import Launcher_analysis.Load_BIDS_data_for_analysis
+import Tools.Load_subject_with_BIDS
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -15,83 +21,55 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-##############################################################  TO DO !! ##############################################################
-
-MAIN_PATH = opj('/','srv','projects','easymribrain')
-sys.path.append(opj('/home/cgarin/PycharmProjects/EasyMRIbrain_sing/'))
-
-import analyses._Group_anal__func_DicLearn
-import analyses._Group_anal_3dTtest
-import analyses._Group_anal_3dLMEr_SBA
-
-s_bind = ' --bind ' + opj('/', 'scratch', 'cgarin/') + ',' + MAIN_PATH
-s_path = opj(MAIN_PATH, 'code', 'singularity')
-afni_sif    = ' ' + opj(s_path , 'afni_make_build_AFNI_23.1.10.sif') + ' '
-
-##### where is EasyMRI_brain?
-sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
-import fonctions._0_Pipeline_launcher
+MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
+sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
 
 species = 'CatinDog'
-bids_dir = opj('/','srv','projects','easymribrain','data', 'MRI', 'Dog', 'BIDS_k9')
-layout = BIDSLayout(bids_dir, validate=True)
-print(layout)
-subject = layout.get_subjects()
-print(subject)
-tasks = layout.get_tasks()
-print(tasks)
+# Override os.path.join to always return Linux-style paths
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Desktop\BIDS_k9"))
+FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
+atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2", species))
+Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\LUT_files"))
 
+########### Subject loader with BIDS##############
+layout= BIDSLayout(bids_dir,  validate=True)
 ###report
 report = BIDSReport(layout)
-# counter = report.generate()
-# main_report = counter.most_common()[0][0]
-# print(main_report)
-
 # Ask get() to return the ids of subjects that have T1w files #return_type='filename
 T1 = layout.get(return_type='filename', target='subject', suffix='T1w', extension='nii.gz')
 print(T1)
-###question
-
-# Ask get() to return the ids of subjects that have T2w files
-# T2 = layout.get(return_type='filename', target='subject', suffix='T2w', extension='nii.gz')
-# print(T2)
-
 # Ask get() to return the ids of subjects that have T1w files
-Bold = layout.get(return_type='filename', target='subject', suffix='bold', extension='nii.gz')
-
+Bold = layout.get(return_type='filename', target='subject', suffix='epi', extension='nii.gz')
 # Convert the layout to a pandas dataframe
 df = layout.to_df()
 df.head()
 
+#### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
+allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
+list_of_ones = [1] * len(allinfo_study_c)
+allinfo_study_c['session'] = list_of_ones
+
+### select the subject, session to process
+Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
+# choose if you want to select or remove ID from you analysis
+list_to_keep = []
+list_to_remove = []
+
 ntimepoint_treshold = 100
 endfmri = '*_task-rest_*.nii.gz' # string
+images_dir, all_ID, all_Session, all_data_path, max_sessionlist, mean_imgs, templatelow =  Launcher_analysis.Load_BIDS_data_for_analysis.load_data(bids_dir, df, ntimepoint_treshold, list_to_keep, list_to_remove, endfmri)
 
 oversample_map = True
-
-########## if creat_study_template = False ##########
-diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2', species)
-# if creat_study_template== False you need to provide this
-BASE_SS     = opj(diratlas_orig, 'template.nii.gz') # sting
-BASE_mask   = opj(diratlas_orig, 'brain_mask.nii.gz') # sting
-mask_func     = opj(diratlas_orig, 'Gmask.nii.gz') # sting
-
-folder_atlases = diratlas_orig
+oversample_dictionary = False
 min_size = 10
-cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
-cut_coordsY = [-7, -6, -5, -3, -2, 0, 1, 3, 4, 5] #list of int
-cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
-alpha = 0.001
-alpha_dic = 9
+cut_coords = 10
+alpha = 0.0001
+alpha_dic = 10
 component_list = [7, 17]
 lower_cutoff = 0.1
 upper_cutoff = 0.95
 
-
-#######for seed analysis (step 11)
-#### name of the atlases  you want to use for the seed base analysis
 selected_atlases = ['atlaslvl3_LR.nii.gz', 'atlaslvl4_LR.nii.gz'] #liste
-
-# for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 panda_files = [pd.DataFrame({'region':[
 'Somatosensory cortex',
 'Posterior parietal cortex',
@@ -114,11 +92,17 @@ panda_files = [pd.DataFrame({'region':[
 'OB'],'label':[162,128,114,112,107,153]})] # liste of pandas dataframe
 
 treshold_or_stat = 'stat'
-templatelow = "/srv/projects/easymribrain/data/MRI/Dog/BIDS_k9/sub-28/ses-1/func/01_prepro/03_atlas_space/BASE_SS_fMRI.nii.gz"  # Low-resolution atlas
-templatehigh = mask_func   # High-resolution anatomical image
+study_template_atlas_forlder = bids_dir + '/sty_template'
+folder_atlases = opj(study_template_atlas_forlder, 'atlases/') # sting
+mask_func     = opj(folder_atlases, 'Gmask.nii.gz') # sting
+type_norm = 'T1w' # T1 or T2
+#templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
+templatehigh = opj(r'/mnt/c/Users/cgarin/Documents/EDNiX/Atlas_library/Atlases_V2/CatinDog/template_SS.nii.gz')
+TR = '1'  # 'value du calculate in s', 'Auto', 'None'
+smoothing = 4
 
-analyses._Group_anal_3dTtest._3dttest_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha, all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold)
+analyses._Group_anal__func_DicLearn.dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, oversample_dictionary,
+              bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, templatelow, templatehigh, TR, smoothing)
 
-analyses._Group_anal__func_DicLearn.dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, alpha_dic, component_list,
-             cut_coordsZ, bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, afni_sif, s_bind, templatelow, templatehigh)
+analyses._Group_anal_3dTtest._3dttest_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, cut_coords, panda_files, selected_atlases,
+              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, endfmri, mean_imgs, ntimepoint_treshold, smoothing)

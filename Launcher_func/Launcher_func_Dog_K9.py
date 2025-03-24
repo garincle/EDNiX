@@ -1,171 +1,57 @@
-import os
-import subprocess
-import numpy as np
 import pandas as pd
+import os
 import sys
 from bids import BIDSLayout
 from bids.reports import BIDSReport
-import glob
-#Path to the excels files and data structure
-opj = os.path.join
-opb = os.path.basename
 opn = os.path.normpath
-opd = os.path.dirname
-ope = os.path.exists
-spco = subprocess.check_output
-spgo = subprocess.getoutput
+opj = os.path.join
 
-##############################################################  TO DO !! ##############################################################
+MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
+sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
 
-MAIN_PATH = opj('/','srv','projects','easymribrain')
-s_bind = ' --bind ' + opj('/', 'scratch', 'cgarin/') + ',' + MAIN_PATH
-s_path = opj(MAIN_PATH, 'code', 'singularity')
-
-##### where is EasyMRI_brain?
-sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
+import Tools.Load_subject_with_BIDS
 import fonctions._0_Pipeline_launcher
 
 species = 'CatinDog'
-bids_dir = opj('/scratch/cgarin/','Dog','BIDS_k9')
-##########################################
-########### Subject loader################
-##########################################
+# Override os.path.join to always return Linux-style paths
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Desktop\BIDS_k9"))
+FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
+atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2", species))
+Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\LUT_files"))
+# Read the Excel file into a DataFrame
+xcel_file_path = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2\Legende_VDualvf2_formatrix.xlsx"))
+FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
+study_fMRI_Refth = opj(MAIN_PATH,'code','4topup.txt') #string (path)
 
-
+########### Subject loader with BIDS##############
 layout= BIDSLayout(bids_dir,  validate=True)
-print(layout)
-subject = layout.get_subjects()
-print(subject)
-tasks = layout.get_tasks()
-print(tasks)
-
 ###report
 report = BIDSReport(layout)
-#counter = report.generate()
-#main_report = counter.most_common()[0][0]
-#print(main_report)
-
-
 # Ask get() to return the ids of subjects that have T1w files #return_type='filename
 T1 = layout.get(return_type='filename', target='subject', suffix='T1w', extension='nii.gz')
 print(T1)
-###question
-
-
-# Ask get() to return the ids of subjects that have T2w files
-#T2 = layout.get(return_type='filename', target='subject', suffix='T2w', extension='nii.gz')
-#print(T2)
-
 # Ask get() to return the ids of subjects that have T1w files
-Bold = layout.get(return_type='filename', target='subject', suffix='bold', extension='nii.gz')
-
-# Ask get() to return the ids of subjects that have T1w files
-#topup_dir = layout.get(return_type='filename', target='subject', suffix='epi', extension='nii.gz')
-
+Bold = layout.get(return_type='filename', target='subject', suffix='epi', extension='nii.gz')
 # Convert the layout to a pandas dataframe
 df = layout.to_df()
 df.head()
 
-
+#### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
 allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
+list_of_ones = [1] * len(allinfo_study_c)
+allinfo_study_c['session'] = list_of_ones
 
-allinfo_study_c.rename(columns={'session': 'Session'}, inplace=True)
-allinfo_study_c.rename(columns={'subject': 'ID'}, inplace=True)
-allinfo_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
+### select the subject, session to process
+Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
+# choose if you want to select or remove ID from you analysis
+list_to_keep = []
+list_to_remove = []
+all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
-folders = glob.glob(opj(bids_dir,'sub*'))
-
-##############################################################  TO DO !! ##############################################################
-
-
-allinfo_study_c_formax = allinfo_study_c.copy()
-
-############################################################## NOTHING TO DO HERE ##############################################################
-
-#### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### ####
-#### #### now, we need to creat the list of variable to feed to function "_0_Pipeline_launcher" #### ####
-#### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### #### ####
-
-#########creat lists of indiv and usefull variables
-# just a list of all datapath
-all_data_path = []
-# just a list of all subject ID
-all_ID = []
-# just a list of all Session
-all_Session = []
-
-### for longitudinal datasets, you may want to know which session is the last, this is the way to handle it
-all_data_path_max = []
-all_ID_max = []
-max_session = []
-max_sessionlist = []
-
-### this is just to list all subject in a ID + 'ses-' + str(Session) way (usefull for the variable "deoblique_exeption")
-animal_ID = []
-
-#let's add all the the string to those lists
-for ID in pd.unique(allinfo_study_c_formax.ID):
-    list_session = allinfo_study_c_formax.loc[allinfo_study_c_formax['ID'] == ID].Session.dropna()
-    listereverse = list(list_session)
-    listereverse.reverse()
-    if len(list(list_session))>1:
-        max_session.append(np.array(listereverse).max())
-    else:
-        max_session.append(np.array(listereverse))
-
-    for Session in listereverse:
-        print('session numuber ' + str(Session))
-
-        # Organization of the folders
-        data_path = opj(bids_dir,'sub-' + ID,'ses-' + str(Session))
-        all_data_path.append(data_path)
-        all_Session.append(Session)
-        all_ID.append(ID)
-        if len(list(list_session)) > 1:
-            max_sessionlist.append(np.array(listereverse).max())
-        else:
-            max_sessionlist.append(np.array(listereverse))
-        animal_ID.append(ID + 'ses-' + str(Session))
-
-for ID, Session in zip(pd.unique(allinfo_study_c_formax.ID), max_session):
-    # Organization of the folders
-    data_path = opj(bids_dir,'sub-' + ID,'ses-' + str(Session))
-    all_data_path_max.append(data_path)
-    all_ID_max.append(ID)
-
-##############################################################  TO DO !!!! ##############################################################
-
-######## sometime you aleady analysed some subjects, and you don't want to do it again,
-# this can not be done in the previous step, as if you are working with the longitudinal dataset it can mess up your analysis
-######## select animals that have been analyzed already
-
-removelist = []
-######### select the indiv you want to remove !!!
-for num, (ID, Session, data_path, max_ses) in enumerate(zip(all_ID, all_Session, all_data_path, max_sessionlist)):
-    if ID in []:
-        removelist.append(num)
-
-############################################################## NOTHING TO DO HERE ##############################################################
-
-#### apply this to the already created lists
-all_ID =  [item for i, item in enumerate(all_ID) if i not in removelist]
-all_Session =  [item for i, item in enumerate(all_Session) if i not in removelist]
-all_data_path =  [item for i, item in enumerate(all_data_path) if i not in removelist]
-max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i not in removelist]
-
-##############################################################  TO DO !!!! ##############################################################
-                                ##############################################################
-                                ########### 2. variable specific of you dataset ##############
-                                ##############################################################
-
-#### Choose the type of analysis you want to to do
 coregistration_longitudinal = False #True or False
 overwrite_option = True #True or False overwrite previous analysis if in BIDS
-
-#### if you don't have an anat image!!  not great but sometine you don't have the choice
 IhaveanANAT = True # True or False
 
-#####if IhaveanANAT = False
 ### you will need to put in the folderforTemplate_Anat
 folderforTemplate_Anat = ''
 anat_subject = opj(folderforTemplate_Anat,'template.nii.gz') # string
@@ -199,102 +85,24 @@ T1_eq = 5 # int
 #### Choose which image you want to use as ref (0 the first one, 1 the second run, ect...)
 REF_int = 0 # int
 Slice_timing_info = 'Auto'
-
-#### ==> you need to check in the json or on the image map what is the encoding direction
-# For exemple if  phase encoding direction is "j-" you should put physical coordinates y- (ijk = xyz) (info: if image orientation is LPI it means that your image has been acquired from P to A)
-###################for fudge and anat to func!!!
-# from FSL
-####--unwarpdir=dir
-#specifies the direction of the unwarping/warping - i.e. phase-encode direction - with dir being one of x,y,z,x-,y-,z-).
-#Note: the conventions for x, y and z are voxel axes (in the input image), but with the x-axis being swapped if the qform or sform determinant is positive
-# (to match the internal FSL voxel coordinate axes), though due to other possible changes in the pipeline for reconstructing/analysing both the EPI
-# and fieldmap images, it is usually necessary to determine the sign of the direction by trial-and-error once
-# for each scanning/reconstruction/analysis protocol (each dataset using the same protocol will need the same unwarpdir).
-### CHATGPT
-#To determine the correct unwarp direction:
-#Check the Phase Encoding Direction: Determine the direction in which the phase encoding was applied during acquisition.
-#This is often specified in the metadata of the image or the acquisition protocol.
-#Refer to the Image Orientation: Understand the image orientation and how the voxel axes (i, j, k) map to the physical axes (x, y, z).
-#For example, if you know:
-#Your image was acquired with phase encoding direction from posterior to anterior (P to A).
-#The image orientation is LPA (Left-Posterior-Anterior).
-#Then:
-#The phase encoding direction corresponds to the y-axis.
-#The distortions occurred in the y direction, so you would use --unwarpdir=y.
-
-##### if their is an image in the  opposite direction, then we will apply fudge but for this you need to know
-####### so here you need to provide the path for the se_map and b02b0.cnf
-#b02b0.cnf will be provided, but I never undestood if it should be really modified
-
-# However, you need to change se map file!!!!!!
-# se_map need 4 numbers in two lines:
-# First is the line for the map img and second for the func
-# In our example, it should be the -1 if the map image is j- and 1 if j (then for the second line it is the same but for the func img).
-# The last number is used to correct for different in acquistion between func and fmap.
-#I don't know how it works, but refer to doc if necessary (it should be TotalReadoutTime).
-#https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/topup/TopupUsersGuide#A--datain
-# If same image, it should be the same number (whatever it is)
-# Ones you have created the topup file you should save it somewhere
-
-### correction_direction (necessery only if you want to appply TOPUP)
 correction_direction = 'Auto' # 'x', 'x-', 'y', 'y-', 'Auto', 'None'
-
 ### Dwell Time (necessery only if you want to appply TOPUP)
 DwellT = 'Auto' # 'value du calculate', 'Auto', 'None'
 ### TotalReadoutTime (necessery only if you want to appply TOPUP)
 TRT = 'Auto'
-
-#### where are stored the file for topup??
-study_fMRI_Refth = opj(MAIN_PATH,'code','4topup.txt') #string (path)
-
-########################################################################################################################
-
 ### Slice encoding direction (SED) (necessery only if you want to restrict the transfo for anat to func)
 SED = 'Auto' #  "i", "i-", "j", "j-", "k", "k-", 'Auto', 'None'
-
 ### YOU NEED TO PROVIDE A TR if not in .json, otherwise it will fail
 TR = 'Auto'  # 'value du calculate in s', 'Auto', 'None'
+
 ntimepoint_treshold = 100
-##### masking steps SUPER IMPORTANT!!
-# you can choose to not do it (not advised)
+
 doMaskingfMRI = True # True or False
-
-# if anat_func_same_space == True
-# then it will automatically take the mask of the anat image (be sure that they are in the same space!)
-
-# if no
-### Method_mask_func=="3dAllineate" or Method_mask_func = 'nilearn'
-#### 3dAllineate is based ont the linerar alignment of the anat to the func to send the anat mask to the func
-
-#### nilearn is a theshold based method (you can play with the threshold level)
 Method_mask_func = '3dSkullStrip_dog' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
-
-### if Method_mask_func=="3dAllineate" choose a method a alignment
 costAllin = '' # string
 
-### if Method_mask_func=="nilearn" choose a cutoff
-lower_cutoff = 0.05 # int
-upper_cutoff = 0.5 # int
-
-###############################################################################################################
-############################################### coregistration steps ##########################################
-###############################################################################################################
-########### define orientation############
 orientation = 'RPI' # string
-###############################################################################################################
-######################## Probably the most "obscure part of the script" ########################
-###############################################################################################################
-#### If your anat and func are not in the same space, then, it is easy, just put deoblique='header'
-# another option is to put all of several animals in deoblique_exeption1, and no deoblique will be applied
-
-#### if they are, and you want to make your life easy by using the anatomical mask, you need to have the anat and func in the space after deoblique
-#### their is two way to do it deoblique='header': if the oblique is not too crazy and the center of the FOV similar it should work, but often, it is not the case.
-## deoblique='WARP' BOLD images will be warped to fix the deoblique difference, you can use it ONLY if you have done the same thing of the anatomical images.
-# It will have for unfortunate consequence to warp the func multiple times to go in the atlas space and one time in the original space.
-# However, this function can help to solve common space problem.....
-
 deoblique='header' #header or WARP
-
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 n_for_ANTS = 'hammingWindowedSinc' # string
@@ -310,21 +118,12 @@ otheranat = '' # sting
 ### if you want to use T1/T2 as template (not sure if it will be ever usefull)
 useT1T2_for_coregis = False # True or False
 
-###### sometime, the functional quality is so poor that co-registering the anat to the functional image will creat mistakes
-###### if it is the case and if you !!!! FUNC IS IN THE ANAT SPACE !!!!! you may try do_anat_to_func = False,
-# it will assume that no coregistration between the anatomical image and the func is necessary
+
 do_anat_to_func = True # True or False
 
-#######################################################################
-######################### study template??? ###########################
-#######################################################################
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
 creat_study_template = True # True or False
-
-########## if creat_study_template = True ##########
-
-######no need to answer this question if you are not doing a study template
 #folder where you stored the stdy template
 study_template_atlas_forlder = bids_dir + '/sty_template'
 # sting
@@ -332,17 +131,10 @@ stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_
 stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
 GM_mask_studyT = opj(study_template_atlas_forlder, 'atlases', 'Gmask.nii.gz') # sting
 
-########## if creat_study_template = False ##########
-diratlas_orig = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2', species)
-
 # if creat_study_template== False you need to provide this
-BASE_SS     = opj(diratlas_orig, 'template.nii.gz') # sting
-BASE_mask   = opj(diratlas_orig, 'brain_mask.nii.gz') # sting
-GM_mask     =opj(diratlas_orig, 'Gmask.nii.gz') # sting
-
-    ##########################################################
-    ##### define atlases that are in template space ##########
-    ##########################################################
+BASE_SS     = opj(atlas_dir, 'template.nii.gz') # sting
+BASE_mask   = opj(atlas_dir, 'brain_mask.nii.gz') # sting
+GM_mask     =opj(atlas_dir, 'Gmask.nii.gz') # sting
 
 ####put all atlases and template to process in the same folder named: ...
 list_atlases = [ opj(study_template_atlas_forlder, 'atlases', 'atlaslvl1.nii.gz'),
@@ -366,9 +158,9 @@ do_not_correct_signal  = False # True or False
 extract_exterior_CSF = False # True or False
 
 ### you can use the White Matter as regressor
-extract_WM = True # True or False
+extract_WM = False # True or False
 #use the eroded  White Matter functional mask (produced during the anat processing)
-use_erode_WM_func_masks  = True # True or False
+use_erode_WM_func_masks  = False # True or False
 
 ### you can use the Ventricules as regressor (not advised for small species as often not enough voxels)
 extract_Vc = False # True or False
@@ -381,13 +173,13 @@ extract_GS = False # True or False
 ### Band path filtering
 band = '0.01 0.1' # string
 #Smooth
-blur = 3 # float
+blur = 0 # float
 #Dilate the functional brain mask by n layers
 dilate_mask = 0 # int
-#retrain the analysis to the gray matter
+#retrain the analysis to the gray mzvatter
 use_cortical_mask_func = False # True or False
 
-#######for seed analysis (step 11)
+#######for seed analysis (stepa 11)
 #### name of the atlases  you want to use for the seed base analysis
 selected_atlases = ['atlaslvl3_LR.nii.gz', 'atlaslvl4_LR.nii.gz'] #liste
 
@@ -414,7 +206,6 @@ panda_files = [pd.DataFrame({'region':[
 'BA 9',
 'OB'],'label':[162,128,114,112,107,153]})] # liste of pandas dataframe
 
-
 #### coordinate of the template plot in list form, each number will be a slice (plotting.plot_stat_map = cut_coords)
 cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
 cut_coordsY = [-7, -6, -5, -3, -2, 0, 1, 3, 4, 5] #list of int
@@ -432,19 +223,17 @@ oversample_map = False # True or False
 
 #######for matrix analysis (step 10)
 #### name of the atlases  you want to use for the matrix analysis
-# Read the Excel file into a DataFrame
-file_path = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Classiff','Legende_VDualvf2_formatrix.xlsx')
-legendPNAS = pd.read_excel(file_path, 'Legend_2023')
 
-selected_atlases_matrix = [opj(diratlas_orig, 'atlaslvl1.nii.gz'),
-opj(diratlas_orig, 'atlaslvl2.nii.gz'),
-opj(diratlas_orig, 'atlaslvl3.nii.gz'),
-opj(diratlas_orig, 'atlaslvl4.nii.gz'),
-opj(diratlas_orig, 'atlaslvl1_LR.nii.gz'),
-opj(diratlas_orig, 'atlaslvl2_LR.nii.gz'),
-opj(diratlas_orig, 'atlaslvl3_LR.nii.gz'),
-opj(diratlas_orig, 'atlaslvl4_LR.nii.gz')]
+selected_atlases_matrix = [opj(atlas_dir, 'atlaslvl1.nii.gz'),
+opj(atlas_dir, 'atlaslvl2.nii.gz'),
+opj(atlas_dir, 'atlaslvl3.nii.gz'),
+opj(atlas_dir, 'atlaslvl4.nii.gz'),
+opj(atlas_dir, 'atlaslvl1_LR.nii.gz'),
+opj(atlas_dir, 'atlaslvl2_LR.nii.gz'),
+opj(atlas_dir, 'atlaslvl3_LR.nii.gz'),
+opj(atlas_dir, 'atlaslvl4_LR.nii.gz')]
 
+legendPNAS = pd.read_excel(xcel_file_path, 'Legend_2023')
 # Select the desired columns and rename them
 pandas1 = legendPNAS[['NEWlvl1_label', 'NEWLVL1']].rename(columns={'NEWlvl1_label': 'label', 'NEWLVL1': 'region'})
 pandas1 = pd.DataFrame(data={'label': pandas1['label'].unique(), 'region': pandas1['region'].unique()}).dropna()
@@ -464,20 +253,24 @@ pandas4['label'] = pandas4['label'].astype(int)
 
 #### name of the regions and labels  you want to use for the matrix analysis
 segmentation_name_list = [pandas1, pandas2, pandas3, pandas4] # liste of pandas dataframe
-
+registration_fast = False
 specific_roi_tresh = 0.4
 unspecific_ROI_thresh = 0.2
-Seed_name = 'Periarchicortex'
-
+ICA_cleaning = 'Skip'
+normalize = 'Skip'
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,100,200]
+Skip_step = [1,2,3,4,5,6,10,11,12,13,14,15,100,200]
     ############################################################
     ######################## START de pipeline #################
     #####################
-fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
-    correction_direction, REF_int, study_fMRI_Refth, SBAspace, erod_seed, deoblique, orientation,
-    TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
-    extract_exterior_CSF, extract_WM, n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
-    cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
-    folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff, selected_atlases_matrix,
-    specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH, DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, s_bind, s_path)
+fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
+                    BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
+                    correction_direction, REF_int, SBAspace, erod_seed, deoblique, orientation,
+                    TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
+                    dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
+                    n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,
+                    oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step,
+                    bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
+                    folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list, band,
+                    extract_Vc, selected_atlases_matrix, specific_roi_tresh, unspecific_ROI_thresh, extract_GS, MAIN_PATH,
+                    DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, FS_dir, normalize)
