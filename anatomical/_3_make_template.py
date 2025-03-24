@@ -27,14 +27,12 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-
 ############# use #############
-#######Name: nilearn
-#######Version: 0.9.0
-################################
+#######Name: nilearn ##########
+#######Version: 0.9.0 #########
+###############################
 
-
-def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, type_norm, study_template_atlas_folder,
+def make_template(which_on, all_ID_max, all_Session_max, all_data_path_max, all_ID, all_Session, all_data_path, type_norm, study_template_atlas_folder,
                   s_bind, afni_sif,diary_file):
 
     ct = datetime.datetime.now()
@@ -45,7 +43,7 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
 
     if which_on == 'max': # all or max
         all_ID_temp = all_ID_max
-        all_Session_temp = max_session
+        all_Session_temp =  [all_Session_max[all_ID.index(ID)] for ID in all_ID_max]
         all_data_path_temp = all_data_path_max
 
     elif which_on == 'all':
@@ -96,13 +94,8 @@ def make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, 
 
         template_list.append(opj(dir_prepro, ID + '_acpc_cropped' + type_norm + 'Zp.nii.gz'))
 
-
-
-            ###########################template
-
     if not ope(study_template_atlas_folder):
         os.mkdir(study_template_atlas_folder)
-
     templatedir2 = opj(study_template_atlas_folder, 'studytemplate2_' + type_norm)
     if not ope(templatedir2):
         os.mkdir(templatedir2)

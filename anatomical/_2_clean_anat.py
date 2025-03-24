@@ -28,13 +28,10 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-#################################################
-########    creat brain image of animal  ########
-#################################################
-
-
-def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, type_of_transform, ID, aff_metric_ants, Session, otheranat, type_norm, dir_prepro, masking_img, do_manual_crop,
-    brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, template_skullstrip, study_template_atlas_folder, overwrite,
+def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, type_of_transform, ID, aff_metric_ants, Session, otheranat,
+               type_norm, dir_prepro, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, BASE_SS_coregistr,
+               BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, template_skullstrip,
+               study_template_atlas_folder, overwrite,
                s_bind,afni_sif,fsl_sif,fs_sif, itk_sif, strip_sif,diary_file):
 
     ct = datetime.datetime.now()

@@ -4,12 +4,12 @@ import glob
 import subprocess
 import os
 import numpy as np
-import pandas as pd
 import nibabel as nib
 from nilearn.masking import compute_epi_mask
 import matplotlib.pyplot as plt
 from scipy.stats import norm
-
+import Tools.Load_EDNiX_requirement
+from fonctions.extract_filename import extract_filename
 #################################################################################################
 #### LOADER YUNG LEMUR
 #################################################################################################
@@ -24,19 +24,20 @@ spgo = subprocess.getoutput
 #################################################################################################
 #### Seed base analysis
 #################################################################################################
-def _3dttest_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold):
+def _3dttest_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, cut_coords, panda_files, selected_atlases,
+              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, endfmri, mean_imgs, ntimepoint_treshold, smoothing):
 
-    from fonctions.extract_filename import extract_filename
+    s_path, afni_sif, fsl_sif, fs_sif, itk_sif, wb_sif, strip_sif, s_bind = Tools.Load_EDNiX_requirement.load_requirement(
+        MAIN_PATH, bids_dir, FS_dir)
 
     output_results1 = opj(bids_dir, 'Results')
     if not os.path.exists(output_results1): os.mkdir(output_results1)
 
     # If oversampling is enabled, use the base template, else use a predefined atlas
     if oversample_map == True:
-        studytemplatebrain = BASE_SS
+        studytemplatebrain = templatehigh
     else:
-        studytemplatebrain = opj(folder_atlases, 'BASE_SS_fMRI.nii.gz')
+        studytemplatebrain = templatelow
 
     # Concatenate all the images in `mean_imgs`
     mean_imgs_rs = nilearn.image.concat_imgs(mean_imgs, ensure_ndim=None, memory=None, memory_level=0,
@@ -147,17 +148,16 @@ def _3dttest_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases,
                         mean_per_subject.append(opj(output_folder, str(ID) + '_avg_fisher_map.nii.gz'))
 
             if len(mean_per_subject)>1:
-                # Perform t-test (Level 1) on the averaged Fisher map across subjects
-                if os.path.exists(output_folder + 'TTnew+orig.HEAD'):
-                    os.remove(output_folder + 'TTnew+orig.HEAD')
-                if os.path.exists(output_folder + 'TTnew+orig.BRIK'):
-                    os.remove(output_folder + 'TTnew+orig.BRIK')
+                # Find and remove all files starting with 'TTnew'
+                for file in glob.glob(os.path.join(output_folder, "TTnew*")):
+                    os.remove(file)
+                    print(f"Removed: {file}")
 
                 os.chdir(output_folder)
                 print(subprocess.list2cmdline(mean_per_subject))
                 if len(mean_per_subject)>14:
                     command = f"singularity run {s_bind} {afni_sif} 3dttest++ -setA {subprocess.list2cmdline(mean_per_subject)} " \
-                              f"-toz -Clustsim -mask {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} "
+                              f"-toz -exblur {smoothing} -Clustsim -mask {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} "
                     nl = spgo(command)
                     print(nl)
 
@@ -185,7 +185,7 @@ def _3dttest_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases,
 
                 else:
                     command = f"singularity run {s_bind} {afni_sif} 3dttest++ -setA {subprocess.list2cmdline(mean_per_subject)} " \
-                              f"-toz -mask {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} "
+                              f"-toz -exblur {smoothing} -mask {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} "
                     nl = spgo(command)
                     print(nl)
                     cluster_size = 10
@@ -193,7 +193,6 @@ def _3dttest_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases,
                     command = f"singularity run {s_bind} {afni_sif} 3dcalc -overwrite -a {opj(output_folder, 'TTnew+orig.HEAD[1]')} -expr a -prefix {opj(output_folder, Seed_name + 'ttest-stat_fisher_zmap.nii.gz')}"
                     nl = spgo(command)
                     print(nl)
-
 
                 # Thresholding and visualization
                 z_map = opj(output_folder, Seed_name + 'ttest-stat_fisher_zmap.nii.gz')
@@ -210,7 +209,7 @@ def _3dttest_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases,
 
                 # Visualization
                 display = plotting.plot_stat_map(opj(output_folder, Seed_name+ 'thresholded_ttest-stat_fisher.nii.gz'), dim=0, threshold=z_score, vmax=loadimgsort99,
-                                                 colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=10)
+                                                 colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=cut_coords)
                 display.savefig(opj(output_folder, Seed_name+ 'thresholded_stat_mosaic.jpg'))
                 display.close()
                 plt.close('all')

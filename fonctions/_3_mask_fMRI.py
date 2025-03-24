@@ -6,7 +6,7 @@ from nilearn.image.image import mean_img
 import fonctions.Skullstrip_func
 import datetime
 import json
-
+import re
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -30,7 +30,7 @@ spgo = subprocess.getoutput
 
 def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                        dir_fMRI_Refth_RS_prepro3, RS, nb_run, REF_int, ID, dir_prepro, brainmask, V_mask, W_mask, G_mask, dilate_mask,
-                       costAllin, anat_subject, doMaskingfMRI, Method_mask_func, lower_cutoff, upper_cutoff, overwrite, type_of_transform, aff_metric_ants,
+                       costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
                        s_bind,afni_sif,fs_sif, fsl_sif, itk_sif,diary_file):
 
     ct = datetime.datetime.now()
@@ -40,9 +40,7 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
     print(bcolors.OKGREEN + nl + bcolors.ENDC)
     diary.write(f'\n{nl}')
 
-
     ##### create new variable for template space (we will need to store and downsample template img to func resolution)
-
     if ope(dir_fMRI_Refth_RS_prepro3) == False:
 
         os.makedirs(dir_fMRI_Refth_RS_prepro3)
@@ -93,7 +91,6 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
     with open(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test.json'), "w") as outfile:
         outfile.write(json_object)
 
-
     command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
     ADI = spgo(command).split('\n')
     delta_x = str(abs(round(float(ADI[-1]), 10)))
@@ -104,8 +101,37 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
     ADK = spgo(command).split('\n')
     delta_z = str(abs(round(float(ADK[-1]), 10)))
 
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -orient ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
-    orient_meanimg = spgo(command).split('\n')[2]
+    def get_orientation(command):
+        """Executes the command and extracts the 3-letter orientation code."""
+        try:
+            # Run the command and get the output
+            orient_raw = subprocess.getoutput(command)
+
+            # Extract the last valid 3-letter orientation code
+            match = re.search(r'([RLAPSI]{3})\b', orient_raw)
+
+            if match:
+                orient_code = match.group(1)
+                return orient_code
+            else:
+                raise ValueError(f"No valid orientation code found in the output: {orient_raw}")
+
+        except Exception as e:
+            raise RuntimeError(f"Error while determining orientation: {str(e)}")
+
+    # Construct the command
+    command = ('export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO"; '
+        f'singularity run {s_bind}{afni_sif}3dinfo -orient '
+        f'{os.path.join(dir_fMRI_Refth_RS_prepro1, "Mean_Image.nii.gz")}')
+
+    # Get the orientation of the Mean Image
+    orient_meanimg = get_orientation(command)
+
+    # Validate and print the result
+    if re.match(r'^[RLAPSI]{3}$', orient_meanimg):
+        print(f"Valid orientation: {orient_meanimg}")
+    else:
+        raise ValueError(f"Invalid orientation format: {orient_meanimg}")
 
     command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + BASE_SS_coregistr +  \
     ' -prefix ' +  opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz') + ' -expr "a"'
@@ -285,61 +311,58 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
                       + str(input1) + ' not found!!! this may be because you have not provided an aseg file, then no '
                                       'extraction of WM or Ventricles or GM will be possible... please check that!' + bcolors.ENDC)
 
-    ############################### ############################### ############################### 
-    ############################ put anat IN Mean image space ##################################
-    ############################### ############################### ###############################
+    nl1 = "INFO: brain_skullstrip method is " + Method_mask_func
+    nl2 = 'INFO: looking for manual segmentation named:' + opj(dir_fMRI_Refth_RS_prepro1, 'manual_mask.nii.gz') + '...'
+    print(bcolors.OKGREEN + nl1 + bcolors.ENDC)
+    diary.write(f'\n{nl1}')
+    print(bcolors.OKGREEN + nl2 + bcolors.ENDC)
+    diary.write(f'\n{nl2}')
 
-    if doMaskingfMRI == True:
-        if ope(opj(dir_fMRI_Refth_RS_prepro1,'manual_mask.nii.gz')):
-                command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro1,'manual_mask.nii.gz') + \
-                ' -prefix ' +  opj(dir_fMRI_Refth_RS_prepro1,'maskDilat_Allineate_in_func.nii.gz') + ' -expr "a"'
-                nl = spgo(command)
-                diary.write(f'\n{nl}')
-                print(nl)
-                dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1,'manual_mask.nii.gz'),
-                              "Description": 'Copy.', }
-                json_object = json.dumps(dictionary, indent=2)
-                with open(opj(dir_fMRI_Refth_RS_prepro1,'maskDilat_Allineate_in_func.json'), "w") as outfile:
-                    outfile.write(json_object)
+    #### explore if manual_mask.nii.gz exists?
+    if ope(opj(dir_fMRI_Refth_RS_prepro1,'manual_mask.nii.gz')):
 
-        else:
-            if anat_func_same_space == True:
-                command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz') + \
-                          ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz') + ' -expr "a"'
-                nl = spgo(command)
-                diary.write(f'\n{nl}')
-                print(nl)
-                dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz'),
-                              "Description": 'Copy.', }
-                json_object = json.dumps(dictionary, indent=2)
-                with open(opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.json'), "w") as outfile:
-                    outfile.write(json_object)
+        nl1 = 'WARNING: We found a final mask to skullstrip the functional image !!! no Skullstrip will be calculated!'
+        nl2 = 'INFO: please delete' +opj(dir_fMRI_Refth_RS_prepro1, 'manual_mask.nii.gz') + ' if you want retry to create a skulstripp images'
+        print(bcolors.WARNING + nl1 + bcolors.ENDC)
+        diary.write(f'\n{nl1}')
+        print(bcolors.OKGREEN + nl2 + bcolors.ENDC)
+        diary.write(f'\n{nl2}')
 
-                nl = 'you are using the mask from the anat img'
-                print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                diary.write(f'\n{nl}')
-                diary.write(f'\n')
-                diary.close()
-            else:
-                diary.write(f'\n')
-                diary.close()
-                fonctions.Skullstrip_func.Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                                                          overwrite, costAllin, lower_cutoff, upper_cutoff, type_of_transform,
-                                                          aff_metric_ants, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif,diary_file)
-    else:
-        command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + \
-                  ' -a  ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz') + \
-                  ' -expr "step(a)" ' + \
-                  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,'maskDilat_Allineate_in_func.nii.gz')
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro1,'manual_mask.nii.gz') + \
+        ' -prefix ' +  opj(dir_fMRI_Refth_RS_prepro1,'maskDilat_Allineate_in_func.nii.gz') + ' -expr "a"'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
-
-        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz'),
-                      "Description": 'Binary image (3dcalc,AFNI).', }
+        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1,'manual_mask.nii.gz'),
+                      "Description": 'Copy.', }
         json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.json'), "w") as outfile:
+        with open(opj(dir_fMRI_Refth_RS_prepro1,'maskDilat_Allineate_in_func.json'), "w") as outfile:
             outfile.write(json_object)
 
-        diary.write(f'\n')
-        diary.close()
+    #### if not, create an fMRI mask
+    else:
+        nl1 = "INFO: no manual mask found "
+        print(bcolors.OKGREEN + nl1 + bcolors.ENDC)
+        if anat_func_same_space:
+            command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz') + \
+                      ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz') + ' -expr "a"'
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+            dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz'),
+                          "Description": 'Copy.', }
+            json_object = json.dumps(dictionary, indent=2)
+            with open(opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.json'), "w") as outfile:
+                outfile.write(json_object)
+
+            nl = 'you are using the mask from the anat img'
+            print(bcolors.OKGREEN + nl + bcolors.ENDC)
+            diary.write(f'\n{nl}')
+            diary.write(f'\n')
+            diary.close()
+        else:
+            diary.write(f'\n')
+            diary.close()
+            fonctions.Skullstrip_func.Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+                                                      overwrite, costAllin, type_of_transform,
+                                                      aff_metric_ants, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif,diary_file)

@@ -23,9 +23,9 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 from fonctions.extract_filename import extract_filename
 
-def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_RS_ICA_native,
-    nb_run, RS, blur, TR, melodic_prior_post_TTT, extract_exterior_CSF, extract_WM, do_not_correct_signal, band, extract_Vc, extract_GS, overwrite,
-                      s_bind,afni_sif,diary_file):
+def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_RS_ICA_native,
+    nb_run, RS, blur, TR, ICA_cleaning, extract_exterior_CSF, extract_WM, normalize,
+    do_not_correct_signal, band, extract_Vc, extract_GS, overwrite, s_bind,afni_sif,diary_file):
 
     ct = datetime.datetime.now()
     diary = open(diary_file, "a")
@@ -37,10 +37,11 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
     for i in range(0, int(nb_run)):
         root_RS = extract_filename(RS[i])
 
-        if melodic_prior_post_TTT == True:
-            input = opj(dir_RS_ICA_native, root_RS + '_norm_final_clean.nii.gz')
-        else:
+        if ICA_cleaning == 'Skip':
             input = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_2ref_RcT_masked.nii.gz')
+        else:
+            input = opj(dir_RS_ICA_native, root_RS + '_norm_final_clean.nii.gz')
+
 
         command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + input + \
                   ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + ' -expr "a"'
@@ -188,6 +189,37 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                 nl = spgo(command)
                 diary.write(f'\n{nl}')
                 print(nl)
+
+                # Normalization options
+                zscore_command = 'singularity run ' + s_bind + ' ' + afni_sif + ' ' + \
+                                 '3dTstat -mean -overwrite -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'mean.nii.gz') + ' ' + \
+                                 opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz') + ' && ' + \
+                                 '3dTstat -stdev -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'stdev.nii.gz') + ' ' + \
+                                 opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz') + ' && ' + \
+                                 '3dcalc -overwrite -a ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz') + \
+                                 ' -b ' + opj(dir_fMRI_Refth_RS_prepro1, 'mean.nii.gz') + \
+                                 ' -c ' + opj(dir_fMRI_Refth_RS_prepro1, 'stdev.nii.gz') + \
+                                 ' -expr "(a-b)/c" -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
+
+                psc_command = 'singularity run ' + s_bind + ' ' + afni_sif + ' ' + \
+                              '3dTstat -mean -overwrite -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'mean_func.nii.gz') + ' ' + \
+                              opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz') + ' && ' + \
+                              '3dcalc -overwrite -a ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz') + \
+                              ' -b ' + opj(dir_fMRI_Refth_RS_prepro1, 'mean_func.nii.gz') + \
+                              ' -expr "((a - b) / b) * 100" -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
+
+                # Choose normalization method
+                if normalize == 'zscore':
+                    nl = spgo(zscore_command)
+                    diary.write(f'\n{nl}')
+                    print(nl)
+                elif normalize == 'psc':
+                    nl = spgo(psc_command)
+                    diary.write(f'\n{nl}')
+                    print(nl)
+
+                else:
+                    print('no normalization')
 
                 dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz'),
                                           opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat.nii.gz'),

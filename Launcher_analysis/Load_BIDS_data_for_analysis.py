@@ -2,11 +2,9 @@ import os
 import subprocess
 import numpy as np
 import pandas as pd
-import sys
-from bids import BIDSLayout
-from bids.reports import BIDSReport
 import glob
 import nibabel as nib
+from fonctions.extract_filename import extract_filename
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -15,20 +13,13 @@ opd = os.path.dirname
 ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
-import fonctions
-from fonctions.extract_filename import extract_filename
 
-def load_data(bids_dir, df, ntimepoint_treshold, list_to_keep, list_to_remove):
 
+def load_data(bids_dir, df, ntimepoint_treshold, list_to_keep, list_to_remove, endfmri):
     allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
     allinfo_study_c.rename(columns={'session': 'Session'}, inplace=True)
     allinfo_study_c.rename(columns={'subject': 'ID'}, inplace=True)
     allinfo_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
-    folders = glob.glob(opj(bids_dir,'sub*'))
-
-    ##############################################################  TO DO !! ##############################################################
-
-
     allinfo_study_c_formax = allinfo_study_c.copy()
 
     ############################################################## NOTHING TO DO HERE ##############################################################
@@ -45,7 +36,6 @@ def load_data(bids_dir, df, ntimepoint_treshold, list_to_keep, list_to_remove):
     # just a list of all Session
     all_Session = []
 
-    ### for longitudinal datasets, you may want to know which session is the last, this is the way to handle it
     ### for longitudinal datasets, you may want to know which session is the last, this is the way to handle it
     all_data_path_max = []
     all_ID_max = []
@@ -173,4 +163,7 @@ def load_data(bids_dir, df, ntimepoint_treshold, list_to_keep, list_to_remove):
             if ope(opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz')):
                 images_dir.append(opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz'))
 
-    return(images_dir, all_ID, all_Session, all_data_path, max_sessionlist,)
+        templatelow = opj(dir_fMRI_Refth_RS_prepro3, 'BASE_SS_fMRI.nii.gz')
+
+    print("Remaining all_data_path:", all_data_path)
+    return(images_dir, all_ID, all_Session, all_data_path, max_sessionlist, mean_imgs, templatelow)

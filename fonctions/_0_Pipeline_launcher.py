@@ -47,21 +47,20 @@ import fonctions._14_fMRI_QC_matrix
 import fonctions._100_Data_Clean
 import fonctions._200_Data_QC
 from fonctions.extract_filename import extract_filename
+import Tools.Load_EDNiX_requirement
+def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
+                    BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
+                    correction_direction, REF_int, SBAspace, erod_seed, deoblique, orientation,
+                    TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
+                    dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
+                    n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,
+                    oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step,
+                    bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
+                    folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list, band,
+                    extract_Vc, selected_atlases_matrix, specific_roi_tresh, unspecific_ROI_thresh, extract_GS, MAIN_PATH,
+                    DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, FS_dir, normalize):
 
-def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
-    correction_direction, REF_int, study_fMRI_Refth, SBAspace, erod_seed, deoblique, orientation,
-    TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
-    extract_exterior_CSF, extract_WM, n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
-    cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
-    folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff, selected_atlases_matrix,
-    specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH, DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, s_bind, s_path):
-    sys.path.append(opj(MAIN_PATH + 'Code', 'EasyMRI_brain-master'))
-
-    ### singularity set up
-    afni_sif = ' ' + opj(s_path, 'afni_make_build_24_2_01.sif') + ' '
-    fsl_sif  = ' ' + opj(s_path, 'fsl_6.0.5.1-cuda9.1.sif') + ' '
-    fs_sif   = ' ' + opj(s_path, 'freesurfer_NHP.sif') + ' '
-    itk_sif  = ' ' + opj(s_path, 'itksnap_5.0.9.sif') + ' '
+    s_path, afni_sif, fsl_sif, fs_sif, itk_sif, wb_sif, strip_sif, s_bind =  Tools.Load_EDNiX_requirement.load_requirement(MAIN_PATH, bids_dir, FS_dir)
     config_f = opj(MAIN_PATH, 'code', 'config', 'b02b0.cnf')
 
     if overwrite_option == True:
@@ -70,8 +69,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
         overwrite = ''
 
 
-
-    for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, max_sessionlist):
+    for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, all_Session_max):
         nl = 'INFO: Work on ' + str(ID) + ' session ' + str(Session)
         print(bcolors.OKGREEN + nl + bcolors.ENDC)
 
@@ -681,10 +679,10 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 diary.close()
 
             else:
-                fonctions._3_mask_fMRI.Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+                fonctions._3_mask_fMRI.Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                        dir_fMRI_Refth_RS_prepro3, RS, nb_run, REF_int, ID, dir_prepro, brainmask, V_mask, W_mask, G_mask, dilate_mask,
-                       costAllin, anat_subject, doMaskingfMRI, Method_mask_func, lower_cutoff, upper_cutoff, overwrite, type_of_transform, aff_metric_ants,
-                       s_bind,afni_sif,fs_sif,  fsl_sif, itk_sif,diary_file)
+                       costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
+                       s_bind,afni_sif,fs_sif, fsl_sif, itk_sif,diary_file)
 
             if 4 in Skip_step:
                 ct = datetime.datetime.now()
@@ -698,7 +696,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
 
             else:
                 fonctions._4_check_mask._itk_check_masks(dir_fMRI_Refth_RS_prepro1,
-                                                         s_bind,itk_sif,diary_file)
+                                                         s_bind,itk_sif,diary_file, afni_sif, overwrite)
 
             if 5 in Skip_step:
                 ct = datetime.datetime.now()
@@ -717,7 +715,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                                                              IhaveanANAT, do_anat_to_func, type_of_transform, registration_fast,
                                                              overwrite, s_bind, afni_sif,diary_file)
 
-            if 6 in Skip_step or melodic_prior_post_TTT == False:
+            if 6 in Skip_step or ICA_cleaning == 'Skip':
                 nl = 'skip step ' + str(6)
                 ct = datetime.datetime.now()
                 diary = open(diary_file, "a")
@@ -728,10 +726,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 diary.close()
 
             else:
-                fonctions._6_Melodic.Melodic_correct(dir_RS_ICA_native_PreTT,
-                                                         dir_RS_ICA_native, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                                                         nb_ICA_run, nb_run, RS, TfMRI,
-                                                         overwrite,s_bind,fsl_sif,itk_sif,TR_val,diary_file)
+                fonctions._6_Melodic.Melodic_correct(dir_RS_ICA_native_PreTT, dir_RS_ICA_native, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+                    nb_ICA_run, nb_run, RS, ICA_cleaning, MAIN_PATH,s_bind,fsl_sif,itk_sif,TR_val, diary_file)
 
             if 7 in Skip_step:
                 ct = datetime.datetime.now()
@@ -744,10 +740,9 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 diary.close()
 
             else:
-                fonctions._7_post_TTT.signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_RS_ICA_native,
-                                                        nb_run, RS, blur, TR_val, melodic_prior_post_TTT,
-                                                        extract_exterior_CSF, extract_WM, do_not_correct_signal, band, extract_Vc, extract_GS,
-                                                        overwrite,s_bind,afni_sif,diary_file)
+                fonctions._7_post_TTT.signal_regression(dir_fMRI_Refth_RS_prepro1, dir_RS_ICA_native,
+                    nb_run, RS, blur, TR_val, ICA_cleaning, extract_exterior_CSF, extract_WM, normalize,
+                    do_not_correct_signal, band, extract_Vc, extract_GS, overwrite, s_bind,afni_sif,diary_file)
 
             if 8 in Skip_step:
                 ct = datetime.datetime.now()

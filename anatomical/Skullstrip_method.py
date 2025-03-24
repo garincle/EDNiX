@@ -10,8 +10,6 @@ import math
 import nilearn
 from nilearn.masking import compute_epi_mask
 import numpy as np
-from numba.np.npyfuncs import np_real_log10_impl
-
 from anatomical import Histrogram_mask_EMB
 from fonctions.extract_filename import extract_filename
 import datetime
