@@ -50,7 +50,7 @@ from fonctions.extract_filename import extract_filename
 import Tools.Load_EDNiX_requirement
 def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
                     BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
-                    correction_direction, REF_int, SBAspace, erod_seed, deoblique, orientation,
+                    correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
                     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
                     dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
                     n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,
@@ -804,7 +804,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
                 fonctions._11_Seed_base_many_regionsatlas.SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                                                               dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files, oversample_map,
                                                               use_cortical_mask_func,cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val,
-                                                              s_bind, afni_sif,diary_file)
+                                                              s_bind, afni_sif,diary_file, smoothSBA, TR_val)
 
             if 12 in Skip_step:
                 ct = datetime.datetime.now()
