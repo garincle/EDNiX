@@ -184,27 +184,39 @@ use_cortical_mask_func = False # True or False
 selected_atlases = ['atlaslvl3_LR.nii.gz', 'atlaslvl4_LR.nii.gz'] #liste
 
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
-panda_files = [pd.DataFrame({'region':[
-'Somatosensory cortex',
-'Posterior parietal cortex',
-'Visual pre and extra striate cortex',
-'Visual striate cortex',
-'Auditory cortex (Superior temporal)',
-'Insula and others in lateral sulcus',
-'Septum',
-'Hippocampal formation',
-'Periarchicortex',
-'Striatum',
-'Basal forebrain',
-'Amygdala',
-'Hypothalamus',
-'Thalamus'],'label':[58,59,61,62,64,67,68,71,74,75,76,79,80,81]}), pd.DataFrame({'region':[
-'retrosplenial',
-'BA 23',
-'BA 24',
-'BA 32',
-'BA 9',
-'OB'],'label':[162,128,114,112,107,153]})] # liste of pandas dataframe
+selected_atlases = ['atlaslvl3_LR.nii.gz', 'atlaslvl4_LR.nii.gz'] #liste
+lvl3 = pd.DataFrame({
+    'region': [
+        'L_Somatosensory_cortex', 'R_Somatosensory_cortex',
+        'L_Posterior_parietal_cortex', 'R_Posterior_parietal_cortex',
+        'L_Visual_pre_and_extra_striate_cortex', 'R_Visual_pre_and_extra_striate_cortex',
+        'L_Visual_striate_cortex', 'R_Visual_striate_cortex',
+        'L_Auditory_cortex_(Superior_temporal)', 'R_Auditory_cortex_(Superior_temporal)',
+        'L_Insula_and_others_in_lateral_sulcus', 'R_Insula_and_others_in_lateral_sulcus',
+        'L_Septum', 'R_Septum',
+        'L_Hippocampal_formation', 'R_Hippocampal_formation',
+        'L_Periarchicortex', 'R_Periarchicortex',
+        'L_Striatum', 'R_Striatum',
+        'L_Basal_forebrain', 'R_Basal_forebrain',
+        'L_Amygdala', 'R_Amygdala',
+        'L_Hypothalamus', 'R_Hypothalamus',
+        'L_Thalamus', 'R_Thalamus'],
+    'label': [
+        58, 1058, 59, 1059, 61, 1061, 62, 1062, 64, 1064, 67, 1067,
+        68, 1068, 71, 1071, 74, 1074, 75, 1075, 76, 1076, 79, 1079,
+        80, 1080, 81, 1081]})
+lvl4 = pd.DataFrame({
+    'region': [
+        'L_retrosplenial', 'R_retrosplenial',
+        'L_BA_23', 'R_BA_23',
+        'L_BA_24', 'R_BA_24',
+        'L_BA_32', 'R_BA_32',
+        'L_BA_9', 'R_BA_9',
+        'L_OB', 'R_OB'],
+    'label': [162, 1162, 128, 1128, 114, 1114, 112, 1112,
+        107, 1107, 153, 1153]})
+# Store in a list if needed
+panda_files = [lvl3, lvl4]
 
 #### coordinate of the template plot in list form, each number will be a slice (plotting.plot_stat_map = cut_coords)
 cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
@@ -213,7 +225,7 @@ cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 
 SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
 erod_seed  = True
-
+smoothSBA = 4
 #Threshold the correlation image np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val)
 # threshold_val is the percentage of the correlation image that will be removed
 threshold_val = 10 # int
@@ -259,13 +271,13 @@ unspecific_ROI_thresh = 0.2
 ICA_cleaning = 'Skip'
 normalize = 'Skip'
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,5,6,10,11,12,13,14,15,100,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,10,12,13,14,15,100,200]
     ############################################################
     ######################## START de pipeline #################
     #####################
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
                     BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
-                    correction_direction, REF_int, SBAspace, erod_seed, deoblique, orientation,
+                    correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
                     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
                     dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
                     n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,

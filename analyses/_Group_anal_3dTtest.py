@@ -25,7 +25,7 @@ spgo = subprocess.getoutput
 #### Seed base analysis
 #################################################################################################
 def _3dttest_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, cut_coords, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, endfmri, mean_imgs, ntimepoint_treshold, smoothing):
+              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, endfmri, mean_imgs, ntimepoint_treshold):
 
     s_path, afni_sif, fsl_sif, fs_sif, itk_sif, wb_sif, strip_sif, s_bind = Tools.Load_EDNiX_requirement.load_requirement(
         MAIN_PATH, bids_dir, FS_dir)
@@ -157,7 +157,7 @@ def _3dttest_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_fun
                 print(subprocess.list2cmdline(mean_per_subject))
                 if len(mean_per_subject)>14:
                     command = f"singularity run {s_bind} {afni_sif} 3dttest++ -setA {subprocess.list2cmdline(mean_per_subject)} " \
-                              f"-toz -exblur {smoothing} -Clustsim -mask {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} "
+                              f"-toz -Clustsim -mask {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} "
                     nl = spgo(command)
                     print(nl)
 
@@ -185,7 +185,7 @@ def _3dttest_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_fun
 
                 else:
                     command = f"singularity run {s_bind} {afni_sif} 3dttest++ -setA {subprocess.list2cmdline(mean_per_subject)} " \
-                              f"-toz -exblur {smoothing} -mask {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} "
+                              f"-toz -mask {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} "
                     nl = spgo(command)
                     print(nl)
                     cluster_size = 10
