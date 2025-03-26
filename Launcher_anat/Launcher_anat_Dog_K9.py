@@ -97,10 +97,10 @@ opj(atlas_dir, 'atlaslvl4_LR.nii.gz'),
 opj(atlas_dir,'Gmask.nii.gz'),
 opj(atlas_dir, 'Wmask.nii.gz')]
 
-BASE_SS     = opj(atlas_dir,'template_SS.nii.gz') # sting
-BASE_mask   = opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2','Atlas',species,'brain_mask.nii.gz') # sting
-Aseg_ref    = opj(atlas_dir,'atlas_forSEG_final.nii.gz')
-Aseg_refLR  = opj(atlas_dir,'atlas_forSEG_final_LR.nii.gz')
+BASE_SS     = opj(atlas_dir, 'template_SS.nii.gz') # sting
+BASE_mask   = opj(atlas_dir, 'brain_mask.nii.gz') # sting
+Aseg_ref    = opj(atlas_dir, 'atlas_forSEG_final.nii.gz')
+Aseg_refLR  = opj(atlas_dir, 'atlas_forSEG_final_LR.nii.gz')
 
 #### for 14 ####
 list_atlases_2 = [opj(atlas_dir, 'atlaslvl1.nii.gz'),
@@ -115,13 +115,18 @@ opj(Lut_dir,'Multispecies_LUT_Dual.txt')]
 
 Lut_file = opj(Lut_dir,'Multispecies_LUT_Dual.txt')
 
-### Block1: step 1,2,3
-### Block2: step 4,5
-### Block3: step 6 (template)
-### Block4: step 7,8 (altases, masks, fmri masks)
-### Block5: step 9, 10, 11, 12, 13, 14, 15 (surfaces)
-
-Skip_step = [1,2,3,4,5,6,7,8,9]
+### Block1: step 1,2 (orienting, cleaning images)
+### Block1: step 3 (study template)
+### Block2: step 4 (study template mask QC itksnap)
+### Block2: step 5 (template brain)
+### Block2: step 6 (registration stdy template)
+### Block2: step 7 (registration anat to template)
+### Block3: step 8,9 (altases, masks, fmri masks)
+### Block3: step 10,11,12,13,14,15 (surfaces)
+### Block3: step 16 (QC)
+### Block3: step 100 (Clean)
+### Block3: step 200 (QC itksnap)
+Skip_step = [1,2,3,4,5,6,7,10,12,12,13,14,15,100,200]
 
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step,
