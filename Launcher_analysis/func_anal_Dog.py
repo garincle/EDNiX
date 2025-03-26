@@ -53,7 +53,7 @@ allinfo_study_c['session'] = list_of_ones
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
-list_to_remove = []
+list_to_remove = ['01', '05', '22', '34']
 
 ntimepoint_treshold = 100
 endfmri = '*_task-rest_*.nii.gz' # string
@@ -111,7 +111,7 @@ type_norm = 'T1w' # T1 or T2
 #templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
 templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_T1w/study_template.nii.gz')
 TR = '1'  # 'value du calculate in s', 'Auto', 'None'
-smoothing = 4
+smoothing = 3.5
 
 
 # Define model and GLT specifications
@@ -125,14 +125,16 @@ midline_x=1
 visualize = 'percentile'
 percent = 10
 
-analyses._Group_anal_3dLMEr_Mirror._3dLMEr_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, cut_coords,
-                  panda_files, selected_atlases, lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha,
-                  all_ID, all_Session, all_data_path, endfmri, mean_imgs,
-                  ntimepoint_treshold, model, glt_spec, contrast_names, midline_x, visualize, percent)
-
-analyses._Group_anal_3dTtest._3dttest_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, cut_coords, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, endfmri, mean_imgs, ntimepoint_treshold)
 
 templatehigh = opj(r'/mnt/c/Users/cgarin/Documents/EDNiX/Atlas_library/Atlases_V2/CatinDog/template_SS.nii.gz')
 analyses._Group_anal__func_DicLearn.dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, oversample_dictionary,
               bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, templatelow, templatehigh, TR, smoothing)
+
+templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_T1w/study_template.nii.gz')
+analyses._Group_anal_3dTtest._3dttest_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, cut_coords, panda_files, selected_atlases,
+              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, endfmri, mean_imgs, ntimepoint_treshold)
+
+analyses._Group_anal_3dLMEr_Mirror._3dLMEr_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, cut_coords,
+                  panda_files, selected_atlases, lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha,
+                  all_ID, all_Session, all_data_path, endfmri, mean_imgs,
+                  ntimepoint_treshold, model, glt_spec, contrast_names, midline_x, visualize, percent)

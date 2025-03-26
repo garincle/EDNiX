@@ -262,9 +262,10 @@ pandas3['label'] = pandas3['label'].astype(int)
 pandas4 = legendPNAS[['NEWlvl4_label', 'NEWLVL4']].rename(columns={'NEWlvl4_label': 'label', 'NEWLVL4': 'region'})
 pandas4 =  pd.DataFrame(data={'label': pandas4['label'].unique(), 'region': pandas4['region'].unique()}).dropna()
 pandas4['label'] = pandas4['label'].astype(int)
-
 #### name of the regions and labels  you want to use for the matrix analysis
 segmentation_name_list = [pandas1, pandas2, pandas3, pandas4] # liste of pandas dataframe
+
+
 registration_fast = False
 specific_roi_tresh = 0.4
 unspecific_ROI_thresh = 0.2
