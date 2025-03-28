@@ -16,7 +16,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
 import json
-
+import ants
 
 class bcolors:
     HEADER = '\033[95m'
@@ -44,7 +44,7 @@ spgo = subprocess.getoutput
 #################################################################################################
 ####Seed base analysis
 #################################################################################################
-def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run,
+def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro3, RS, nb_run,
             s_bind, afni_sif,diary_file):
 
     # Several functions were adapted from
@@ -107,7 +107,6 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run,
 
                 # Print differences
                 if differences:
-
                     nl = "Differences found in the following fields:"
                     print(bcolors.OKGREEN + nl + bcolors.ENDC)
                     diary.write(f'\n{nl}')
@@ -997,8 +996,19 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run,
 
             line_QC_func.append(f"  snr_brain_mask {compute_snr_brain_mask_val}")
 
-            ####### motion metrics #####
+            # Load images (will auto-convert to float32)
+            fixed = ants.image_read(opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz'))
+            moving = ants.image_read(opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz'))
+            mask = ants.image_read(opj(dir_fMRI_Refth_RS_prepro3, 'mask_brain.nii.gz'))
+            ## NMI index
+            nmi = ants.image_mutual_information(
+                fixed, moving,
+                number_of_histogram_bins=64,  # More bins for high-res data
+                mask=mask)
+            # Example usage
+            line_QC_func.append(f"  NMI_index {nmi}")
 
+            ####### motion metrics #####
             # Step 1: Load the motion metrics
             motion_enorm = np.loadtxt(opj(dir_path, root_RS + 'motion_enorm.1D'))   # Euclidean norm values
             derivatives  = np.loadtxt(opj(dir_path, root_RS + '_xdtr_deriv.1D'))    # Derivatives (velocity)
