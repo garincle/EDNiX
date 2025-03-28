@@ -180,9 +180,6 @@ dilate_mask = 0 # int
 use_cortical_mask_func = False # True or False
 
 #######for seed analysis (stepa 11)
-#### name of the atlases  you want to use for the seed base analysis
-selected_atlases = ['atlaslvl3_LR.nii.gz', 'atlaslvl4_LR.nii.gz'] #liste
-
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 selected_atlases = ['atlaslvl3_LR.nii.gz', 'atlaslvl4_LR.nii.gz'] #liste
 lvl3 = pd.DataFrame({

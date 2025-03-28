@@ -6,7 +6,7 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.ndimage import zoom
+import ants
 import datetime
 
 class bcolors:
@@ -31,7 +31,7 @@ spgo = subprocess.getoutput
 #################################################################################################
 ####Seed base analysis
 #################################################################################################
-def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind, afni_sif,diary_file):
+def anat_QC(BASE_SS_coregistr, BASE_SS_mask, dir_out, type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind, afni_sif,diary_file):
     ct = datetime.datetime.now()
     nl = 'Run anatomical._16_anat_QC_SNR.anat_QC'
     diary = open(diary_file, "a")
@@ -416,6 +416,18 @@ def anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind
                 anat_filename,
                 output_results, Timage)
             line_QC_func.append(f"  snr_brain_mask {compute_snr_brain_mask_val}")
+
+            ## NMI index
+            fixed = ants.image_read(opj(dir_out,'NMT_to_anat_SyN_final_shift.nii.gz'))
+            moving = ants.image_read(BASE_SS_coregistr)
+            mask = ants.image_read(BASE_SS_mask)
+            ## NMI index
+            nmi = ants.image_mutual_information(
+                fixed, moving,
+                number_of_histogram_bins=64,  # More bins for high-res data
+                mask=mask)
+            # Example usage
+            line_QC_func.append(f"  NMI_index {nmi}")
 
             lines.append(line_QC_func)
             flattened_list = [item for sublist in lines for item in sublist]
