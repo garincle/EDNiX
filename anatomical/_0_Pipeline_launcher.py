@@ -499,7 +499,7 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
         if 16 in Skip_step:
             print(bcolors.OKGREEN + 'INFO: skip step ' + str(16) + bcolors.ENDC)
         else:
-            anatomical._16_anat_QC_SNR.anat_QC(type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind, afni_sif,diary_file)
+            anatomical._16_anat_QC_SNR.anat_QC(BASE_SS_coregistr, BASE_SS_mask, dir_out, type_norm, labels_dir, dir_prepro, ID, listTimage, masks_dir, s_bind, afni_sif,diary_file)
 
         if 100 in Skip_step:
                 print(bcolors.OKGREEN + 'INFO: skip step ' + str(100) + bcolors.ENDC)
