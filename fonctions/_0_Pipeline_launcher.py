@@ -817,7 +817,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
                 diary.close()
 
             else:
-                fonctions._12_fMRI_QC.fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind, afni_sif,diary_file)
+                fonctions._12_fMRI_QC.fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro3, RS, nb_run, s_bind, afni_sif,diary_file)
 
             if 13 in Skip_step:
                 ct = datetime.datetime.now()
