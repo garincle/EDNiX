@@ -10,6 +10,7 @@ MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
 sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
 
 import Tools.Load_subject_with_BIDS
+import Tools.Read_atlas
 import fonctions._0_Pipeline_launcher
 
 species = 'CatinDog'
@@ -18,10 +19,19 @@ bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Desktop
 FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
 atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2", species))
 Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\LUT_files"))
-# Read the Excel file into a DataFrame
-xcel_file_path = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2\Legende_VDualvf2_formatrix.xlsx"))
-FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
-study_fMRI_Refth = opj(MAIN_PATH,'code','4topup.txt') #string (path)
+
+# Define your path variables
+path_vars = {'FS_dir': FS_dir,
+    'atlas_dir': atlas_dir,
+    'Lut_dir': Lut_dir}
+# Load and process config
+config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2",
+                                                                                  'atlas_config_V2.json')), path_vars)
+BASE_SS = config["paths"]["BASE_SS"]
+BASE_mask = config["paths"]["BASE_mask"]
+GM_mask = config["paths"]["GM_mask"]
+Aseg_ref = config["paths"]["Aseg_ref"]
+Aseg_refLR = config["paths"]["Aseg_refLR"]
 
 ########### Subject loader with BIDS##############
 layout= BIDSLayout(bids_dir,  validate=True)
@@ -48,42 +58,33 @@ list_to_keep = []
 list_to_remove = []
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
-coregistration_longitudinal = False #True or False
+# Extract all atlas definitions as DataFrames and get their file paths
+atlas_dfs = Tools.Read_atlas.extract_atlas_definitions(config)
+(lvl1, lvl1LR, lvl2, lvl2LR,
+    lvl3, lvl3LR, lvl4, lvl4LR) = (
+    atlas_dfs['lvl1'], atlas_dfs['lvl1LR'],
+    atlas_dfs['lvl2'], atlas_dfs['lvl2LR'],
+    atlas_dfs['lvl3'], atlas_dfs['lvl3LR'],
+    atlas_dfs['lvl4'], atlas_dfs['lvl4LR'])
+# Get all atlas file paths
+(lvl1_file, lvl1LR_file, lvl2_file, lvl2LR_file,
+    lvl3_file, lvl3LR_file, lvl4_file, lvl4LR_file) = (
+    config["atlas_definitions"]["lvl1"]["atlas_file"],
+    config["atlas_definitions"]["lvl1LR"]["atlas_file"],
+    config["atlas_definitions"]["lvl2"]["atlas_file"],
+    config["atlas_definitions"]["lvl2LR"]["atlas_file"],
+    config["atlas_definitions"]["lvl3"]["atlas_file"],
+    config["atlas_definitions"]["lvl3LR"]["atlas_file"],
+    config["atlas_definitions"]["lvl4"]["atlas_file"],
+    config["atlas_definitions"]["lvl4LR"]["atlas_file"])
+
+# Create combined lists
+list_atlases = [lvl1_file, lvl2_file, lvl3_file, lvl4_file,
+    lvl1LR_file, lvl2LR_file, lvl3LR_file, lvl4LR_file]
+
 overwrite_option = True #True or False overwrite previous analysis if in BIDS
-IhaveanANAT = True # True or False
 
-### you will need to put in the folderforTemplate_Anat
-folderforTemplate_Anat = ''
-anat_subject = opj(folderforTemplate_Anat,'template.nii.gz') # string
-brainmask     = opj(folderforTemplate_Anat,'brainmask.nii.gz') # string
-V_mask        = opj(folderforTemplate_Anat,'V_mask.nii.gz') # string
-W_mask = opj(folderforTemplate_Anat,'W_mask.nii.gz') # string
-G_mask = opj(folderforTemplate_Anat,'G_mask.nii.gz') # string
-
-#### find the good fmri image: as it is not always standart, look in you BIDS and help use to know how you fmri dataset end by ?:
-### specify the suffix to be used by glob.glob to select all fmri image (or map) in their respective folders
-endfmri = '*_task-rest_*.nii.gz' # string
-endjson = '*_task-rest_*.json' # string
-
-####find on image in the opposite direction of th BOLD aquistion either one per run or one per session or none !!!
-### if the pipeline doesn't find the image it will continue anyway so be carefull!
-endmap = '*_map.nii.gz' # string
-
-##### is your anat and func in the same same space ? iff they are you can put anat_func_same_space = True  and it will use the mask of the anat to help
-# with the co-registration. It also add other problem, so even if they are in the same space you can put anat_func_same_space = False
-anat_func_same_space = False # True or False
-
-### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
-TfMRI = 'T1w' # string
-
-#### Specify if you have a T1 and T2 image in the same space
-IgotbothT1T2 = False # True or False
-
-#### fMRI pre-treatment
-### number of TR to remove at the begining
-T1_eq = 5 # int
-#### Choose which image you want to use as ref (0 the first one, 1 the second run, ect...)
-REF_int = 0 # int
+#### functional images paramters definition
 Slice_timing_info = 'Auto'
 correction_direction = 'Auto' # 'x', 'x-', 'y', 'y-', 'Auto', 'None'
 ### Dwell Time (necessery only if you want to appply TOPUP)
@@ -95,30 +96,36 @@ SED = 'Auto' #  "i", "i-", "j", "j-", "k", "k-", 'Auto', 'None'
 ### YOU NEED TO PROVIDE A TR if not in .json, otherwise it will fail
 TR = 'Auto'  # 'value du calculate in s', 'Auto', 'None'
 
+#### fMRI pre-treatment
+T1_eq = 5 # int
+REF_int = 0 # int
 ntimepoint_treshold = 100
+endfmri = '*_task-rest_*.nii.gz' # string
+endjson = '*_task-rest_*.json' # string
+endmap = '*_map.nii.gz' # string
+orientation = 'RPI' # string
+deoblique='header' #header or WARP
 
+## prior anatomical processing
+coregistration_longitudinal = False #True or False
+type_norm = 'T1w' # T1 or T2
+### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
+TfMRI = 'T1w' # string
+### if you don't have any anatomical image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
+folderforTemplate_Anat = ''
+
+## masking
 doMaskingfMRI = True # True or False
 Method_mask_func = '3dSkullStrip_dog' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 costAllin = '' # string
 
-orientation = 'RPI' # string
-deoblique='header' #header or WARP
-
 #### ANTs function of the co-registration HammingWindowedSinc is advised
+IhaveanANAT = True # True or False
+anat_func_same_space = False # True or False
 n_for_ANTS = 'hammingWindowedSinc' # string
+registration_fast = False
 type_of_transform = 'SyNBold'
 aff_metric_ants = 'MI'
-
-####Choose to normalize using T1 or T2 or T2w as in you anat file!!!!!
-### define the acronyme/suffix of the anat as in the BIDS
-type_norm = 'T1w' # T1 or T2
-### define the acronyme/suffix of the other anat as in the BIDS
-otheranat = '' # sting
-
-### if you want to use T1/T2 as template (not sure if it will be ever usefull)
-useT1T2_for_coregis = False # True or False
-
-
 do_anat_to_func = True # True or False
 
 ##### if you don't have an anat then template will be the same as anat...
@@ -131,89 +138,36 @@ stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_
 stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
 GM_mask_studyT = opj(study_template_atlas_forlder, 'atlases', 'Gmask.nii.gz') # sting
 
-# if creat_study_template== False you need to provide this
-BASE_SS     = opj(atlas_dir, 'template.nii.gz') # sting
-BASE_mask   = opj(atlas_dir, 'brain_mask.nii.gz') # sting
-GM_mask     =opj(atlas_dir, 'Gmask.nii.gz') # sting
-
-####put all atlases and template to process in the same folder named: ...
-list_atlases = [ opj(study_template_atlas_forlder, 'atlases', 'atlaslvl1.nii.gz'),
-                 opj(study_template_atlas_forlder, 'atlases', 'atlaslvl2.nii.gz'),
-                 opj(study_template_atlas_forlder, 'atlases', 'atlaslvl3.nii.gz'),
-                 opj(study_template_atlas_forlder, 'atlases', 'atlaslvl4.nii.gz'),
-                 opj(study_template_atlas_forlder, 'atlases', 'atlaslvl1_LR.nii.gz'),
-                 opj(study_template_atlas_forlder, 'atlases', 'atlaslvl2_LR.nii.gz'),
-                 opj(study_template_atlas_forlder, 'atlases', 'atlaslvl3_LR.nii.gz'),
-                 opj(study_template_atlas_forlder, 'atlases', 'atlaslvl4_LR.nii.gz')]
-
-#######for melodic cleaning (step 4)
-melodic_prior_post_TTT = False # True or False
+#######for melodic cleaning (step 6)
+ICA_cleaning = 'Skip'
 nb_ICA_run = 20 # int
 nb_ICA     = 30 # int
 
-#######for 3dDeconvolve cleaning (step 5)
-#If you dont want to correct the signal at all!  do_not_correct_signal  = True
+#######for 3dDeconvolve cleaning (step 7)
+#If you don't want to correct the signal at all!  do_not_correct_signal  = True
 do_not_correct_signal  = False # True or False
 ### you can use the CSF (first layer outside the brain) as regressor
 extract_exterior_CSF = False # True or False
-
 ### you can use the White Matter as regressor
 extract_WM = False # True or False
 #use the eroded  White Matter functional mask (produced during the anat processing)
 use_erode_WM_func_masks  = False # True or False
-
 ### you can use the Ventricules as regressor (not advised for small species as often not enough voxels)
 extract_Vc = False # True or False
 #use the eroded ventricular functional mask (produced during the anat processing)
 use_erode_V_func_masks = False # True or False
-
 #Global signal regression ?
 extract_GS = False # True or False
 
 ### Band path filtering
 band = '0.01 0.1' # string
+normalize = 'Skip'
 #Smooth
 blur = 0 # float
 #Dilate the functional brain mask by n layers
 dilate_mask = 0 # int
-#retrain the analysis to the gray mzvatter
+#retrain the analysis to the gray matter instate of the brain
 use_cortical_mask_func = False # True or False
-
-#######for seed analysis (stepa 11)
-# for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
-selected_atlases = ['atlaslvl3_LR.nii.gz', 'atlaslvl4_LR.nii.gz'] #liste
-lvl3 = pd.DataFrame({
-    'region': [
-        'L_Somatosensory_cortex', 'R_Somatosensory_cortex',
-        'L_Posterior_parietal_cortex', 'R_Posterior_parietal_cortex',
-        'L_Visual_pre_and_extra_striate_cortex', 'R_Visual_pre_and_extra_striate_cortex',
-        'L_Visual_striate_cortex', 'R_Visual_striate_cortex',
-        'L_Auditory_cortex_(Superior_temporal)', 'R_Auditory_cortex_(Superior_temporal)',
-        'L_Insula_and_others_in_lateral_sulcus', 'R_Insula_and_others_in_lateral_sulcus',
-        'L_Septum', 'R_Septum',
-        'L_Hippocampal_formation', 'R_Hippocampal_formation',
-        'L_Periarchicortex', 'R_Periarchicortex',
-        'L_Striatum', 'R_Striatum',
-        'L_Basal_forebrain', 'R_Basal_forebrain',
-        'L_Amygdala', 'R_Amygdala',
-        'L_Hypothalamus', 'R_Hypothalamus',
-        'L_Thalamus', 'R_Thalamus'],
-    'label': [
-        58, 1058, 59, 1059, 61, 1061, 62, 1062, 64, 1064, 67, 1067,
-        68, 1068, 71, 1071, 74, 1074, 75, 1075, 76, 1076, 79, 1079,
-        80, 1080, 81, 1081]})
-lvl4 = pd.DataFrame({
-    'region': [
-        'L_retrosplenial', 'R_retrosplenial',
-        'L_BA_23', 'R_BA_23',
-        'L_BA_24', 'R_BA_24',
-        'L_BA_32', 'R_BA_32',
-        'L_BA_9', 'R_BA_9',
-        'L_OB', 'R_OB'],
-    'label': [162, 1162, 128, 1128, 114, 1114, 112, 1112,
-        107, 1107, 153, 1153]})
-# Store in a list if needed
-panda_files = [lvl3, lvl4]
 
 #### coordinate of the template plot in list form, each number will be a slice (plotting.plot_stat_map = cut_coords)
 cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
@@ -223,56 +177,28 @@ cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
 erod_seed  = True
 smoothSBA = 4
-#Threshold the correlation image np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val)
-# threshold_val is the percentage of the correlation image that will be removed
-threshold_val = 10 # int
-
-##use high quality anat image as background for figures
-oversample_map = False # True or False
 
 #######for matrix analysis (step 10)
 #### name of the atlases  you want to use for the matrix analysis
+selected_atlases_matrix = list_atlases.copy()
+segmentation_name_list = [lvl1, lvl1LR, lvl2, lvl2LR, lvl3, lvl3LR, lvl4, lvl4LR]
 
-selected_atlases_matrix = [opj(atlas_dir, 'atlaslvl1.nii.gz'),
-opj(atlas_dir, 'atlaslvl2.nii.gz'),
-opj(atlas_dir, 'atlaslvl3.nii.gz'),
-opj(atlas_dir, 'atlaslvl4.nii.gz'),
-opj(atlas_dir, 'atlaslvl1_LR.nii.gz'),
-opj(atlas_dir, 'atlaslvl2_LR.nii.gz'),
-opj(atlas_dir, 'atlaslvl3_LR.nii.gz'),
-opj(atlas_dir, 'atlaslvl4_LR.nii.gz')]
+#######for seed analysis (step 11)
+# threshold_val is the percentage of the correlation image that will be removed
+threshold_val = 10 # int
+##use high quality anat image as background for figures
+oversample_map = False # True or False
+# for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
+selected_atlases = [lvl3LR_file, lvl4LR_file]  # Your selected atlases for SBA
+panda_files = [lvl3LR, lvl4LR]  # DataFrames for levels 3 and 4
 
-legendPNAS = pd.read_excel(xcel_file_path, 'Legend_2023')
-# Select the desired columns and rename them
-pandas1 = legendPNAS[['NEWlvl1_label', 'NEWLVL1']].rename(columns={'NEWlvl1_label': 'label', 'NEWLVL1': 'region'})
-pandas1 = pd.DataFrame(data={'label': pandas1['label'].unique(), 'region': pandas1['region'].unique()}).dropna()
-pandas1['label'] = pandas1['label'].astype(int)
-# Select the desired columns and rename them
-pandas2 = legendPNAS[['NEWlvl2_label', 'NEWLVL2']].rename(columns={'NEWlvl2_label': 'label', 'NEWLVL2': 'region'})
-pandas2 =  pd.DataFrame(data={'label': pandas2['label'].unique(), 'region': pandas2['region'].unique()}).dropna()
-pandas2['label'] = pandas2['label'].astype(int)
-# Select the desired columns and rename them
-pandas3 = legendPNAS[['NEWlvl3_label', 'NEWLVL3']].rename(columns={'NEWlvl3_label': 'label', 'NEWLVL3': 'region'})
-pandas3 =  pd.DataFrame(data={'label': pandas3['label'].unique(), 'region': pandas3['region'].unique()}).dropna()
-pandas3['label'] = pandas3['label'].astype(int)
-# Select the desired columns and rename them
-pandas4 = legendPNAS[['NEWlvl4_label', 'NEWLVL4']].rename(columns={'NEWlvl4_label': 'label', 'NEWLVL4': 'region'})
-pandas4 =  pd.DataFrame(data={'label': pandas4['label'].unique(), 'region': pandas4['region'].unique()}).dropna()
-pandas4['label'] = pandas4['label'].astype(int)
-#### name of the regions and labels  you want to use for the matrix analysis
-segmentation_name_list = [pandas1, pandas2, pandas3, pandas4] # liste of pandas dataframe
-
-
-registration_fast = False
+#For QC value to define specific and non-spe correlation
 specific_roi_tresh = 0.4
 unspecific_ROI_thresh = 0.2
-ICA_cleaning = 'Skip'
-normalize = 'Skip'
+
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,5,6,7,8,9,10,12,13,14,15,100,200]
-    ############################################################
-    ######################## START de pipeline #################
-    #####################
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,100]
+
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
                     BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
                     correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,

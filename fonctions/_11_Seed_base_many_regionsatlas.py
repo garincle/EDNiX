@@ -126,7 +126,8 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                                            mask_img=opj(direction_results, 'cortical_mask_funcrsp.nii.gz'))
                 brain_time_series = brain_masker.fit_transform(func_filename)
 
-                for panda_file, atlas in zip(panda_files, selected_atlases):
+                selected_atlases_basename = [opb(path) for path in selected_atlases]
+                for panda_file, atlas in zip(panda_files, selected_atlases_basename):
 
                     atlas_filename = opj(direction_results, atlas)
                     output_results = opj(direction_results, '10_Results', 'SBA')
