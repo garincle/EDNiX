@@ -20,7 +20,7 @@ packages = {
     "matplotlib": "3.9.2",
     "pingouin": "0.5.4",
     "seaborn": "0.13.2",
-    "pybids": "0.16.5",
+    "pybids": "0.12.4",
     "openpyxl": "3.1.00",
     "torch": "2.4.1",
     "nitime": "0.11",

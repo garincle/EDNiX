@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 import pandas as pd
-df = pd.read_csv("/scratch/cgarin/QC_func_matrix/QC_results_summary.csv")
-output_path =  '/scratch/cgarin/QC_func_matrix/'
+df = pd.read_csv("/home/cgarin/Documents/EDNiX_study/MRI/QC_func_inter-species/QC_results_summary.csv")
+output_path =  '/home/cgarin/Documents/EDNiX_study/MRI/QC_func_inter-species'
 # Filter out rows where 'Result' is None
 filtered_df = df.dropna(subset=['Result'])
 
