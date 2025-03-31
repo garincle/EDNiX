@@ -29,10 +29,8 @@ os.makedirs(output_path, exist_ok=True)
 # Function to load and merge QC data
 def load_qc_data(bids_dir, output_path):
     # Get all functional QC files
-    QC_files_matrix = glob.glob(
-        f"{bids_dir}/**/**/func/01_prepro/03_atlas_space/10_Results/fMRI_QC_matrix/**QC_result.txt", recursive=False)
-    QC_files_SNR = glob.glob(f"{bids_dir}/**/**/func/01_prepro/01_funcspace/10_Results/fMRI_QC_SNR/**QC_result.txt",
-                             recursive=False)
+    QC_files_matrix = glob.glob(f"{bids_dir}/**/**/func/01_prepro/03_atlas_space/10_Results/fMRI_QC_matrix/**QC_result.txt", recursive=False)
+    QC_files_SNR = glob.glob(f"{bids_dir}/**/**/func/01_prepro/01_funcspace/10_Results/fMRI_QC_SNR/**QC_result.txt", recursive=False)
 
     data = []
 

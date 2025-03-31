@@ -11,12 +11,14 @@ from nitime.lazy import scipy_linalg as linalg
 import nitime.utils as utils
 from fonctions.extract_filename import extract_filename
 import nibabel as nib
-import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import datetime
 import json
 import ants
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import pearsonr, entropy
+from sklearn.metrics import mutual_info_score
 
 class bcolors:
     HEADER = '\033[95m'
@@ -994,19 +996,93 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
                 opj(dir_path, root_RS + '_xdtr_deob.nii.gz'),
                 output_results, root_RS)
 
-            line_QC_func.append(f"  snr_brain_mask {compute_snr_brain_mask_val}")
+            line_QC_func.append(f"  snr_brain_mask: {compute_snr_brain_mask_val}")
+
+            def calculate_jaccard(img1, img2):
+                """Calculate Jaccard index for binary masks."""
+                intersection = np.sum(img1 & img2)
+                union = np.sum(img1 | img2)
+                return intersection / union if union > 0 else 0.0
+
+            def calculate_mi(img1, img2, bins=32):
+                """Calculate Mutual Information manually."""
+                hist_2d = np.histogram2d(img1, img2, bins=bins)[0]
+                mi = mutual_info_score(None, None, contingency=hist_2d)
+                return mi / np.mean([entropy(np.sum(hist_2d, axis=1)), entropy(np.sum(hist_2d, axis=0))])
+
+            def evaluate_images(img1_path, img2_path, save_path):
+                """Modified evaluation focusing on img1 non-zero voxels."""
+                # Load images
+                img1 = ants.image_read(img1_path).numpy()
+                img2 = ants.image_read(img2_path).numpy()
+
+                # Get voxels where img1 is non-zero
+                mask = img1 != 0
+                vals1 = img1[mask]
+                vals2 = img2[mask]
+
+                # Calculate metrics
+                mi = calculate_mi(vals1, vals2)
+                cc = pearsonr(vals1, vals2)[0]  # Pearson correlation
+                jaccard = calculate_jaccard(img1 != 0, img2 != 0)
+
+                # Visualization
+                fig, ax = plt.subplots(1, 3, figsize=(18, 6))
+
+                # 1. Overlapping histograms (only img1 non-zero voxels)
+                ax[0].hist(vals1, bins=50, alpha=0.5, label='Template', density=True)
+                ax[0].hist(vals2, bins=50, alpha=0.5, label='fMRI', density=True)
+                ax[0].set_title('Intensity Distribution\n(Img1 non-zero voxels)')
+                ax[0].set_xlabel('Intensity')
+                ax[0].set_ylabel('Density')
+                ax[0].legend()
+
+                # 2. Correlation plot
+                ax[1].scatter(vals1[::10], vals2[::10], alpha=0.3, s=5)  # Subsample for clarity
+                ax[1].set_xlabel('Template Intensity')
+                ax[1].set_ylabel('fMRI Intensity')
+                ax[1].set_title(f'Intensity Correlation\nPearson r = {cc:.3f}')
+
+                # 3. Metrics display
+                ax[2].axis('off')
+                metrics_text = (
+                    "Image Similarity Metrics:\n\n"
+                    f"Mutual Information: {mi:.3f}\n"
+                    f"Pearson Correlation: {cc:.3f}\n"
+                    f"Jaccard Index: {jaccard:.3f}"
+                )
+                ax[2].text(0.1, 0.4, metrics_text, fontsize=12,
+                           bbox=dict(facecolor='white', alpha=0.8))
+
+                plt.tight_layout()
+                plt.savefig(save_path, dpi=150, bbox_inches='tight')
+                plt.close()
+
+                return {
+                    'Mutual_Information': mi,
+                    'Pearson_Correlation': cc,
+                    'Jaccard_Index': jaccard
+                }
+
+            # Usage with your paths
+            ### img1 needs to be the anat or fmri
+            img1 = opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz')
+            img2 = opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz')
+
+            results = evaluate_images(img1, img2, opj(output_results, root_RS + 'image_metrics.png'))
+            print("Image Evaluation Results (Img1 non-zero voxels only):")
+            for metric, value in results.items():
+                print(f"{metric}: {value:.4f}")
+                line_QC_func.append(f" {metric}: {value:.4f}")
 
             # Load images (will auto-convert to float32)
-            fixed = ants.image_read(opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz'))
-            moving = ants.image_read(opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz'))
-            mask = ants.image_read(opj(dir_fMRI_Refth_RS_prepro3, 'mask_brain.nii.gz'))
+            fixed = ants.image_read(img1)
+            moving = ants.image_read(img2)
             ## NMI index
             nmi = ants.image_mutual_information(
-                fixed, moving,
-                number_of_histogram_bins=64,  # More bins for high-res data
-                mask=mask)
+                fixed, moving)
             # Example usage
-            line_QC_func.append(f"  NMI_index {nmi}")
+            line_QC_func.append(f"  NMI_index_ants: {nmi}")
 
             ####### motion metrics #####
             # Step 1: Load the motion metrics

@@ -415,19 +415,16 @@ def anat_QC(BASE_SS_coregistr, BASE_SS_mask, dir_out, type_norm, labels_dir, dir
                 brain_mask,
                 anat_filename,
                 output_results, Timage)
-            line_QC_func.append(f"  snr_brain_mask {compute_snr_brain_mask_val}")
+            line_QC_func.append(f"  snr_brain_mask: {compute_snr_brain_mask_val}")
 
             ## NMI index
             fixed = ants.image_read(opj(dir_out,'NMT_to_anat_SyN_final_shift.nii.gz'))
             moving = ants.image_read(BASE_SS_coregistr)
-            mask = ants.image_read(BASE_SS_mask)
             ## NMI index
             nmi = ants.image_mutual_information(
-                fixed, moving,
-                number_of_histogram_bins=64,  # More bins for high-res data
-                mask=mask)
+                fixed, moving)
             # Example usage
-            line_QC_func.append(f"  NMI_index {nmi}")
+            line_QC_func.append(f"  NMI_index: {nmi}")
 
             lines.append(line_QC_func)
             flattened_list = [item for sublist in lines for item in sublist]

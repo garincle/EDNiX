@@ -1,6 +1,5 @@
 import os
 import subprocess
-import pandas as pd
 import sys
 from bids import BIDSLayout
 from bids.reports import BIDSReport
@@ -31,6 +30,19 @@ FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
 atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2", species))
 Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\LUT_files"))
 
+# Define your path variables
+path_vars = {'FS_dir': FS_dir,
+    'atlas_dir': atlas_dir,
+    'Lut_dir': Lut_dir}
+# Load and process config
+config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2",
+                                                                                  'atlas_config_V2.json')), path_vars)
+BASE_SS = config["paths"]["BASE_SS"]
+BASE_mask = config["paths"]["BASE_mask"]
+GM_mask = config["paths"]["GM_mask"]
+Aseg_ref = config["paths"]["Aseg_ref"]
+Aseg_refLR = config["paths"]["Aseg_refLR"]
+
 ########### Subject loader with BIDS##############
 layout= BIDSLayout(bids_dir,  validate=True)
 ###report
@@ -53,7 +65,37 @@ allinfo_study_c['session'] = list_of_ones
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
-list_to_remove = ['01', '05', '22', '34']
+list_to_remove = []
+all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
+
+# Extract all atlas definitions as DataFrames and get their file paths
+atlas_dfs = Tools.Read_atlas.extract_atlas_definitions(config)
+(lvl1, lvl1LR, lvl2, lvl2LR,
+    lvl3, lvl3LR, lvl4, lvl4LR) = (
+    atlas_dfs['lvl1'], atlas_dfs['lvl1LR'],
+    atlas_dfs['lvl2'], atlas_dfs['lvl2LR'],
+    atlas_dfs['lvl3'], atlas_dfs['lvl3LR'],
+    atlas_dfs['lvl4'], atlas_dfs['lvl4LR'])
+# Get all atlas file paths
+(lvl1_file, lvl1LR_file, lvl2_file, lvl2LR_file,
+    lvl3_file, lvl3LR_file, lvl4_file, lvl4LR_file) = (
+    config["atlas_definitions"]["lvl1"]["atlas_file"],
+    config["atlas_definitions"]["lvl1LR"]["atlas_file"],
+    config["atlas_definitions"]["lvl2"]["atlas_file"],
+    config["atlas_definitions"]["lvl2LR"]["atlas_file"],
+    config["atlas_definitions"]["lvl3"]["atlas_file"],
+    config["atlas_definitions"]["lvl3LR"]["atlas_file"],
+    config["atlas_definitions"]["lvl4"]["atlas_file"],
+    config["atlas_definitions"]["lvl4LR"]["atlas_file"])
+
+# Create combined lists
+list_atlases = [lvl1_file, lvl2_file, lvl3_file, lvl4_file,
+    lvl1LR_file, lvl2LR_file, lvl3LR_file, lvl4LR_file]
+
+# for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
+selected_atlases = [lvl3LR_file, lvl4LR_file]  # Your selected atlases for SBA
+panda_files = [lvl3LR, lvl4LR]  # DataFrames for levels 3 and 4
+
 
 ntimepoint_treshold = 100
 endfmri = '*_task-rest_*.nii.gz' # string
@@ -69,40 +111,6 @@ component_list = [7, 17]
 lower_cutoff = 0.1
 upper_cutoff = 0.95
 
-selected_atlases = ['atlaslvl3_LR.nii.gz', 'atlaslvl4_LR.nii.gz'] #liste
-lvl3 = pd.DataFrame({
-    'region': [
-        'L_Somatosensory cortex', 'R_Somatosensory cortex',
-        'L_Posterior parietal cortex', 'R_Posterior parietal cortex',
-        'L_Visual pre and extra striate cortex', 'R_Visual pre and extra striate cortex',
-        'L_Visual striate cortex', 'R_Visual striate cortex',
-        'L_Auditory cortex (Superior temporal)', 'R_Auditory cortex (Superior temporal)',
-        'L_Insula and others in lateral sulcus', 'R_Insula and others in lateral sulcus',
-        'L_Septum', 'R_Septum',
-        'L_Hippocampal formation', 'R_Hippocampal formation',
-        'L_Periarchicortex', 'R_Periarchicortex',
-        'L_Striatum', 'R_Striatum',
-        'L_Basal forebrain', 'R_Basal forebrain',
-        'L_Amygdala', 'R_Amygdala',
-        'L_Hypothalamus', 'R_Hypothalamus',
-        'L_Thalamus', 'R_Thalamus'],
-    'label': [
-        58, 1058, 59, 1059, 61, 1061, 62, 1062, 64, 1064, 67, 1067,
-        68, 1068, 71, 1071, 74, 1074, 75, 1075, 76, 1076, 79, 1079,
-        80, 1080, 81, 1081]})
-lvl4 = pd.DataFrame({
-    'region': [
-        'L_retrosplenial', 'R_retrosplenial',
-        'L_BA 23', 'R_BA 23',
-        'L_BA 24', 'R_BA 24',
-        'L_BA 32', 'R_BA 32',
-        'L_BA 9', 'R_BA 9',
-        'L_OB', 'R_OB'],
-    'label': [162, 1162, 128, 1128, 114, 1114, 112, 1112,
-        107, 1107, 153, 1153]})
-# Store in a list if needed
-panda_files = [lvl3, lvl4]
-
 treshold_or_stat = 'stat'
 study_template_atlas_forlder = bids_dir + '/sty_template'
 folder_atlases = opj(study_template_atlas_forlder, 'atlases/') # sting
@@ -113,18 +121,14 @@ templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_T1w/study_templ
 TR = '1'  # 'value du calculate in s', 'Auto', 'None'
 smoothing = 3.5
 
-
 # Define model and GLT specifications
 model = "(1|Subj)*Hemisphere"
-glt_spec = [
-    (1, 'Overall_Effect', 'Hemisphere : 0.5*L +0.5*R'),
-    (2, 'Hemisphere_Effect', 'Hemisphere : 1*L -1*R')
-]
+glt_spec = [(1, 'Overall_Effect', 'Hemisphere : 0.5*L +0.5*R'),
+    (2, 'Hemisphere_Effect', 'Hemisphere : 1*L -1*R')]
 contrast_names = ['Overall_Effect', 'Hemisphere_Effect']
 midline_x=1
 visualize = 'percentile'
 percent = 10
-
 
 templatehigh = opj(r'/mnt/c/Users/cgarin/Documents/EDNiX/Atlas_library/Atlases_V2/CatinDog/template_SS.nii.gz')
 analyses._Group_anal__func_DicLearn.dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, oversample_dictionary,
