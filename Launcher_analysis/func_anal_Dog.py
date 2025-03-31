@@ -65,7 +65,7 @@ allinfo_study_c['session'] = list_of_ones
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
-list_to_remove = []
+list_to_remove = ['01',  '02', '05', '09', '22', '28', '34']
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
 # Extract all atlas definitions as DataFrames and get their file paths
