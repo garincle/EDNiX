@@ -46,7 +46,7 @@ def extract_atlas_definitions(config):
 
         if atlas_def['type'] == 'bilateral':
             df = pd.DataFrame([{
-                'name': r['region'],
+                'region': r['region'],
                 'label': r['label'],
                 'hemisphere': 'both'
             } for r in regions])

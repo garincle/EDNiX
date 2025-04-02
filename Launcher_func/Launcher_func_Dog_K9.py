@@ -56,7 +56,8 @@ Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
 list_to_remove = []
-all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
+all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = (
+    Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove))
 
 # Extract all atlas definitions as DataFrames and get their file paths
 atlas_dfs = Tools.Read_atlas.extract_atlas_definitions(config)
@@ -125,6 +126,7 @@ anat_func_same_space = False # True or False
 n_for_ANTS = 'hammingWindowedSinc' # string
 registration_fast = False
 type_of_transform = 'SyNBold'
+aff_metric_ants_Transl = 'MI'
 aff_metric_ants = 'MI'
 do_anat_to_func = True # True or False
 
@@ -149,9 +151,9 @@ do_not_correct_signal  = False # True or False
 ### you can use the CSF (first layer outside the brain) as regressor
 extract_exterior_CSF = False # True or False
 ### you can use the White Matter as regressor
-extract_WM = False # True or False
+extract_WM = True # True or False
 #use the eroded  White Matter functional mask (produced during the anat processing)
-use_erode_WM_func_masks  = False # True or False
+use_erode_WM_func_masks  = True # True or False
 ### you can use the Ventricules as regressor (not advised for small species as often not enough voxels)
 extract_Vc = False # True or False
 #use the eroded ventricular functional mask (produced during the anat processing)
@@ -181,7 +183,7 @@ smoothSBA = 4
 #######for matrix analysis (step 10)
 #### name of the atlases  you want to use for the matrix analysis
 selected_atlases_matrix = list_atlases.copy()
-segmentation_name_list = [lvl1, lvl1LR, lvl2, lvl2LR, lvl3, lvl3LR, lvl4, lvl4LR]
+segmentation_name_list = [lvl1, lvl2, lvl3, lvl4, lvl1LR, lvl2LR, lvl3LR, lvl4LR]
 
 #######for seed analysis (step 11)
 # threshold_val is the percentage of the correlation image that will be removed
@@ -193,18 +195,17 @@ selected_atlases = [lvl3LR_file, lvl4LR_file]  # Your selected atlases for SBA
 panda_files = [lvl3LR, lvl4LR]  # DataFrames for levels 3 and 4
 
 #For QC value to define specific and non-spe correlation
-specific_roi_tresh = 0.4
-unspecific_ROI_thresh = 0.2
+specific_roi_tresh = 0.1
+unspecific_ROI_thresh = 0.1
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,100]
-
+Skip_step = [4,100,200]
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
                     BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
                     correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
                     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
                     dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
-                    n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,
+                    n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,
                     oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step,
                     bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
                     folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list, band,

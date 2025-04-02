@@ -119,7 +119,7 @@ type_norm = 'T1w' # T1 or T2
 #templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
 templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_T1w/study_template.nii.gz')
 TR = '1'  # 'value du calculate in s', 'Auto', 'None'
-smoothing = 3.5
+smoothing = 3
 
 # Define model and GLT specifications
 model = "(1|Subj)*Hemisphere"
