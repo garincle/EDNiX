@@ -27,7 +27,7 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run, ID, dir_prepro,
-                       n_for_ANTS, aff_metric_ants, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform, registration_fast,
+                       n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlases, labels_dir, anat_subject, IhaveanANAT, do_anat_to_func, type_of_transform, registration_fast,
                        overwrite, s_bind, afni_sif,diary_file):
 
     ct = datetime.datetime.now()
@@ -105,7 +105,7 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
             mask = ants.image_read(opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz'))
             moving_mask = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz'))
 
-            mtx1 = ants.registration(fixed=ANAT, moving=MEAN,type_of_transform='Translation', outprefix=opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_'))
+            mtx1 = ants.registration(fixed=ANAT, moving=MEAN,type_of_transform='Translation', aff_metric=aff_metric_ants_Transl, outprefix=opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_'))
             MEAN_tr = ants.apply_transforms(fixed=ANAT, moving=MEAN,transformlist=mtx1['fwdtransforms'],interpolator=n_for_ANTS)
             ants.image_write(MEAN_tr, opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift.nii.gz'), ri=False)
             dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),

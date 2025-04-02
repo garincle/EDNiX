@@ -66,7 +66,7 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_RS_ICA_native,
                 command = 'singularity run' + s_bind + afni_sif + '3dmaskSVD' + overwrite + ' -polort 2 -vnorm -mask ' + \
                           opj(dir_fMRI_Refth_RS_prepro1, img_name) + \
                           ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
-                          ' | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS' + suffix + '.1D')
+                          ' > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS' + suffix + '.1D')
                 nl = spgo(command)
                 diary.write(f'\n{nl}')
                 print(nl)
@@ -84,7 +84,7 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_RS_ICA_native,
                 if countVmask>10:
                     command = 'singularity run' + s_bind + afni_sif + '3dmaskSVD' + overwrite + ' -polort 2 -vnorm -mask ' + opj(dir_fMRI_Refth_RS_prepro1,'Vmask.nii.gz') + \
                     ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
-                    ' | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_Vc.1D')
+                    ' > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_Vc.1D')
                     nl = spgo(command)
                     diary.write(f'\n{nl}')
                     print(nl)
@@ -124,7 +124,7 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_RS_ICA_native,
 
         # create bandpass regressors (instead of using 3dBandpass, say)
         command = 'singularity run' + s_bind + afni_sif + '1dBport' + overwrite + ' -nodata ' + NumberofTR + ' ' + str(TR) + ' -band ' + band + \
-                  ' -invert -nozero | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + 'bandpass_rall.1D')
+                  ' -invert -nozero > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + 'bandpass_rall.1D')
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)

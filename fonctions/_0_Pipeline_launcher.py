@@ -53,7 +53,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
                     correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
                     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
                     dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
-                    n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,
+                    n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,
                     oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step,
                     bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
                     folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list, band,
@@ -711,7 +711,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
             else:
                 fonctions._5_anat_to_fMRI.Refimg_to_meanfMRI(REF_int, SED_val, anat_func_same_space,
                                                              TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run,
-                                                             ID, dir_prepro, n_for_ANTS, aff_metric_ants, list_atlases, labels_dir, anat_subject,
+                                                             ID, dir_prepro, n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlases, labels_dir, anat_subject,
                                                              IhaveanANAT, do_anat_to_func, type_of_transform, registration_fast,
                                                              overwrite, s_bind, afni_sif,diary_file)
 
@@ -787,7 +787,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
 
             else:
                 fonctions._10_Correl_matrix.correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run,
-                                                          selected_atlases_matrix, segmentation_name_list, ID, Session,
+                                                          selected_atlases_matrix, segmentation_name_list, ID, Session, TR_val,
                                                           bids_dir,s_bind,afni_sif,diary_file)
 
             if 11 in Skip_step:
