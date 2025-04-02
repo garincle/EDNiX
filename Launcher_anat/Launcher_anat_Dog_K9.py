@@ -126,7 +126,7 @@ Lut_file = opj(Lut_dir,'Multispecies_LUT_Dual.txt')
 ### Block3: step 16 (QC)
 ### Block3: step 100 (Clean)
 ### Block3: step 200 (QC itksnap)
-Skip_step = [1,2,3,4,5,6,7,10,12,12,13,14,15,100,200]
+Skip_step = [100,200]
 
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step,

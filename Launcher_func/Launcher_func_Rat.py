@@ -56,35 +56,35 @@ Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
 list_to_remove = [
-        '300301',
-        '300302',
-        '300303',
-        '300304',
-        '300305',
-        '300306',
-        '300307',
-        '300308',
-        '300309',
-        '300600',
-        '300601',
-        '300602',
-        '300603',
-        '300604',
-        '300605',
-        '300606',
-        '300607',
-        '300608',
-        '300609',
-        '300800',
-        '300801',
-        '300802',
-        '300803',
-        '300804',
-        '300805',
-        '300806',
-        '300807',
-        '300808',
-        '300809']
+        ('300301', 0),
+        ('300302', 0),
+        ('300303', 0),
+        ('300304', 0),
+        ('300305', 0),
+        ('300306', 0),
+        ('300307', 0),
+        ('300308', 0),
+        ('300309', 0),
+        ('300600', 0),
+        ('300601', 0),
+        ('300602', 0),
+        ('300603', 0),
+        ('300604', 0),
+        ('300605', 0),
+        ('300606', 0),
+        ('300607', 0),
+        ('300608', 0),
+        ('300609', 0),
+        ('300800', 0),
+        ('300801', 0),
+        ('300802', 0),
+        ('300803', 0),
+        ('300804', 0),
+        ('300805', 0),
+        ('300806', 0),
+        ('300807', 0),
+        ('300808', 0),
+        ('300809', 0)]
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
 atlas_dfs = Tools.Read_atlas.extract_atlas_definitions(config)
@@ -153,6 +153,7 @@ anat_func_same_space = True # True or False
 n_for_ANTS = 'hammingWindowedSinc' # string
 registration_fast = False
 type_of_transform = 'BOLDAffine'
+aff_metric_ants_Transl = 'mattes' # string
 aff_metric_ants = 'mattes'
 do_anat_to_func = False # True or False
 
@@ -209,7 +210,7 @@ smoothSBA = 0.5
 #######for matrix analysis (step 10)
 #### name of the atlases  you want to use for the matrix analysis
 selected_atlases_matrix = list_atlases.copy()
-segmentation_name_list = [lvl1, lvl1LR, lvl2, lvl2LR, lvl3, lvl3LR, lvl4, lvl4LR]
+segmentation_name_list = [lvl1, lvl2, lvl3, lvl4, lvl1LR, lvl2LR, lvl3LR, lvl4LR]
 
 #######for seed analysis (step 11)
 # threshold_val is the percentage of the correlation image that will be removed
@@ -232,7 +233,7 @@ fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_pat
                     correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
                     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
                     dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
-                    n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,
+                    n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,
                     oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step,
                     bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
                     folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list, band,
