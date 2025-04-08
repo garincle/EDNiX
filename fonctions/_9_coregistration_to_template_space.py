@@ -5,6 +5,8 @@ import ants
 import datetime
 import json
 from fonctions.plot_QC_func import plot_qc
+import nibabel as nib
+import re
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -92,14 +94,6 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
-
-        r = REF_int
-        root_RS = extract_filename(RS[r])
-        command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -orient ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP' + '.nii.gz') + ' ' +  output2
-        orientation_orig = spgo(command).split('\n')[-1]
-        nl = 'orientation orig of the func image is ' + orientation_orig
-        print(bcolors.OKGREEN + nl + bcolors.ENDC)
-        diary.write(f'\n{nl}')
 
         ##### apply the recenter fmri
         if deoblique == 'header':
@@ -223,7 +217,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
             opj(bids_dir, 'QC','meanIMG_in_template', ID + 'meanIMG_in_template.png'))
 
     ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
-    ##                                Work on all FUNC                                                          ## ##
+    ##                                          Work on all FUNC                                                ## ##
     ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
 
     for i in range(0, int(nb_run)):
@@ -372,20 +366,29 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         with open(opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.json'), "w") as outfile:
             outfile.write(json_object)
 
-    if anat_func_same_space == True:
-        root_RS = extract_filename(RS[REF_int])
+    # Load the image directly
+    img = nib.load(residual_in_template)
+    # Get voxel sizes
+    delta_x, delta_y, delta_z = [str(round(abs(x), 10)) for x in img.header.get_zooms()[:3]]
 
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + residual_in_template
-    delta_x = str(abs(round(float(spgo(command).split('\n')[-1]), 10)))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dj ' + residual_in_template
-    delta_y = str(abs(round(float(spgo(command).split('\n')[-1]), 10)))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dk ' + residual_in_template
-    delta_z = str(abs(round(float(spgo(command).split('\n')[-1]), 10)))
+    def get_orientation_nibabel(nifti_path):
+        """Get 3-letter orientation code using NiBabel."""
+        img = nib.load(nifti_path)
+        aff = img.affine
 
-    ## in anat space resample to func
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -orient ' + residual_in_template
-    orient_meanimg = spgo(command).split('\n')[-1]
+        # Extract orientation from affine matrix
+        ornt = nib.orientations.io_orientation(aff)
+        codes = nib.orientations.ornt2axcodes(ornt)
+        orient_code = ''.join(codes)
 
+        # Validate (should already be valid from NiBabel)
+        if not re.fullmatch(r'^[RLAPSI]{3}$', orient_code):
+            raise ValueError(f"Invalid orientation: {orient_code}")
+        return orient_code
+
+    # Usage
+    orient_meanimg = get_orientation_nibabel(residual_in_template)
+    print(f"Orientation: {orient_meanimg}")
 
     #### apply to every atlas
     if len(list_atlases) > 0:

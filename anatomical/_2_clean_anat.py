@@ -8,6 +8,7 @@ import anatomical.Skullstrip_method
 import datetime
 import json
 import matplotlib.pyplot as plt
+import nibabel as nib
 
 class bcolors:
     HEADER = '\033[95m'
@@ -195,15 +196,12 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
     diary.write(f'\n{nl}')
     print(nl)
 
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz')
-    dummy = spgo(command).split('\n')
-    delta_x = str(round(abs(float(dummy[-1])), 2))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dj ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz')
-    dummy = spgo(command).split('\n')
-    delta_y = str(round(abs(float(dummy[-1])), 2))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dk ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz')
-    dummy = spgo(command).split('\n')
-    delta_z = str(round(abs(float(dummy[-1])), 2))
+    # Load the image directly
+    mean_img_path = opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz')
+    img = nib.load(mean_img_path)
+
+    # Get voxel sizes
+    delta_x, delta_y, delta_z = [str(round(abs(x), 10)) for x in img.header.get_zooms()[:3]]
 
     command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \
               ' -prefix ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + \

@@ -6,8 +6,8 @@ from bids.reports import BIDSReport
 opn = os.path.normpath
 opj = os.path.join
 
-MAIN_PATH = r'/home/cgarin/Documents/EDNiX_study/EDNiX'
-sys.path.append('/home/cgarin/PycharmProjects/EDNiX')
+MAIN_PATH = r'/mnt/c/Users/garin/OneDrive/EDNiX'
+sys.path.append(r'/mnt/c/Users/garin/PycharmProjects/EDNiX')
 
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
@@ -15,17 +15,17 @@ import fonctions._0_Pipeline_launcher
 
 species = 'RatWHS'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj('/home/cgarin/Documents/EDNiX_study/MRI/Rat/BIDS_Gd'))
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj('/mnt/e/EDNiX_study/MRI/Rat/BIDS_Gd'))
 FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
-atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"/home/cgarin/Documents/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2", species))
-Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"/home/cgarin/Documents/EDNiX_study/EDNiX/Atlas_library/LUT_files"))
+atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2", species))
+Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/EDNiX/Atlas_library/LUT_files"))
 
 # Define your path variables
 path_vars = {'FS_dir': FS_dir,
     'atlas_dir': atlas_dir,
     'Lut_dir': Lut_dir}
 # Load and process config
-config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(opj(r"/home/cgarin/Documents/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2",
+config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2",
                                                                                   'atlas_config_V2.json')), path_vars)
 BASE_SS = config["paths"]["BASE_SS"]
 BASE_mask = config["paths"]["BASE_mask"]
@@ -34,7 +34,7 @@ Aseg_ref = config["paths"]["Aseg_ref"]
 Aseg_refLR = config["paths"]["Aseg_refLR"]
 
 ########### Subject loader with BIDS##############
-layout= BIDSLayout(bids_dir,  validate=True)
+layout= BIDSLayout(bids_dir,  validate=False)
 ###
 report = BIDSReport(layout)
 # Ask get() to return the ids of subjects that have T1w files #return_type='filename
@@ -47,7 +47,7 @@ df = layout.to_df()
 df.head()
 
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == 'nii.gz')]
+allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
 list_of_ones = [1] * len(allinfo_study_c)
 allinfo_study_c['session'] = list_of_ones
 
@@ -178,21 +178,21 @@ do_not_correct_signal  = False # True or False
 ### you can use the CSF (first layer outside the brain) as regressor
 extract_exterior_CSF = False # True or False
 ### you can use the White Matter as regressor
-extract_WM = True # True or False
+extract_WM = False # True or False
 #use the eroded  White Matter functional mask (produced during the anat processing)
-use_erode_WM_func_masks  = True # True or False
+use_erode_WM_func_masks  = False # True or False
 ### you can use the Ventricules as regressor (not advised for small species as often not enough voxels)
 extract_Vc = False # True or False
 #use the eroded ventricular functional mask (produced during the anat processing)
 use_erode_V_func_masks = False # True or False
 #Global signal regression ?
-extract_GS = False # True or False
+extract_GS = True # True or False
 
 ### Band path filtering
 band = '0.01 0.1' # string
 normalize = 'Skip'
 #Smooth
-blur = 0 # float
+blur = 0.5 # float
 #Dilate the functional brain mask by n layers
 dilate_mask = 5 # int
 #retrain the analysis to the gray matter instate of the brain
@@ -205,7 +205,7 @@ cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 
 SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
 erod_seed  = True
-smoothSBA = 0.5
+smoothSBA = 0
 
 #######for matrix analysis (step 10)
 #### name of the atlases  you want to use for the matrix analysis
@@ -222,11 +222,11 @@ selected_atlases = ['atlaslvl4_LR.nii.gz']  # Your selected atlases for SBA
 panda_files = [pd.DataFrame({'region':['retrosplenial'],'label':[162]})]  # DataFrames for levels 3 and 4
 
 #For QC value to define specific and non-spe correlation
-specific_roi_tresh = 0.4
-unspecific_ROI_thresh = 0.2
+specific_roi_tresh = 0.1
+unspecific_ROI_thresh = 0.1
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,4,100,200]
+Skip_step = [4,100,200]
 
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
                     BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
