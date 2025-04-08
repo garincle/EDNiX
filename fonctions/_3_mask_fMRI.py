@@ -7,6 +7,8 @@ import fonctions.Skullstrip_func
 import datetime
 import json
 import re
+import nibabel as nib
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -91,47 +93,30 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
     with open(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_test.json'), "w") as outfile:
         outfile.write(json_object)
 
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
-    ADI = spgo(command).split('\n')
-    delta_x = str(abs(round(float(ADI[-1]), 10)))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dj ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
-    ADJ = spgo(command).split('\n')
-    delta_y= str(abs(round(float(ADJ[-1]), 10)))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dk ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
-    ADK = spgo(command).split('\n')
-    delta_z = str(abs(round(float(ADK[-1]), 10)))
+    # Load the image directly
+    mean_img_path = os.path.join(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz')
+    img = nib.load(mean_img_path)
+    # Get voxel sizes
+    delta_x, delta_y, delta_z = [str(round(abs(x), 10)) for x in img.header.get_zooms()[:3]]
 
-    def get_orientation(command):
-        """Executes the command and extracts the 3-letter orientation code."""
-        try:
-            # Run the command and get the output
-            orient_raw = subprocess.getoutput(command)
+    def get_orientation_nibabel(nifti_path):
+        """Get 3-letter orientation code using NiBabel."""
+        img = nib.load(nifti_path)
+        aff = img.affine
 
-            # Extract the last valid 3-letter orientation code
-            match = re.search(r'([RLAPSI]{3})\b', orient_raw)
+        # Extract orientation from affine matrix
+        ornt = nib.orientations.io_orientation(aff)
+        codes = nib.orientations.ornt2axcodes(ornt)
+        orient_code = ''.join(codes)
 
-            if match:
-                orient_code = match.group(1)
-                return orient_code
-            else:
-                raise ValueError(f"No valid orientation code found in the output: {orient_raw}")
+        # Validate (should already be valid from NiBabel)
+        if not re.fullmatch(r'^[RLAPSI]{3}$', orient_code):
+            raise ValueError(f"Invalid orientation: {orient_code}")
+        return orient_code
 
-        except Exception as e:
-            raise RuntimeError(f"Error while determining orientation: {str(e)}")
-
-    # Construct the command
-    command = ('export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO"; '
-        f'singularity run {s_bind}{afni_sif}3dinfo -orient '
-        f'{os.path.join(dir_fMRI_Refth_RS_prepro1, "Mean_Image.nii.gz")}')
-
-    # Get the orientation of the Mean Image
-    orient_meanimg = get_orientation(command)
-
-    # Validate and print the result
-    if re.match(r'^[RLAPSI]{3}$', orient_meanimg):
-        print(f"Valid orientation: {orient_meanimg}")
-    else:
-        raise ValueError(f"Invalid orientation format: {orient_meanimg}")
+    # Usage
+    orient_meanimg = get_orientation_nibabel(mean_img_path)
+    print(f"Orientation: {orient_meanimg}")
 
     command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + BASE_SS_coregistr +  \
     ' -prefix ' +  opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz') + ' -expr "a"'
@@ -182,21 +167,25 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
     with open(opj(dir_fMRI_Refth_RS_prepro2, 'maskDilatanat.json'), "w") as outfile:
         outfile.write(json_object)
 
-
     if anat_func_same_space == True:
-        command = 'singularity run' + s_bind + afni_sif + 'cat_matvec ' + opj(dir_prepro, ID + '_brain_for_Align_Center.1D') + \
-        ' | tail -n +3 >' + opj(dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D')
+        # Original matrix path
+        orig_mat = opj(dir_prepro, f"{ID}_brain_for_Align_Center.1D")
+        # Inverse matrix path
+        mvt_shft = opj(dir_prepro, f"{ID}_brain_for_Align_Center_inv.1D")
+
+        command = (f'singularity run {s_bind} {afni_sif} '
+            f'cat_matvec -ONELINE {orig_mat} '
+            f'> {opj(dir_fMRI_Refth_RS_prepro2, "_brain_for_Align_Center.1D")}')
         nl = spgo(command)
         print(command)
         diary.write(f'\n{nl}')
         print(nl)
 
-        mvt_shft = opj(dir_prepro, ID + '_brain_for_Align_Center_inv.1D')
-        command = 'singularity run' + s_bind + afni_sif + 'cat_matvec ' + opj(dir_prepro, ID + '_brain_for_Align_Center.1D') + \
-        ' -I | tail -n +3 > ' + mvt_shft
+        # Generate inverse matrix with proper formatting
+        command = f"""singularity run {s_bind} {afni_sif} \
+        cat_matvec -ONELINE {orig_mat} -I > {mvt_shft}"""
         nl = spgo(command)
         print(command)
-        print(nl)
         diary.write(f'\n{nl}')
         print(nl)
 

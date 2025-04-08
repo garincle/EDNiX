@@ -6,6 +6,8 @@ import ants
 import datetime
 import json
 from fonctions.plot_QC_func import plot_qc
+import nibabel as nib
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -37,16 +39,11 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
     print(bcolors.OKGREEN + nl + bcolors.ENDC)
     diary.write(f'\n{nl}')
 
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
-    ADI = spgo(command).split('\n')
-    delta_x = str(abs(round(float(ADI[-1]), 10)))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dj ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
-    ADJ = spgo(command).split('\n')
-    delta_y= str(abs(round(float(ADJ[-1]), 10)))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dk ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')
-    ADK = spgo(command).split('\n')
-    delta_z = str(abs(round(float(ADK[-1]), 10)))
-
+    # Load the image directly
+    mean_img_path = os.path.join(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz')
+    img = nib.load(mean_img_path)
+    # Get voxel sizes
+    delta_x, delta_y, delta_z = [str(round(abs(x), 10)) for x in img.header.get_zooms()[:3]]
 
     #### apply skull stripping
     command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro1,'maskDilat_Allineate_in_func.nii.gz') + \
@@ -354,16 +351,10 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
         print(bcolors.WARNING + 'WARNING: list_atlases is empty!' + bcolors.ENDC)
         diary.write(f'\n{nl}')
 
-
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + anat_subject
-    ADI = spgo(command).split('\n')[-1]
-    delta_x1 = str(abs(round(float(ADI), 10)))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dj ' + anat_subject
-    ADJ = spgo(command).split('\n')
-    delta_y1= str(abs(round(float(ADJ[-1]), 10)))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dk ' + anat_subject
-    ADK = spgo(command).split('\n')
-    delta_z1 = str(abs(round(float(ADK[-1]), 10)))
+    # Load the image directly
+    img = nib.load(anat_subject)
+    # Get voxel sizes
+    delta_x1, delta_y1, delta_z1 = [str(round(abs(x), 10)) for x in img.header.get_zooms()[:3]]
 
     command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \
     ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image_RcT_SS_anat_resolution.nii.gz') + \
@@ -381,7 +372,6 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
 
     #### create a nice anat in func space
     if anat_func_same_space == True:
-
         mvt_shft = opj(dir_prepro, ID + '_brain_for_Align_Center_inv.1D')
         anatstd = opj(dir_fMRI_Refth_RS_prepro2,'orig_anat_for_plot.nii.gz')
 

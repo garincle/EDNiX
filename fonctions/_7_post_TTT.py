@@ -3,7 +3,9 @@ import subprocess
 import datetime
 import json
 import pandas as pd
+import nibabel as nib
 class bcolors:
+
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
     OKCYAN = '\033[96m'
@@ -116,11 +118,16 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_RS_ICA_native,
         # 5.0 Regress out most of the noise from the data: bandpass filter, motion correction white mater noise and cbf noise , plus drift and derivatives
         # after filtering : blur within the mask and normalise the data.
 
-        # Get the volume nb
-        command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + \
-                  '3dinfo -nv ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz')
-        nb = spgo(command).split('\n')
-        NumberofTR = str(int(nb[-1]))
+        def get_number_of_trs(nifti_path):
+            """Safely get number of TRs using nibabel"""
+            try:
+                img = nib.load(nifti_path)
+                return str(img.shape[-1])  # Returns TRs as string
+            except Exception as e:
+                raise ValueError(f"nibabel failed to read {nifti_path}: {str(e)}")
+        # Usage
+        nifti_path = opj(dir_fMRI_Refth_RS_prepro1, f"{root_RS}_xdtrfwS.nii.gz")
+        NumberofTR = get_number_of_trs(nifti_path)
 
         # create bandpass regressors (instead of using 3dBandpass, say)
         command = 'singularity run' + s_bind + afni_sif + '1dBport' + overwrite + ' -nodata ' + NumberofTR + ' ' + str(TR) + ' -band ' + band + \

@@ -65,4 +65,3 @@ def cleanBIDS(BIDS_folder):
         all_dirs = [d for d in glob.glob(BIDS_folder + '/**', recursive=True) if os.path.isdir(d)]
 
     print("Cleanup complete!")
-

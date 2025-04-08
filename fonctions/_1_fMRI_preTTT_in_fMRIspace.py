@@ -90,9 +90,8 @@ def preprocess_data(dir_fMRI_Refth_RS_prepro1, RS, list_RS, nb_run, T1_eq, TR, S
             with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_x0.json'), "w") as outfile:
                 outfile.write(json_object)
 
-        # T1 equilibrium
-        cmd = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -nv ' + base_fMRI
-        nb_vol = int(spgo(cmd).split('\n')[-1])
+        img = nib.load(base_fMRI)
+        nb_vol = img.shape[-1]  # For 4D data, last dimension is time
 
         command = 'singularity run' + s_bind + afni_sif + '3dTcat -prefix ' + \
                   opj(dir_fMRI_Refth_RS_prepro1,root + '_x.nii.gz') + ' ' + base_fMRI + \
