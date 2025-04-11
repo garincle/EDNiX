@@ -336,7 +336,6 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
 
                 plotting.plot_matrix(
                     correlation_matrix,
-                    figure=(10, 8),
                     labels=atlas_filtered_list,
                     vmax=0.8,
                     vmin=-0.8)
@@ -344,7 +343,7 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
 
                 # Convert correlation matrix to a DataFrame
                 corr_df = pd.DataFrame(correlation_matrix, index=atlas_filtered_list, columns=atlas_filtered_list)
-                corr_df.to_csv(output_results + '/' + atlas + '_run_' + str(i) + '_matrix.csv', index=False)
+                corr_df.to_csv(output_results + '/' + atlas + '_run_' + str(i) + '_matrix.csv')
 
                 # Correctly construct new_df from lists
                 new_df = pd.DataFrame({
