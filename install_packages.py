@@ -18,7 +18,6 @@ packages = {
     "math": "built-in (no version)",
     "pandas": "2.2.2",
     "matplotlib": "3.9.2",
-    "pingouin": "0.5.4",
     "seaborn": "0.13.2",
     "pybids": "0.16.5",
     "openpyxl": "3.1.00",

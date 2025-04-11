@@ -226,7 +226,7 @@ specific_roi_tresh = 0.1
 unspecific_ROI_thresh = 0.1
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [4,100,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,100,200]
 
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
                     BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
