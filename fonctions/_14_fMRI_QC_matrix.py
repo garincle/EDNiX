@@ -1,25 +1,17 @@
-import nilearn
-import subprocess
 import os
-from nilearn import image
-from nilearn.input_data import NiftiLabelsMasker
-import numpy as np
-import nibabel as nib
-from nilearn.connectome import ConnectivityMeasure
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
-from nilearn import plotting
-import pingouin as pg
-from pingouin import pairwise_ttests
-from pingouin import ttest
+from scipy import stats
+from matplotlib.gridspec import GridSpec
 import seaborn as sns
-import shutil
-from sklearn.cluster import KMeans, SpectralClustering
-from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
-from scipy.spatial.distance import pdist, squareform
-from fonctions.extract_filename import extract_filename
-import datetime
 import json
+import datetime
+from sklearn.cluster import SpectralClustering
+from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
+import shutil
+from fonctions.extract_filename import extract_filename
+
 
 class bcolors:
     HEADER = '\033[95m'
@@ -32,744 +24,547 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-# Path to the excels files and data structure
+
+# Path utilities
 opj = os.path.join
 opb = os.path.basename
 opn = os.path.normpath
-
 opd = os.path.dirname
 ope = os.path.exists
 
-spgo = subprocess.getoutput
 
-#################################################################################################
-####Seed base analysis
-#################################################################################################
-def fMRI_QC_matrix(ID, Session, segmentation_name_list,
-                   dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3,
-                   specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, s_bind,afni_sif,diary_file):
+def validate_matrix(matrix, roi_names):
+    """Validate matrix with detailed asymmetry reporting"""
+    if matrix.shape[0] != matrix.shape[1]:
+        if isinstance(roi_names, (list, np.ndarray)):
+            if len(roi_names) == matrix.shape[0]:
+                matrix = matrix[:, :len(roi_names)]
+            elif len(roi_names) == matrix.shape[1]:
+                matrix = matrix[:len(roi_names), :]
+            else:
+                raise ValueError(
+                    f"ROI names count ({len(roi_names)}) doesn't match "
+                    f"matrix dimensions ({matrix.shape[0]} rows, {matrix.shape[1]} columns)"
+                )
 
-    # This is a function to estimate functional connectivity specificity. See Grandjean 2020 for details on the reasoning
+    if matrix.shape[0] != matrix.shape[1]:
+        raise ValueError(f"Failed to make matrix square. Final shape: {matrix.shape}")
 
+    if isinstance(roi_names, (list, np.ndarray)) and len(roi_names) != matrix.shape[0]:
+        raise ValueError(
+            f"ROI names count ({len(roi_names)}) doesn't match "
+            f"matrix dimension ({matrix.shape[0]}) after adjustment"
+        )
+
+    return matrix, roi_names
+
+
+def analyze_specificity(correlation_matrix, roi_names, specific_thresh, unspecific_thresh):
+    try:
+        corr_matrix, roi_names = validate_matrix(correlation_matrix, roi_names)
+    except Exception as e:
+        return {'error': str(e)}
+
+    results = {
+        'target_specificity': None,
+        'roi_specificity': [],
+        'matrix_shape': corr_matrix.shape,
+        'n_rois': len(roi_names)
+    }
+
+    # Find target ROIs
+    l_sensory_idx, r_sensory_idx, l_mpfc_idx, r_mpfc_idx = None, None, None, None
+    sensory_patterns = ['Somatosensory', 'Motor', 'Visual', 'Auditory']
+    mpfc_patterns = ['mPFC', 'Prefrontal', 'dlPFC', 'vlPFC']
+
+    # Find sensory ROIs
+    for pattern in sensory_patterns:
+        l_matches = [i for i, name in enumerate(roi_names) if name.startswith('L_') and pattern in name]
+        r_matches = [i for i, name in enumerate(roi_names) if name.startswith('R_') and pattern in name]
+        if l_matches and r_matches:
+            l_sensory_idx, r_sensory_idx = l_matches[0], r_matches[0]
+            break
+
+    # Find mPFC ROIs
+    for pattern in mpfc_patterns:
+        l_matches = [i for i, name in enumerate(roi_names) if name.startswith('L_') and pattern in name]
+        r_matches = [i for i, name in enumerate(roi_names) if name.startswith('R_') and pattern in name]
+        if l_matches:
+            l_mpfc_idx = l_matches[0]
+        if r_matches:
+            r_mpfc_idx = r_matches[0]
+        if l_mpfc_idx is not None or r_mpfc_idx is not None:
+            break
+
+    # Target specificity analysis
+    if l_sensory_idx is not None and r_sensory_idx is not None:
+        specific_corr = corr_matrix[l_sensory_idx, r_sensory_idx]
+        non_specific_corrs = []
+
+        connections = [
+            (l_mpfc_idx, l_sensory_idx),
+            (r_mpfc_idx, l_sensory_idx),
+            (l_mpfc_idx, r_sensory_idx),
+            (r_mpfc_idx, r_sensory_idx)]
+
+        for idx1, idx2 in connections:
+            if idx1 is not None and idx2 is not None:
+                non_specific_corrs.append(corr_matrix[idx1, idx2])
+
+        non_specific_corr = np.mean(non_specific_corrs) if non_specific_corrs else np.nan
+
+        if (specific_corr >= specific_thresh) and (non_specific_corr < unspecific_thresh):
+            category = 'Specific'
+        elif (specific_corr >= specific_thresh) and (non_specific_corr >= unspecific_thresh):
+            category = 'Unspecific'
+        elif (abs(specific_corr) < specific_thresh) and (abs(non_specific_corr) < unspecific_thresh):
+            category = 'No'
+        else:
+            category = 'Spurious'
+
+        results['target_specificity'] = {
+            'Specific_ROI_pair': f"{'R-' + str(roi_names[l_sensory_idx])}",
+            'Specific_Correlation': round(specific_corr, 3),
+            'NonSpecific_ROI_pair': f"{'R-' + str(roi_names[l_mpfc_idx])}",
+            'NonSpecific_Correlation': round(non_specific_corr, 3),
+            'Category': category
+        }
+
+    return results
+
+
+def calculate_network_metrics(correlation_matrix):
+    """Calculate various network metrics with safety checks"""
+    metrics = {}
+    n_nodes = correlation_matrix.shape[0]
+
+    # Eigenvalue analysis
+    try:
+        eigenvalues = np.sort(np.abs(np.linalg.eig(correlation_matrix)[0]))[::-1]
+        metrics['Top_Eigenvalue'] = round(eigenvalues[0], 3)
+        metrics['Eigenvalue_Ratio'] = round(eigenvalues[0] / eigenvalues[1], 3) if len(eigenvalues) > 1 else np.nan
+    except Exception as e:
+        metrics.update({'Top_Eigenvalue': np.nan, 'Eigenvalue_Ratio': np.nan})
+
+    # Clustering metrics
+    if n_nodes > 1:
+        n_clusters = min(7, n_nodes - 1)
+        try:
+            clustering = SpectralClustering(
+                n_clusters=n_clusters,
+                affinity='precomputed',
+                assign_labels='kmeans',
+                random_state=42
+            )
+            labels = clustering.fit_predict((correlation_matrix + 1) / 2)
+
+            metrics.update({
+                'Silhouette_Score': round(silhouette_score(correlation_matrix, labels), 3),
+                'Davies_Bouldin': round(davies_bouldin_score(correlation_matrix, labels), 3),
+                'Calinski_Harabasz': round(calinski_harabasz_score(correlation_matrix, labels), 3)
+            })
+        except Exception:
+            metrics.update({
+                'Silhouette_Score': np.nan,
+                'Davies_Bouldin': np.nan,
+                'Calinski_Harabasz': np.nan
+            })
+
+    # Correlation statistics
+    mask = np.tri(n_nodes, k=-1).astype(bool)
+    if mask.any():
+        metrics.update({
+            'Mean_Correlation': round(np.mean(correlation_matrix[mask]), 3),
+            'Median_Correlation': round(np.median(correlation_matrix[mask]), 3),
+            'Std_Correlation': round(np.std(correlation_matrix[mask]), 3)
+        })
+    else:
+        metrics.update({
+            'Mean_Correlation': np.nan,
+            'Median_Correlation': np.nan,
+            'Std_Correlation': np.nan
+        })
+
+    return metrics
+
+
+def analyze_hemisphere_comparisons(correlation_matrix, roi_names):
+    """Compare intra- vs inter-hemisphere connectivity with detailed stats"""
+    left_rois = [i for i, name in enumerate(roi_names) if name.startswith('L_')]
+    right_rois = [i for i, name in enumerate(roi_names) if name.startswith('R_')]
+
+    if not left_rois or not right_rois:
+        return None
+
+    intra_left = correlation_matrix[np.ix_(left_rois, left_rois)]
+    intra_right = correlation_matrix[np.ix_(right_rois, right_rois)]
+    inter_lr = correlation_matrix[np.ix_(left_rois, right_rois)]
+
+    # Get values (excluding diagonal for intra)
+    intra_left_vals = intra_left[np.triu_indices_from(intra_left, k=1)]
+    intra_right_vals = intra_right[np.triu_indices_from(intra_right, k=1)]
+    inter_lr_vals = inter_lr.flatten()
+
+    # Statistical tests
+    t_left_right, p_left_right = stats.ttest_rel(intra_left_vals, intra_right_vals)
+    t_intra_inter, p_intra_inter = stats.ttest_ind(
+        np.concatenate([intra_left_vals, intra_right_vals]),
+        inter_lr_vals
+    )
+
+    return {
+        'intra_left': intra_left_vals,
+        'intra_right': intra_right_vals,
+        'inter': inter_lr_vals,
+        'p_intra_vs_inter': p_intra_inter,
+        'p_left_vs_right': p_left_right,
+        'intra_left_mean': np.mean(intra_left_vals),
+        'intra_right_mean': np.mean(intra_right_vals),
+        'inter_mean': np.mean(inter_lr_vals),
+        't_intra_vs_inter': t_intra_inter,
+        't_left_vs_right': t_left_right
+    }
+
+
+def generate_qc_plots(corr_matrix, roi_names, output_dir, prefix,
+                      specific_thresh, unspecific_thresh):
+    """Generate QC plots with matrix stats in table"""
+    fig = plt.figure(figsize=(18, 10))
+    gs = GridSpec(2, 3, figure=fig,
+                  width_ratios=[1, 1, 1.5],
+                  height_ratios=[1, 1.2],
+                  wspace=0.3, hspace=0.4)
+
+    # --- Top Row: Three Panels ---
+    # Panel A: Correlation Matrix
+    ax1 = fig.add_subplot(gs[0, 0])
+    img = ax1.imshow(corr_matrix, cmap='cold_hot', vmin=-0.8, vmax=0.8)
+    plt.colorbar(img, ax=ax1, fraction=0.04, pad=0.01)
+    ax1.text(-0.1, 1.1, 'A', transform=ax1.transAxes,
+             fontsize=16, fontweight='bold', va='top')
+
+    # Panel B: Correlation Distribution
+    ax2 = fig.add_subplot(gs[0, 1])
+    mask = np.tri(corr_matrix.shape[0], k=-1).astype(bool)
+    corr_values = corr_matrix[mask]
+    ax2.hist(corr_values, bins=50, color='#4e79a7', edgecolor='white', alpha=0.8)
+    ax2.set_xlabel('Correlation Value')
+    ax2.set_ylabel('Count')
+    ax2.text(-0.1, 1.1, 'B', transform=ax2.transAxes,
+             fontsize=16, fontweight='bold', va='top')
+
+    # Panel C: Hemisphere Connectivity
+    ax3 = fig.add_subplot(gs[0, 2])
+    hemi_results = analyze_hemisphere_comparisons(corr_matrix, roi_names) or {}
+
+    # Initialize hemisphere data with default values
+    left_data = hemi_results.get('intra_left', [np.nan])
+    right_data = hemi_results.get('intra_right', [np.nan])
+    inter_data = hemi_results.get('inter', [np.nan])
+
+    # Create dataframe for plotting
+    plot_data = pd.DataFrame({
+        'Connectivity': np.concatenate([left_data, right_data, inter_data]),
+        'Type': (['Intra-Left'] * len(left_data) +
+                 ['Intra-Right'] * len(right_data) +
+                 ['Inter-Hemi'] * len(inter_data))
+    })
+
+    # Violin plot with connections
+    palette = ['#4e79a7', '#f28e2b', '#59a14f']
+    sns.violinplot(x='Type', y='Connectivity', data=plot_data,
+                   palette=palette, ax=ax3, inner=None, saturation=0.8)
+
+    # Connect left-right pairs if we have both
+    if len(left_data) == len(right_data):
+        for l_val, r_val in zip(left_data, right_data):
+            jitter = np.random.uniform(-0.1, 0.1)
+            ax3.plot([0 + jitter, 1 + jitter], [l_val, r_val],
+                     color='#7f7f7f', alpha=0.3, linewidth=1, linestyle='--')
+
+    # Add points
+    sns.stripplot(x='Type', y='Connectivity', data=plot_data,
+                  palette=palette, alpha=0.7, size=5, jitter=0.1, ax=ax3)
+
+    # Significance markers
+    y_max = max(np.nanmax(left_data), np.nanmax(right_data), np.nanmax(inter_data))
+    if 'p_left_vs_right' in hemi_results:
+        ax3.text(0.5, y_max * 1.05, f"p = {hemi_results['p_left_vs_right']:.3f}",
+                 ha='center', fontsize=10)
+    if 'p_intra_vs_inter' in hemi_results:
+        ax3.text(1.5, y_max * 1.1, f"p = {hemi_results['p_intra_vs_inter']:.3f}",
+                 ha='center', fontsize=10)
+
+    ax3.set_ylim(min(np.nanmin(left_data), np.nanmin(right_data), np.nanmin(inter_data)) * 1.1,
+                 y_max * 1.15)
+    ax3.text(-0.1, 1.1, 'C', transform=ax3.transAxes,
+             fontsize=16, fontweight='bold', va='top')
+
+    # --- Bottom Row: Consolidated Table ---
+    ax4 = fig.add_subplot(gs[1, :])
+    ax4.axis('off')
+
+    # Get all results
+    metrics = calculate_network_metrics(corr_matrix) or {}
+    spec_results = analyze_specificity(corr_matrix, roi_names, specific_thresh, unspecific_thresh) or {}
+    target_data = spec_results.get('target_specificity', {})
+
+    # Calculate matrix statistics (using only lower triangle)
+    matrix_stats = {
+        'Min': np.nanmin(corr_values),
+        'Max': np.nanmax(corr_values),
+        'Mean': np.nanmean(corr_values),
+        'Std': np.nanstd(corr_values)
+    }
+
+    # Additional metrics
+    pos_frac = np.mean(corr_values > 0)
+    neg_frac = np.mean(corr_values < 0)
+    n_rois = corr_matrix.shape[0]
+
+    # Color coding for specificity categories
+    category_colors = {
+        'Specific': '#2ca02c',
+        'Unspecific': '#ff7f0e',
+        'No': '#1f77b4',
+        'Spurious': '#d62728'
+    }
+
+    # Prepare table content
+    table_content = [
+        ["Network Metrics", "", "Hemisphere Results", "", "Matrix Stats", ""],
+        ["Top Eigenvalue", f"{metrics.get('Top_Eigenvalue', np.nan):.2f}",
+         "Left vs Right p-value", f"{hemi_results.get('p_left_vs_right', np.nan):.3f}",
+         "Min", f"{matrix_stats['Min']:.3f}"],
+        ["Eigenvalue Ratio", f"{metrics.get('Eigenvalue_Ratio', np.nan):.3f}",
+         "Intra vs Inter p-value", f"{hemi_results.get('p_intra_vs_inter', np.nan):.3f}",
+         "Max", f"{matrix_stats['Max']:.3f}"],
+        ["Silhouette Score", f"{metrics.get('Silhouette_Score', np.nan):.3f}",
+         "Mean Intra-Left", f"{np.nanmean(left_data):.3f}",
+         "Mean", f"{matrix_stats['Mean']:.3f}"],
+        ["Davies-Bouldin", f"{metrics.get('Davies_Bouldin', np.nan):.3f}",
+         "Mean Intra-Right", f"{np.nanmean(right_data):.3f}",
+         "Std", f"{matrix_stats['Std']:.3f}"],
+        ["Calinski-Harabasz", f"{metrics.get('Calinski_Harabasz', np.nan):.0f}",
+         "Mean Inter-Hemi", f"{np.nanmean(inter_data):.3f}",
+         "Median", f"{np.nanmedian(corr_values):.3f}"],
+        ["Positive Correlations", f"{pos_frac:.1%}",
+         "Negative Correlations", f"{neg_frac:.1%}",
+         "IQR", f"{np.nanpercentile(corr_values, 75) - np.nanpercentile(corr_values, 25):.3f}"],
+        ["Specificity Results", "", "", "", "", ""],
+        ["Specific Pair", target_data.get('Specific_ROI_pair', 'N/A'),
+         "Correlation", f"{target_data.get('Specific_Correlation', np.nan):.3f}",
+         "Effect Size",
+         f"{target_data.get('Specific_Correlation', 0) - target_data.get('NonSpecific_Correlation', 0):.3f}"],
+        ["Non-Specific Pair", target_data.get('NonSpecific_ROI_pair', 'N/A'),
+         "Correlation", f"{target_data.get('NonSpecific_Correlation', np.nan):.3f}",
+         "Classification", target_data.get('Category', 'N/A')],
+    ]
+
+    # Create table
+    table = ax4.table(
+        cellText=table_content,
+        loc='center',
+        cellLoc='center',
+        colWidths=[0.2, 0.15, 0.2, 0.15, 0.15, 0.15]
+    )
+
+    # Style table
+    table.auto_set_font_size(False)
+    table.set_fontsize(9)
+    table.scale(1, 1.8)
+
+    # Apply colors and formatting
+    for (row, col), cell in table.get_celld().items():
+        # Section headers
+        if row in [0, 7]:
+            cell.set_facecolor('#404040')
+            cell.set_text_props(color='white', weight='bold')
+        # Color p-values
+        elif row == 1 and col == 3:
+            p_val = hemi_results.get('p_left_vs_right', 1)
+            cell.set_facecolor('#d62728' if p_val < 0.05 else '#2ca02c')
+            cell.set_text_props(color='white')
+        elif row == 2 and col == 3:
+            p_val = hemi_results.get('p_intra_vs_inter', 1)
+            cell.set_facecolor('#d62728' if p_val > 0.05 else '#2ca02c')
+            cell.set_text_props(color='white')
+        # Classification cell
+        elif row == 9 and col == 5:
+            classification = target_data.get('Category', 'N/A')
+            if classification in category_colors:
+                cell.set_facecolor(category_colors[classification])
+                cell.set_text_props(color='white' if classification != 'No' else 'black')
+        # Metric names
+        elif row > 0 and col in [0, 2, 4]:
+            cell.set_facecolor('#f0f0f0')
+
+    ax4.text(-0.05, 1.05, 'D', transform=ax4.transAxes,
+             fontsize=16, fontweight='bold', va='top')
+
+    plt.savefig(os.path.join(output_dir, f'{prefix}_qc_report.png'),
+                dpi=300, bbox_inches='tight')
+    plt.close()
+
+    return metrics, hemi_results
+
+
+def filter_bilateral_rois(matrix, roi_names):
+    """Keeps only bilateral ROIs (L_ and R_ pairs) and reports removed ones."""
+    bilateral_suffixes = set()
+    left_rois = {name[2:]: i for i, name in enumerate(roi_names) if name.startswith("L_")}
+    right_rois = {name[2:]: i for i, name in enumerate(roi_names) if name.startswith("R_")}
+
+    # Identify suffixes that have both L_ and R_ counterparts
+    for suffix in left_rois:
+        if suffix in right_rois:
+            bilateral_suffixes.add(suffix)
+
+    # Keep only indices that are bilateral
+    keep_indices = []
+    for i, name in enumerate(roi_names):
+        if name.startswith(("L_", "R_")):
+            suffix = name[2:]
+            if suffix in bilateral_suffixes:
+                keep_indices.append(i)
+
+    # Apply filtering
+    filtered_matrix = matrix[np.ix_(keep_indices, keep_indices)]
+    filtered_names = [roi_names[i] for i in keep_indices]
+
+    return filtered_matrix, filtered_names
+
+
+def load_and_validate_matrix(matrix_path):
+    """Load and validate matrix from file with robust error handling and bilateral checking"""
+    try:
+        if not os.path.exists(matrix_path):
+            raise FileNotFoundError(f"Matrix file not found: {matrix_path}")
+
+        # Load with pandas
+        df = pd.read_csv(matrix_path, index_col=0)
+
+        # Clean headers and index
+        df.columns = df.columns.astype(str).str.strip()
+        df.index = df.index.astype(str).str.strip()
+
+        # Identify bilateral ROIs (those with L_ and R_ versions)
+        all_rois = set(df.columns)
+        bilateral_pairs = []
+
+        for roi in all_rois:
+            if roi.startswith('L_'):
+                counterpart = 'R_' + roi[2:]
+                if counterpart in all_rois:
+                    bilateral_pairs.extend([roi, counterpart])
+            elif roi.startswith('R_'):
+                counterpart = 'L_' + roi[2:]
+                if counterpart in all_rois:
+                    bilateral_pairs.extend([roi, counterpart])
+
+        # Remove duplicates while preserving order
+        bilateral_rois = []
+        seen = set()
+        for roi in bilateral_pairs:
+            if roi not in seen:
+                seen.add(roi)
+                bilateral_rois.append(roi)
+
+        # If we found bilateral pairs, filter the matrix
+        if bilateral_rois:
+            df = df.loc[bilateral_rois, bilateral_rois]
+
+        # Final validation
+        if not list(df.columns) == list(df.index):
+            raise ValueError("Header and index mismatch after bilateral filtering")
+
+        matrix = df.values.astype(float)
+        roi_names = list(df.columns)
+
+        return matrix, roi_names
+
+    except Exception as e:
+        raise ValueError(f"Failed to load and validate matrix: {str(e)}")
+
+
+def fMRI_QC_matrix(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3,
+                   specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, diary_file):
+    """Optimized QC analysis with updated output"""
     ct = datetime.datetime.now()
     diary = open(diary_file, "a")
     diary.write(f'\n{ct}')
-    nl = '##  Working on step ' + str(14) + '(function: _14_fMRI_QC_matrix).  ##'
+    nl = '## Working on fMRI QC matrix analysis (optimized) ##'
     print(bcolors.OKGREEN + nl + bcolors.ENDC)
     diary.write(f'\n{nl}')
 
-    def specific_FC(specific_roi, unspecific_ROI):
-        if (specific_roi >= specific_roi_tresh) and (unspecific_ROI < unspecific_ROI_thresh):
-            cat = 'Specific'
-        elif (specific_roi >= specific_roi_tresh) and (unspecific_ROI >= unspecific_ROI_thresh):
-            cat = 'Unspecific'
-        elif (abs(specific_roi) < specific_roi_tresh) and (abs(unspecific_ROI) < unspecific_ROI_thresh):
-            cat = 'No'
-        else:
-            cat = 'Spurious'
-        return cat
-
     for direction in [dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3]:
-
         out_results = opj(direction, '10_Results')
+        os.makedirs(out_results, exist_ok=True)
 
-        if not ope(out_results):
-            os.mkdir(out_results)
-
-        if not ope(out_results):
-            os.mkdir(out_results)
         out_results_V = opj(out_results, 'fMRI_QC_matrix')
-
         if ope(out_results_V):
             shutil.rmtree(out_results_V)
+        os.makedirs(out_results_V)
 
-        os.mkdir(out_results_V)
+        for i in range(int(nb_run)):
+            root_RS = extract_filename(RS[i])
+            matrix_file = opj(direction, '10_Results', 'correl_matrix',
+                              f'atlaslvl3_LR_run_{i}_matrix.csv')
 
-        atlas                = 'atlaslvl3_LR.nii.gz'
-        atlas_filenamelvl3LR = opj(direction, 'atlaslvl3_LR.nii.gz')
-        atlas_filenameQC     = opj(direction, atlas[:-7] + '_forfMRIQC.nii.gz')
+            if not ope(matrix_file):
+                nl = f'WARNING: Missing matrix file {matrix_file}'
+                print(bcolors.WARNING + nl + bcolors.ENDC)
+                diary.write(f'\n{nl}')
+                continue
 
-        if not ope(atlas_filenamelvl3LR):
-            nl = 'ERROR: no atlas lvl 3 LR found, Step 14 will failed!'
-            diary.write(f'\n{nl}')
-            raise Exception(bcolors.FAIL + nl + bcolors.ENDC)
+            try:
+                # Load and validate matrix with new robust function
+                full_corr, roi_names = load_and_validate_matrix(matrix_file)
 
-        else:
-            #### Build the atlas for LR somato ant anterior cingulate
-            string_build_atlas = str('')
-            for new_label, old_label in zip([3, 3, 1, 2], [54, 1054, 58, 1058]):
-                string_build_atlas = string_build_atlas + '(' + str(int(new_label)) + '*(equals(a,' + str(
-                    int(old_label)) + ')))+'
-            string_build_atlas2 = "'" + string_build_atlas[:-1] + "'"
+                # Filter to keep only bilateral ROIs
+                full_corr, roi_names = filter_bilateral_rois(full_corr, roi_names)
 
-            command = 'singularity run' + s_bind + afni_sif + '3dcalc' + ' -a ' + atlas_filenamelvl3LR + ' -expr ' + string_build_atlas2 + ' -prefix ' + opj(
-                direction, atlas[:-7] + '_forfMRIQC.nii.gz') + ' -overwrite'
-            nl = spgo(command)
-            diary.write(f'\n{nl}')
-            print(nl)
-            dictionary = {"Sources": atlas_filenamelvl3LR,
-                          "Description": string_build_atlas2 + ' (3dcalc, AFNI).'},
-            json_object = json.dumps(dictionary, indent=2)
-            with open(opj(
-                direction, atlas[:-7] + '_forfMRIQC.json'), "w") as outfile:
-                outfile.write(json_object)
+                # Generate QC plots and get metrics
+                metrics, hemi_results = generate_qc_plots(
+                    full_corr, roi_names, out_results_V, root_RS,
+                    specific_roi_tresh, unspecific_ROI_thresh)
 
-            for atlas_filename in [atlas_filenameQC, atlas_filenamelvl3LR]:
-                for i in range(0, int(nb_run)):
-                    root_RS = extract_filename(RS[i])
-                    if direction == dir_fMRI_Refth_RS_prepro1:
-                        func_filename = opj(direction, root_RS + '_residual.nii.gz')
-                    elif direction == dir_fMRI_Refth_RS_prepro2:
-                        func_filename = opj(direction, root_RS + '_residual_in_anat.nii.gz')
-                    elif direction == dir_fMRI_Refth_RS_prepro3:
-                        func_filename = opj(direction, root_RS + '_residual_in_template.nii.gz')
+                # Save results
+                results = {
+                    'network_metrics': metrics,
+                    'hemisphere_results': hemi_results,
+                    'specificity_results': analyze_specificity(
+                        full_corr, roi_names, specific_roi_tresh, unspecific_ROI_thresh),
+                    'timestamp': str(datetime.datetime.now())
+                }
 
-                    if ope(func_filename):
-                        # Load the NIfTI images
-                        img1 = nib.load(atlas_filename)
-                        img2 = nib.load(func_filename)
-
-                        # Extract headers
-                        header1 = img1.header
-                        header2 = img2.header
-
-                        # Compare specific fields
-                        fields_to_compare = ['dim', 'pixdim']
-                        tolerance = 0.0000006
-                        differences = {}
-                        for field in fields_to_compare:
-                            value1 = header1[field][1:4]
-                            value2 = header2[field][1:4]
-                            if not np.allclose(value1, value2, atol=tolerance):
-                                differences[field] = (value1, value2)
-
-                        # Print differences
-                        if differences:
-                            nl = "Differences found in the following fields:"
-                            print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                            diary.write(f'\n{nl}')
-
-                            for field, values in differences.items():
-                                nl = f"{field}:"
-                                print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                                diary.write(f'\n{nl}')
-                                nl = f"  Image 1: {values[0]}"
-                                print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                                diary.write(f'\n{nl}')
-                                nl = f"  Image 2: {values[1]}"
-                                print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                                diary.write(f'\n{nl}')
-                                dummy = nilearn.image.resample_to_img(atlas_filename, func_filename, interpolation='nearest')
-                                dummy.to_filename(atlas_filename)
-                                extracted_data = nib.load(atlas_filename).get_fdata()
-                                labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
-                                labeled_img2.to_filename(atlas_filename)
-                        else:
-                            nl = "No differences found in the specified fields."
-                            print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                            diary.write(f'\n{nl}')
+                # Helper to convert ndarrays to lists recursively
+                def convert_ndarrays(obj):
+                    if isinstance(obj, dict):
+                        return {k: convert_ndarrays(v) for k, v in obj.items()}
+                    elif isinstance(obj, list):
+                        return [convert_ndarrays(v) for v in obj]
+                    elif isinstance(obj, np.ndarray):
+                        return obj.tolist()
                     else:
-                        nl = 'WARNING: ' + str(func_filename) + ' not found!!'
-                        print(bcolors.WARNING + nl + bcolors.ENDC)
-                        diary.write(f'\n{nl}')
+                        return obj
 
+                # Save to JSON
+                with open(opj(out_results_V, f'{root_RS}_full_results.json'), 'w') as f:
+                    json.dump(convert_ndarrays(results), f, indent=2)
 
-            ##########################################################################
-            ############     WORK in QC 1: Adapted Grandean's method:     ############
-            ############     correlations LR somatoSenory compare to ACC  ############
-            ##########################################################################
+                # Save CSV versions
+                pd.DataFrame(full_corr, index=roi_names, columns=roi_names).to_csv(
+                    opj(out_results_V, f'{root_RS}_corr_matrix.csv'))
 
-            for i in range(0, int(nb_run)):
-                root_RS = extract_filename(RS[i])
-                if direction == dir_fMRI_Refth_RS_prepro1:
-                    func_filename = opj(direction, root_RS + '_residual.nii.gz')
-                if direction == dir_fMRI_Refth_RS_prepro2:
-                    func_filename = opj(direction, root_RS + '_residual_in_anat.nii.gz')
-                if direction == dir_fMRI_Refth_RS_prepro3:
-                    func_filename = opj(direction, root_RS + '_residual_in_template.nii.gz')
+                diary.write(f'\n{root_RS} analysis complete\n')
 
-                if ope(func_filename):
+            except Exception as e:
+                nl = f'Error processing {matrix_file}: {str(e)}'
+                print(bcolors.FAIL + nl + bcolors.ENDC)
+                diary.write(f'\n{nl}')
+                continue
 
-                    output_results = opj(direction, '10_Results','fMRI_QC_matrix')
-
-                    NAD_masker = NiftiLabelsMasker(labels_img=atlas_filenameQC,
-                                                    detrend=False,
-                                                    smoothing_fwhm=None,
-                                                    standardize=False,
-                                                    low_pass=None,
-                                                    high_pass=None,
-                                                    t_r=None,
-                                                    memory=None, verbose=5)
-
-                    time_series = NAD_masker.fit_transform(func_filename)
-                    correlation_measure = ConnectivityMeasure(kind="correlation")
-                    correlation_matrix  = correlation_measure.fit_transform([time_series])[0]
-
-                    # Mask the main diagonal for visualization:
-                    np.fill_diagonal(correlation_matrix, 0)
-
-                    # matrices are ordered for block-like representation
-                    nl = str(correlation_matrix.shape)
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = str(correlation_matrix)
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    specific_roi = correlation_matrix[0][1]
-                    unspecific_ROI = correlation_matrix[0][2]
-
-                    cat = specific_FC(specific_roi, unspecific_ROI)
-
-                    line_specificity = ['QC result', 'specific_roi:', str(specific_roi), 'unspecific_ROI:', str(unspecific_ROI), 'Result:', str(cat)]
-                    nl = str(line_specificity)
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    ##########################################################################
-                    ############                      WORK on QC 2:               ############
-                    ############     correlation matrix for the entire lvl 3      ############
-                    ##########################################################################
-
-                    panda_file = segmentation_name_list[2]
-
-                    panda_file_right = panda_file.copy()
-                    panda_file_right['label'] += 1000
-                    # Combine both DataFrames
-                    panda_file_combined = pd.concat([panda_file, panda_file_right], ignore_index=True)
-
-                    # Create combined region labels with side information
-                    labels_with_side = ['L-' + region for region in panda_file['region']] + ['R-' + region for
-                                                                                             region in
-                                                                                             panda_file['region']]
-                    # Combine the original regions twice (once for left, once for right)
-
-                    # Create a new pandas DataFrame with the labels_with_side
-                    # Create a new pandas DataFrame with the labels_with_side and original region names
-                    panda_file_combined['region'] = labels_with_side
-
-                    # Load your brain atlas data
-                    atlas_img = nib.load(atlas_filenamelvl3LR)
-                    atlas_data = atlas_img.get_fdata()
-
-                    # Flatten the atlas data for easy comparison
-                    atlas_flat = np.unique(atlas_data.flatten().astype(int))
-                    atlas_flat[atlas_flat != 0]
-
-                    # Check if labels in the segmentation DataFrame are in the atlas data
-                    filtered_labels = panda_file_combined[panda_file_combined['label'].isin(atlas_flat)]
-                    filtered_labels_list = list(filtered_labels['label'])
-                    atlas_filtered_list = list(filtered_labels['region'])
-
-                    # Create new lists to store the filtered values
-                    final_labels_list = []
-                    final_atlas_list = []
-
-                    # Loop through the filtered_labels_list and filter both the labels and corresponding regions in atlas_filtered_list
-                    for idx, num in enumerate(filtered_labels_list):
-                        if int(num) < 1000:
-                            # Check if num + 1000 exists in the list
-                            if (int(num) + 1000) in filtered_labels_list:
-                                final_labels_list.append(num)
-                                final_atlas_list.append(atlas_filtered_list[idx])  # Add the corresponding region
-                        else:
-                            # Check if num - 1000 exists in the list
-                            if (int(num) - 1000) in filtered_labels_list:
-                                final_labels_list.append(num)
-                                final_atlas_list.append(atlas_filtered_list[idx])  # Add the corresponding region
-
-                    # Output the final filtered lists
-                    nl = "Filtered labels list: " + str(final_labels_list)
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = "Filtered atlas regions list:" + str(final_atlas_list)
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    ### create a new list of label with zero if not in the new label list (for 3dcalc)
-                    list_old_label = []
-                    for lab in atlas_flat:
-                        if lab in np.array(final_labels_list):
-                            list_old_label.append(lab)
-                        else:
-                            list_old_label.append(0)
-                    nl = str(list_old_label)
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    string_build_atlas = str('')
-                    for new_label, old_label in zip(list_old_label, list(atlas_flat)):
-                        string_build_atlas = string_build_atlas + '(' + str(int(new_label)) + '*(equals(a,' + str(
-                            int(old_label)) + ')))+'
-                    string_build_atlas2 = "'" + string_build_atlas[:-1] + "'"
-
-                    command = 'singularity run' + s_bind + afni_sif + '3dcalc' + ' -a ' + atlas_filename + ' -expr ' + string_build_atlas2 + ' -prefix ' + atlas_filename[:-7] + '_filtered.nii.gz' + ' -overwrite'
-                    nl = spgo(command)
-                    diary.write(f'\n{nl}')
-                    print(nl)
-                    dictionary = {"Sources": atlas_filename,
-                                  "Description": string_build_atlas2 + ' (3dcalc, AFNI).'},
-                    json_object = json.dumps(dictionary, indent=2)
-                    with open(atlas_filename[:-7] + '_filtered.json', "w") as outfile:
-                        outfile.write(json_object)
-
-                    ##########################################################################
-                    NAD_masker = NiftiLabelsMasker(
-                        labels_img=atlas_filename[:-7] + '_filtered.nii.gz',
-                        detrend=False,
-                        smoothing_fwhm=None,
-                        standardize=False,
-                        low_pass=None,
-                        high_pass=None,
-                        t_r=None,
-                        memory=None, verbose=5)
-                    try:
-                        time_series = NAD_masker.fit_transform(func_filename)
-                    except:
-                        dummy = nilearn.image.resample_to_img(
-                            atlas_filename[:-7] + '_filtered.nii.gz', func_filename,
-                            interpolation='nearest')
-                        dummy.to_filename(atlas_filename[:-7] + '_filtered.nii.gz')
-                        extracted_data = nib.load( atlas_filename[:-7] + '_filtered.nii.gz').get_fdata()
-                        labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
-                        labeled_img2.to_filename(atlas_filename[:-7] + '_filtered.nii.gz')
-
-                        NAD_masker = NiftiLabelsMasker(
-                            labels_img=atlas_filename[:-7] + '_filtered.nii.gz',
-                            detrend=False,
-                            smoothing_fwhm=None,
-                            standardize=False,
-                            low_pass=None,
-                            high_pass=None,
-                            t_r=None,
-                            memory=None, verbose=5)
-
-                        time_series = NAD_masker.fit_transform(func_filename)
-
-                    correlation_measure = ConnectivityMeasure(kind="correlation")
-                    correlation_matrix = correlation_measure.fit_transform([time_series])[0]
-
-                    # Plot the correlation matrix
-
-                    # Make a large figure
-                    # Mask the main diagonal for visualization:
-                    np.fill_diagonal(correlation_matrix, 0)
-                    # The labels we have start with the background (0), hence we skip the
-                    # first label
-                    # matrices are ordered for block-like representation
-                    nl = str(correlation_matrix.shape)
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = str(len(panda_file['region']))
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = str(correlation_matrix)
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    plotting.plot_matrix(
-                        correlation_matrix,
-                        figure=(10, 8),
-                        labels=final_atlas_list,
-                        vmax=0.8,
-                        vmin=-0.8)
-
-                    plt.savefig(output_results + '/' + root_RS + 'lvl3LR_correlation_matrix.png')
-
-                    # Save the connectivity matrix
-                    matrix_filename = opj(output_results, root_RS + 'lvl3LR_correlation_matrix.npy')
-                    np.save(matrix_filename, correlation_matrix)
-
-                    # Convert correlation matrix to a DataFrame
-                    corr_df = pd.DataFrame(correlation_matrix, index=final_atlas_list, columns=final_atlas_list)
-
-                    connection = []
-                    value = []
-                    # Iterate through the matrix to populate the list
-                    for i in range(len(final_atlas_list)):
-                        for j in range(i + 1, len(final_atlas_list)):
-                            connection.append(f"{final_atlas_list[i]} to {final_atlas_list[j]}")
-                            value.append(correlation_matrix[i, j])
-
-                    # Create DataFrame from the list
-                    flattened_df = pd.DataFrame([value], columns=connection)
-                    flattened_df['ID'] = ID
-                    flattened_df['Session'] = Session
-
-                    # Display the flattened DataFrame
-                    nl = str(flattened_df)
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    # Optionally, save the flattened DataFrame to a CSV file
-                    flattened_df.to_csv(opj(output_results,root_RS + 'lvl3LR_correlation__correlation_matrix.csv'),
-                                        index=False)
-
-                    ##########################################################################
-                    ###############################     R vs L Intra     #####################
-                    ##########################################################################
-                    ##########################################################################
-
-                    # Extract the labels
-                    left_labels = panda_file[panda_file['label'].isin(final_labels_list)]['label'].values
-                    right_labels = panda_file_right[panda_file_right['label'].isin(final_labels_list)]['label'].values
-
-                    # Initialize lists to store connectivity values
-                    left_connectivity = []
-                    # Iterate through each pair of left hemisphere labels
-                    for i, left_label_A in enumerate(left_labels):
-                        left_index_A = np.where(left_labels == left_label_A)[0][0]
-                        for j, left_label_B in enumerate(left_labels):
-                            left_index_B = np.where(left_labels == left_label_B)[0][0]
-                            # Ensure that correlations between the same region are excluded
-                            if i < j:  # This condition ensures that only unique pairs are considered
-                                left_connectivity.append(correlation_matrix[left_index_A, left_index_B])
-                    left_connectivity = np.array(left_connectivity)
-
-                    right_connectivity = []
-                    # Iterate through each pair of left hemisphere labels
-                    for i, left_label_A in enumerate(right_labels):
-                        left_index_A = np.where(right_labels == left_label_A)[0][0] + len(left_labels)
-                        for j, left_label_B in enumerate(right_labels):
-                            left_index_B = np.where(right_labels == left_label_B)[0][0] + len(left_labels)
-                            # Ensure that correlations between the same region are excluded
-                            if i < j:  # This condition ensures that only unique pairs are considered
-                                right_connectivity.append(correlation_matrix[left_index_A, left_index_B])
-                    right_connectivity = np.array(right_connectivity)
-
-                    nl = str(len(right_connectivity))
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = str(len(left_connectivity))
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    # Ensure the arrays are of the same length
-                    assert left_connectivity.shape == right_connectivity.shape, "Arrays must be of the same shape"
-
-                    # Number of regions
-                    num_regions = left_connectivity.shape[0]
-
-                    # Prepare the data
-                    data = {'Correlation': np.concatenate([left_connectivity, right_connectivity]),
-                        'Hemisphere': ['Left'] * num_regions + ['Right'] * num_regions,
-                        'Region': list(range(1, num_regions + 1)) * 2}
-
-                    # Create the DataFrame
-                    Correl_pd = pd.DataFrame(data)
-
-                    nl = str(Correl_pd)
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    # Now you can use this DataFrame with pairwise_ttests
-                    posthocs = pairwise_ttests(dv='Correlation', within='Hemisphere', return_desc=True, interaction=True,
-                                               within_first=False, subject='Region', data=Correl_pd, parametric=False)
-                    nl =  str(posthocs)
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    nl = f"T-statistic: {float(posthocs['W-val'])}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = f"P-value: {float(posthocs['p-unc'])}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    line_withinH_result = [f"W-statistic: {float(posthocs['W-val'])}", f"P-value: {float(posthocs['p-unc'])}"]
-                    nl =  str(line_withinH_result)
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-
-                    ################## Figure
-
-                    sns.set(style="ticks")
-                    fig, ax1 = plt.subplots(1, 1, figsize=(6, 8))
-                    ax1.set_ylim([-0.4, 1])
-                    ax = pg.plot_paired(dv='Correlation', within='Hemisphere', ax=ax1, boxplot_in_front=True,
-                                        pointplot_kwargs={'scale': 0.5, 'markers': '.'},
-                                        subject='Region', data=Correl_pd,
-                                        boxplot_kwargs={"palette": "Set1", 'linewidth': 2, 'width': 0.5, 'fliersize': 2.5})
-                    ax.grid(False)
-                    ax.set(xlabel=None, ylabel=None)
-                    ax.set_xticklabels(ax.get_xmajorticklabels(), fontsize=25)
-                    ax.locator_params(axis="y", nbins=5)
-
-                    ylabels = ['{:,.1f}'.format(x) for x in ax.get_yticks()]
-                    ylabels_list = [float(i) for i in ylabels]
-                    ax.set_yticks(ylabels_list)
-                    ax.set_yticklabels(ylabels_list, fontsize=25)
-
-                    for _, s in ax.spines.items():
-                        s.set_linewidth(1.5)
-                        s.set_color('black')
-
-                    fig = ax.get_figure()
-                    file_name = root_RS + 'paired_ttest_results_intraH.png'
-                    file_path = opj(output_results, file_name)
-                    nl = f"Saving figure to: {file_path}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = f"DPI: {400}, Bbox_inches: {'tight'}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    fig.savefig(file_path, dpi=400, bbox_inches='tight')
-
-                    ##########################################################################
-                    ###############################     LR vs Intra     ######################
-                    ##########################################################################
-                    ##########################################################################
-
-                    # Initialize lists to store connectivity values and corresponding labels
-
-                    right_to_left_connectivity = []
-                    right_to_left_labels = []
-
-                    # Iterate through each right hemisphere label
-                    for right_label in right_labels:
-                        # Find the corresponding left hemisphere label
-                        left_label = right_label - 1000
-
-                        # Find the indices of the right and left hemisphere labels
-                        right_index = np.where(right_labels == right_label)[0][0] + len(left_labels)
-                        left_index  = np.where(left_labels == left_label)[0][0]
-
-                        # Extract the connectivity value between the right and left regions
-                        connectivity_value = correlation_matrix[right_index, left_index]
-
-                        # Append the connectivity value and corresponding labels to the lists
-                        right_to_left_connectivity.append(connectivity_value)
-                        right_to_left_labels.append(right_label)
-
-                    # Convert the lists to numpy arrays
-                    right_to_left_connectivity = np.array(right_to_left_connectivity)
-                    right_to_left_labels       = np.array(right_to_left_labels)
-
-                    # Convert the lists to numpy arrays
-                    LR_connectivity = np.array(right_to_left_connectivity)    # < seems a repeatition of the previous line
-                    LR_labels       = np.array(right_to_left_labels)
-
-                    nl = str(right_to_left_connectivity)
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = str(right_to_left_labels)
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    # Combine left and right connectivity values for plotting
-                    combined_connectivity = np.concatenate([np.concatenate((left_connectivity, right_connectivity), axis=None), LR_connectivity])
-
-                    # Create labels for the bar plot
-                    labels = ['IntraH Connectivity'] * len(np.concatenate((left_connectivity, right_connectivity), axis=None)) + ['LR Connectivity'] * len(
-                        LR_connectivity)
-
-
-                    # Prepare the data
-                    data = {
-                        'Correlation': combined_connectivity,
-                        'Hemisphere': labels,
-                        'Region': list(range(1, len(combined_connectivity) + 1))
-                    }
-
-                    # Create the DataFrame
-                    Correl_pd = pd.DataFrame(data)
-
-                    # define samples
-                    group1 = Correl_pd[Correl_pd['Hemisphere'] == 'IntraH Connectivity']
-                    group2 = Correl_pd[Correl_pd['Hemisphere'] == 'LR Connectivity']
-
-                    # perform independent two sample t-test
-                    posthocs = ttest(group1['Correlation'], group2['Correlation'])
-
-                    nl = f"T-statistic: {float(posthocs['T'])}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = f"P-value: {float(posthocs['p-val'])}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    lines_withinH_vs_LR = [f"T-statistic: {float(posthocs['T'])}", f"P-value: {float(posthocs['p-val'])}"]
-                    nl = str(lines_withinH_vs_LR)
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    ################## Figure
-
-                    sns.set(style="ticks")
-
-                    fig, ax1 = plt.subplots(1, 1, figsize=(6, 8))
-                    ax1.set_ylim([-0.4, 1])
-                    ax = sns.boxplot(data=Correl_pd, x="Hemisphere", y="Correlation", hue="Hemisphere")
-                    ax.grid(False)
-                    ax.set(xlabel=None, ylabel=None)
-
-                    fig = ax.get_figure()
-                    fig.savefig(opj(output_results, root_RS + 'ttest_results_LR_vs_intraH.png'), dpi=400, bbox_inches='tight')
-
-                    ##########################################################################
-                    ###############################     histogram     ########################
-                    ##########################################################################
-                    ##########################################################################
-
-                    # Flatten the connectivity matrix and plot histogram
-                    mask_corre = np.tri(correlation_matrix.shape[0], k=-1)
-                    # Convert the binary mask to a boolean mask
-                    boolean_mask = mask_corre.astype(bool)
-
-                    # Extracting the masked (True) values
-                    correlation_values = correlation_matrix[boolean_mask]
-
-                    plt.figure(figsize=(10, 6))
-                    plt.hist(correlation_values, bins=50, color='skyblue', edgecolor='black')
-                    plt.title('Distribution of Correlation Values')
-                    plt.xlabel('Correlation Coefficient')
-                    plt.ylabel('Frequency')
-                    plt.savefig(opj(output_results, root_RS + 'correlation_histogram.png'))
-
-                    ##########################################################################
-                    ##################     Network characteristics     ######################
-                    ##########################################################################
-                    ##########################################################################
-                    # Eigenvalue analysis
-                    def eigenvalue_analysis(matrix):
-                        eigenvalues, _ = np.linalg.eig(matrix)
-                        return np.sort(np.abs(eigenvalues))[::-1]
-
-                    # Clustering stability
-                    def clustering_stability(matrix, n_clusters, n_iter=10):
-                        labels_list = []
-                        for _ in range(n_iter):
-                            kmeans = KMeans(n_clusters=n_clusters, random_state=None).fit(matrix)
-                            labels_list.append(kmeans.labels_)
-                        return np.mean([np.mean(labels == labels_list[0]) for labels in labels_list])
-
-                    # Dunn Index calculation
-                    def dunn_index(matrix, labels):
-                        distances = squareform(pdist(matrix))
-                        unique_labels = np.unique(labels)
-                        intra_dists = [np.mean(distances[labels == label]) for label in unique_labels]
-                        inter_dists = [np.min(distances[np.ix_(labels == label1, labels == label2)])
-                                       for i, label1 in enumerate(unique_labels) for label2 in unique_labels[i + 1:]]
-                        return np.min(inter_dists) / np.max(intra_dists)
-
-                    # Spectral clustering and evaluation
-                    def spectral_clustering(matrix, n_clusters):
-                        clustering = SpectralClustering(n_clusters=n_clusters, affinity='nearest_neighbors',
-                                                        assign_labels='kmeans', random_state=42)
-                        labels = clustering.fit_predict(matrix)
-                        silhouette = silhouette_score(matrix, labels)
-                        davies_bouldin = davies_bouldin_score(matrix, labels)
-                        calinski_harabasz = calinski_harabasz_score(matrix, labels)
-                        dunn = dunn_index(matrix, labels)
-                        return silhouette, davies_bouldin, calinski_harabasz, dunn
-                    # Spectral clustering and evaluation
-                    def spectral_clustering(matrix, n_clusters):
-                        clustering = SpectralClustering(n_clusters=n_clusters, affinity='nearest_neighbors',
-                                                        assign_labels='kmeans', random_state=42)
-                        labels = clustering.fit_predict(matrix)
-                        silhouette = silhouette_score(matrix, labels)
-                        davies_bouldin = davies_bouldin_score(matrix, labels)
-                        calinski_harabasz = calinski_harabasz_score(matrix, labels)
-                        dunn = dunn_index(matrix, labels)
-                        return silhouette, davies_bouldin, calinski_harabasz, dunn
-
-                    # Perform analyses and print results
-                    n_clusters = 7
-
-                    # Eigenvalue analysis
-                    # Provides insights into the structure of the matrix.
-                    eigenvalues = eigenvalue_analysis(correlation_matrix)
-                    nl = f"  Top 5 Eigenvalues: {eigenvalues[:5]}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    # Clustering stability
-                    # Measures how consistent the clustering results are when clustering multiple times with different
-                    # initial conditions. Here we choose 7 as in Yeo et al.
-                    stability = clustering_stability(correlation_matrix, n_clusters)
-                    nl = f"  Clustering Stability: {stability}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    # Spectral clustering evaluation
-                    silhouette, davies_bouldin, calinski_harabasz, dunn = spectral_clustering(correlation_matrix, n_clusters)
-
-                    nl = f"  Silhouette Score: {silhouette}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = f"  Davies-Bouldin Index: {davies_bouldin}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = f"  Calinski-Harabasz Index: {calinski_harabasz}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    #Dunn Index: Helps in identifying compact and well-separated clusters.
-                    #The Dunn Index evaluates clustering quality by considering the ratio between the minimum inter-cluster distance and the maximum intra-cluster distance.
-                    nl = f"  Dunn Index: {dunn}"
-                    diary.write(f'\n{nl}')
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-
-                    line_network = [f"  Top 5 Eigenvalues: {eigenvalues[:5]}", f"  Clustering Stability: {stability}", f"  Silhouette Score: {silhouette}",
-                                        f"  Davies-Bouldin Index: {davies_bouldin}", f"  Calinski-Harabasz Index: {calinski_harabasz}", f"  Dunn Index: {dunn}"]
-                    # Function to calculate distribution statistics
-                    def calculate_distribution_stats(matrix):
-                        flattened = matrix.flatten()
-                        median = np.median(flattened)
-                        variance = np.var(flattened)
-                        min_val = np.min(flattened)
-                        max_val = np.max(flattened)
-                        return median, variance, min_val, max_val
-
-                    # Function to calculate density of correlation coefficients in different ranges
-                    def calculate_density(matrix):
-                        flattened = matrix.flatten()
-                        density_neg = np.sum((flattened >= -1) & (flattened < -0.05)) / len(flattened)
-                        density_zero = np.sum((flattened >= -0.05) & (flattened <= 0.05)) / len(flattened)
-                        density_pos = np.sum((flattened > 0.05) & (flattened <= 1)) / len(flattened)
-                        return density_neg, density_zero, density_pos
-
-                    # Distribution statistics
-                    median, variance, min_val, max_val = calculate_distribution_stats(correlation_matrix)
-                    nl = f"  Median: {median}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = f"  Variance: {variance}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = f"  Min: {min_val}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = f"  Max: {max_val}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    # Density analysis
-                    density_neg, density_zero, density_pos = calculate_density(correlation_matrix)
-                    nl = f"  Density (Negative Correlations): {density_neg}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = f"  Density (Around Zero): {density_zero}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-                    nl = f"  Density (Positive Correlations): {density_pos}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-                    line_descriptive = [f"  Median: {median}", f"  Variance: {variance}", f"  Min: {min_val}",
-                                        f"  Max: {max_val}", f"  Density (Negative Correlations): {density_neg}", f"  Density (Around Zero): {density_zero}", f"  Density (Positive Correlations): {density_pos}"]
-                    lines = line_descriptive + line_withinH_result + lines_withinH_vs_LR + line_specificity
-
-                    with open(output_results + '/'+ root_RS + 'QC_result.txt', 'w') as f:
-                        for line in lines:
-                            f.write(line)
-                            f.write('\n')
-                else:
-                    nl = 'WARNING: ' + str(func_filename) + ' not found!!'
-                    print(bcolors.WARNING + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
-
-    diary.write(f'\n')
+    diary.write('\nProcessing complete.\n')
     diary.close()
-
+    print(bcolors.OKGREEN + 'QC analysis completed successfully' + bcolors.ENDC)
