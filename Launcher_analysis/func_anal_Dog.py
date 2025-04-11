@@ -10,7 +10,7 @@ import analyses._Group_anal_3dTtest
 import analyses._Group_anal_3dLMEr_Mirror
 import Launcher_analysis.Load_BIDS_data_for_analysis
 import Tools.Load_subject_with_BIDS
-
+import Tools.Read_atlas
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -106,7 +106,7 @@ oversample_dictionary = False
 min_size = 10
 cut_coords = 10
 alpha = 0.00000000001
-alpha_dic = 10
+alpha_dic = 11
 component_list = [7, 17]
 lower_cutoff = 0.1
 upper_cutoff = 0.95
@@ -119,7 +119,7 @@ type_norm = 'T1w' # T1 or T2
 #templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
 templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_T1w/study_template.nii.gz')
 TR = '1'  # 'value du calculate in s', 'Auto', 'None'
-smoothing = 3
+smoothing = 3.5
 
 # Define model and GLT specifications
 model = "(1|Subj)*Hemisphere"

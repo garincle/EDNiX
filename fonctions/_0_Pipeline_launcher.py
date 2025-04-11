@@ -42,7 +42,6 @@ import fonctions._9_coregistration_to_template_space
 import fonctions._10_Correl_matrix
 import fonctions._11_Seed_base_many_regionsatlas
 import fonctions._12_fMRI_QC
-import fonctions._13_fMRI_QC_SBA
 import fonctions._14_fMRI_QC_matrix
 import fonctions._100_Data_Clean
 import fonctions._200_Data_QC
@@ -819,20 +818,6 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
             else:
                 fonctions._12_fMRI_QC.fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro3, RS, nb_run, s_bind, afni_sif,diary_file)
 
-            if 13 in Skip_step:
-                ct = datetime.datetime.now()
-                diary = open(diary_file, "a")
-                diary.write(f'\n{ct}')
-                nl = 'skip step ' + str(13)
-                print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                diary.write(f'\n{nl}')
-                diary.write(f'\n')
-                diary.close()
-
-            else:
-                fonctions._13_fMRI_QC_SBA.fMRI_QC_SBA(SBAspace, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                                                      dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases,
-                                                      panda_files,diary_file)
             if 14 in Skip_step:
                 ct = datetime.datetime.now()
                 diary = open(diary_file, "a")
@@ -844,9 +829,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
                 diary.close()
 
             else:
-                fonctions._14_fMRI_QC_matrix.fMRI_QC_matrix(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                                                            dir_fMRI_Refth_RS_prepro3, specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run,
-                                                            s_bind,afni_sif,diary_file)
+                fonctions._14_fMRI_QC_matrix.fMRI_QC_matrix(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3,
+                   specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, diary_file)
 
             if 100 in Skip_step:
                 ct = datetime.datetime.now()

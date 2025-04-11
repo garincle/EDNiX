@@ -6,8 +6,8 @@ from bids.reports import BIDSReport
 opn = os.path.normpath
 opj = os.path.join
 
-MAIN_PATH = r'/mnt/c/Users/garin/OneDrive/EDNiX'
-sys.path.append(r'/mnt/c/Users/garin/PycharmProjects/EDNiX')
+MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
+sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
 
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
@@ -15,7 +15,7 @@ import fonctions._0_Pipeline_launcher
 
 species = 'CatinDog'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/MRI/Dog/BIDS_k9"))
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Desktop\BIDS_k9"))
 FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
 atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2", species))
 Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\LUT_files"))
@@ -199,7 +199,7 @@ specific_roi_tresh = 0.1
 unspecific_ROI_thresh = 0.1
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [4,100,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,15,100,200]
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
                     BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
                     correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
