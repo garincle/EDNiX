@@ -7,6 +7,7 @@ import json
 from fonctions.plot_QC_func import plot_qc
 import nibabel as nib
 import re
+import numpy as np
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -165,10 +166,39 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
             raise Exception(bcolors.FAIL + nl + bcolors.ENDC)
 
         if anat_func_same_space == True:
-            command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 50 -S 50 -A 50 -P 50 -L 50 -R 50 -S 50 -prefix ' +  output2 + ' ' +  output2 + ' -overwrite'
+            # --- Step 1: Load and parse the affine matrix ---
+            translation_file = opj(dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D')
+            affine_params = np.loadtxt(translation_file)  # Load 12-parameter affine
+
+            # Reshape into 3x4 matrix (rotation + translation)
+            affine_matrix = affine_params.reshape(3, 4)
+            translations_mm = affine_matrix[:, 3]  # Extract [tx, ty, tz] in mm
+
+            # --- Step 2: Calculate worst-case displacement at image edges ---
+            ref_img = nib.load(output2)
+            voxel_size = ref_img.header.get_zooms()[:3]  # (dx, dy, dz) in mm
+            img_shape = ref_img.shape[:3]  # (nx, ny, nz)
+
+            # Convert translations to voxel shifts (account for rotation)
+            max_shift_voxels = np.ceil(np.abs(translations_mm) / voxel_size).astype(int)
+
+            # Add safety margin (5 voxels) + edge protection (10% of FOV)
+            safety_margin = 5
+            edge_margin = (0.1 * np.array(img_shape)).astype(int)  # Extra 10% of image size
+            padding_voxels = max_shift_voxels + safety_margin + edge_margin
+
+            command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I ' +  str(padding_voxels[0]) + \
+                      ' -S ' + str(padding_voxels[0]) + \
+                      ' -A ' + str(padding_voxels[1]) + \
+                      ' -P ' + str(padding_voxels[1]) + \
+                      ' -L ' + str(padding_voxels[2]) + \
+                      ' -R ' + str(padding_voxels[2]) + \
+                      ' -prefix ' + output2 + ' ' + output2 + ' -overwrite'
             nl = spgo(command)
+            print(nl)
             diary.write(f'\n{nl}')
             print(nl)
+
 
             command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -overwrite -interp NN -1Dmatrix_apply ' + \
                       opj(dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D') + \
@@ -200,7 +230,9 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         nl = str(output3) + ' done!'
         print(bcolors.OKGREEN + nl + bcolors.ENDC)
         diary.write(f'\n{nl}')
-
+        # Freeing memory
+        del MEAN
+        del TRANS
 
     ### plot the QC
     bids_dir = opd(opd(opd(opd(opd(dir_fMRI_Refth_RS_prepro1)))))
@@ -329,24 +361,23 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
 
 
         if anat_func_same_space == True:
-            command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 50 -S 50 -A 50 -P 50 -L 50 -R 50 -S 50 -prefix ' + output3 + ' ' + output2 + ' -overwrite'
+            command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I ' + str(padding_voxels[0]) + \
+                      ' -S ' + str(padding_voxels[0]) + \
+                      ' -A ' + str(padding_voxels[1]) + \
+                      ' -P ' + str(padding_voxels[1]) + \
+                      ' -L ' + str(padding_voxels[2]) + \
+                      ' -R ' + str(padding_voxels[2]) + \
+                      ' -prefix ' + output3 + ' ' + output2 + ' -overwrite'
             nl = spgo(command)
+            print(nl)
             diary.write(f'\n{nl}')
             print(nl)
 
-            ### delet zeropad and add master mean image in 3D Allineate?
-            command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -overwrite -interp NN -1Dmatrix_apply ' + \
-                      opj(dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D') + \
-                      ' -prefix ' + output3 + \
-                      ' -input  ' + output3
-            nl = spgo(command)
-            diary.write(f'\n{nl}')
-            print(nl)
+            print(f"Applied padding (voxels): X={padding_voxels[0]}, Y={padding_voxels[1]}, Z={padding_voxels[2]}")
 
             ## apply on pre-processed imgs
             FUNC = ants.image_read(output3)
             img_name = output2
-
         else:
             ## apply on pre-processed imgs
             FUNC = ants.image_read(input2)
@@ -357,7 +388,6 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
                                       transformlist=transfo_concat_Anat + mvt_shft_ANTs,
                                       interpolator='nearestNeighbor',
                                       whichtoinvert=w2inv_Anat + w2inv_fwd, imagetype=3)
-
         ants.image_write(TRANS, residual_in_template, ri=False)
         dictionary = {"Sources": [img_name,
                                   opj(dir_fMRI_Refth_RS_prepro3, 'BASE_SS_fMRI.nii.gz')],
