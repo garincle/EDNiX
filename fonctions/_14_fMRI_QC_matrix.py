@@ -198,19 +198,23 @@ def analyze_hemisphere_comparisons(correlation_matrix, roi_names):
 
     intra_left = correlation_matrix[np.ix_(left_rois, left_rois)]
     intra_right = correlation_matrix[np.ix_(right_rois, right_rois)]
-    inter_lr = correlation_matrix[np.ix_(left_rois, right_rois)]
+    inter_lr_vals = []
+    for name in roi_names:
+        if name.startswith('L_'):
+            match_name = 'R_' + name[2:]  # Replace 'L_' with 'R_'
+            if match_name in roi_names:
+                i = roi_names.index(name)
+                j = roi_names.index(match_name)
+                inter_lr_vals.append(correlation_matrix[i, j])
 
     # Get values (excluding diagonal for intra)
     intra_left_vals = intra_left[np.triu_indices_from(intra_left, k=1)]
     intra_right_vals = intra_right[np.triu_indices_from(intra_right, k=1)]
-    inter_lr_vals = inter_lr.flatten()
-
     # Statistical tests
     t_left_right, p_left_right = stats.ttest_rel(intra_left_vals, intra_right_vals)
     t_intra_inter, p_intra_inter = stats.ttest_ind(
         np.concatenate([intra_left_vals, intra_right_vals]),
-        inter_lr_vals
-    )
+        inter_lr_vals)
 
     return {
         'intra_left': intra_left_vals,

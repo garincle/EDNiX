@@ -56,35 +56,54 @@ Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
 list_to_remove = [
-        ('300301', 0),
-        ('300302', 0),
-        ('300303', 0),
-        ('300304', 0),
-        ('300305', 0),
-        ('300306', 0),
-        ('300307', 0),
-        ('300308', 0),
-        ('300309', 0),
-        ('300600', 0),
-        ('300601', 0),
-        ('300602', 0),
-        ('300603', 0),
-        ('300604', 0),
-        ('300605', 0),
-        ('300606', 0),
-        ('300607', 0),
-        ('300608', 0),
-        ('300609', 0),
-        ('300800', 0),
-        ('300801', 0),
-        ('300802', 0),
-        ('300803', 0),
-        ('300804', 0),
-        ('300805', 0),
-        ('300806', 0),
-        ('300807', 0),
-        ('300808', 0),
-        ('300809', 0)]
+        ('300101', 1),
+        ('300102', 1),
+        ('300103', 1),
+        ('300104', 1),
+        ('300105', 1),
+        ('300106', 1),
+        ('300107', 1),
+        ('300108', 1),
+        ('300109', 1),
+        ('300200', 1),
+        ('300201', 1),
+        ('300202', 1),
+        ('300203', 1),
+        ('300204', 1),
+        ('300205', 1),
+        ('300206', 1),
+        ('300207', 1),
+        ('300208', 1),
+        ('300209', 1),
+        ('300301', 1),
+        ('300302', 1),
+        ('300303', 1),
+        ('300304', 1),
+        ('300305', 1),
+        ('300306', 1),
+        ('300307', 1),
+        ('300308', 1),
+        ('300309', 1),
+        ('300600', 1),
+        ('300601', 1),
+        ('300602', 1),
+        ('300603', 1),
+        ('300604', 1),
+        ('300605', 1),
+        ('300606', 1),
+        ('300607', 1),
+        ('300608', 1),
+        ('300609', 1),
+        ('300800', 1),
+        ('300801', 1),
+        ('300802', 1),
+        ('300803', 1),
+        ('300804', 1),
+        ('300805', 1),
+        ('300806', 1),
+        ('300807', 1),
+        ('300808', 1),
+        ('300809', 1)]
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
 atlas_dfs = Tools.Read_atlas.extract_atlas_definitions(config)
@@ -194,7 +213,7 @@ normalize = 'Skip'
 #Smooth
 blur = 0.5 # float
 #Dilate the functional brain mask by n layers
-dilate_mask = 5 # int
+dilate_mask = 2 # int
 #retrain the analysis to the gray matter instate of the brain
 use_cortical_mask_func = False # True or False
 
@@ -207,7 +226,7 @@ SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 
 erod_seed  = True
 smoothSBA = 0
 
-#######for matrix analysis (step 10)
+#######for matrix analysis (step 11)
 #### name of the atlases  you want to use for the matrix analysis
 selected_atlases_matrix = list_atlases.copy()
 segmentation_name_list = [lvl1, lvl2, lvl3, lvl4, lvl1LR, lvl2LR, lvl3LR, lvl4LR]
@@ -226,7 +245,7 @@ specific_roi_tresh = 0.1
 unspecific_ROI_thresh = 0.1
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,5,6,7,8,9,100,200]
+Skip_step = [4,100,200]
 
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
                     BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
