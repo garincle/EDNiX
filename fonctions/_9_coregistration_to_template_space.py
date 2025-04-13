@@ -375,6 +375,15 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
 
             print(f"Applied padding (voxels): X={padding_voxels[0]}, Y={padding_voxels[1]}, Z={padding_voxels[2]}")
 
+            ### delet zeropad and add master mean image in 3D Allineate?
+            command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -overwrite -interp NN -1Dmatrix_apply ' + \
+                      opj(dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D') + \
+                      ' -prefix ' + output3 + \
+                      ' -input  ' + output3
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+
             ## apply on pre-processed imgs
             FUNC = ants.image_read(output3)
             img_name = output2
