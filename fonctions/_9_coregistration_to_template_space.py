@@ -5,6 +5,9 @@ import ants
 import datetime
 import json
 from fonctions.plot_QC_func import plot_qc
+import nibabel as nib
+import re
+import numpy as np
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -93,14 +96,6 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         diary.write(f'\n{nl}')
         print(nl)
 
-        r = REF_int
-        root_RS = extract_filename(RS[r])
-        command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -orient ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP' + '.nii.gz') + ' ' +  output2
-        orientation_orig = spgo(command).split('\n')[-1]
-        nl = 'orientation orig of the func image is ' + orientation_orig
-        print(bcolors.OKGREEN + nl + bcolors.ENDC)
-        diary.write(f'\n{nl}')
-
         ##### apply the recenter fmri
         if deoblique == 'header':
             command = 'singularity run' + s_bind + afni_sif + '3drefit -deoblique ' + overwrite + ' -orient ' + orientation + ' ' + output2
@@ -171,10 +166,39 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
             raise Exception(bcolors.FAIL + nl + bcolors.ENDC)
 
         if anat_func_same_space == True:
-            command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 50 -S 50 -A 50 -P 50 -L 50 -R 50 -S 50 -prefix ' +  output2 + ' ' +  output2 + ' -overwrite'
+            # --- Step 1: Load and parse the affine matrix ---
+            translation_file = opj(dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D')
+            affine_params = np.loadtxt(translation_file)  # Load 12-parameter affine
+
+            # Reshape into 3x4 matrix (rotation + translation)
+            affine_matrix = affine_params.reshape(3, 4)
+            translations_mm = affine_matrix[:, 3]  # Extract [tx, ty, tz] in mm
+
+            # --- Step 2: Calculate worst-case displacement at image edges ---
+            ref_img = nib.load(output2)
+            voxel_size = ref_img.header.get_zooms()[:3]  # (dx, dy, dz) in mm
+            img_shape = ref_img.shape[:3]  # (nx, ny, nz)
+
+            # Convert translations to voxel shifts (account for rotation)
+            max_shift_voxels = np.ceil(np.abs(translations_mm) / voxel_size).astype(int)
+
+            # Add safety margin (5 voxels) + edge protection (10% of FOV)
+            safety_margin = 5
+            edge_margin = (0.1 * np.array(img_shape)).astype(int)  # Extra 10% of image size
+            padding_voxels = max_shift_voxels + safety_margin + edge_margin
+
+            command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I ' +  str(padding_voxels[0]) + \
+                      ' -S ' + str(padding_voxels[0]) + \
+                      ' -A ' + str(padding_voxels[1]) + \
+                      ' -P ' + str(padding_voxels[1]) + \
+                      ' -L ' + str(padding_voxels[2]) + \
+                      ' -R ' + str(padding_voxels[2]) + \
+                      ' -prefix ' + output2 + ' ' + output2 + ' -overwrite'
             nl = spgo(command)
+            print(nl)
             diary.write(f'\n{nl}')
             print(nl)
+
 
             command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -overwrite -interp NN -1Dmatrix_apply ' + \
                       opj(dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D') + \
@@ -206,7 +230,9 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         nl = str(output3) + ' done!'
         print(bcolors.OKGREEN + nl + bcolors.ENDC)
         diary.write(f'\n{nl}')
-
+        # Freeing memory
+        del MEAN
+        del TRANS
 
     ### plot the QC
     bids_dir = opd(opd(opd(opd(opd(dir_fMRI_Refth_RS_prepro1)))))
@@ -223,7 +249,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
             opj(bids_dir, 'QC','meanIMG_in_template', ID + 'meanIMG_in_template.png'))
 
     ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
-    ##                                Work on all FUNC                                                          ## ##
+    ##                                          Work on all FUNC                                                ## ##
     ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
 
     for i in range(0, int(nb_run)):
@@ -335,10 +361,19 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
 
 
         if anat_func_same_space == True:
-            command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I 50 -S 50 -A 50 -P 50 -L 50 -R 50 -S 50 -prefix ' + output3 + ' ' + output2 + ' -overwrite'
+            command = 'singularity run' + s_bind + afni_sif + '3dZeropad -I ' + str(padding_voxels[0]) + \
+                      ' -S ' + str(padding_voxels[0]) + \
+                      ' -A ' + str(padding_voxels[1]) + \
+                      ' -P ' + str(padding_voxels[1]) + \
+                      ' -L ' + str(padding_voxels[2]) + \
+                      ' -R ' + str(padding_voxels[2]) + \
+                      ' -prefix ' + output3 + ' ' + output2 + ' -overwrite'
             nl = spgo(command)
+            print(nl)
             diary.write(f'\n{nl}')
             print(nl)
+
+            print(f"Applied padding (voxels): X={padding_voxels[0]}, Y={padding_voxels[1]}, Z={padding_voxels[2]}")
 
             ### delet zeropad and add master mean image in 3D Allineate?
             command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -overwrite -interp NN -1Dmatrix_apply ' + \
@@ -352,7 +387,6 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
             ## apply on pre-processed imgs
             FUNC = ants.image_read(output3)
             img_name = output2
-
         else:
             ## apply on pre-processed imgs
             FUNC = ants.image_read(input2)
@@ -362,8 +396,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         TRANS = ants.apply_transforms(fixed=REF, moving=FUNC,
                                       transformlist=transfo_concat_Anat + mvt_shft_ANTs,
                                       interpolator='nearestNeighbor',
-                                      whichtoinvert=w2inv_Anat + w2inv_fwd,imagetype=3)
-
+                                      whichtoinvert=w2inv_Anat + w2inv_fwd, imagetype=3)
         ants.image_write(TRANS, residual_in_template, ri=False)
         dictionary = {"Sources": [img_name,
                                   opj(dir_fMRI_Refth_RS_prepro3, 'BASE_SS_fMRI.nii.gz')],
@@ -372,21 +405,29 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         with open(opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.json'), "w") as outfile:
             outfile.write(json_object)
 
+    # Load the image directly
+    img = nib.load(residual_in_template)
+    # Get voxel sizes
+    delta_x, delta_y, delta_z = [str(round(abs(x), 10)) for x in img.header.get_zooms()[:3]]
 
-    if anat_func_same_space == True:
-        root_RS = extract_filename(RS[REF_int])
+    def get_orientation_nibabel(nifti_path):
+        """Get 3-letter orientation code using NiBabel."""
+        img = nib.load(nifti_path)
+        aff = img.affine
 
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + residual_in_template
-    delta_x = str(abs(round(float(spgo(command).split('\n')[-1]), 10)))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dj ' + residual_in_template
-    delta_y = str(abs(round(float(spgo(command).split('\n')[-1]), 10)))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dk ' + residual_in_template
-    delta_z = str(abs(round(float(spgo(command).split('\n')[-1]), 10)))
+        # Extract orientation from affine matrix
+        ornt = nib.orientations.io_orientation(aff)
+        codes = nib.orientations.ornt2axcodes(ornt)
+        orient_code = ''.join(codes)
 
-    ## in anat space resample to func
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -orient ' + residual_in_template
-    orient_meanimg = spgo(command).split('\n')[-1]
+        # Validate (should already be valid from NiBabel)
+        if not re.fullmatch(r'^[RLAPSI]{3}$', orient_code):
+            raise ValueError(f"Invalid orientation: {orient_code}")
+        return orient_code
 
+    # Usage
+    orient_meanimg = get_orientation_nibabel(residual_in_template)
+    print(f"Orientation: {orient_meanimg}")
 
     #### apply to every atlas
     if len(list_atlases) > 0:

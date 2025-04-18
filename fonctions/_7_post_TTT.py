@@ -2,8 +2,10 @@ import os
 import subprocess
 import datetime
 import json
-
+import pandas as pd
+import nibabel as nib
 class bcolors:
+
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
     OKCYAN = '\033[96m'
@@ -23,9 +25,9 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 from fonctions.extract_filename import extract_filename
 
-def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_RS_ICA_native,
-    nb_run, RS, blur, TR, melodic_prior_post_TTT, extract_exterior_CSF, extract_WM, do_not_correct_signal, band, extract_Vc, extract_GS, overwrite,
-                      s_bind,afni_sif,diary_file):
+def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_RS_ICA_native,
+    nb_run, RS, blur, TR, ICA_cleaning, extract_exterior_CSF, extract_WM, normalize,
+    do_not_correct_signal, band, extract_Vc, extract_GS, overwrite, s_bind,afni_sif,diary_file):
 
     ct = datetime.datetime.now()
     diary = open(diary_file, "a")
@@ -37,10 +39,11 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
     for i in range(0, int(nb_run)):
         root_RS = extract_filename(RS[i])
 
-        if melodic_prior_post_TTT == True:
-            input = opj(dir_RS_ICA_native, root_RS + '_norm_final_clean.nii.gz')
-        else:
+        if ICA_cleaning == 'Skip':
             input = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_2ref_RcT_masked.nii.gz')
+        else:
+            input = opj(dir_RS_ICA_native, root_RS + '_norm_final_clean.nii.gz')
+
 
         command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + input + \
                   ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + ' -expr "a"'
@@ -65,7 +68,7 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                 command = 'singularity run' + s_bind + afni_sif + '3dmaskSVD' + overwrite + ' -polort 2 -vnorm -mask ' + \
                           opj(dir_fMRI_Refth_RS_prepro1, img_name) + \
                           ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
-                          ' | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS' + suffix + '.1D')
+                          ' > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS' + suffix + '.1D')
                 nl = spgo(command)
                 diary.write(f'\n{nl}')
                 print(nl)
@@ -83,11 +86,10 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                 if countVmask>10:
                     command = 'singularity run' + s_bind + afni_sif + '3dmaskSVD' + overwrite + ' -polort 2 -vnorm -mask ' + opj(dir_fMRI_Refth_RS_prepro1,'Vmask.nii.gz') + \
                     ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz') + \
-                    ' | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_Vc.1D')
+                    ' > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS_Vc.1D')
                     nl = spgo(command)
                     diary.write(f'\n{nl}')
                     print(nl)
-
 
 
         for option_type, suffix,descript in zip([' -cvarinv',' -cvar', ' -tsnr',' -stdev'],
@@ -116,15 +118,20 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
         # 5.0 Regress out most of the noise from the data: bandpass filter, motion correction white mater noise and cbf noise , plus drift and derivatives
         # after filtering : blur within the mask and normalise the data.
 
-        # Get the volume nb
-        command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + \
-                  '3dinfo -nv ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz')
-        nb = spgo(command).split('\n')
-        NumberofTR = str(int(nb[-1]))
+        def get_number_of_trs(nifti_path):
+            """Safely get number of TRs using nibabel"""
+            try:
+                img = nib.load(nifti_path)
+                return str(img.shape[-1])  # Returns TRs as string
+            except Exception as e:
+                raise ValueError(f"nibabel failed to read {nifti_path}: {str(e)}")
+        # Usage
+        nifti_path = opj(dir_fMRI_Refth_RS_prepro1, f"{root_RS}_xdtrfwS.nii.gz")
+        NumberofTR = get_number_of_trs(nifti_path)
 
         # create bandpass regressors (instead of using 3dBandpass, say)
         command = 'singularity run' + s_bind + afni_sif + '1dBport' + overwrite + ' -nodata ' + NumberofTR + ' ' + str(TR) + ' -band ' + band + \
-                  ' -invert -nozero | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + 'bandpass_rall.1D')
+                  ' -invert -nozero > ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + 'bandpass_rall.1D')
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -156,10 +163,21 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                 ' -x1D_stop ' +                                                          \
                 ' -bucket ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + 'statssubj')
 
-                for extract_type, suffix in zip([extract_exterior_CSF, extract_WM, extract_GS,extract_Vc],
+                for extract_type, suffix in zip([extract_exterior_CSF, extract_WM, extract_GS, extract_Vc],
                                                 ['_NonB', '_Wc', '-GS','-Vc']):
                     if extract_type == True:
                         command = command + ' -ortvec ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS' + suffix + '.1D') + ' residual_norm' + suffix + ' '
+
+                if ope(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_confounds_correct.tsv')):
+                    confounds_df = pd.read_csv(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_confounds_correct.tsv'), sep='\t')
+
+                    for column in confounds_df.columns:
+                        column_file = opj(dir_fMRI_Refth_RS_prepro1, root_RS + f"_{column}.1D")
+                        confounds_df[[column]].to_csv(column_file, sep=' ', index=False, header=False)
+
+                        # Append the column file to the command
+                        command += f' -ortvec {column_file} residual_norm_{column} '
+
 
                 nl = 'INFO: 3dDeconvolve command is ' + command
                 print(bcolors.OKGREEN + nl + bcolors.ENDC)
@@ -178,6 +196,37 @@ def signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_
                 nl = spgo(command)
                 diary.write(f'\n{nl}')
                 print(nl)
+
+                # Normalization options
+                zscore_command = 'singularity run ' + s_bind + ' ' + afni_sif + ' ' + \
+                                 '3dTstat -mean -overwrite -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'mean.nii.gz') + ' ' + \
+                                 opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz') + ' && ' + \
+                                 '3dTstat -stdev -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'stdev.nii.gz') + ' ' + \
+                                 opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz') + ' && ' + \
+                                 '3dcalc -overwrite -a ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz') + \
+                                 ' -b ' + opj(dir_fMRI_Refth_RS_prepro1, 'mean.nii.gz') + \
+                                 ' -c ' + opj(dir_fMRI_Refth_RS_prepro1, 'stdev.nii.gz') + \
+                                 ' -expr "(a-b)/c" -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
+
+                psc_command = 'singularity run ' + s_bind + ' ' + afni_sif + ' ' + \
+                              '3dTstat -mean -overwrite -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'mean_func.nii.gz') + ' ' + \
+                              opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz') + ' && ' + \
+                              '3dcalc -overwrite -a ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz') + \
+                              ' -b ' + opj(dir_fMRI_Refth_RS_prepro1, 'mean_func.nii.gz') + \
+                              ' -expr "((a - b) / b) * 100" -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
+
+                # Choose normalization method
+                if normalize == 'zscore':
+                    nl = spgo(zscore_command)
+                    diary.write(f'\n{nl}')
+                    print(nl)
+                elif normalize == 'psc':
+                    nl = spgo(psc_command)
+                    diary.write(f'\n{nl}')
+                    print(nl)
+
+                else:
+                    print('no normalization')
 
                 dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrfwS.nii.gz'),
                                           opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat.nii.gz'),

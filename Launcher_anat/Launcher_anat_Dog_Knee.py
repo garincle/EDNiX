@@ -1,0 +1,139 @@
+import pandas as pd
+import os
+import sys
+from bids import BIDSLayout
+from bids.reports import BIDSReport
+opn = os.path.normpath
+opj = os.path.join
+
+MAIN_PATH = r'/mnt/c/Users/garin/OneDrive/EDNiX'
+sys.path.append(r'/mnt/c/Users/garin/PycharmProjects/EDNiX')
+
+import Tools.Load_subject_with_BIDS
+import Tools.Read_atlas
+import fonctions._0_Pipeline_launcher
+
+species = 'CatinDog'
+# Override os.path.join to always return Linux-style paths
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"E:\EDNiX_study\MRI\Dog\BIDS_knee"))
+FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
+atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2", species))
+Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\LUT_files"))
+
+########### Subject loader with BIDS##############
+layout= BIDSLayout(bids_dir)
+###report
+report = BIDSReport(layout)
+# Ask get() to return the ids of subjects that have T1w files #return_type='filename
+T1 = layout.get(return_type='filename', target='subject', suffix='T1w', extension='nii.gz')
+print(T1)
+# Ask get() to return the ids of subjects that have T1w files
+Bold = layout.get(return_type='filename', target='subject', suffix='epi', extension='nii.gz')
+# Convert the layout to a pandas dataframe
+df = layout.to_df()
+df.head()
+
+#### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
+allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
+list_of_ones = [1] * len(allinfo_study_c)
+allinfo_study_c['session'] = list_of_ones
+
+### select the subject, session to process
+Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
+# choose if you want to select or remove ID from you analysis
+list_to_keep = []
+list_to_remove = []
+all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
+
+coregistration_longitudinal = False
+check_visualy_each_img = False
+do_manual_crop = False
+overwrite_option = True
+
+check_visualy_final_mask = False
+deoblique='deob_WO_orient'
+
+n_for_ANTS='hammingWindowedSinc'
+type_of_transform = 'SyN'
+aff_metric_ants = 'MI'
+
+####Choose to normalize using T1 or T2
+type_norm = 'T1w' # T1 or T2
+otheranat = ''
+orientation = 'IPL'
+BIDStype = 2
+
+###masking
+masking_img = 'T1w'
+brain_skullstrip_1 ='3dSkullStrip_dog_macaque' # bet2_ANTS or MachinL
+#precise
+brain_skullstrip_2 ='Custum_QWARPT2' # bet2_ANTS or MachinL
+do_fMRImasks = True
+fMRImasks = 'aseg' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
+Align_img_to_template = '3dAllineate' #3dAllineate or No or @Align_Centers
+cost3dAllineate = 'lpa'
+
+#creat_study_template with type_norm img
+creat_study_template = True
+#do you want to use all the data or only the last one of each subject (for longitud inal co-registration)
+which_on = 'all' # all or max
+type_of_transform_stdyT = 'SyN'
+Atemplate_to_Stemplate = 'T1w'
+template_skullstrip = 'Manual'
+
+
+do_surfacewith = 'T1w'
+### file for standardize space
+FS_buckner40_TIF = opj(FS_dir,'MacaqueYerkes19')
+FS_buckner40_GCS = opj(FS_dir,'MacaqueYerkes19')
+
+list_atlases = [opj(atlas_dir, 'atlaslvl1.nii.gz'),
+opj(atlas_dir, 'atlaslvl2.nii.gz'),
+opj(atlas_dir, 'atlaslvl3.nii.gz'),
+opj(atlas_dir, 'atlaslvl4.nii.gz'),
+opj(atlas_dir, 'atlaslvl1_LR.nii.gz'),
+opj(atlas_dir, 'atlaslvl2_LR.nii.gz'),
+opj(atlas_dir, 'atlaslvl3_LR.nii.gz'),
+opj(atlas_dir, 'atlaslvl4_LR.nii.gz'),
+opj(atlas_dir,'Gmask.nii.gz'),
+opj(atlas_dir, 'Wmask.nii.gz')]
+
+BASE_SS     = opj(atlas_dir, 'template_SS.nii.gz') # sting
+BASE_mask   = opj(atlas_dir, 'brain_mask.nii.gz') # sting
+Aseg_ref    = opj(atlas_dir, 'atlas_forSEG_final.nii.gz')
+Aseg_refLR  = opj(atlas_dir, 'atlas_forSEG_final_LR.nii.gz')
+
+#### for 14 ####
+list_atlases_2 = [opj(atlas_dir, 'atlaslvl1.nii.gz'),
+opj(atlas_dir, 'atlaslvl2.nii.gz'),
+opj(atlas_dir, 'atlaslvl3.nii.gz'),
+opj(atlas_dir, 'atlaslvl4.nii.gz')]
+
+FreeSlabel_ctab_list = [opj(Lut_dir,'Multispecies_LUT_Dual.txt'),
+opj(Lut_dir,'Multispecies_LUT_Dual.txt'),
+opj(Lut_dir,'Multispecies_LUT_Dual.txt'),
+opj(Lut_dir,'Multispecies_LUT_Dual.txt')]
+
+Lut_file = opj(Lut_dir,'Multispecies_LUT_Dual.txt')
+
+### Block1: step 1,2 (orienting, cleaning images)
+### Block1: step 3 (study template)
+### Block2: step 4 (study template mask QC itksnap)
+### Block2: step 5 (template brain)
+### Block2: step 6 (registration stdy template)
+### Block2: step 7 (registration anat to template)
+### Block3: step 8,9 (altases, masks, fmri masks)
+### Block3: step 10,11,12,13,14,15 (surfaces)
+### Block3: step 16 (QC)
+### Block3: step 100 (Clean)
+### Block3: step 200 (QC itksnap)
+Skip_step = [100,200]
+
+anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
+    orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step,
+    check_visualy_each_img, do_fMRImasks, BASE_SS, which_on, all_ID_max, all_data_path_max, all_ID,
+    all_Session, all_data_path, template_skullstrip, list_atlases, Aseg_ref, Aseg_refLR, FS_dir,
+    do_surfacewith, Atemplate_to_Stemplate, FS_buckner40_TIF,FS_buckner40_GCS, Lut_file, otheranat,
+    type_norm, all_Session_max, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list,
+    list_atlases_2, cost3dAllineate, Align_img_to_template, species, type_of_transform,
+    type_of_transform_stdyT, fMRImasks, overwrite_option, MAIN_PATH)

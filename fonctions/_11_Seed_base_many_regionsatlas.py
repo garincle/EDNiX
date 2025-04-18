@@ -44,7 +44,7 @@ spgo = subprocess.getoutput
 ################################################################################################# 
 def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
     dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func,
-        cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, s_bind, afni_sif, diary_file):
+        cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, s_bind, afni_sif, diary_file, smoothSBA, TR_val):
 
     ct = datetime.datetime.now()
     diary = open(diary_file, "a")
@@ -121,12 +121,13 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                 with open(opj(direction_results, 'cortical_mask_funcrsp.json'), "w") as outfile:
                     outfile.write(json_object)
 
-                brain_masker = NiftiMasker(standardize="zscore", smoothing_fwhm=None,
-                                           memory_level=0, verbose=1,
+                brain_masker = NiftiMasker(standardize="zscore_sample", smoothing_fwhm=smoothSBA,
+                                           memory_level=0, verbose=1, t_r=TR_val,
                                            mask_img=opj(direction_results, 'cortical_mask_funcrsp.nii.gz'))
                 brain_time_series = brain_masker.fit_transform(func_filename)
 
-                for panda_file, atlas in zip(panda_files, selected_atlases):
+                selected_atlases_basename = [opb(path) for path in selected_atlases]
+                for panda_file, atlas in zip(panda_files, selected_atlases_basename):
 
                     atlas_filename = opj(direction_results, atlas)
                     output_results = opj(direction_results, '10_Results', 'SBA')
@@ -248,8 +249,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                             ants.image_write(final_atlas, output_path)
 
                             dictionary = {"Sources": atlas_filename,
-                                          "Description": 'ispositive(a)*(iszero(ispositive((a-' + str(
-                                              Seed_label) + ')^2))) (3dcalc, AFNI).'},
+                                          "Description": 'ispositive(a)*(iszero(ispositive((a-' + str(Seed_label) + ')^2))) (3dcalc, AFNI).'},
                             json_object = json.dumps(dictionary, indent=2)
                             with open(output_path[:-7] + '.json', "w") as outfile:
                                 outfile.write(json_object)
@@ -274,8 +274,8 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                                 outfile.write(json_object)
 
                             seed_masker = NiftiLabelsMasker(labels_img=opj(output_folder,Seed_name + 'rsp.nii.gz'),
-                                                            standardize='zscore', resampling_target= 'data', smoothing_fwhm=None,
-                                                            memory_level=0, verbose=1)
+                                                            standardize='zscore_sample', resampling_target= 'data', smoothing_fwhm=smoothSBA,
+                                                            memory_level=0, verbose=1, t_r=TR_val)
                             seed_time_serie = seed_masker.fit_transform(func_filename)
 
                             ###########################################################################################

@@ -8,6 +8,7 @@ import anatomical.Skullstrip_method
 import datetime
 import json
 import matplotlib.pyplot as plt
+import nibabel as nib
 
 class bcolors:
     HEADER = '\033[95m'
@@ -28,13 +29,10 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-#################################################
-########    creat brain image of animal  ########
-#################################################
-
-
-def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, type_of_transform, ID, aff_metric_ants, Session, otheranat, type_norm, dir_prepro, masking_img, do_manual_crop,
-    brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, template_skullstrip, study_template_atlas_folder, overwrite,
+def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, type_of_transform, ID, aff_metric_ants, Session, otheranat,
+               type_norm, dir_prepro, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, BASE_SS_coregistr,
+               BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, template_skullstrip,
+               study_template_atlas_folder, overwrite,
                s_bind,afni_sif,fsl_sif,fs_sif, itk_sif, strip_sif,diary_file):
 
     ct = datetime.datetime.now()
@@ -198,15 +196,12 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
     diary.write(f'\n{nl}')
     print(nl)
 
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -di ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz')
-    dummy = spgo(command).split('\n')
-    delta_x = str(round(abs(float(dummy[-1])), 2))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dj ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz')
-    dummy = spgo(command).split('\n')
-    delta_y = str(round(abs(float(dummy[-1])), 2))
-    command = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + s_bind + afni_sif + '3dinfo -dk ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz')
-    dummy = spgo(command).split('\n')
-    delta_z = str(round(abs(float(dummy[-1])), 2))
+    # Load the image directly
+    mean_img_path = opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz')
+    img = nib.load(mean_img_path)
+
+    # Get voxel sizes
+    delta_x, delta_y, delta_z = [str(round(abs(x), 10)) for x in img.header.get_zooms()[:3]]
 
     command = 'singularity run' + s_bind + afni_sif + '3dresample' + overwrite + \
               ' -prefix ' + opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + \

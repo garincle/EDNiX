@@ -4,6 +4,7 @@
 import os
 import subprocess
 import datetime
+import re
 
 class bcolors:
     HEADER = '\033[95m'
@@ -33,27 +34,33 @@ def nii_to_mgz(ID, Session, FS_dir, Ref_file, labels_dir, volumes_dir, otheranat
 
     animal_folder =   'sub-' + ID + '_ses-' + str(Session)
 
-    cmd = 'singularity run' + s_bind + fs_sif + 'mri_info --orientation ' + Ref_file
-    orient_raw = spgo(cmd)
+    def get_reorient(orient_code):
+        """Generate reorientation parameters based on the given orientation code."""
+        mapping = {'R': -1, 'L': 1, 'A': 3, 'P': -3, 'S': -2, 'I': 2}
+        # Convert orientation code to reorient parameters
+        try:
+            return f" -r {' '.join(str(mapping[axis]) for axis in orient_code)} "
+        except KeyError:
+            return None  # Invalid orientation code
 
-    # purpose for FreeSurfer : LIA
-    if orient_raw   == 'RAS': reorient = ' -r -1 3 -2 '
-    elif orient_raw == 'LAS': reorient = ' -r 1 3 -2 '
-    elif orient_raw == 'RSA': reorient = ' -r -1 -2 3'
-    elif orient_raw == 'LSA': reorient = ' -r 1 -2 3 '
-    elif orient_raw == 'RIA': reorient = ' -r -1 2 3 '
-    elif orient_raw == 'LIA': reorient = ' -r 1 2 3 '
-    elif orient_raw == 'LAI': reorient = ' -r 1 3 2 '
-    elif orient_raw == 'RAI': reorient = ' -r -1 3 2 '
-    elif orient_raw == 'RSP': reorient = ' -r -1 -2 -3 '
-    elif orient_raw == 'LSP': reorient = ' -r 1 -2 -3 '
-    elif orient_raw == 'RPS': reorient = ' -r -1 -3 -2 '
-    elif orient_raw == 'LPS': reorient = ' -r 1 -3 -2 '
+    # Construct the command
+    cmd = f'singularity run {s_bind}{fs_sif}mri_info --orientation {Ref_file}'
+    orient_raw = subprocess.getoutput(cmd)
 
+    # Extract the orientation code from the output
+    match = re.search(r'([RLAPSI]{3})\b', orient_raw)  # Extract last valid orientation code
+    orient_code = match.group(1) if match else None
+
+    # Get reorientation parameters
+    reorient = get_reorient(orient_code) if orient_code else None
+
+    # Handle invalid or missing orientation
+    if reorient is None:
+        error_msg = f'ERROR: No valid orientation code found in the output: {orient_raw}'
+        raise ValueError(f"{error_msg}")
     else:
-        nl = 'ERROR: ' + orient_raw + ' not found in the list'
-        print(bcolors.FAIL + nl + bcolors.ENDC)
-        diary.write(f'\n{nl}')
+        print(f"Valid original rientation: {orient_raw}")
+        print(f"New fs orientation: {reorient}")
 
     fwdFS_cmd = ' --in_orientation ' + orient_raw + reorient
 
