@@ -1,6 +1,7 @@
 import os
 import glob
 import shutil
+from tqdm import tqdm
 
 def cleanBIDS(BIDS_folder):
     # Collecting the files you want to keep
@@ -65,3 +66,48 @@ def cleanBIDS(BIDS_folder):
         all_dirs = [d for d in glob.glob(BIDS_folder + '/**', recursive=True) if os.path.isdir(d)]
 
     print("Cleanup complete!")
+
+def clean_func_preserve_manual_and_topfiles(BIDS_folder):
+    print("🔒 Starting cleanup of `func/` — keeping only `manual_mask.nii.gz` and top-level files")
+
+    # Find manual masks anywhere under func/
+    manual_masks = set(
+        os.path.abspath(f)
+        for f in glob.glob(os.path.join(BIDS_folder, '**/func/**/manual_mask.nii.gz'), recursive=True)
+    )
+
+    # Find all files directly in func/ (not in subdirectories)
+    top_func_files = set()
+    for dirpath in glob.glob(os.path.join(BIDS_folder, '**/func/'), recursive=True):
+        if os.path.isdir(dirpath):
+            files_here = glob.glob(os.path.join(dirpath, '*'))
+            top_func_files.update(os.path.abspath(f) for f in files_here if os.path.isfile(f))
+
+    keep_files = manual_masks.union(top_func_files)
+
+    print(f"🛡️ Total files to KEEP: {len(keep_files)}")
+    for f in list(keep_files)[:5]:
+        print(f"  ✓ {f}")
+    if len(keep_files) > 5:
+        print("  ...")
+
+    # List all files under any func/ folder
+    all_func_files = set(
+        os.path.abspath(f)
+        for f in glob.glob(os.path.join(BIDS_folder, '**/func/**/*'), recursive=True)
+        if os.path.isfile(f)
+    )
+
+    to_delete = all_func_files - keep_files
+
+    print(f"🗑️ Total files to DELETE: {len(to_delete)}")
+    for f in tqdm(to_delete, desc="Deleting unwanted func files"):
+        try:
+            os.remove(f)
+        except Exception as e:
+            print(f"⚠️ Error deleting {f}: {e}")
+
+    print("✅ Cleanup done.")
+
+# Example usage:
+# clean_func_preserve_manual_and_topfiles("/path/to/BIDS")
