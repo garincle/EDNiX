@@ -39,7 +39,7 @@ spgo = subprocess.getoutput
 ####Seed base analysis
 #################################################################################################
 def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix, segmentation_name_list,
-                  ID, Session,
+                  ID, Session, TR_val,
                   bids_dir,s_bind,afni_sif,diary_file):
 
     ct = datetime.datetime.now()
@@ -143,9 +143,18 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                 atlas_flat = np.unique(atlas_data.flatten().astype(int))
                 atlas_flat[atlas_flat != 0]
 
-                # Check if labels in the segmentation DataFrame are in the atlas data
+                missing_labels = set(panda_file['label']) - set(atlas_flat)
+                if missing_labels:
+                    print(f"WARNING: Labels {missing_labels} in CSV but not in atlas!")
+
+                # Step 1: Filter the labels
                 filtered_labels = panda_file[panda_file['label'].isin(atlas_flat)]
-                atlas_filtered_list = list(filtered_labels['region'])
+                # Sort panda_file to match atlas_flat order
+                filtered_labels = filtered_labels.sort_values('label')
+                # Step 2: Create a dictionary for quick lookup of regions by label
+                label_to_region = filtered_labels.set_index('label')['region'].to_dict()
+                # Step 3: Order the regions according to atlas_flat
+                atlas_filtered_list = [label_to_region[label] for label in atlas_flat if label in label_to_region]
 
                 nl =  "INFO: label that you provided"
                 print(bcolors.OKGREEN + nl + bcolors.ENDC)
@@ -221,10 +230,13 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                 final_result = np.zeros_like(atlas_img.numpy())
 
                 # Iterate over each label in the atlas, skipping background (0)
+                labels_final = []
                 for label in labels:
                     if label == 0:
                         continue  # Skip background
+
                     nl = f"Processing label: {label}"
+                    labels_final.append(label)
                     print(nl)
                     diary.write(f'\n{nl}')
                     # Isolate the current region (region is 1 where label matches, else 0)
@@ -277,15 +289,14 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                 NAD_masker = NiftiLabelsMasker(labels_img=opj(dir_fMRI_Refth_RS_prepro1, atlas + '_run_' + str(i) + '_filtered_eroded.nii.gz'),
                                                 detrend=False,
                                                 smoothing_fwhm=None,
-                                                standardize=False,
                                                 low_pass=None,
                                                 high_pass=None,
-                                                t_r=None,
+                                                t_r=TR_val,
+                                                standardize='zscore_sample',
                                                 memory=None, verbose=5)
                 try:
                     time_series = NAD_masker.fit_transform(func_filename)
                 except:
-
                     caca = nilearn.image.resample_to_img(opj(dir_fMRI_Refth_RS_prepro1, atlas + '_filtered.nii.gz'), func_filename, interpolation='nearest')
                     caca.to_filename(opj(dir_fMRI_Refth_RS_prepro1, atlas + '_filtered.nii.gz'))
                     extracted_data = nib.load(opj(dir_fMRI_Refth_RS_prepro1, atlas + '_filtered.nii.gz')).get_fdata()
@@ -296,20 +307,18 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                         labels_img=opj(dir_fMRI_Refth_RS_prepro1, atlas + '_run_' + str(i) + '_filtered.nii.gz'), # must be a mistake ......
                         detrend=False,
                         smoothing_fwhm=None,
-                        standardize=False,
                         low_pass=None,
                         high_pass=None,
-                        t_r=None,
+                        t_r=TR_val,
+                        standardize= 'zscore_sample',
                         memory=None, verbose=5)
 
                     time_series = NAD_masker.fit_transform(func_filename)
 
-                correlation_measure = ConnectivityMeasure(kind="partial correlation")
+                correlation_measure = ConnectivityMeasure(kind="correlation", standardize='zscore_sample',)
                 correlation_matrix = correlation_measure.fit_transform([time_series])[0]
 
                 # Plot the correlation matrix
-
-                # Make a large figure
                 # Mask the main diagonal for visualization:
                 np.fill_diagonal(correlation_matrix, 0)
                 # The labels we have start with the background (0), hence we skip the
@@ -327,7 +336,6 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
 
                 plotting.plot_matrix(
                     correlation_matrix,
-                    figure=(10, 8),
                     labels=atlas_filtered_list,
                     vmax=0.8,
                     vmin=-0.8)
@@ -335,14 +343,42 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
 
                 # Convert correlation matrix to a DataFrame
                 corr_df = pd.DataFrame(correlation_matrix, index=atlas_filtered_list, columns=atlas_filtered_list)
+                corr_df.to_csv(output_results + '/' + atlas + '_run_' + str(i) + '_matrix.csv')
+
+                # Correctly construct new_df from lists
+                new_df = pd.DataFrame({
+                    'labels_final': labels_final,  # List of labels (e.g., [1, 2, 3])
+                    'atlas_filtered_list': atlas_filtered_list  # List of regions (e.g., ['A', 'B', 'C'])
+                })
+
+                # Merge with panda_file to verify regions
+                merged_df = pd.merge(
+                    new_df,
+                    panda_file[['label', 'region']],
+                    left_on='labels_final',
+                    right_on='label',
+                    how='left'  # Keep all rows from new_df, add matches from panda_file
+                )
+
+                # Check for mismatches (optional)
+                merged_df['is_consistent'] = (
+                        merged_df['atlas_filtered_list'] == merged_df['region']
+                )
+                print("Mismatches:\n", merged_df[~merged_df['is_consistent']])
+
+                # Save the merged DataFrame
+                merged_df.to_csv(
+                    output_results + '/' + atlas + '_run_' + str(i) + '_check_fit_matrix.csv',
+                    index=False
+                )
 
                 connection = []
                 value  = []
                 # Iterate through the matrix to populate the list
-                for i in range(len(atlas_filtered_list)):
-                    for j in range(i + 1, len(atlas_filtered_list)):
-                        connection.append(f"{atlas_filtered_list[i]} to {atlas_filtered_list[j]}")
-                        value.append(correlation_matrix[i, j])
+                for num in range(len(atlas_filtered_list)):
+                    for num2 in range(num + 1, len(atlas_filtered_list)):
+                        connection.append(f"{atlas_filtered_list[num]} to {atlas_filtered_list[num2]}")
+                        value.append(correlation_matrix[num, num2])
 
                 nl = str(connection)
                 print(bcolors.OKGREEN + nl + bcolors.ENDC)

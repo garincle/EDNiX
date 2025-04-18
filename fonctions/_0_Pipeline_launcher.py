@@ -7,7 +7,7 @@ import sys
 import nibabel as nib
 import datetime
 import numpy as np
-
+import pandas as pd
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
@@ -42,25 +42,24 @@ import fonctions._9_coregistration_to_template_space
 import fonctions._10_Correl_matrix
 import fonctions._11_Seed_base_many_regionsatlas
 import fonctions._12_fMRI_QC
-import fonctions._13_fMRI_QC_SBA
 import fonctions._14_fMRI_QC_matrix
 import fonctions._100_Data_Clean
 import fonctions._200_Data_QC
+from fonctions.extract_filename import extract_filename
+import Tools.Load_EDNiX_requirement
+def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
+                    BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
+                    correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
+                    TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
+                    dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
+                    n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,
+                    oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step,
+                    bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
+                    folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list, band,
+                    extract_Vc, selected_atlases_matrix, specific_roi_tresh, unspecific_ROI_thresh, extract_GS, MAIN_PATH,
+                    DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, FS_dir, normalize):
 
-def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_template, stdy_template_mask, BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
-    correction_direction, REF_int, study_fMRI_Refth, SBAspace, erod_seed, deoblique, orientation,
-    TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal, dilate_mask, overwrite_option, nb_ICA_run, blur, melodic_prior_post_TTT,
-    extract_exterior_CSF, extract_WM, n_for_ANTS, aff_metric_ants, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap, oversample_map, use_cortical_mask_func,
-    cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
-    folderforTemplate_Anat, IhaveanANAT, doMaskingfMRI, do_anat_to_func, Method_mask_func, segmentation_name_list, band, extract_Vc, lower_cutoff, upper_cutoff, selected_atlases_matrix,
-    specific_roi_tresh, unspecific_ROI_thresh, Seed_name, extract_GS, MAIN_PATH, DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, s_bind, s_path):
-    sys.path.append(opj(MAIN_PATH + 'Code', 'EasyMRI_brain-master'))
-
-    ### singularity set up
-    afni_sif = ' ' + opj(s_path, 'afni_make_build_24_2_01.sif') + ' '
-    fsl_sif  = ' ' + opj(s_path, 'fsl_6.0.5.1-cuda9.1.sif') + ' '
-    fs_sif   = ' ' + opj(s_path, 'freesurfer_NHP.sif') + ' '
-    itk_sif  = ' ' + opj(s_path, 'itksnap_5.0.9.sif') + ' '
+    s_path, afni_sif, fsl_sif, fs_sif, itk_sif, wb_sif, strip_sif, s_bind =  Tools.Load_EDNiX_requirement.load_requirement(MAIN_PATH, bids_dir, FS_dir)
     config_f = opj(MAIN_PATH, 'code', 'config', 'b02b0.cnf')
 
     if overwrite_option == True:
@@ -69,8 +68,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
         overwrite = ''
 
 
-
-    for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, max_sessionlist):
+    for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, all_Session_max):
         nl = 'INFO: Work on ' + str(ID) + ' session ' + str(Session)
         print(bcolors.OKGREEN + nl + bcolors.ENDC)
 
@@ -184,7 +182,6 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
         ################# longitudinal co-registration  Yes or No ######################################################
 
         if coregistration_longitudinal == True:                   # Yes
-
             if creat_study_template == True:
                 BASE_SS_coregistr = stdy_template
                 BASE_SS_mask      = stdy_template_mask
@@ -218,7 +215,6 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             transfo_concat_Anat = [opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_0GenericAffine.mat'),
                                    opj(dir_transfo, 'template_to_' + type_norm + '_SyN_final_1InverseWarp.nii.gz')]
             w2inv_Anat = [True, False]
-
 
 
         # Check the func runs
@@ -284,6 +280,52 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
         nb_run  = len(list_RS)
         # Setup for distortion correction using Fieldmaps
 
+        #### find and correct the counfound files
+        for imageF in list_RS:
+            # Load the fMRI NIfTI image
+            fmri_image = nib.load(imageF)
+            # Get the shape of the image (x, y, z, t)
+            image_shape = fmri_image.shape
+            # Check the number of time points (4th dimension)
+            ntimepoint = image_shape[3]  # The 4th dimension represents time
+
+            if ope(opj(opd(imageF), extract_filename(imageF) + '_confounds.tsv')):
+                confounds_df = pd.read_csv(opj(opd(imageF), extract_filename(imageF) + '_confounds.tsv'), sep='\t')
+
+                # Check if the number of rows in the confounds file matches the number of time points
+                if len(confounds_df) != ntimepoint:
+                    print(f"Mismatch in the number of time points: {len(confounds_df)} in confounds file vs {ntimepoint} in fMRI image.")
+
+                    diary_file_WARNING = opj(opd(opd(dir_fMRI_Refth_RS_prepro1)), 'MAJOR_WARNING.txt')
+                    if not opi(diary_file_WARNING):
+                        diary_file_WARNING_file = open(diary_file_WARNING, "w")
+                        diary_file_WARNING_file.write(f'\n{f"Mismatch in the number of time points: {len(confounds_df)} in confounds file vs {ntimepoint} in fMRI image."}')
+                    else:
+                        diary_file_WARNING_file = open(diary_file_WARNING, "a")
+                        diary_file_WARNING_file.write(f'\n{f"Mismatch in the number of time points: {len(confounds_df)} in confounds file vs {ntimepoint} in fMRI image."}')
+                    diary_file_WARNING_file.close()
+
+                # Remove the first T1_eq rows from the confounds DataFrame
+                if T1_eq > 0:
+                    # Preserve the first column (assuming it's a label or name)
+                    first_column = confounds_df.iloc[:, 0]
+                    remaining_columns = confounds_df.iloc[:, 1:]
+
+                    # Remove the first T1_eq rows from the remaining columns
+                    remaining_columns = remaining_columns.iloc[T1_eq:]
+
+                    # Concatenate the first column with the remaining columns
+                    confounds_df = pd.concat([first_column, remaining_columns], axis=1)
+
+                    # Save the modified confounds DataFrame back to the TSV file
+                    confounds_df.to_csv(opj(dir_fMRI_Refth_RS_prepro1, extract_filename(imageF) + '_confounds_correct.tsv'), sep='\t', index=False)
+                    print(f"Removed the first {T1_eq} TRs from the confounds file.")
+                else:
+                    print("T1_eq is not positive; no rows removed.")
+            else:
+                print(f"Confounds file not found: {opj(opd(imageF), extract_filename(imageF) + '_confounds.tsv')}")
+
+        #### find and correct the fmap files
         list_map = sorted(glob.glob(opj(dir_fMRI_Refth_map, endmap)))
         nl = "looking for fmap image with the command glob.glob(" + str(opj(dir_fMRI_Refth_map, endmap))
         print(bcolors.OKGREEN + nl + bcolors.ENDC)
@@ -294,9 +336,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
         if len(list_RS)>0:
             RS_map   = [os.path.basename(i) for i in list_map]
 
-            ############################################
-            #### choose TOPUP strategy ################
-            ############################################
+            ######### choose TOPUP strategy ##########
             if len(list_map) == 0:
                 recordings = 'very_old'
                 nl = 'WARNING: There is no image available for building a fieldmaps'
@@ -326,7 +366,6 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                         list_map.pop(index)
                 if not len(list_map) == len(list_RS):
                     nl = 'ERROR: Check the runs. There is probably one or two broken files that has been repeated and that you should remove !'
-
                     raise NameError(bcolors.FAIL + nl + bcolors.ENDC)
 
             nl = 'INFO: recordings type detected: ' + str(recordings)
@@ -334,8 +373,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             diary.write(f'\n{nl}')
             list_json = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endjson)))
 
-            # get useful information about the func images #############################################################
 
+            # get useful information about the func images #############################################################
             ### check if we found some .json file
             if not list_json:
                 nl = 'WARNING: no .json found!!, you will need to at least provide the TR. Beware that no TOPUP correction can be applied if you do not provide the DwellT as well.'
@@ -639,10 +678,10 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 diary.close()
 
             else:
-                fonctions._3_mask_fMRI.Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+                fonctions._3_mask_fMRI.Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                        dir_fMRI_Refth_RS_prepro3, RS, nb_run, REF_int, ID, dir_prepro, brainmask, V_mask, W_mask, G_mask, dilate_mask,
-                       costAllin, anat_subject, doMaskingfMRI, Method_mask_func, lower_cutoff, upper_cutoff, overwrite, type_of_transform, aff_metric_ants,
-                       s_bind,afni_sif,fs_sif,  fsl_sif, itk_sif,diary_file)
+                       costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
+                       s_bind,afni_sif,fs_sif, fsl_sif, itk_sif,diary_file)
 
             if 4 in Skip_step:
                 ct = datetime.datetime.now()
@@ -656,7 +695,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
 
             else:
                 fonctions._4_check_mask._itk_check_masks(dir_fMRI_Refth_RS_prepro1,
-                                                         s_bind,itk_sif,diary_file)
+                                                         s_bind,itk_sif,diary_file, afni_sif, overwrite)
 
             if 5 in Skip_step:
                 ct = datetime.datetime.now()
@@ -671,11 +710,11 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
             else:
                 fonctions._5_anat_to_fMRI.Refimg_to_meanfMRI(REF_int, SED_val, anat_func_same_space,
                                                              TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run,
-                                                             ID, dir_prepro, n_for_ANTS, aff_metric_ants, list_atlases, labels_dir, anat_subject,
-                                                             IhaveanANAT, do_anat_to_func, type_of_transform,
+                                                             ID, dir_prepro, n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlases, labels_dir, anat_subject,
+                                                             IhaveanANAT, do_anat_to_func, type_of_transform, registration_fast,
                                                              overwrite, s_bind, afni_sif,diary_file)
 
-            if 6 in Skip_step or melodic_prior_post_TTT == False:
+            if 6 in Skip_step or ICA_cleaning == 'Skip':
                 nl = 'skip step ' + str(6)
                 ct = datetime.datetime.now()
                 diary = open(diary_file, "a")
@@ -686,10 +725,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 diary.close()
 
             else:
-                fonctions._6_Melodic.Melodic_correct(dir_RS_ICA_native_PreTT,
-                                                         dir_RS_ICA_native, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                                                         nb_ICA_run, nb_run, RS, TfMRI,
-                                                         overwrite,s_bind,fsl_sif,itk_sif,TR_val,diary_file)
+                fonctions._6_Melodic.Melodic_correct(dir_RS_ICA_native_PreTT, dir_RS_ICA_native, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+                    nb_ICA_run, nb_run, RS, ICA_cleaning, MAIN_PATH,s_bind,fsl_sif,itk_sif,TR_val, diary_file)
 
             if 7 in Skip_step:
                 ct = datetime.datetime.now()
@@ -702,10 +739,9 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 diary.close()
 
             else:
-                fonctions._7_post_TTT.signal_regression(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_RS_ICA_native,
-                                                        nb_run, RS, blur, TR_val, melodic_prior_post_TTT,
-                                                        extract_exterior_CSF, extract_WM, do_not_correct_signal, band, extract_Vc, extract_GS,
-                                                        overwrite,s_bind,afni_sif,diary_file)
+                fonctions._7_post_TTT.signal_regression(dir_fMRI_Refth_RS_prepro1, dir_RS_ICA_native,
+                    nb_run, RS, blur, TR_val, ICA_cleaning, extract_exterior_CSF, extract_WM, normalize,
+                    do_not_correct_signal, band, extract_Vc, extract_GS, overwrite, s_bind,afni_sif,diary_file)
 
             if 8 in Skip_step:
                 ct = datetime.datetime.now()
@@ -750,7 +786,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
 
             else:
                 fonctions._10_Correl_matrix.correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run,
-                                                          selected_atlases_matrix, segmentation_name_list, ID, Session,
+                                                          selected_atlases_matrix, segmentation_name_list, ID, Session, TR_val,
                                                           bids_dir,s_bind,afni_sif,diary_file)
 
             if 11 in Skip_step:
@@ -767,7 +803,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 fonctions._11_Seed_base_many_regionsatlas.SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                                                               dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files, oversample_map,
                                                               use_cortical_mask_func,cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val,
-                                                              s_bind, afni_sif,diary_file)
+                                                              s_bind, afni_sif,diary_file, smoothSBA, TR_val)
 
             if 12 in Skip_step:
                 ct = datetime.datetime.now()
@@ -780,22 +816,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 diary.close()
 
             else:
-                fonctions._12_fMRI_QC.fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, nb_run, s_bind, afni_sif,diary_file)
+                fonctions._12_fMRI_QC.fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro3, RS, nb_run, s_bind, afni_sif,diary_file)
 
-            if 13 in Skip_step:
-                ct = datetime.datetime.now()
-                diary = open(diary_file, "a")
-                diary.write(f'\n{ct}')
-                nl = 'skip step ' + str(13)
-                print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                diary.write(f'\n{nl}')
-                diary.write(f'\n')
-                diary.close()
-
-            else:
-                fonctions._13_fMRI_QC_SBA.fMRI_QC_SBA(SBAspace, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                                                      dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases,
-                                                      panda_files,diary_file)
             if 14 in Skip_step:
                 ct = datetime.datetime.now()
                 diary = open(diary_file, "a")
@@ -807,9 +829,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, max_sessionlist, stdy_te
                 diary.close()
 
             else:
-                fonctions._14_fMRI_QC_matrix.fMRI_QC_matrix(ID, Session, segmentation_name_list, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                                                            dir_fMRI_Refth_RS_prepro3, specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run,
-                                                            s_bind,afni_sif,diary_file)
+                fonctions._14_fMRI_QC_matrix.fMRI_QC_matrix(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3,
+                   specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, diary_file)
 
             if 100 in Skip_step:
                 ct = datetime.datetime.now()

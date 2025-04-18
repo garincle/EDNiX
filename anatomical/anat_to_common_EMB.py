@@ -159,7 +159,7 @@ def anats_to_common(s_bind, afni_sif,diary_file, anat_filenames, write_dir,
             'Registration kind must be one of {0}, you entered {1}'.format(
                 registration_kinds, registration_kind))
 
-    if registration_kind is 'nonlinear' and len(anat_filenames) < 5:
+    if registration_kind == 'nonlinear' and len(anat_filenames) < 5:
         raise ValueError('At least 5 input files are required to make a '
                          'template by non-linear \n registration. Only '
                          '{0} have been provided.'.format(len(anat_filenames)))
