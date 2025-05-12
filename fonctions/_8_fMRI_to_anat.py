@@ -3,7 +3,7 @@ from fonctions.extract_filename import extract_filename
 import ants
 import datetime
 import json
-from fonctions.plot_QC_func import plot_qc
+from fonctions import plot_QC_func
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -87,7 +87,7 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
     sub_path = os.path.normpath(dir_fMRI_Refth_RS_prepro2).split(os.sep)
     ID = [segment.split('-')[1] for segment in sub_path if segment.startswith('sub-')][0]
 
-    plot_qc(opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz'),
+    plot_QC_func(opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz'),
             opj(dir_fMRI_Refth_RS_prepro2, 'Mean_Image_RcT_SS_in_anat.nii.gz'),
             opj(bids_dir,'QC','meanIMG_in_anat', ID + '_Mean_Image_RcT_SS_in_anat.png'))
 

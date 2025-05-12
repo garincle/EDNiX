@@ -11,7 +11,7 @@ import nilearn
 from nilearn.masking import compute_epi_mask
 import numpy as np
 from anatomical import Histrogram_mask_EMB
-from fonctions.extract_filename import extract_filename
+from fonctions import extract_filename
 import datetime
 import json
 
@@ -552,7 +552,7 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
                                     verbose=True)
 
             transfo_concat = [opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_1Warp.nii.gz'),
-                 opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_0GenericAffine.mat')]
+                              opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_0GenericAffine.mat')]
 
             tmp_mask1 = ants.apply_transforms(fixed=tmp_bet, moving=REF_MASK,
                                               transformlist=transfo_concat, interpolator='nearestNeighbor')
@@ -688,7 +688,7 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
             diary.write(f'\n{nl}')
 
             transfo_concat = [opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_1Warp.nii.gz'),
-                 opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_0GenericAffine.mat')]
+                              opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_0GenericAffine.mat')]
 
             REF_MASK = ants.image_read(BASE_SS_mask)
             tmp_mask1 = ants.apply_transforms(fixed=IMG, moving=REF_MASK,
@@ -761,7 +761,7 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
             diary.write(f'\n{nl}')
 
             transfo_concat = [opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_1Warp.nii.gz'),
-                 opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_0GenericAffine.mat')]
+                              opj(opj(process_dir, extract_filename(input_for_msk)) + 'template_to_' + masking_img + '_SyN_0GenericAffine.mat')]
 
             REF_MASK = ants.image_read(BASE_SS_mask)
             tmp_mask1 = ants.apply_transforms(fixed=IMG, moving=REF_MASK,
@@ -1021,7 +1021,7 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
                 command = 'singularity run' + s_bind + strip_sif + \
                 ' -o ' + opj(opj(process_dir, extract_filename(input_for_msk)) + 'skullstriped.nii.gz') + \
                 ' -m ' + output_for_mask + \
-                ' -i ' + input_for_msk
+                          ' -i ' + input_for_msk
                 nl= spgo(command)
                 diary.write(f'\n{nl}')
                 print(nl)
@@ -1039,7 +1039,7 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
             nl= spgo(command)
             diary.write(f'\n{nl}')
             print(nl)
-            shutil.copyfile(opj(opd(output_for_mask),extract_filename(input_for_msk) + '_pre_mask.nii.gz'), output_for_mask)
+            shutil.copyfile(opj(opd(output_for_mask), extract_filename(input_for_msk) + '_pre_mask.nii.gz'), output_for_mask)
             dictionary = {"Sources": input_for_msk,
                           "Description": 'Brain mask (U-Net).', }
             json_object = json.dumps(dictionary, indent=2)
@@ -1067,7 +1067,7 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
                 diary.write(f'\n{nl}')
                 print(nl)
 
-                shutil.copyfile(opj(opd(output_for_mask),extract_filename(input_for_msk) + '_pre_mask.nii.gz'), output_for_mask)
+                shutil.copyfile(opj(opd(output_for_mask), extract_filename(input_for_msk) + '_pre_mask.nii.gz'), output_for_mask)
                 command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 10'
                 nl= spgo(command)
                 diary.write(f'\n{nl}')
@@ -1088,7 +1088,7 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
                 diary.write(f'\n{nl}')
                 print(nl)
 
-                shutil.copyfile(opj(opd(output_for_mask),extract_filename(input_for_msk) + '_pre_mask.nii.gz'), output_for_mask)
+                shutil.copyfile(opj(opd(output_for_mask), extract_filename(input_for_msk) + '_pre_mask.nii.gz'), output_for_mask)
                 command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 10'
                 nl= spgo(command)
                 diary.write(f'\n{nl}')
@@ -1108,7 +1108,7 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
                 diary.write(f'\n{nl}')
                 print(nl)
 
-                shutil.copyfile(opj(opd(output_for_mask),extract_filename(input_for_msk) + '_pre_mask.nii.gz'), output_for_mask)
+                shutil.copyfile(opj(opd(output_for_mask), extract_filename(input_for_msk) + '_pre_mask.nii.gz'), output_for_mask)
                 command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 3'
                 nl= spgo(command)
                 diary.write(f'\n{nl}')

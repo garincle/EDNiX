@@ -20,11 +20,7 @@ spgo = subprocess.getoutput
 
 MAIN_PATH = opj('/','srv','projects','easymribrain')
 sys.path.append(os.path.join(MAIN_PATH,'code','EasyMRI_brain-master'))
-import fonctions
-from fonctions.extract_filename import extract_filename
-import analyses
-import analyses._Group_anal__func_DicLearn
-
+from fonctions import extract_filename
 
 ##############################################################  TO DO !! ##############################################################
 

@@ -255,9 +255,6 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
         labeled_img2 = nilearn.image.new_img_like(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat.nii.gz', extracted_data2, copy_header=True)
         labeled_img2.to_filename(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat_break.nii.gz')
 
-
-
-
         atlas = ants.image_read(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat.nii.gz')
         # Apply transformation with nearest-neighbor interpolation to preserve labels
         registered_atlas = ants.apply_transforms(

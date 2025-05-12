@@ -26,7 +26,6 @@ opi = os.path.isfile
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-from fonctions.extract_filename import extract_filename
 
 def _itk_check_masks(dir_fMRI_Refth_RS_prepro1,s_bind,itk_sif,diary_file, afni_sif, overwrite):
 

@@ -6,15 +6,12 @@ import pandas as pd
 import nibabel as nib
 import nilearn
 from nilearn import plotting
-from nilearn.masking import compute_epi_mask
-import matplotlib.pyplot as plt
-from scipy.stats import norm
 
 from nilearn.masking import compute_epi_mask
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 import Tools.Load_EDNiX_requirement
-from fonctions.extract_filename import extract_filename
+from fonctions import extract_filename
 # Path utilities
 opj = os.path.join
 opb = os.path.basename

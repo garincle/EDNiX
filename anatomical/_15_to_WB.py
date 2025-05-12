@@ -3,7 +3,6 @@ import os
 import subprocess
 import shutil
 import numpy as np
-import json
 import datetime
 
 class bcolors:
@@ -32,7 +31,6 @@ Hcap = ['L', 'R']
 CORTEX = ['CORTEX_LEFT', 'CORTEX_RIGHT']
 RibbonValue = [[2, 3], [41, 42]]
 
-from fonctions.extract_filename import extract_filename
 
 def WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2,s_bind,afni_sif,fsl_sif,fs_sif,wb_sif,diary_file):
 

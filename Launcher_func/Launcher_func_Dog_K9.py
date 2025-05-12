@@ -1,4 +1,3 @@
-import pandas as pd
 import os
 import sys
 from bids import BIDSLayout
@@ -11,22 +10,38 @@ sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
 
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
+import fonctions
 import fonctions._0_Pipeline_launcher
-
 species = 'CatinDog'
+### windows ###
+
 # Override os.path.join to always return Linux-style paths
-bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Desktop\BIDS_k9"))
-FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
-atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2", species))
-Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\LUT_files"))
+#bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Desktop\BIDS_k9"))
+#FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
+#atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2", species))
+#Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\LUT_files"))
+# Load and process config
+# Define your path variables
+#path_vars = {'FS_dir': FS_dir,
+#    'atlas_dir': atlas_dir,
+#    'Lut_dir': Lut_dir}
+#config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2",
+#                                                                                  'atlas_config_V2.json')), path_vars)
+
+## linux ##
+# Override os.path.join to always return Linux-style paths
+bids_dir = '/srv/projects/easymribrain/data/MRI/Dog/BIDS_k9'
+FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
+atlas_dir = opj(r"/home/cgarin/Documents/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2", species)
+Lut_dir = opj(r"/home/cgarin/Documents/EDNiX_study/EDNiX/Atlas_library/LUT_files")
 
 # Define your path variables
 path_vars = {'FS_dir': FS_dir,
     'atlas_dir': atlas_dir,
     'Lut_dir': Lut_dir}
 # Load and process config
-config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2",
-                                                                                  'atlas_config_V2.json')), path_vars)
+config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path("/srv/projects/easymribrain/data/Atlas/13_Atlas_project/Atlases_V2/atlas_config_V2.json"), path_vars)
+
 BASE_SS = config["paths"]["BASE_SS"]
 BASE_mask = config["paths"]["BASE_mask"]
 GM_mask = config["paths"]["GM_mask"]
@@ -199,15 +214,15 @@ specific_roi_tresh = 0.1
 unspecific_ROI_thresh = 0.1
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,15,100,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,15,100,200]
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
-                    BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
-                    correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
-                    TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
-                    dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
-                    n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,
-                    oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step,
-                    bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
-                    folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list, band,
-                    extract_Vc, selected_atlases_matrix, specific_roi_tresh, unspecific_ROI_thresh, extract_GS, MAIN_PATH,
-                    DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, FS_dir, normalize)
+                                               BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
+                                               correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
+                                               TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
+                                               dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
+                                               n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,
+                                               oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step,
+                                               bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
+                                               folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list, band,
+                                               extract_Vc, selected_atlases_matrix, specific_roi_tresh, unspecific_ROI_thresh, extract_GS, MAIN_PATH,
+                                               DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, FS_dir, normalize)

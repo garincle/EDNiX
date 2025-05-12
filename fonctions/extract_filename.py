@@ -1,7 +1,5 @@
 import os
 opb = os.path.basename
-
-
 def extract_filename(file_path):
     # Use os.path.basename to get the base name of the file
     base_name = opb(file_path)

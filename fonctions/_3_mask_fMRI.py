@@ -354,4 +354,4 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
             diary.close()
             fonctions.Skullstrip_func.Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                                                       overwrite, costAllin, type_of_transform,
-                                                      aff_metric_ants, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif,diary_file)
+                                                      aff_metric_ants, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif, diary_file)

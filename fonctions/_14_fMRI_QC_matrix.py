@@ -12,7 +12,6 @@ from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_har
 import shutil
 from fonctions.extract_filename import extract_filename
 
-
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'

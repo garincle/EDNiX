@@ -1,4 +1,3 @@
-import shutil
 import os
 from fonctions.extract_filename import extract_filename
 import datetime

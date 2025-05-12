@@ -4,7 +4,7 @@ from fonctions.extract_filename import extract_filename
 import ants
 import datetime
 import json
-from fonctions.plot_QC_func import plot_qc
+from fonctions import plot_QC_func
 import nibabel as nib
 import re
 import numpy as np
@@ -244,7 +244,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
     sub_path = os.path.normpath(dir_fMRI_Refth_RS_prepro3).split(os.sep)
     ID = [segment.split('-')[1] for segment in sub_path if segment.startswith('sub-')][0]
 
-    plot_qc(opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz'),
+    plot_QC_func(opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz'),
             opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz'),
             opj(bids_dir, 'QC','meanIMG_in_template', ID + 'meanIMG_in_template.png'))
 
