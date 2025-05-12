@@ -1,7 +1,6 @@
 import os
 import subprocess
 import nibabel as nb
-import numpy as np
 from math import pi
 from fonctions.extract_filename import extract_filename
 import datetime

@@ -29,7 +29,6 @@ opi = os.path.isfile
 
 spco = subprocess.check_output
 spgo = subprocess.getoutput
-
 from fonctions.extract_filename import extract_filename
 
 ##### XXX add ICA or DL to visualize pre-processing effect

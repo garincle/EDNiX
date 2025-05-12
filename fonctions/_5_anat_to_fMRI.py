@@ -5,7 +5,7 @@ from fonctions.extract_filename import extract_filename
 import ants
 import datetime
 import json
-from fonctions.plot_QC_func import plot_qc
+from fonctions import plot_QC_func
 import nibabel as nib
 
 class bcolors:
@@ -492,6 +492,6 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
             os.mkdir(opj(bids_dir + '/QC/','mask_to_fMRI_orig'))
 
         ####plot the QC
-        plot_qc(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_deob.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'), opj(bids_dir, 'QC', 'mask_to_fMRI_orig', root_RS + '_mask_final_in_fMRI_orig.png'))
+        plot_QC_func(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_deob.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'), opj(bids_dir, 'QC', 'mask_to_fMRI_orig', root_RS + '_mask_final_in_fMRI_orig.png'))
 
     diary.close()

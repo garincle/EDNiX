@@ -23,7 +23,6 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-from fonctions.extract_filename import extract_filename
 
 def _itk_check_coregistr(dir_fMRI_Refth_RS_prepro3, BASE_SS_coregistr,s_bind,itk_sif,diary_file):
 

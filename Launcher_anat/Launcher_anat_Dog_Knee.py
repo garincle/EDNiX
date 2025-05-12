@@ -1,4 +1,3 @@
-import pandas as pd
 import os
 import sys
 from bids import BIDSLayout
@@ -11,7 +10,6 @@ sys.path.append(r'/mnt/c/Users/garin/PycharmProjects/EDNiX')
 
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
-import fonctions._0_Pipeline_launcher
 
 species = 'CatinDog'
 # Override os.path.join to always return Linux-style paths

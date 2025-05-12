@@ -3,7 +3,6 @@ import os
 import subprocess
 import glob
 import json
-import sys
 import nibabel as nib
 import datetime
 import numpy as np
@@ -29,6 +28,7 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
 
 import fonctions._1_fMRI_preTTT_in_fMRIspace
 import fonctions._2_coregistration_to_norm
@@ -643,14 +643,14 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
 
             else:
                fonctions._1_fMRI_preTTT_in_fMRIspace.preprocess_data(dir_fMRI_Refth_RS_prepro1,
-                                                                      RS,
-                                                                      list_RS,
-                                                                      nb_run,
-                                                                      T1_eq,
-                                                                      TR_val,
-                                                                      Slice_timing_info,
-                                                                      overwrite,
-                                                                      s_bind,afni_sif,diary_file)
+                                                                     RS,
+                                                                     list_RS,
+                                                                     nb_run,
+                                                                     T1_eq,
+                                                                     TR_val,
+                                                                     Slice_timing_info,
+                                                                     overwrite,
+                                                                     s_bind, afni_sif, diary_file)
 
             if 2 in Skip_step:
                 ct = datetime.datetime.now()
@@ -665,7 +665,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
                                                                      dir_fMRI_Refth_RS_prepro1,
                                                                      RS, RS_map, nb_run, recordings, REF_int, list_map, deoblique,
                                                                      orientation, DwellT_val, n_for_ANTS,
-                                                                     overwrite,s_bind,afni_sif,fsl_sif,dmap,dbold,config_f,diary_file)
+                                                                     overwrite, s_bind, afni_sif, fsl_sif, dmap, dbold, config_f, diary_file)
 
             if 3 in Skip_step:
                 ct = datetime.datetime.now()
@@ -678,10 +678,10 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
                 diary.close()
 
             else:
-                fonctions._3_mask_fMRI.Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                       dir_fMRI_Refth_RS_prepro3, RS, nb_run, REF_int, ID, dir_prepro, brainmask, V_mask, W_mask, G_mask, dilate_mask,
-                       costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
-                       s_bind,afni_sif,fs_sif, fsl_sif, itk_sif,diary_file)
+                fonctions._3_mask_fMRI.Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+                                                          dir_fMRI_Refth_RS_prepro3, RS, nb_run, REF_int, ID, dir_prepro, brainmask, V_mask, W_mask, G_mask, dilate_mask,
+                                                          costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
+                                                          s_bind, afni_sif, fs_sif, fsl_sif, itk_sif, diary_file)
 
             if 4 in Skip_step:
                 ct = datetime.datetime.now()
@@ -695,7 +695,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
 
             else:
                 fonctions._4_check_mask._itk_check_masks(dir_fMRI_Refth_RS_prepro1,
-                                                         s_bind,itk_sif,diary_file, afni_sif, overwrite)
+                                                         s_bind, itk_sif, diary_file, afni_sif, overwrite)
 
             if 5 in Skip_step:
                 ct = datetime.datetime.now()
@@ -712,7 +712,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
                                                              TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, RS, nb_run,
                                                              ID, dir_prepro, n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlases, labels_dir, anat_subject,
                                                              IhaveanANAT, do_anat_to_func, type_of_transform, registration_fast,
-                                                             overwrite, s_bind, afni_sif,diary_file)
+                                                             overwrite, s_bind, afni_sif, diary_file)
 
             if 6 in Skip_step or ICA_cleaning == 'Skip':
                 nl = 'skip step ' + str(6)
@@ -726,7 +726,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
 
             else:
                 fonctions._6_Melodic.Melodic_correct(dir_RS_ICA_native_PreTT, dir_RS_ICA_native, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                    nb_ICA_run, nb_run, RS, ICA_cleaning, MAIN_PATH,s_bind,fsl_sif,itk_sif,TR_val, diary_file)
+                                                     nb_ICA_run, nb_run, RS, ICA_cleaning, MAIN_PATH, s_bind, fsl_sif, itk_sif, TR_val, diary_file)
 
             if 7 in Skip_step:
                 ct = datetime.datetime.now()
@@ -740,8 +740,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
 
             else:
                 fonctions._7_post_TTT.signal_regression(dir_fMRI_Refth_RS_prepro1, dir_RS_ICA_native,
-                    nb_run, RS, blur, TR_val, ICA_cleaning, extract_exterior_CSF, extract_WM, normalize,
-                    do_not_correct_signal, band, extract_Vc, extract_GS, overwrite, s_bind,afni_sif,diary_file)
+                                                        nb_run, RS, blur, TR_val, ICA_cleaning, extract_exterior_CSF, extract_WM, normalize,
+                                                        do_not_correct_signal, band, extract_Vc, extract_GS, overwrite, s_bind, afni_sif, diary_file)
 
             if 8 in Skip_step:
                 ct = datetime.datetime.now()
@@ -755,7 +755,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
 
             else:
                 fonctions._8_fMRI_to_anat.to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                                                        nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space,diary_file)
+                                                        nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space, diary_file)
 
             if 9 in Skip_step:
                 ct = datetime.datetime.now()
@@ -769,10 +769,10 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
 
             else:
                 fonctions._9_coregistration_to_template_space.to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3,
-                                                                                       nb_run, RS, transfo_concat_Anat,w2inv_Anat,do_anat_to_func, list_atlases,
+                                                                                       nb_run, RS, transfo_concat_Anat, w2inv_Anat, do_anat_to_func, list_atlases,
                                                                                        BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template,
                                                                                        anat_func_same_space, orientation, REF_int, IhaveanANAT,
-                                                                                       overwrite,s_bind,afni_sif,diary_file)
+                                                                                       overwrite, s_bind, afni_sif, diary_file)
 
             if 10 in Skip_step:
                 ct = datetime.datetime.now()
@@ -787,7 +787,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
             else:
                 fonctions._10_Correl_matrix.correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run,
                                                           selected_atlases_matrix, segmentation_name_list, ID, Session, TR_val,
-                                                          bids_dir,s_bind,afni_sif,diary_file)
+                                                          bids_dir, s_bind, afni_sif, diary_file)
 
             if 11 in Skip_step:
                 ct = datetime.datetime.now()
@@ -802,8 +802,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
             else:
                 fonctions._11_Seed_base_many_regionsatlas.SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                                                               dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files, oversample_map,
-                                                              use_cortical_mask_func,cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val,
-                                                              s_bind, afni_sif,diary_file, smoothSBA, TR_val)
+                                                              use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val,
+                                                              s_bind, afni_sif, diary_file, smoothSBA, TR_val)
 
             if 12 in Skip_step:
                 ct = datetime.datetime.now()
@@ -816,7 +816,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
                 diary.close()
 
             else:
-                fonctions._12_fMRI_QC.fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro3, RS, nb_run, s_bind, afni_sif,diary_file)
+                fonctions._12_fMRI_QC.fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro3, RS, nb_run, s_bind, afni_sif, diary_file)
 
             if 14 in Skip_step:
                 ct = datetime.datetime.now()
@@ -830,7 +830,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
 
             else:
                 fonctions._14_fMRI_QC_matrix.fMRI_QC_matrix(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3,
-                   specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, diary_file)
+                                                            specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, diary_file)
 
             if 100 in Skip_step:
                 ct = datetime.datetime.now()
@@ -844,7 +844,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
 
             else:
                 fonctions._100_Data_Clean.clean(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-                                                dir_fMRI_Refth_RS_prepro3, RS, nb_run,diary_file)
+                                                dir_fMRI_Refth_RS_prepro3, RS, nb_run, diary_file)
 
             if 200 in Skip_step:
                 ct = datetime.datetime.now()
@@ -858,4 +858,4 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
 
             else:
                 fonctions._200_Data_QC._itk_check_coregistr(dir_fMRI_Refth_RS_prepro3, BASE_SS_coregistr,
-                                                            s_bind,itk_sif,diary_file)
+                                                            s_bind, itk_sif, diary_file)

@@ -22,7 +22,7 @@ spgo = subprocess.getoutput
 MAIN_PATH = opj('/','srv','projects','easymribrain')
 sys.path.append(opj('/home/cgarin/PycharmProjects/EasyMRIbrain_sing/'))
 
-from fonctions.extract_filename import extract_filename
+from fonctions import extract_filename
 import analyses._Group_anal__func_DicLearn
 import analyses._Group_anal_3dLME_dvt_SBA
 import analyses._Group_anal_3dTtest

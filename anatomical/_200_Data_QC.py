@@ -23,7 +23,6 @@ opn = os.path.normpath
 opd = os.path.dirname
 ope = os.path.exists
 
-from fonctions.extract_filename import extract_filename
 
 def _itk_check_masks(dir_prepro, masks_dir, ID, type_norm,s_bind,itk_sif,diary_file):
     ct = datetime.datetime.now()

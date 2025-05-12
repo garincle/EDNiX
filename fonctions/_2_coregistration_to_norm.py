@@ -5,7 +5,7 @@ from fonctions.extract_filename import extract_filename
 import ants
 import datetime
 import json
-import fonctions._2a_correct_img
+import fonctions
 import fonctions._2b_fix_orient
 
 class bcolors:
@@ -65,7 +65,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
 
         ### 1.0 Start correct img
 
-        fonctions._2a_correct_img.correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings, overwrite,s_bind,afni_sif,fsl_sif,topup_file,diary_file)
+        fonctions._2a_correct_img.correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings, overwrite, s_bind, afni_sif, fsl_sif, topup_file, diary_file)
 
         command = 'singularity run' + s_bind + fsl_sif + 'fugue -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') + \
         ' --dwell=' + str(DwellT) + ' --loadfmap=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz') + \
@@ -91,7 +91,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
         imgI = '_xdtrf_mean_preWARP.nii.gz'
 
         fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation,
-                                            overwrite, s_bind, afni_sif,diary_file)
+                                            overwrite, s_bind, afni_sif, diary_file)
 
     elif recordings == '2_mapdir':
         i = 0
@@ -106,7 +106,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
 
         ### 1.0 Start correct img
 
-        fonctions._2a_correct_img.correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings, overwrite,s_bind,afni_sif,fsl_sif,topup_file,diary_file)
+        fonctions._2a_correct_img.correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings, overwrite, s_bind, afni_sif, fsl_sif, topup_file, diary_file)
 
         command = 'singularity run' + s_bind + fsl_sif + 'fugue -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') + \
         ' --dwell=' + str(DwellT) + ' --loadfmap=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz') + \
@@ -130,7 +130,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
         imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
         imgI = '_xdtrf_mean_preWARP.nii.gz'
 
-        fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind,afni_sif,diary_file)
+        fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif, diary_file)
 
     elif recordings == 'new':
         topup_f = open(opj(dir_fMRI_Refth_RS_prepro1, '4topup.txt'), "w")
@@ -148,7 +148,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
 
             ### 1.0 Start correct img
 
-            fonctions._2a_correct_img.correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings, overwrite,s_bind,afni_sif,fsl_sif,topup_file)
+            fonctions._2a_correct_img.correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings, overwrite, s_bind, afni_sif, fsl_sif, topup_file)
 
             command = 'singularity run' + s_bind + fsl_sif + 'fugue -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') + \
             ' --dwell=' + str(DwellT) + ' --loadfmap=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz') + \
@@ -170,7 +170,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
             imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
             imgI = '_xdtrf_mean_preWARP.nii.gz'
 
-            fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif,diary_file)
+            fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif, diary_file)
 
     elif recordings == 'very_old':
         # ### 1.0 Normalization between runs
@@ -196,7 +196,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
         imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
         imgI = '_xdtrf_mean_preWARP.nii.gz'
 
-        fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif,diary_file)
+        fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif, diary_file)
 
     ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### 
     ###                                              fix header problems                                                                ###
@@ -209,7 +209,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
                 root_RS = extract_filename(RS[r])
 
                 ### 2.0 Start fix_orient
-                fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif,diary_file)
+                fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif, diary_file)
 
 
     ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### 
