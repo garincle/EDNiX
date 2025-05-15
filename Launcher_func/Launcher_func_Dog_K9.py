@@ -5,28 +5,29 @@ from bids.reports import BIDSReport
 opn = os.path.normpath
 opj = os.path.join
 
-MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
-sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
-
+MAIN_PATH = opj('/srv/projects/easymribrain/code/EDNiX/')
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
-import fonctions
 import fonctions._0_Pipeline_launcher
 species = 'CatinDog'
 ### windows ###
-
+'''
+MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
+sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
 # Override os.path.join to always return Linux-style paths
-#bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Desktop\BIDS_k9"))
-#FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
-#atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2", species))
-#Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\LUT_files"))
-# Load and process config
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r'/mnt/c/Users/cgarin/Desktop/BIDS_k9"))
+FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
+atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2", species))
+Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/EDNiX/Atlas_library/LUT_files"))
+
 # Define your path variables
-#path_vars = {'FS_dir': FS_dir,
-#    'atlas_dir': atlas_dir,
-#    'Lut_dir': Lut_dir}
-#config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2",
-#                                                                                  'atlas_config_V2.json')), path_vars)
+path_vars = {'FS_dir': FS_dir,
+    'atlas_dir': atlas_dir,
+    'Lut_dir': Lut_dir}
+# Load and process config
+config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2",
+                                                                                  'atlas_config_V2.json')), path_vars)
+'''
 
 ## linux ##
 # Override os.path.join to always return Linux-style paths
@@ -204,7 +205,7 @@ segmentation_name_list = [lvl1, lvl2, lvl3, lvl4, lvl1LR, lvl2LR, lvl3LR, lvl4LR
 # threshold_val is the percentage of the correlation image that will be removed
 threshold_val = 10 # int
 ##use high quality anat image as background for figures
-oversample_map = False # True or False
+oversample_map = False # True or Falsecorrection_direction
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 selected_atlases = [lvl3LR_file, lvl4LR_file]  # Your selected atlases for SBA
 panda_files = [lvl3LR, lvl4LR]  # DataFrames for levels 3 and 4

@@ -49,46 +49,46 @@ opa = os.path.abspath
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
+import ants
+import numpy as np
+from scipy.ndimage import gaussian_filter
 
-def create_surrogate_anatomy(anat_img, fmri_img, atlas_img):
-    """Create a surrogate anatomical image matching fMRI contrast."""
-    try:
-        # Get tissue masks from atlas
-        atlas_resampled = ants.resample_image_to_target(atlas_img, fmri_img, interpolator = "nearestNeighbor")
-        atlas_data = atlas_resampled.numpy()
+import ants
+import numpy as np
+import ants
+from scipy.ndimage import gaussian_filter
 
-        # Define tissue masks (adjust these values to match your atlas)
-        wm_mask = (atlas_data == 6)  # White matter
-        gm_mask = (atlas_data == 8) | (atlas_data == 9) | (atlas_data == 10)  | (atlas_data == 11) | (atlas_data == 12)# Gray regions
-        csf_mask = (atlas_data == 1) | (atlas_data == 2) | (atlas_data == 3)
+def create_surrogate_from_label_atlas(anat_img):
+    """Create a surrogate T1/T2-like image from a label atlas using inversion trick with safer handling."""
+    atlas_data = anat_img.numpy()
 
-        # Get mean intensities from fMRI
-        fmri_data = fmri_img.numpy()
-        fmri_nonzero = fmri_data > 0  # Create mask of non-zero values
-        wm_mean = np.mean(fmri_data[wm_mask & fmri_nonzero]) if np.any(wm_mask & fmri_nonzero) else np.nan
-        gm_mean = np.mean(fmri_data[gm_mask & fmri_nonzero]) if np.any(gm_mask & fmri_nonzero) else np.nan
-        csf_mean = np.mean(fmri_data[csf_mask & fmri_nonzero]) if np.any(csf_mask & fmri_nonzero) else np.nan
+    valid_mask = atlas_data > 0
+    if not np.any(valid_mask):
+        raise ValueError("Input label atlas contains no non-zero values.")
 
-        # Create synthetic image with fMRI-like contrast
-        surrogate_data = np.zeros_like(fmri_data)
-        surrogate_data[wm_mask] = wm_mean
-        surrogate_data[gm_mask] = gm_mean
-        surrogate_data[csf_mask] = csf_mean
+    # Get only valid data
+    atlas_data_valid = atlas_data[valid_mask]
+    unique_values = np.unique(atlas_data_valid)
 
-        # Smooth to reduce sharp edges
-        surrogate_data = gaussian_filter(surrogate_data, sigma=1)
+    if len(unique_values) < 2:
+        # Instead of failing, fallback to flat image with small noise
+        print("WARNING: Only one label found, generating flat surrogate image with noise.")
+        surrogate_data = np.zeros_like(atlas_data, dtype=np.float32)
+        surrogate_data[valid_mask] = 50 + np.random.normal(0, 1, size=np.sum(valid_mask))
+    else:
+        # Safe linear inversion
+        max_val = atlas_data_valid.max()
+        min_val = atlas_data_valid.min()
+        R = 100 / (max_val - min_val)
+        surrogate_data = (max_val - atlas_data) * R
+        surrogate_data = np.where(valid_mask, surrogate_data, 0.0)
 
-        # Create ANTs image
-        surrogate_img = ants.from_numpy(surrogate_data,
-                                        origin=fmri_img.origin,
-                                        spacing=fmri_img.spacing,
-                                        direction=fmri_img.direction)
-
-        return surrogate_img
-
-    except Exception as e:
-        print(f"ERROR in create_surrogate_anatomy: {str(e)}")
-        return None, None
+    # Convert back to ANTs
+    surrogate_img = ants.from_numpy(surrogate_data.astype(np.float32),
+                                    origin=anat_img.origin,
+                                    spacing=anat_img.spacing,
+                                    direction=anat_img.direction)
+    return surrogate_img
 
 
 def detect_image_type(anat_img, atlas_img):
@@ -101,7 +101,7 @@ def detect_image_type(anat_img, atlas_img):
 
         # Define regions of interest (using simplified atlas values)
         wm_mask = atlas_data == 6  # White matter
-        gm_mask = (atlas_data == 8) | (atlas_data == 9) | (atlas_data == 10)  | (atlas_data == 11) | (atlas_data == 12)# Gray regions
+        gm_mask = (atlas_data == 8) #| (atlas_data == 9) | (atlas_data == 10)  | (atlas_data == 11) | (atlas_data == 12)# Gray regions
         csf_mask = (atlas_data == 1) | (atlas_data == 2) | (atlas_data == 3)
 
         # Calculate mean intensities
@@ -118,14 +118,13 @@ def detect_image_type(anat_img, atlas_img):
             # Typical T1 contrasts: WM > GM > CSF
             t1_likelihood = 0
             if wm_mean > gm_mean: t1_likelihood += 1
-            if gm_mean > csf_mean: t1_likelihood += 1
-            if wm_gm_ratio > 1.2: t1_likelihood += 1
 
             # Typical T2 contrasts: CSF > GM > WM
             t2_likelihood = 0
-            if csf_mean > gm_mean: t2_likelihood += 1
             if gm_mean > wm_mean: t2_likelihood += 1
-            if gm_csf_ratio < 0.8: t2_likelihood += 1
+
+            print("t1_likelihood " + str(t1_likelihood))
+            print("t2_likelihood " + str(t2_likelihood))
 
             # Determine image type
             if t1_likelihood > t2_likelihood:
@@ -194,8 +193,8 @@ def compute_coverage_stats(anat_img, fmri_img):
     uncovered_pct_anat = (anat_uncovered_count / anat_total) * 100 if anat_total > 0 else 0
     uncovered_pct_func = (fmri_outside_count / func_total) * 100 if func_total > 0 else 0
     return {
-        "pct_anat_covered": uncovered_pct_anat,
-        "pct_fmri_covered": uncovered_pct_func}
+        "pct_anat_uncovered": uncovered_pct_anat,
+        "pct_fmri_uncovered": uncovered_pct_func}
 
 def create_qc_figure(output_results, root_RS, snr_results, fd_jenkinson_array,
                      calc_dvars_array, motion_params, image_metrics, qc_values,
@@ -309,11 +308,11 @@ def create_qc_figure(output_results, root_RS, snr_results, fd_jenkinson_array,
         # Subplot G: Image Correlation
         ax7 = fig.add_subplot(gs[2, 1])
         if len(vals1) > 0 and len(vals2) > 0:
-            ax7.scatter(vals1[::10], vals2[::10],
+            ax7.scatter(vals2[::10], vals1[::10],
                         alpha=0.3, s=5, color='green')
             cc = image_metrics.get('cc', np.nan)
-            ax7.set_xlabel('Template Intensity')
-            ax7.set_ylabel('fMRI Intensity')
+            ax7.set_xlabel('fMRI Intensity')
+            ax7.set_ylabel('Template Intensity')
             ax7.set_title(f'G: Intensity Correlation (r={cc:.2f})')
             ax7.grid(True, linestyle=':', alpha=0.5)
 
@@ -329,8 +328,8 @@ def create_qc_figure(output_results, root_RS, snr_results, fd_jenkinson_array,
 
                 # Add coverage text
                 coverage_text = (
-                    f"fMRI covered: {qc_values.get('pct_fmri_covered', np.nan):.1f}%\n"
-                    f"Anat covered: {qc_values.get('pct_anat_covered', np.nan):.1f}%"
+                    f"fMRI uncovered: {qc_values.get('pct_fmri_uncovered', np.nan):.1f}%\n"
+                    f"Anat uncovered: {qc_values.get('pct_anat_uncovered', np.nan):.1f}%"
                 )
                 ax8.text(0.05, 0.05, coverage_text,
                          transform=ax8.transAxes, color='white',
@@ -386,8 +385,8 @@ def create_qc_figure(output_results, root_RS, snr_results, fd_jenkinson_array,
 
             ["Coverage & Image Type",
              f"Comp. modal.: {qc_values.get('Comp modal', 'N/A')}",
-             f"fMRI not covered: {safe_format(qc_values.get('pct_fmri_covered'), '.1f', unit='%')}",
-             f"anat not covered: {safe_format(qc_values.get('pct_anat_covered'), '.1f', unit='%')}",
+             f"fMRI not covered: {safe_format(qc_values.get('pct_fmri_uncovered'), '.1f', unit='%')}",
+             f"anat not covered: {safe_format(qc_values.get('pct_anat_uncovered'), '.1f', unit='%')}",
              f"WM/GM Contrast: {safe_format(qc_values.get('wm_gm_contrast'))}",
              f"WM/CSF Contrast: {safe_format(qc_values.get('wm_csf_contrast'))}"]
         ]
@@ -866,14 +865,14 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
 
                 if QCexplain == 'stdev':
                     stdev = mean_signal_per_region
+                    qc_values['stdev'] = stdev
                 elif QCexplain == 'TSNRcvarinv':
                     TSNRcvarinv = mean_signal_per_region
+                    qc_values['TSNRcvarinv'] = TSNRcvarinv
                 elif QCexplain == 'TSNR':
                     TSNR = mean_signal_per_region
+                    qc_values['TSNR'] = TSNR
 
-                qc_values['TSNR'] = TSNR
-                qc_values['TSNRcvarinv'] = TSNRcvarinv
-                qc_values['stdev'] = stdev
             except Exception as e:
                 nl = f"ERROR processing {QCexplain}: {str(e)}"
                 print(bcolors.WARNING + nl + bcolors.ENDC)
@@ -1013,8 +1012,8 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
                 # Compute coverage statistics
                 coverage_stats = compute_coverage_stats(anat_img, fmri_img)
                 qc_values.update({
-                    'pct_anat_covered': float(coverage_stats['pct_anat_covered']),
-                    'pct_fmri_covered': float(coverage_stats['pct_fmri_covered'])
+                    'pct_anat_uncovered': float(coverage_stats['pct_anat_uncovered']),
+                    'pct_fmri_uncovered': float(coverage_stats['pct_fmri_uncovered'])
                 })
 
                 # Detect image type
@@ -1029,7 +1028,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
                         anat_type_stats['image_type']) + ')'
                     print('creat a surogate anat')
                     # Create surrogate anatomical image matching fMRI contrast
-                    surrogate_img = create_surrogate_anatomy(anat_img, fmri_img, atlas_img)
+                    surrogate_img = create_surrogate_from_label_atlas(anat_img)
 
                     if surrogate_img is not None:
                         # Save surrogate image
@@ -1059,7 +1058,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
                 print(bcolors.OKBLUE + nl + bcolors.ENDC)
                 diary.write(f'\n{nl}')
 
-                nl = f"Coverage: {coverage_stats['anat_uncovered_pct']:.1f}% of anatomical not covered by fMRI"
+                nl = f"Coverage: {coverage_stats['pct_anat_uncovered']:.1f}% of anatomical not covered by fMRI"
                 print(bcolors.OKBLUE + nl + bcolors.ENDC)
                 diary.write(f'\n{nl}')
 
