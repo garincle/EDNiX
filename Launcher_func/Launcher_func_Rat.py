@@ -5,15 +5,16 @@ from bids import BIDSLayout
 from bids.reports import BIDSReport
 opn = os.path.normpath
 opj = os.path.join
-
-MAIN_PATH = r'/mnt/c/Users/garin/OneDrive/EDNiX'
-sys.path.append(r'/mnt/c/Users/garin/PycharmProjects/EDNiX')
-
+MAIN_PATH = opj('/srv/projects/easymribrain/code/EDNiX/')
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
-import fonctions
+import fonctions._0_Pipeline_launcher
 
 species = 'RatWHS'
+
+'''
+MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
+sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
 # Override os.path.join to always return Linux-style paths
 bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj('/mnt/e/EDNiX_study/MRI/Rat/BIDS_Gd'))
 FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
@@ -27,6 +28,22 @@ path_vars = {'FS_dir': FS_dir,
 # Load and process config
 config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2",
                                                                                   'atlas_config_V2.json')), path_vars)
+'''
+
+## linux ##
+# Override os.path.join to always return Linux-style paths
+bids_dir = '/srv/projects/easymribrain/data/MRI/Rat/BIDS_Gd'
+FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
+atlas_dir = opj(r"/home/cgarin/Documents/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2", species)
+Lut_dir = opj(r"/home/cgarin/Documents/EDNiX_study/EDNiX/Atlas_library/LUT_files")
+
+# Define your path variables
+path_vars = {'FS_dir': FS_dir,
+    'atlas_dir': atlas_dir,
+    'Lut_dir': Lut_dir}
+# Load and process config
+config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path("/srv/projects/easymribrain/data/Atlas/13_Atlas_project/Atlases_V2/atlas_config_V2.json"), path_vars)
+
 BASE_SS = config["paths"]["BASE_SS"]
 BASE_mask = config["paths"]["BASE_mask"]
 GM_mask = config["paths"]["GM_mask"]
@@ -226,8 +243,7 @@ specific_roi_tresh = 0.1
 unspecific_ROI_thresh = 0.1
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [4,100,200]
-
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,15,100,200]
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
                                                BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
                                                correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,

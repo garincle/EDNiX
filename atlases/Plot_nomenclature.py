@@ -23,13 +23,18 @@ df['display_label'] = df.apply(create_display_labels, axis=1)
 # Define base colors for NEWLVL1
 lvl1_names = df['NEWLVL1'].unique()
 #base_colors = px.colors.qualitative.Plotly
+'''
 base_colors = [
-    '#aec7e8', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+    '#ff9896', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
     '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-    '#98df8a', '#ffbb78', '#9edae5', '#ff9896', '#c5b0d5',
-    '#c49c94', '#f7b6d2', '#1f77b4', '#dbdb8d', '#c7c7c7'
-]
+    '#98df8a', '#ffbb78', '#9edae5', '#aec7e8', '#c5b0d5',
+    '#c49c94', '#f7b6d2', '#1f77b4', '#dbdb8d', '#c7c7c7']
 base_color_map = {name: base_colors[i % len(base_colors)] for i, name in enumerate(lvl1_names)}
+'''
+
+base_color_map = {'CSF': '#ff9896', '3rde ventricules': '#ff7f0e', '4th ventricules': '#ffbb78', 'Lateral ventricules': '#2ca02c',
+                  'Cerebellum White': '#9467bd', 'Cortical White ': '#8c564b', 'Cerebellum': '#e377c2', 'Brain stem': '#7f7f7f', 'Allocortex': '#bcbd22',
+                  'Subcortical areas': '#17becf', 'Diencephalon': '#98df8a', 'Isocortex': '#d62728', 'Periallocortex ': '#9edae5'}
 
 # Utility to lighten a color
 def lighten_color(color, factor):

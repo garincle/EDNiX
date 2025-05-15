@@ -6,18 +6,43 @@ from bids.reports import BIDSReport
 opn = os.path.normpath
 opj = os.path.join
 
-MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
-sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
-
+MAIN_PATH = opj('/srv/projects/easymribrain/code/EDNiX/')
 import anatomical._0_Pipeline_launcher
 import Tools.Load_subject_with_BIDS
-
+import Tools.Read_atlas
 species = 'CatinDog'
+
+### windows ###
+'''
+MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
+sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
 # Override os.path.join to always return Linux-style paths
-bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Desktop\BIDS_k9"))
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r'/mnt/c/Users/cgarin/Desktop/BIDS_k9"))
 FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
-atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2", species))
-Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\LUT_files"))
+atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2", species))
+Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/EDNiX/Atlas_library/LUT_files"))
+
+# Define your path variables
+path_vars = {'FS_dir': FS_dir,
+    'atlas_dir': atlas_dir,
+    'Lut_dir': Lut_dir}
+# Load and process config
+config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2",
+                                                                                  'atlas_config_V2.json')), path_vars)
+'''
+## linux ##
+# Override os.path.join to always return Linux-style paths
+bids_dir = '/srv/projects/easymribrain/data/MRI/Dog/BIDS_k9'
+FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
+atlas_dir = opj(r"/home/cgarin/Documents/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2", species)
+Lut_dir = opj(r"/home/cgarin/Documents/EDNiX_study/EDNiX/Atlas_library/LUT_files")
+
+# Define your path variables
+path_vars = {'FS_dir': FS_dir,
+    'atlas_dir': atlas_dir,
+    'Lut_dir': Lut_dir}
+# Load and process config
+config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path("/srv/projects/easymribrain/data/Atlas/13_Atlas_project/Atlases_V2/atlas_config_V2.json"), path_vars)
 
 ########### Subject loader with BIDS##############
 layout= BIDSLayout(bids_dir,  validate=True)
@@ -80,7 +105,6 @@ type_of_transform_stdyT = 'SyN'
 Atemplate_to_Stemplate = 'T1w'
 template_skullstrip = 'Manual'
 
-
 do_surfacewith = 'T1w'
 ### file for standardize space
 FS_buckner40_TIF = opj(FS_dir,'MacaqueYerkes19')
@@ -126,7 +150,7 @@ Lut_file = opj(Lut_dir,'Multispecies_LUT_Dual.txt')
 ### Block3: step 16 (QC)
 ### Block3: step 100 (Clean)
 ### Block3: step 200 (QC itksnap)
-Skip_step = [100,200]
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,100,200]
 
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step,

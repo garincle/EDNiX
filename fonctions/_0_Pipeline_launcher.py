@@ -60,6 +60,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
                     DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, FS_dir, normalize):
 
     s_path, afni_sif, fsl_sif, fs_sif, itk_sif, wb_sif, strip_sif, s_bind =  Tools.Load_EDNiX_requirement.load_requirement(MAIN_PATH, bids_dir, FS_dir)
+
     config_f = opj(MAIN_PATH, 'code', 'config', 'b02b0.cnf')
 
     if overwrite_option == True:
