@@ -11,7 +11,7 @@ import nilearn
 from nilearn.masking import compute_epi_mask
 import numpy as np
 from anatomical import Histrogram_mask_EMB
-from fonctions import extract_filename
+from fonctions.extract_filename import extract_filename
 import datetime
 import json
 

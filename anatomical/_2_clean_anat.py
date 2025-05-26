@@ -139,7 +139,6 @@ def clean_anat(Align_img_to_template, cost3dAllineate, bids_dir, listTimage, typ
         print(nl)
 
         os.chdir(str(current_working_directory))
-
         command = 'singularity run' + s_bind + afni_sif + '3dcopy ' + opj(dir_prepro, ID + '_brain_for_Align_Center' + type_norm + '.nii.gz') + ' ' + \
                   opj(dir_prepro, ID + '_acpc_64_orig_3dAllineate' + type_norm + '.nii.gz') + overwrite
         nl = spgo(command)

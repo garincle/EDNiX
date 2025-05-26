@@ -69,7 +69,6 @@ def correct_orient(BIDStype,
             list_anat = sorted(glob.glob(opj(path_anat, BIDStype.format(ID=ID, Session=Session, Timage=Timage))))
 
         if len(list_anat)==1:
-
             nl = 'INFO: We found only one anat images for this session'
             print(bcolors.OKGREEN + nl + bcolors.ENDC)
             diary.write(f'\n{nl}')

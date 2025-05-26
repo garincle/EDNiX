@@ -66,7 +66,7 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
     do_surfacewith, Atemplate_to_Stemplate, FS_buckner40_TIF,FS_buckner40_GCS, Lut_file, otheranat,
     type_norm, all_Session_max, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list,
     list_atlases_2, cost3dAllineate, Align_img_to_template, species, type_of_transform,
-    type_of_transform_stdyT, fMRImasks, overwrite_option, MAIN_PATH):
+    type_of_transform_stdyT, fMRImasks, overwrite_option, MAIN_PATH, aff_metric_ants_Transl, aff_metric_ants_Transl_template):
 
     ### singularity set up
     Hmin = ['l', 'r']
@@ -274,7 +274,7 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
             if 6 in Skip_step:
                 print(bcolors.OKGREEN + 'INFO: skip step ' + str(6) + bcolors.ENDC)
             else:
-                anatomical._6_brainT_to_stdyT.brainT_to_T(dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv,bids_dir, type_of_transform, aff_metric_ants,diary_file)
+                anatomical._6_brainT_to_stdyT.brainT_to_T(aff_metric_ants_Transl, dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv,bids_dir, type_of_transform, aff_metric_ants,diary_file)
 
         ######## ADD max img co-registration to template
         if coregistration_longitudinal == True and Session == max_ses:
@@ -305,7 +305,7 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
             if 6 in Skip_step:
                 print(bcolors.OKGREEN + 'INFO: skip step ' + str(6) + bcolors.ENDC)
             else:
-                anatomical._6_brainT_to_stdyT_max.brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Session, listTimage, n_for_ANTS,
+                anatomical._6_brainT_to_stdyT_max.brainT_to_T_max(aff_metric_ants_Transl, aff_metric_ants, creat_study_template, dir_prepro, ID, Session, listTimage, n_for_ANTS,
                     dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv,
                     study_template_atlas_folder, otheranat, bids_dir, type_of_transform,
                     which_on, all_data_path_max, IgotbothT1T2, all_data_path,
@@ -329,7 +329,7 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
         if 7 in Skip_step:
             print(bcolors.OKGREEN + 'INFO: skip step ' + str(7) + bcolors.ENDC)
         else:
-            anatomical._7_stdyT_to_AtlasT.stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_ANTS, aff_metric_ants, study_template_atlas_folder, Atemplate_to_Stemplate, type_of_transform_stdyT, overwrite,
+            anatomical._7_stdyT_to_AtlasT.stdyT_to_AtlasT(aff_metric_ants_Transl_template, list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_ANTS, aff_metric_ants, study_template_atlas_folder, Atemplate_to_Stemplate, type_of_transform_stdyT, overwrite,
                                                           s_bind,afni_sif,diary_file)
 
         ###### re-define the variable: study template atlas, etc should now be the new template !!
@@ -357,7 +357,6 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
             Aseg_refLR = ''
 
     ###### LOOP AGAIN ######
-
     for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, all_Session_max):
         NL3 ='###################################################### work on subject: ' + str(ID) + ' Session ' + str(Session) + ' BLOCK 3 ###############################################################'
         print(bcolors.HEADER + NL3 + bcolors.ENDC)
@@ -391,7 +390,6 @@ def preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal,
         ####################################################################################
         ########################## Coregistration template to anat #########################
         ####################################################################################
-
         if coregistration_longitudinal==True:
             if creat_study_template == True:
                 stdy_template_mask = opj(study_template_atlas_folder, 'studytemplate2_' + type_norm,

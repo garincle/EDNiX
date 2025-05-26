@@ -5,14 +5,34 @@ from bids import BIDSLayout
 from bids.reports import BIDSReport
 opn = os.path.normpath
 opj = os.path.join
-MAIN_PATH = '/srv/projects/easymribrain/code/EDNiX/'
+MAIN_PATH = opj('/srv/projects/easymribrain/code/EDNiX/')
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
 import fonctions._0_Pipeline_launcher
 
-species = 'Macaque'
+species = 'RatWHS'
+
+'''
+MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
+sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
 # Override os.path.join to always return Linux-style paths
-bids_dir = Tools.Load_subject_with_BIDS.linux_path('/srv/projects/easymribrain/data/MRI/Macaque/BIDS_BenHamed')
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj('/mnt/e/EDNiX_study/MRI/Rat/BIDS_GdGSR'))
+FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
+atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2", species))
+Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/EDNiX/Atlas_library/LUT_files"))
+
+# Define your path variables
+path_vars = {'FS_dir': FS_dir,
+    'atlas_dir': atlas_dir,
+    'Lut_dir': Lut_dir}
+# Load and process config
+config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2",
+                                                                                  'atlas_config_V2.json')), path_vars)
+'''
+
+## linux ##
+# Override os.path.join to always return Linux-style paths
+bids_dir = '/srv/projects/easymribrain/data/MRI/Rat/BIDS_Gd'
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 atlas_dir = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", species)
 Lut_dir = opj(MAIN_PATH, "Atlas_library", "LUT_files")
@@ -32,19 +52,49 @@ Aseg_ref = config["paths"]["Aseg_ref"]
 Aseg_refLR = config["paths"]["Aseg_refLR"]
 
 ########### Subject loader with BIDS##############
-layout= BIDSLayout(bids_dir,  validate=True)
-report = BIDSReport(layout)
+layout= BIDSLayout(bids_dir,  validate=False)
 df = layout.to_df()
 df.head()
 
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
 allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
+list_of_ones = [1] * len(allinfo_study_c)
+allinfo_study_c['session'] = list_of_ones
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
-list_to_remove = []
+list_to_remove = [
+        ('300301', '1'),
+        ('300302', '1'),
+        ('300303', '1'),
+        ('300304', '1'),
+        ('300305', '1'),
+        ('300306', '1'),
+        ('300307', '1'),
+        ('300308', '1'),
+        ('300309', '1'),
+        ('300600', '1'),
+        ('300601', '1'),
+        ('300602', '1'),
+        ('300603', '1'),
+        ('300604', '1'),
+        ('300605', '1'),
+        ('300606', '1'),
+        ('300607', '1'),
+        ('300608', '1'),
+        ('300609', '1'),
+        ('300800', '1'),
+        ('300801', '1'),
+        ('300802', '1'),
+        ('300803', '1'),
+        ('300804', '1'),
+        ('300805', '1'),
+        ('300806', '1'),
+        ('300807', '1'),
+        ('300808', '1'),
+        ('300809', '1')]
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
 atlas_dfs = Tools.Read_atlas.extract_atlas_definitions(config)
@@ -73,50 +123,50 @@ list_atlases = [lvl1_file, lvl2_file, lvl3_file, lvl4_file,
 overwrite_option = True #True or False overwrite previous analysis if in BIDS
 
 #### functional images paramters definition
-Slice_timing_info = '-tpattern seq-z'
-correction_direction = 'Auto' # 'x', 'x-', 'y', 'y-', 'Auto', 'None'
+Slice_timing_info = 'Auto'
+correction_direction = 'y' # 'x', 'x-', 'y', 'y-', 'Auto', 'None'
 ### Dwell Time (necessery only if you want to appply TOPUP)
-DwellT = 'Auto' # 'value du calculate', 'Auto', 'None'
+DwellT = 'None' # 'value du calculate', 'Auto', 'None'
 ### TotalReadoutTime (necessery only if you want to appply TOPUP)
-TRT = 'Auto'
+TRT = 'None'
 ### Slice encoding direction (SED) (necessery only if you want to restrict the transfo for anat to func)
 SED = 'Auto' #  "i", "i-", "j", "j-", "k", "k-", 'Auto', 'None'
 ### YOU NEED TO PROVIDE A TR if not in .json, otherwise it will fail
-TR = '2'  # 'value du calculate in s', 'Auto', 'None'
+TR = 'Auto'  # 'value du calculate in s', 'Auto', 'None'
 
 #### fMRI pre-treatment
 T1_eq = 5 # int
 REF_int = 0 # int
 ntimepoint_treshold = 100
-endfmri = '*_task-rest_*.nii.gz' # string
-endjson = '*_task-rest_*.json' # string
+endfmri = '*_task-rest_bold.nii.gz' # string
+endjson = '*_task-rest_bold.json' # string
 endmap = '*_map.nii.gz' # string
-orientation = 'LPI' # string
-deoblique='header' #header or WARP_without_3drefit
+orientation = 'RIP' # string
+deoblique='WARP_without_3drefit' #header or WARP
 
 ## prior anatomical processing
 coregistration_longitudinal = False #True or False
-type_norm = 'T1w' # T1 or T2
+type_norm = 'T2w' # T1 or T2
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
-TfMRI = 'T1w' # string
+TfMRI = 'T2w' # string
 ### if you don't have any anatomical image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
 folderforTemplate_Anat = ''
 
 ## masking
 doMaskingfMRI = True # True or False
-Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
-costAllin = '' # string
+Method_mask_func = 'nilearn' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+costAllin = 'ls' # string
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
-anat_func_same_space = False # True or False
+anat_func_same_space = True # True or False
 use_master_for_Allineate = False
 n_for_ANTS = 'hammingWindowedSinc' # string
 registration_fast = False
-type_of_transform = 'SyNOnly'
+type_of_transform = 'BOLDAffine'
 aff_metric_ants_Transl = 'mattes' # string
-aff_metric_ants = 'CC'
-do_anat_to_func = True # True or False
+aff_metric_ants = 'mattes'
+do_anat_to_func = False # True or False
 
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
@@ -126,7 +176,7 @@ study_template_atlas_forlder = bids_dir + '/sty_template'
 # sting
 stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_mask.nii.gz') # sting
 stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
-GM_mask_studyT = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'GM_mask.nii.gz') # sting
+GM_mask_studyT = opj(study_template_atlas_forlder, 'atlases', 'Gmask.nii.gz') # sting
 
 #######for melodic cleaning (step 6)
 ICA_cleaning = 'Skip'
@@ -139,23 +189,23 @@ do_not_correct_signal  = False # True or False
 ### you can use the CSF (first layer outside the brain) as regressor
 extract_exterior_CSF = False # True or False
 ### you can use the White Matter as regressor
-extract_WM = True # True or False
+extract_WM = False # True or False
 #use the eroded  White Matter functional mask (produced during the anat processing)
-use_erode_WM_func_masks  = True # True or False
+use_erode_WM_func_masks  = False # True or False
 ### you can use the Ventricules as regressor (not advised for small species as often not enough voxels)
 extract_Vc = False # True or False
 #use the eroded ventricular functional mask (produced during the anat processing)
 use_erode_V_func_masks = False # True or False
 #Global signal regression ?
-extract_GS = False # True or False
+extract_GS = True # True or False
 
 ### Band path filtering
 band = '0.01 0.1' # string
 normalize = 'Skip'
 #Smooth
-blur = 0 # float
+blur = 0.5 # float
 #Dilate the functional brain mask by n layers
-dilate_mask = 0 # int
+dilate_mask = 2 # int
 #retrain the analysis to the gray matter instate of the brain
 use_cortical_mask_func = False # True or False
 
@@ -166,9 +216,9 @@ cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 
 SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
 erod_seed  = True
-smoothSBA = 3
+smoothSBA = 0
 
-#######for matrix analysis (step 10)
+#######for matrix analysis (step 11)
 #### name of the atlases  you want to use for the matrix analysis
 selected_atlases_matrix = list_atlases.copy()
 segmentation_name_list = [lvl1, lvl2, lvl3, lvl4, lvl1LR, lvl2LR, lvl3LR, lvl4LR]
@@ -177,18 +227,17 @@ segmentation_name_list = [lvl1, lvl2, lvl3, lvl4, lvl1LR, lvl2LR, lvl3LR, lvl4LR
 # threshold_val is the percentage of the correlation image that will be removed
 threshold_val = 10 # int
 ##use high quality anat image as background for figures
-oversample_map = False # True or False
+oversample_map = True # True or False
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
-selected_atlases = ['atlaslvl4_LR.nii.gz']  # Using NEW VERSION format (single atlas)
-panda_files = [pd.DataFrame({'region':['retrosplenial'],'label':[162]})]  # Using NEW VERSION format (single DataFrame)
+selected_atlases = ['atlaslvl4_LR.nii.gz']  # Your selected atlases for SBA
+panda_files = [pd.DataFrame({'region':['retrosplenial'],'label':[162]})]  # DataFrames for levels 3 and 4
 
 #For QC value to define specific and non-spe correlation
-specific_roi_tresh = 0.2
+specific_roi_tresh = 0.1
 delta_thresh = 0.1
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [4,100,200] # Changed to match requested values
-
+Skip_step = [1,2,3,4,5,6,100,200]
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
                                                BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space, use_master_for_Allineate,
                                                correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,

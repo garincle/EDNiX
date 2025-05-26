@@ -48,7 +48,7 @@ import fonctions._200_Data_QC
 from fonctions.extract_filename import extract_filename
 import Tools.Load_EDNiX_requirement
 def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
-                    BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
+                    BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space, use_master_for_Allineate,
                     correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
                     TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
                     dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
@@ -56,7 +56,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
                     oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step,
                     bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
                     folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list, band,
-                    extract_Vc, selected_atlases_matrix, specific_roi_tresh, unspecific_ROI_thresh, extract_GS, MAIN_PATH,
+                    extract_Vc, selected_atlases_matrix, specific_roi_tresh, delta_thresh, extract_GS, MAIN_PATH,
                     DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, FS_dir, normalize):
 
     s_path, afni_sif, fsl_sif, fs_sif, itk_sif, wb_sif, strip_sif, s_bind =  Tools.Load_EDNiX_requirement.load_requirement(MAIN_PATH, bids_dir, FS_dir)
@@ -106,9 +106,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
             diary.write(f'\n{nl}')
 
         # link with the individual anatomical template ################################################################
-
         if IhaveanANAT==False:
-
             # The anatomy organization folders
             dir_transfo  = ''
             dir_prepro   = ''
@@ -126,7 +124,6 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
             diary.write(f'\n{nl}')
         else:
             if anat_func_same_space == True:
-
                 # The anatomy organization folders
                 path_anat     = opj(data_path,'anat')
                 dir_transfo   = opj(path_anat,'matrices')
@@ -139,14 +136,14 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
 
             else:
                 template_anat_for_fmri = glob.glob(opj(opd(data_path),'ses-' + str(Session),'anat','native','02_Wb', 'volumes', '*' + TfMRI + '_brain.nii*'))
-
                 if len(template_anat_for_fmri) > 1:
                     nl = "WARNING: we found multiple anat template for this animal, please choose one!"
                     print(bcolors.WARNING + nl + bcolors.ENDC)
                     diary.write(f'\n{nl}')
                     data_path_anat = input("Please enter manually a data_path_anat for preprocessing:")
                 elif len(template_anat_for_fmri) == 0:
-                    nl = "ERROR: We haven't found any anat template for this animal! We can't continue ! please provide a valid link for at least one anat image! current link is :" + str(template_anat_for_fmri)
+                    nl = ("ERROR: We haven't found any anat template for this animal! We can't continue ! please provide a valid link for at least one anat image! "
+                          "current link is :") + str(template_anat_for_fmri)
                     diary.write(f'\n{nl}')
                     raise Exception(bcolors.FAIL + nl + bcolors.ENDC)
                 else :
@@ -178,11 +175,8 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
             else:
                 W_mask = opj(masks_dir, type_norm + 'Wmask.nii.gz')
 
-
-
         ################# longitudinal co-registration  Yes or No ######################################################
-
-        if coregistration_longitudinal == True:                   # Yes
+        if coregistration_longitudinal == True:
             if creat_study_template == True:
                 BASE_SS_coregistr = stdy_template
                 BASE_SS_mask      = stdy_template_mask
@@ -679,7 +673,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
                 diary.close()
 
             else:
-                fonctions._3_mask_fMRI.Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+                fonctions._3_mask_fMRI.Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,  use_master_for_Allineate,
                                                           dir_fMRI_Refth_RS_prepro3, RS, nb_run, REF_int, ID, dir_prepro, brainmask, V_mask, W_mask, G_mask, dilate_mask,
                                                           costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
                                                           s_bind, afni_sif, fs_sif, fsl_sif, itk_sif, diary_file)
@@ -831,7 +825,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
 
             else:
                 fonctions._14_fMRI_QC_matrix.fMRI_QC_matrix(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3,
-                                                            specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, diary_file)
+                                                            specific_roi_tresh, delta_thresh, RS, nb_run, diary_file)
 
             if 100 in Skip_step:
                 ct = datetime.datetime.now()

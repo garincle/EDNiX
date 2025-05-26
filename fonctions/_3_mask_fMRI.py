@@ -30,7 +30,7 @@ opi = os.path.isfile
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, use_master_for_Allineate,
                        dir_fMRI_Refth_RS_prepro3, RS, nb_run, REF_int, ID, dir_prepro, brainmask, V_mask, W_mask, G_mask, dilate_mask,
                        costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
                        s_bind,afni_sif,fs_sif, fsl_sif, itk_sif,diary_file):
@@ -203,12 +203,21 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
                 diary.write(f'\n{nl}')
                 print(nl)
 
-                command = 'singularity run' + s_bind + afni_sif + '3dAllineate -final NN' + overwrite + ' -overwrite -1Dmatrix_apply ' + mvt_shft + \
-                ' -prefix ' + output2 + \
-                ' -master ' + opj(dir_prepro, ID + '_mprage_reorient' + TfMRI + '.nii.gz') + \
-                ' -input  ' + output2
-                nl = spgo(command)
-                diary.write(f'\n{nl}')
+                if use_master_for_Allineate==True:
+                    ####  may be added if failed!! don't know how to handle that or why it fail!
+                    command = 'singularity run' + s_bind + afni_sif + '3dAllineate -final NN' + overwrite + ' -overwrite -1Dmatrix_apply ' + mvt_shft + \
+                    ' -prefix ' + output2 + \
+                    ' -master ' + opj(dir_prepro, ID + '_mprage_reorient' + TfMRI + '.nii.gz') + \
+                    ' -input  ' + output2
+                    nl = spgo(command)
+                    diary.write(f'\n{nl}')
+                    print(nl)
+                else:
+                    command = 'singularity run' + s_bind + afni_sif + '3dAllineate -final NN' + overwrite + ' -overwrite -1Dmatrix_apply ' + mvt_shft + \
+                              ' -prefix ' + output2 + \
+                              ' -input  ' + output2
+                    nl = spgo(command)
+                    diary.write(f'\n{nl}')
                 print(nl)
 
                 ### to reapply the original obliquity

@@ -39,16 +39,20 @@ def load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove):
 
     for ID in pd.unique(allinfo_study_c.subject):
         list_session = allinfo_study_c.loc[allinfo_study_c['subject'] == ID].session.dropna()
-        listereverse = list(list_session)
-        listereverse.reverse()
-        max_session.append(np.array(listereverse).max())
+
+        # Step 1: Extract and reverse the sessions while keeping leading zeros
+        listereverse = sorted(list_session.astype(str), key=lambda x: int(x), reverse=True)
+
+        # Compute max session (as string, keeping leading zeros)
+        max_ses = max(listereverse, key=lambda x: int(x))  # Returns '06' (string)
+        max_session.append(max_ses)
 
         for session in pd.unique(listereverse):
             data_path = os.path.join(bids_dir, 'sub-' + ID, 'ses-' + str(session))
             all_data_path.append(data_path)
             all_Session.append(session)
             all_ID.append(ID)
-            all_Session_max.append(np.array(listereverse).max())
+            all_Session_max.append(max_ses)
             animal_ID.append(ID + 'ses-' + str(session))
 
     for ID, Session in zip(pd.unique(allinfo_study_c.subject), max_session):

@@ -58,7 +58,7 @@ def validate_matrix(matrix, roi_names):
     return matrix, roi_names
 
 
-def analyze_specificity(correlation_matrix, roi_names, specific_thresh, unspecific_thresh):
+def analyze_specificity(correlation_matrix, roi_names, specific_thresh, delta_thresh):
     try:
         corr_matrix, roi_names = validate_matrix(correlation_matrix, roi_names)
     except Exception as e:
@@ -112,12 +112,13 @@ def analyze_specificity(correlation_matrix, roi_names, specific_thresh, unspecif
 
         non_specific_corr = np.mean(non_specific_corrs) if non_specific_corrs else np.nan
 
-        if (specific_corr >= specific_thresh) and (non_specific_corr < unspecific_thresh):
+        delta = specific_corr - non_specific_corr
+        if delta > delta_thresh and specific_corr > specific_thresh:
             category = 'Specific'
-        elif (specific_corr >= specific_thresh) and (non_specific_corr >= unspecific_thresh):
-            category = 'Unspecific'
-        elif (abs(specific_corr) < specific_thresh) and (abs(non_specific_corr) < unspecific_thresh):
+        elif specific_corr < specific_thresh:
             category = 'No'
+        elif delta <= delta_thresh:
+            category = 'Unspecific'
         else:
             category = 'Spurious'
 
@@ -230,7 +231,7 @@ def analyze_hemisphere_comparisons(correlation_matrix, roi_names):
 
 
 def generate_qc_plots(corr_matrix, roi_names, output_dir, prefix,
-                      specific_thresh, unspecific_thresh):
+                      specific_thresh, delta_thresh):
     """Generate QC plots with matrix stats in table"""
     fig = plt.figure(figsize=(18, 10))
     gs = GridSpec(2, 3, figure=fig,
@@ -309,7 +310,7 @@ def generate_qc_plots(corr_matrix, roi_names, output_dir, prefix,
 
     # Get all results
     metrics = calculate_network_metrics(corr_matrix) or {}
-    spec_results = analyze_specificity(corr_matrix, roi_names, specific_thresh, unspecific_thresh) or {}
+    spec_results = analyze_specificity(corr_matrix, roi_names, specific_thresh, delta_thresh) or {}
     target_data = spec_results.get('target_specificity', {})
 
     # Calculate matrix statistics (using only lower triangle)
@@ -491,7 +492,7 @@ def load_and_validate_matrix(matrix_path):
 
 
 def fMRI_QC_matrix(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3,
-                   specific_roi_tresh, unspecific_ROI_thresh, RS, nb_run, diary_file):
+                   specific_roi_tresh, delta_thresh, RS, nb_run, diary_file):
     """Optimized QC analysis with updated output"""
     ct = datetime.datetime.now()
     diary = open(diary_file, "a")
@@ -530,14 +531,14 @@ def fMRI_QC_matrix(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMR
                 # Generate QC plots and get metrics
                 metrics, hemi_results = generate_qc_plots(
                     full_corr, roi_names, out_results_V, root_RS,
-                    specific_roi_tresh, unspecific_ROI_thresh)
+                    specific_roi_tresh, delta_thresh)
 
                 # Save results
                 results = {
                     'network_metrics': metrics,
                     'hemisphere_results': hemi_results,
                     'specificity_results': analyze_specificity(
-                        full_corr, roi_names, specific_roi_tresh, unspecific_ROI_thresh),
+                        full_corr, roi_names, specific_roi_tresh, delta_thresh),
                     'timestamp': str(datetime.datetime.now())
                 }
 

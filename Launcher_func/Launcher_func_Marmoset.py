@@ -16,33 +16,27 @@ import fonctions
 species = 'Marmoset'
 # Override os.path.join to always return Linux-style paths
 bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj('/scratch/cgarin/'+ species + '/BIDS_NIH'))
-FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
-atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2', species))
-Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"/home/cgarin/Documents/EDNiX_study/EDNiX/Atlas_library/LUT_files"))
+FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
+atlas_dir = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", species)
+Lut_dir = opj(MAIN_PATH, "Atlas_library", "LUT_files")
 
 # Define your path variables
 path_vars = {'FS_dir': FS_dir,
     'atlas_dir': atlas_dir,
     'Lut_dir': Lut_dir}
-# Load and process config
-config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2',
-                                                                                  'atlas_config_V2.json')), path_vars)
-BASE_SS = opj(atlas_dir, 'templateT2.nii.gz')
-BASE_mask = opj(atlas_dir, 'brain_mask.nii.gz')
-GM_mask = opj(atlas_dir, 'Gmask.nii.gz')
+# Load and process config.
+config_file_path = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", "atlas_config_V2.json")
+config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(config_file_path), path_vars)
+
+BASE_SS = config["paths"]["BASE_SS"]
+BASE_mask = config["paths"]["BASE_mask"]
+GM_mask = config["paths"]["GM_mask"]
 Aseg_ref = config["paths"]["Aseg_ref"]
 Aseg_refLR = config["paths"]["Aseg_refLR"]
 
 ########### Subject loader with BIDS##############
 layout= BIDSLayout(bids_dir,  validate=False)
-###
 report = BIDSReport(layout)
-# Ask get() to return the ids of subjects that have T1w files #return_type='filename
-T1 = layout.get(return_type='filename', target='subject', suffix='T1w', extension='nii.gz')
-print(T1)
-# Ask get() to return the ids of subjects that have T1w files
-Bold = layout.get(return_type='filename', target='subject', task='rest', extension='nii.gz')
-# Convert the layout to a pandas dataframe
 df = layout.to_df()
 df.head()
 
@@ -127,6 +121,7 @@ costAllin = '' # string
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = False # True or False
+use_master_for_Allineate = False
 n_for_ANTS = 'hammingWindowedSinc' # string
 registration_fast = True
 type_of_transform = 'SyNOnly'
@@ -205,7 +200,7 @@ unspecific_ROI_thresh = 0.1 # Changed from 0.2 to 0.1 as requested
 Skip_step = [4,100,200] # Changed to match requested values
 
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
-                                               BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
+                                               BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space, use_master_for_Allineate,
                                                correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
                                                TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
                                                dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,

@@ -38,7 +38,7 @@ spgo = subprocess.getoutput
 #################################################
 
 
-def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_ANTS, aff_metric_ants, study_template_atlas_folder, Atemplate_to_Stemplate, type_of_transform_stdyT, overwrite,
+def stdyT_to_AtlasT(aff_metric_ants_Transl_template, list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_ANTS, aff_metric_ants, study_template_atlas_folder, Atemplate_to_Stemplate, type_of_transform_stdyT, overwrite,
                     s_bind,afni_sif,diary_file):
     ct = datetime.datetime.now()
     nl = 'Run anatomical._7_stdyT_to_AtlasT.stdyT_to_AtlasT'
@@ -72,7 +72,7 @@ def stdyT_to_AtlasT(list_atlases, Aseg_ref, Aseg_refLR, BASE_SS, dir_out, n_for_
     REF = ants.image_read(stdy_template)
     IMG = ants.image_read(BASE_SS)
 
-    mtx1 = ants.registration(fixed=REF, moving=IMG, type_of_transform='Translation',
+    mtx1 = ants.registration(fixed=REF, moving=IMG, type_of_transform='Translation', aff_metric=aff_metric_ants_Transl_template,
                              outprefix=opj(dir_out,'NMT_to_anat_SyN_final_shift_'))
     MEAN_tr = ants.apply_transforms(fixed=REF, moving=IMG, transformlist=mtx1['fwdtransforms'],
                                     interpolator=n_for_ANTS)
