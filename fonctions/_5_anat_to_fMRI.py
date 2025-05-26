@@ -139,7 +139,7 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
             mask = ants.image_read(opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz'))
             moving_mask = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz'))
 
-            mtx1 = ants.registration(fixed=ANAT, moving=MEAN, type_of_transform='Translation',
+            mtx1 = ants.registration(fixed=ANAT, moving=MEAN, type_of_transform='Translation', aff_metric=aff_metric_ants_Transl,
                                      outprefix=opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_'))
             MEAN_tr = ants.apply_transforms(fixed=ANAT, moving=MEAN, transformlist=mtx1['fwdtransforms'],
                                             interpolator=n_for_ANTS)
@@ -492,6 +492,6 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
             os.mkdir(opj(bids_dir + '/QC/','mask_to_fMRI_orig'))
 
         ####plot the QC
-        plot_QC_func(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_deob.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'), opj(bids_dir, 'QC', 'mask_to_fMRI_orig', root_RS + '_mask_final_in_fMRI_orig.png'))
+        plot_QC_func.plot_qc(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_deob.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_mask_final_in_fMRI_orig.nii.gz'), opj(bids_dir, 'QC', 'mask_to_fMRI_orig', root_RS + '_mask_final_in_fMRI_orig.png'))
 
     diary.close()

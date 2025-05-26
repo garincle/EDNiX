@@ -5,14 +5,14 @@ from bids import BIDSLayout
 from bids.reports import BIDSReport
 opn = os.path.normpath
 opj = os.path.join
-MAIN_PATH = '/srv/projects/easymribrain/code/EDNiX/'
+MAIN_PATH = opj('/srv/projects/easymribrain/code/EDNiX/')
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
 import fonctions._0_Pipeline_launcher
 
-species = 'Macaque'
+species = 'Marmoset'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Tools.Load_subject_with_BIDS.linux_path('/srv/projects/easymribrain/data/MRI/Macaque/BIDS_BenHamed')
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj('/scratch/cgarin/'+ species + '/MBMv4'))
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 atlas_dir = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", species)
 Lut_dir = opj(MAIN_PATH, "Atlas_library", "LUT_files")
@@ -32,14 +32,13 @@ Aseg_ref = config["paths"]["Aseg_ref"]
 Aseg_refLR = config["paths"]["Aseg_refLR"]
 
 ########### Subject loader with BIDS##############
-layout= BIDSLayout(bids_dir,  validate=True)
+layout= BIDSLayout(bids_dir,  validate=False)
 report = BIDSReport(layout)
 df = layout.to_df()
 df.head()
 
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
-
+allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
@@ -67,13 +66,19 @@ atlas_dfs = Tools.Read_atlas.extract_atlas_definitions(config)
     config["atlas_definitions"]["lvl4LR"]["atlas_file"])
 
 # Create combined lists
-list_atlases = [lvl1_file, lvl2_file, lvl3_file, lvl4_file,
-    lvl1LR_file, lvl2LR_file, lvl3LR_file, lvl4LR_file]
+list_atlases = [opj(atlas_dir, 'atlaslvl1.nii.gz'),
+                opj(atlas_dir, 'atlaslvl2.nii.gz'),
+                opj(atlas_dir, 'atlaslvl3.nii.gz'),
+                opj(atlas_dir, 'atlaslvl4.nii.gz'),
+                opj(atlas_dir, 'atlaslvl1_LR.nii.gz'),
+                opj(atlas_dir, 'atlaslvl2_LR.nii.gz'),
+                opj(atlas_dir, 'atlaslvl3_LR.nii.gz'),
+                opj(atlas_dir, 'atlaslvl4_LR.nii.gz')]
 
 overwrite_option = True #True or False overwrite previous analysis if in BIDS
 
 #### functional images paramters definition
-Slice_timing_info = '-tpattern seq-z'
+Slice_timing_info = '-tpattern altplus'
 correction_direction = 'Auto' # 'x', 'x-', 'y', 'y-', 'Auto', 'None'
 ### Dwell Time (necessery only if you want to appply TOPUP)
 DwellT = 'Auto' # 'value du calculate', 'Auto', 'None'
@@ -82,51 +87,50 @@ TRT = 'Auto'
 ### Slice encoding direction (SED) (necessery only if you want to restrict the transfo for anat to func)
 SED = 'Auto' #  "i", "i-", "j", "j-", "k", "k-", 'Auto', 'None'
 ### YOU NEED TO PROVIDE A TR if not in .json, otherwise it will fail
-TR = '2'  # 'value du calculate in s', 'Auto', 'None'
+TR = 'Auto'  # 'value du calculate in s', 'Auto', 'None'
 
 #### fMRI pre-treatment
 T1_eq = 5 # int
 REF_int = 0 # int
 ntimepoint_treshold = 100
-endfmri = '*_task-rest_*.nii.gz' # string
-endjson = '*_task-rest_*.json' # string
-endmap = '*_map.nii.gz' # string
+endfmri = '*_task-rest_run-LR*.nii.gz' # string
+endjson = '*_task-rest_run-LR*.json' # string
+endmap =  '*_task-rest_run-RL*.nii.gz' # string
 orientation = 'LPI' # string
-deoblique='header' #header or WARP_without_3drefit
+deoblique='no_deoblique' #header or WARP
 
 ## prior anatomical processing
 coregistration_longitudinal = False #True or False
-type_norm = 'T1w' # T1 or T2
+type_norm = 'T2w' # T1 or T2
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
-TfMRI = 'T1w' # string
+TfMRI = 'T2w' # string
 ### if you don't have any anatomical image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
 folderforTemplate_Anat = ''
 
 ## masking
 doMaskingfMRI = True # True or False
-Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = 'Custum_ANTS_Garin' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 costAllin = '' # string
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
-anat_func_same_space = False # True or False
+anat_func_same_space = True # True or False
 use_master_for_Allineate = False
 n_for_ANTS = 'hammingWindowedSinc' # string
 registration_fast = False
-type_of_transform = 'SyNOnly'
+type_of_transform = 'BOLDAffine'
 aff_metric_ants_Transl = 'mattes' # string
-aff_metric_ants = 'CC'
+aff_metric_ants = 'mattes'
 do_anat_to_func = True # True or False
 
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
 creat_study_template = False # True or False
 #folder where you stored the stdy template
-study_template_atlas_forlder = bids_dir + '/sty_template'
-# sting
+study_template_atlas_forlder = '/scratch/cgarin/Marmoset/BIDS_NIH/sty_template/'  # string
 stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_mask.nii.gz') # sting
 stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
-GM_mask_studyT = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'GM_mask.nii.gz') # sting
+GM_mask_studyT = opj(study_template_atlas_forlder, 'atlases', 'Gmask.nii.gz') # sting
 
 #######for melodic cleaning (step 6)
 ICA_cleaning = 'Skip'
@@ -149,11 +153,12 @@ use_erode_V_func_masks = False # True or False
 #Global signal regression ?
 extract_GS = False # True or False
 
+
 ### Band path filtering
 band = '0.01 0.1' # string
 normalize = 'Skip'
 #Smooth
-blur = 0 # float
+blur = 0 # float (changed from 1.5 to 0 as requested)
 #Dilate the functional brain mask by n layers
 dilate_mask = 0 # int
 #retrain the analysis to the gray matter instate of the brain
@@ -166,7 +171,7 @@ cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 
 SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
 erod_seed  = True
-smoothSBA = 3
+smoothSBA = 1.5  # Using old blur value (1.5) for smoothSBA as requested
 
 #######for matrix analysis (step 10)
 #### name of the atlases  you want to use for the matrix analysis

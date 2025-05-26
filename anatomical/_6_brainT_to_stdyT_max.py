@@ -25,7 +25,7 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Session, listTimage, n_for_ANTS,
+def brainT_to_T_max(aff_metric_ants_Transl, aff_metric_ants, creat_study_template, dir_prepro, ID, Session, listTimage, n_for_ANTS,
                     dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv,
                     study_template_atlas_forlder, otheranat, bids_dir, type_of_transform,
                     which_on, all_data_path_max, IgotbothT1T2, all_data_path,
@@ -52,7 +52,7 @@ def brainT_to_T_max(aff_metric_ants, creat_study_template, dir_prepro, ID, Sessi
     print(bcolors.OKGREEN + nl + bcolors.ENDC)
     diary.write(f'\n{nl}')
 
-    mtx1 = ants.registration(fixed=IMG, moving=REF, type_of_transform='Translation',
+    mtx1 = ants.registration(fixed=IMG, moving=REF, type_of_transform='Translation', aff_metric=aff_metric_ants_Transl,
                              outprefix=opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_max_shift_'))
 
     MEAN_tr = ants.apply_transforms(fixed=IMG, moving=REF, transformlist=mtx1['fwdtransforms'],

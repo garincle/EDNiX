@@ -10,7 +10,7 @@ import anatomical._0_Pipeline_launcher
 
 species = 'Marmoset'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj('/scratch/cgarin/', species, 'BIDS_NIH'))
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj('/scratch/cgarin/' + species + '/MBMv4'))
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 atlas_dir = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", species)
 Lut_dir = opj(MAIN_PATH, "Atlas_library", "LUT_files")
@@ -85,7 +85,7 @@ do_manual_crop = False
 overwrite_option = True
 
 check_visualy_final_mask = False
-deoblique='WARP_without_3drefit'
+deoblique='no_deoblique'
 
 n_for_ANTS='hammingWindowedSinc'
 type_of_transform = 'SyNCC'
@@ -95,21 +95,21 @@ aff_metric_ants = 'MI'
 ####Choose to normalize using T1 or T2
 type_norm = 'T2w' # T1 or T2
 otheranat = '' #NA if none
-orientation = 'LAI'
+orientation = 'LPI'
 BIDStype = 'sub-{ID}_ses-{Session}_{Timage}.nii*'
 
 ###masking
 masking_img = 'T2w'
-brain_skullstrip_1 ='CustumThreshold_50' # bet2_ANTS or MachinL
+brain_skullstrip_1 ='3dSkullStrip_marmoset' # bet2_ANTS or MachinL
 #precise
-brain_skullstrip_2 ='Vol_sammba_10000' # bet2_ANTS or MachinL
+brain_skullstrip_2 ='NoSkullStrip' # bet2_ANTS or MachinL
 do_fMRImasks = True
 fMRImasks = 'aseg' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
 Align_img_to_template = '@Align_Centers' #3dAllineate or No or @Align_Centers
 cost3dAllineate = 'lpa'
 
 #creat_study_template with type_norm img
-creat_study_template = True
+creat_study_template = False
 #do you want to use all the data or only the last one of each subject (for longitud inal co-registration)
 which_on = 'all' # all or max
 type_of_transform_stdyT = 'SyN'
@@ -117,7 +117,6 @@ aff_metric_ants_Transl_template = 'mattes'
 Atemplate_to_Stemplate = 'T2w'
 template_skullstrip = 'Custum_ANTS_Garin'
 do_surfacewith = 'T2w' #'T1' 'T1andT2'
-
 
 ### Block1: step 1,2 (orienting, cleaning images)
 ### Block1: step 3 (study template)
@@ -130,7 +129,7 @@ do_surfacewith = 'T2w' #'T1' 'T1andT2'
 ### Block3: step 16 (QC)
 ### Block3: step 100 (Clean)
 ### Block3: step 200 (QC itksnap)
-Skip_step = [1,2,3,10,11,12,13,14,15,100,200]
+Skip_step = [1,2,3,4,5,6,7,10,11,12,13,14,15,100,200]
 
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step,

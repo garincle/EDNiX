@@ -518,7 +518,6 @@ def anat_QC(BASE_SS_coregistr, Ref_file, type_norm, labels_dir, dir_prepro, ID, 
 
     for Timage in listTimage:
         direction = opj(labels_dir)
-        atlas_filename_rsp = opj(direction, type_norm + 'atlaslvl1_LRrspQC' + Timage + '.nii.gz')
         atlas_filename_orig = opj(direction, type_norm + 'atlaslvl1_LR.nii.gz')
         atlas_filename = opj(direction, type_norm + 'atlaslvl1_LR_rsp_anat.nii.gz')
         lines = []
@@ -526,7 +525,6 @@ def anat_QC(BASE_SS_coregistr, Ref_file, type_norm, labels_dir, dir_prepro, ID, 
         brain_mask = opj(masks_dir, Timage + 'brain_mask_final_QCrsp.nii.gz')
         output_results = opj(dir_prepro, 'QC_anat')
         template_in_anat = opj(dir_prepro,'template_in_anat_DC.nii.gz')
-
 
         if not ope(output_results):
             os.mkdir(output_results)
@@ -543,7 +541,42 @@ def anat_QC(BASE_SS_coregistr, Ref_file, type_norm, labels_dir, dir_prepro, ID, 
                           9: 'Allocortex', 10: 'Periallocortex', 11: 'Subcortical areas', 12: 'Diencephalon',
                           13: 'Brain stem'}
 
-                # Example usage
+                # Load the NIfTI images
+                img1 = nib.load(atlas_filename_orig)
+                img2 = nib.load(anat_filename)
+
+                # Extract headers
+                header1 = img1.header
+                header2 = img2.header
+
+                # Compare specific fields
+                fields_to_compare = ['dim', 'pixdim']
+                tolerance = 0.0000006
+                differences = {}
+                for field in fields_to_compare:
+                    value1 = header1[field][1:4]
+                    value2 = header2[field][1:4]
+                    if not np.allclose(value1, value2, atol=tolerance):
+                        differences[field] = (value1, value2)
+
+                # Print differences
+                if differences:
+                    print(bcolors.OKGREEN + "Differences found in the following fields:" + bcolors.ENDC)
+                    for field, values in differences.items():
+                        print(bcolors.OKGREEN + f"{field}:" + bcolors.ENDC)
+                        print(bcolors.OKGREEN + f"  Image 1: {values[0]}" + bcolors.ENDC)
+                        print(bcolors.OKGREEN + f"  Image 2: {values[1]}" + bcolors.ENDC)
+                        caca = nilearn.image.resample_to_img(atlas_filename_orig, anat_filename, interpolation='nearest')
+                        caca.to_filename(atlas_filename)
+                        extracted_data = nib.load(atlas_filename).get_fdata()
+                        labeled_img2 = nilearn.image.new_img_like(anat_filename, extracted_data, copy_header=True)
+                        labeled_img2.to_filename(atlas_filename)
+                else:
+                    print(bcolors.OKGREEN + "No differences found in the specified fields." + bcolors.ENDC)
+                    command = 'singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + atlas_filename_orig + \
+                              ' -prefix ' + atlas_filename + ' -expr "a"'
+                    spgo(command)
+
                 atlas_data = nib.load(atlas_filename).get_fdata()
                 atlas_data = np.rint(atlas_data).astype(np.int32)
                 anat_data = nib.load(anat_filename).get_fdata()

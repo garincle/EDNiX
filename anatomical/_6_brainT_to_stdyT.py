@@ -26,7 +26,7 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-def brainT_to_T(dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv,bids_dir, type_of_transform, aff_metric_ants,diary_file):
+def brainT_to_T(aff_metric_ants_Transl, dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, type_norm, BASE_SS_coregistr, Ref_file, volumes_dir, transfo_concat_inv,w2inv_inv,bids_dir, type_of_transform, aff_metric_ants,diary_file):
 
     ct = datetime.datetime.now()
     nl = 'Run anatomical._6_brainT_to_stdyT.brainT_to_T'
@@ -49,7 +49,7 @@ def brainT_to_T(dir_prepro, ID, Session, listTimage, n_for_ANTS, dir_transfo, ty
     print(bcolors.OKGREEN + nl + bcolors.ENDC)
     diary.write(f'\n{nl}')
 
-    mtx1 = ants.registration(fixed=IMG, moving=REF, type_of_transform='Translation',
+    mtx1 = ants.registration(fixed=IMG, moving=REF, type_of_transform='Translation', aff_metric=aff_metric_ants_Transl,
                              outprefix=opj(dir_transfo,'template_to_' + type_norm + '_SyN_final_shift_'))
     MEAN_tr = ants.apply_transforms(fixed=IMG, moving=REF, transformlist=mtx1['fwdtransforms'],
                                     interpolator=n_for_ANTS)

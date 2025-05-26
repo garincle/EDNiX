@@ -5,28 +5,26 @@ from bids import BIDSLayout
 from bids.reports import BIDSReport
 opn = os.path.normpath
 opj = os.path.join
-
-MAIN_PATH = r'/srv/projects/easymribrain'
-sys.path.append(opj(MAIN_PATH,'code','EasyMRI_brain-master'))
-
+MAIN_PATH = opj('/srv/projects/easymribrain/code/EDNiX/')
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
-import fonctions
+import fonctions._0_Pipeline_launcher
 
-species = 'RatWHS'
+species = 'Bat'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj('/scratch/cgarin/Rat/BIDS_Gd/'))
-FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
-atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2', species))
-Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"/home/cgarin/Documents/EDNiX_study/EDNiX/Atlas_library/LUT_files"))
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/data/MRI/Bat/BIDS_bat/'))
+FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
+atlas_dir = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", species)
+Lut_dir = opj(MAIN_PATH, "Atlas_library", "LUT_files")
 
 # Define your path variables
 path_vars = {'FS_dir': FS_dir,
     'atlas_dir': atlas_dir,
     'Lut_dir': Lut_dir}
-# Load and process config
-config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'data','Atlas','13_Atlas_project','Atlases_V2',
-                                                                                  'atlas_config_V2.json')), path_vars)
+# Load and process config.
+config_file_path = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", "atlas_config_V2.json")
+config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(config_file_path), path_vars)
+
 BASE_SS = config["paths"]["BASE_SS"]
 BASE_mask = config["paths"]["BASE_mask"]
 GM_mask = config["paths"]["GM_mask"]
@@ -35,21 +33,11 @@ Aseg_refLR = config["paths"]["Aseg_refLR"]
 
 ########### Subject loader with BIDS##############
 layout= BIDSLayout(bids_dir,  validate=True)
-###
-report = BIDSReport(layout)
-# Ask get() to return the ids of subjects that have T1w files #return_type='filename
-T1 = layout.get(return_type='filename', target='subject', suffix='T1w', extension='nii.gz')
-print(T1)
-# Ask get() to return the ids of subjects that have T1w files
-Bold = layout.get(return_type='filename', target='subject', suffix='bold', extension='nii.gz')
-# Convert the layout to a pandas dataframe
 df = layout.to_df()
 df.head()
 
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
-list_of_ones = [1] * len(allinfo_study_c)
-allinfo_study_c['session'] = list_of_ones
+allinfo_study_c = df[(df['task'] == 'restingstate') & (df['extension'] == '.nii')]
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -58,28 +46,8 @@ list_to_keep = []
 list_to_remove = []
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
-atlas_dfs = Tools.Read_atlas.extract_atlas_definitions(config)
-(lvl1, lvl1LR, lvl2, lvl2LR,
-    lvl3, lvl3LR, lvl4, lvl4LR) = (
-    atlas_dfs['lvl1'], atlas_dfs['lvl1LR'],
-    atlas_dfs['lvl2'], atlas_dfs['lvl2LR'],
-    atlas_dfs['lvl3'], atlas_dfs['lvl3LR'],
-    atlas_dfs['lvl4'], atlas_dfs['lvl4LR'])
-# Get all atlas file paths
-(lvl1_file, lvl1LR_file, lvl2_file, lvl2LR_file,
-    lvl3_file, lvl3LR_file, lvl4_file, lvl4LR_file) = (
-    config["atlas_definitions"]["lvl1"]["atlas_file"],
-    config["atlas_definitions"]["lvl1LR"]["atlas_file"],
-    config["atlas_definitions"]["lvl2"]["atlas_file"],
-    config["atlas_definitions"]["lvl2LR"]["atlas_file"],
-    config["atlas_definitions"]["lvl3"]["atlas_file"],
-    config["atlas_definitions"]["lvl3LR"]["atlas_file"],
-    config["atlas_definitions"]["lvl4"]["atlas_file"],
-    config["atlas_definitions"]["lvl4LR"]["atlas_file"])
-
 # Create combined lists
-list_atlases = [lvl1_file, lvl2_file, lvl3_file, lvl4_file,
-    lvl1LR_file, lvl2LR_file, lvl3LR_file, lvl4LR_file]
+list_atlases = [opj(atlas_dir, 'TTS.nii.gz')]
 
 overwrite_option = True #True or False overwrite previous analysis if in BIDS
 
@@ -93,23 +61,23 @@ TRT = 'None'
 ### Slice encoding direction (SED) (necessery only if you want to restrict the transfo for anat to func)
 SED = 'Auto' #  "i", "i-", "j", "j-", "k", "k-", 'Auto', 'None'
 ### YOU NEED TO PROVIDE A TR if not in .json, otherwise it will fail
-TR = 'Auto'  # 'value du calculate in s', 'Auto', 'None'
+TR = '2'  # 'value du calculate in s', 'Auto', 'None'
 
 #### fMRI pre-treatment
 T1_eq = 5 # int
 REF_int = 0 # int
 ntimepoint_treshold = 100
-endfmri = '*_task-rest_bold.nii.gz' # string
-endjson = '*_task-rest_bold.json' # string
-endmap = '*_map.nii.gz' # string
-orientation = 'RIP' # string
-deoblique='WARP_without_3drefit' #header or WARP
+endfmri = '*_task-restingstate_*.nii' # string
+endjson = '*_task-restingstate_*.json' # string
+endmap = '*fMRI_epi.nii.gz' # string
+orientation = 'LSP' # string
+deoblique='header' #header or WARP
 
 ## prior anatomical processing
 coregistration_longitudinal = False #True or False
-type_norm = 'T2w' # T1 or T2
+type_norm = 'acq-coronal_T2w' # T1 or T2
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
-TfMRI = 'T2w' # string
+TfMRI = 'acq-coronal_T2w' # string
 ### if you don't have any anatomical image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
 folderforTemplate_Anat = ''
 
@@ -120,17 +88,18 @@ costAllin = 'ls' # string
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
-anat_func_same_space = True # True or False
+anat_func_same_space = False # True or False
+use_master_for_Allineate = False
 n_for_ANTS = 'hammingWindowedSinc' # string
 registration_fast = False
-type_of_transform = 'SyNRA'
+type_of_transform = 'SyNBoldAff'
 aff_metric_ants_Transl = 'mattes' # string
 aff_metric_ants = 'MI'
-do_anat_to_func = False # True or False
+do_anat_to_func = True # True or False
 
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
-creat_study_template = False # True or False
+creat_study_template = True # True or False
 #folder where you stored the stdy template
 study_template_atlas_forlder = bids_dir + '/sty_template'
 # sting
@@ -180,8 +149,8 @@ smoothSBA = 0.4
 
 #######for matrix analysis (step 10)
 #### name of the atlases  you want to use for the matrix analysis
-selected_atlases_matrix = list_atlases.copy()
-segmentation_name_list = [lvl1, lvl2, lvl3, lvl4, lvl1LR, lvl2LR, lvl3LR, lvl4LR]
+selected_atlases_matrix = []
+segmentation_name_list = []
 
 #######for seed analysis (step 11)
 # threshold_val is the percentage of the correlation image that will be removed
@@ -190,18 +159,17 @@ threshold_val = 10 # int
 oversample_map = False # True or False
 
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
-selected_atlases = ['atlaslvl4_LR.nii.gz']  # Using NEW VERSION format (single atlas)
-panda_files = [pd.DataFrame({'region':['retrosplenial'],'label':[162]})]  # Using NEW VERSION format (single DataFrame)
+selected_atlases = ['TTS.nii.gz'] #liste
+panda_files = [pd.DataFrame({'region':['TTS'],'label':[1]})] # liste of pandas dataframe
 
 #For QC value to define specific and non-spe correlation
-specific_roi_tresh = 0.1 # Changed from 0.4 to 0.1 as requested
-unspecific_ROI_thresh = 0.1 # Changed from 0.2 to 0.1 as requested
-
+specific_roi_tresh = 0.2
+delta_thresh = 0.1
 ############ Right in a list format the steps that you want to skip
-Skip_step = [4,100,200] # Changed to match requested values
+Skip_step = [4,12,14,100,200]
 
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
-                                               BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
+                                               BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space, use_master_for_Allineate,
                                                correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
                                                TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
                                                dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
@@ -209,5 +177,5 @@ fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_pat
                                                oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step,
                                                bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
                                                folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list, band,
-                                               extract_Vc, selected_atlases_matrix, specific_roi_tresh, unspecific_ROI_thresh, extract_GS, MAIN_PATH,
+                                               extract_Vc, selected_atlases_matrix, specific_roi_tresh, delta_thresh, extract_GS, MAIN_PATH,
                                                DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, FS_dir, normalize)
