@@ -20,7 +20,7 @@ opd = os.path.dirname
 ope = os.path.exists
 
 # Define paths
-BIDS_DIR = '/srv/projects/easymribrain/data/MRI/Dog/BIDS_k9'
+BIDS_DIR = '/srv/projects/easymribrain/data/MRI/Rat/BIDS_GdGSR/'
 OUTPUT_DIR = opj(BIDS_DIR, "group_qc_analysis_raw")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -220,6 +220,8 @@ def create_comprehensive_report(df, output_dir):
                 label += f"\n{row['session']}"
             labels.append(label)
 
+        summary_path = opj(OUTPUT_DIR, "outlier_summary_report.csv")
+        subject_outliers.to_csv(summary_path, index=False)
         # Plot
         sns.barplot(x='subject', y='outlier_count', hue='session',
                     data=subject_outliers, palette='viridis', dodge=False, ax=ax_b)

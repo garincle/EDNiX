@@ -210,6 +210,8 @@ def create_comprehensive_report(df, output_dir):
                 label += f"\n{row['session']}"
             labels.append(label)
 
+        summary_path = opj(OUTPUT_DIR, "outlier_summary_report.csv")
+        subject_outliers.to_csv(summary_path, index=False)
         # Plot
         sns.barplot(x='subject', y='outlier_count', hue='session',
                     data=subject_outliers, palette='viridis', dodge=False, ax=ax_b)

@@ -19,8 +19,8 @@ ope = os.path.exists
 MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
 sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
 import Tools.Load_subject_with_BIDS
-bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Desktop\BIDS_k9"))
-output_path = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Desktop\BIDS_k9\QC_report"))
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj("/srv/projects/easymribrain/data/MRI/Rat/BIDS_Gd/"))
+output_path = Tools.Load_subject_with_BIDS.linux_path(opj("/srv/projects/easymribrain/data/MRI/Rat/BIDS_Gd/"))
 
 
 # Create output directories
