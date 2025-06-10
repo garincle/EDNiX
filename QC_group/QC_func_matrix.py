@@ -20,7 +20,7 @@ opd = os.path.dirname
 ope = os.path.exists
 
 # Define paths
-BIDS_DIR = '/srv/projects/easymribrain/data/MRI/Rat/BIDS_Gd'
+BIDS_DIR = '/srv/projects/easymribrain/data/MRI/Rat/BIDS_GdGSR/'
 OUTPUT_DIR = opj(BIDS_DIR, "group_qc_analysis")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -196,6 +196,7 @@ def create_comprehensive_report(df, output_dir):
 
     if outlier_counts:
         outlier_df = pd.DataFrame(outlier_counts)
+
         subject_outliers = outlier_df.groupby(['subject', 'session']).size().reset_index(name='outlier_count')
 
         # Include subjects with 0 outliers
@@ -210,6 +211,9 @@ def create_comprehensive_report(df, output_dir):
             if row['session'] != 'no_session':
                 label += f"\n{row['session']}"
             labels.append(label)
+
+        summary_path = opj(OUTPUT_DIR, "outlier_summary_report.csv")
+        subject_outliers.to_csv(summary_path, index=False)
 
         # Plot
         sns.barplot(x='subject', y='outlier_count', hue='session',
