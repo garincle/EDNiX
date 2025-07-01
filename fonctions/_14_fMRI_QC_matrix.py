@@ -11,7 +11,7 @@ from sklearn.cluster import SpectralClustering
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 import shutil
 from fonctions.extract_filename import extract_filename
-
+import time
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -506,9 +506,15 @@ def fMRI_QC_matrix(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMR
         os.makedirs(out_results, exist_ok=True)
 
         out_results_V = opj(out_results, 'fMRI_QC_matrix')
+        # Try to remove directory if it exists
         if ope(out_results_V):
-            shutil.rmtree(out_results_V)
-        os.makedirs(out_results_V)
+            shutil.rmtree(out_results_V, ignore_errors=True)
+            # Wait a bit to avoid race condition (especially on network filesystems)
+            time.sleep(0.1)
+
+        # Ensure it's gone before recreating
+        if not ope(out_results_V):
+            os.makedirs(out_results_V)
 
         for i in range(int(nb_run)):
             root_RS = extract_filename(RS[i])

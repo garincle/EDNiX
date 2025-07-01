@@ -69,6 +69,17 @@ def fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orient
         with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO[:-7] + '.json'), "w") as outfile:
             outfile.write(json_object)
 
+    elif deoblique == 'WARPbaboon':
+        command = 'singularity run' + s_bind + afni_sif + '3drefit ' + overwrite + ' -deoblique -duporigin ' + opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI) + '  -orient ' + orientation + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI)
+        nl = spgo(command)
+
+        shutil.copyfile(opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI), opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO))
+        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgI),
+                      "Description": ' deoblique and Change header orientation (3drefit,AFNI', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO[:-7] + '.json'), "w") as outfile:
+            outfile.write(json_object)
+
     diary.write(f'\n{nl}')
     print(nl)
     diary.write(f'\n')

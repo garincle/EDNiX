@@ -1,42 +1,58 @@
 import os
-import subprocess
-import sys
+import pandas as pd
 from bids import BIDSLayout
 from bids.reports import BIDSReport
-MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
-sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
+opn = os.path.normpath
+opj = os.path.join
+MAIN_PATH = opj('/srv/projects/easymribrain/code/EDNiX/')
+import Tools.Load_subject_with_BIDS
+import Tools.Read_atlas
 import analyses._Group_anal__func_DicLearn
 import analyses._Group_anal_3dTtest
 import analyses._Group_anal_3dLMEr_Mirror
 import Launcher_analysis.Load_BIDS_data_for_analysis
-import Tools.Load_subject_with_BIDS
-import Tools.Read_atlas
-#Path to the excels files and data structure
-opj = os.path.join
-opb = os.path.basename
-opn = os.path.normpath
-opd = os.path.dirname
-ope = os.path.exists
-spco = subprocess.check_output
-spgo = subprocess.getoutput
-
-MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
-sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
 
 species = 'CatinDog'
+## linux ##
 # Override os.path.join to always return Linux-style paths
-bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Desktop\BIDS_k9"))
-FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
-atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2", species))
-Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\LUT_files"))
+bids_dir = '/srv/projects/easymribrain/data/MRI/Dog/BIDS_k9'
+FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
+atlas_dir = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", species)
+Lut_dir = opj(MAIN_PATH, "Atlas_library", "LUT_files")
 
 # Define your path variables
 path_vars = {'FS_dir': FS_dir,
     'atlas_dir': atlas_dir,
     'Lut_dir': Lut_dir}
-# Load and process config
-config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Documents\EDNiX\Atlas_library\Atlases_V2",
-                                                                                  'atlas_config_V2.json')), path_vars)
+# Load and process config.
+config_file_path = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", "atlas_config_V2.json")
+config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(config_file_path), path_vars)
+
+BASE_SS = config["paths"]["BASE_SS"]
+BASE_mask = config["paths"]["BASE_mask"]
+GM_mask = config["paths"]["GM_mask"]
+Aseg_ref = config["paths"]["Aseg_ref"]
+Aseg_refLR = config["paths"]["Aseg_refLR"]
+
+########### Subject loader with BIDS##############
+layout= BIDSLayout(bids_dir,  validate=True)
+df = layout.to_df()
+df.head()
+
+#### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
+allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
+list_of_ones = [1] * len(allinfo_study_c)
+allinfo_study_c['session'] = list_of_ones
+
+### select the subject, session to process
+Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
+# choose if you want to select or remove ID from you analysis
+list_to_keep = []
+list_to_remove = []
+all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = (
+    Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove))
+
+
 BASE_SS = config["paths"]["BASE_SS"]
 BASE_mask = config["paths"]["BASE_mask"]
 GM_mask = config["paths"]["GM_mask"]
@@ -65,8 +81,9 @@ allinfo_study_c['session'] = list_of_ones
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
-list_to_remove = ['01',  '02', '05', '09', '22', '28', '34']
-all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
+list_to_remove = []
+all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = (
+    Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove))
 
 # Extract all atlas definitions as DataFrames and get their file paths
 atlas_dfs = Tools.Read_atlas.extract_atlas_definitions(config)
@@ -96,6 +113,10 @@ list_atlases = [lvl1_file, lvl2_file, lvl3_file, lvl4_file,
 selected_atlases = [lvl3LR_file, lvl4LR_file]  # Your selected atlases for SBA
 panda_files = [lvl3LR, lvl4LR]  # DataFrames for levels 3 and 4
 
+import pandas as pd
+selected_atlases = ['atlaslvl4_LR.nii.gz', 'registered_bodiesfaces_mask.nii', 'registered_bodiesfaces_LR.nii']  # Your selected atlases for SBA
+panda_files = [pd.DataFrame({'region': ['retrosplenial'], 'label': [162]}), pd.DataFrame({'region': ['bodies-faces'], 'label': [1]}),
+    pd.DataFrame({'region': ['R_bodies-faces', 'L_bodies-faces'], 'label': [2, 1]})]
 
 ntimepoint_treshold = 100
 endfmri = '*_task-rest_*.nii.gz' # string
@@ -105,7 +126,7 @@ oversample_map = True
 oversample_dictionary = False
 min_size = 10
 cut_coords = 10
-alpha = 0.00000000001
+alpha = 0.0001
 alpha_dic = 11
 component_list = [7, 17]
 lower_cutoff = 0.1
@@ -131,8 +152,8 @@ visualize = 'percentile'
 percent = 10
 
 templatehigh = opj(r'/mnt/c/Users/cgarin/Documents/EDNiX/Atlas_library/Atlases_V2/CatinDog/template_SS.nii.gz')
-analyses._Group_anal__func_DicLearn.dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, oversample_dictionary,
-              bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, templatelow, templatehigh, TR, smoothing)
+#analyses._Group_anal__func_DicLearn.dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, oversample_dictionary,
+#              bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, templatelow, templatehigh, TR, smoothing)
 
 templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_T1w/study_template.nii.gz')
 analyses._Group_anal_3dTtest._3dttest_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, cut_coords, panda_files, selected_atlases,

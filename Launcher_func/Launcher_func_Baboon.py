@@ -1,5 +1,6 @@
-import os
 import pandas as pd
+import os
+import sys
 from bids import BIDSLayout
 from bids.reports import BIDSReport
 opn = os.path.normpath
@@ -8,29 +9,10 @@ MAIN_PATH = opj('/srv/projects/easymribrain/code/EDNiX/')
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
 import fonctions._0_Pipeline_launcher
-species = 'CatinDog'
-### windows ###
-'''
-MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
-sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
-# Override os.path.join to always return Linux-style paths
-bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r'/mnt/c/Users/cgarin/Desktop/BIDS_k9"))
-FS_dir    = Tools.Load_subject_with_BIDS.linux_path(opj(MAIN_PATH,'FS_Dir_tmp'))
-atlas_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2", species))
-Lut_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/EDNiX/Atlas_library/LUT_files"))
 
-# Define your path variables
-path_vars = {'FS_dir': FS_dir,
-    'atlas_dir': atlas_dir,
-    'Lut_dir': Lut_dir}
-# Load and process config
-config = Tools.Read_atlas.load_config(Tools.Load_subject_with_BIDS.linux_path(opj(r"/mnt/e/EDNiX_study/Atlas/13_Atlas_project/Atlases_V2",
-                                                                                  'atlas_config_V2.json')), path_vars)
-'''
-
-## linux ##
+species = 'Baboon'
 # Override os.path.join to always return Linux-style paths
-bids_dir = '/srv/projects/easymribrain/data/MRI/Dog/BIDS_k9'
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/data/MRI/Baboon/BIDS_merg/'))
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 atlas_dir = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", species)
 Lut_dir = opj(MAIN_PATH, "Atlas_library", "LUT_files")
@@ -50,24 +32,20 @@ Aseg_ref = config["paths"]["Aseg_ref"]
 Aseg_refLR = config["paths"]["Aseg_refLR"]
 
 ########### Subject loader with BIDS##############
-layout= BIDSLayout(bids_dir,  validate=True)
+layout= BIDSLayout(bids_dir,  validate=False)
 df = layout.to_df()
 df.head()
 
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
-list_of_ones = [1] * len(allinfo_study_c)
-allinfo_study_c['session'] = list_of_ones
+allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
 list_to_remove = []
-all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = (
-    Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove))
+all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
-# Extract all atlas definitions as DataFrames and get their file paths
 atlas_dfs = Tools.Read_atlas.extract_atlas_definitions(config)
 (lvl1, lvl1LR, lvl2, lvl2LR,
     lvl3, lvl3LR, lvl4, lvl4LR) = (
@@ -75,7 +53,6 @@ atlas_dfs = Tools.Read_atlas.extract_atlas_definitions(config)
     atlas_dfs['lvl2'], atlas_dfs['lvl2LR'],
     atlas_dfs['lvl3'], atlas_dfs['lvl3LR'],
     atlas_dfs['lvl4'], atlas_dfs['lvl4LR'])
-
 # Get all atlas file paths
 (lvl1_file, lvl1LR_file, lvl2_file, lvl2LR_file,
     lvl3_file, lvl3LR_file, lvl4_file, lvl4LR_file) = (
@@ -90,7 +67,7 @@ atlas_dfs = Tools.Read_atlas.extract_atlas_definitions(config)
 
 # Create combined lists
 list_atlases = [lvl1_file, lvl2_file, lvl3_file, lvl4_file,
-    lvl1LR_file, lvl2LR_file, lvl3LR_file, lvl4LR_file, '/srv/projects/easymribrain/code/EDNiX/Atlas_library/Atlases_V2/CatinDog/registered_bodiesfaces_mask.nii', '/srv/projects/easymribrain/code/EDNiX/Atlas_library/Atlases_V2/CatinDog/registered_bodiesfaces_LR.nii']
+    lvl1LR_file, lvl2LR_file, lvl3LR_file, lvl4LR_file]
 
 overwrite_option = True #True or False overwrite previous analysis if in BIDS
 
@@ -112,9 +89,9 @@ REF_int = 0 # int
 ntimepoint_treshold = 100
 endfmri = '*_task-rest_*.nii.gz' # string
 endjson = '*_task-rest_*.json' # string
-endmap = '*_map.nii.gz' # string
-orientation = 'RPI' # string
-deoblique='header' #header or WARP
+endmap = '*fMRI_epi.nii.gz' # string
+orientation = 'LPI' # string
+deoblique='WARPbaboon' #header or WARP
 
 ## prior anatomical processing
 coregistration_longitudinal = False #True or False
@@ -126,8 +103,8 @@ folderforTemplate_Anat = ''
 
 ## masking
 doMaskingfMRI = True # True or False
-Method_mask_func = '3dSkullStrip_dog' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
-costAllin = '' # string
+Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+costAllin = 'lpc+' # string
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
@@ -135,17 +112,16 @@ anat_func_same_space = False # True or False
 use_master_for_Allineate = False
 n_for_ANTS = 'hammingWindowedSinc' # string
 registration_fast = False
-type_of_transform = 'SyNBold'
-aff_metric_ants_Transl = 'mattes'
+type_of_transform = 'SyNRA'
+aff_metric_ants_Transl = 'mattes' # string
 aff_metric_ants = 'MI'
 do_anat_to_func = True # True or False
 
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
-creat_study_template = True # True or False
+creat_study_template = False # True or False
 #folder where you stored the stdy template
-study_template_atlas_forlder = bids_dir + '/sty_template'
-# sting
+study_template_atlas_forlder = '/scratch/cgarin/Mouse_lemur/BIDS_CG/sty_template/'  # sting
 stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_mask.nii.gz') # sting
 stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
 GM_mask_studyT = opj(study_template_atlas_forlder, 'atlases', 'Gmask.nii.gz') # sting
@@ -176,6 +152,7 @@ band = '0.01 0.1' # string
 normalize = 'Skip'
 #Smooth
 blur = 0 # float
+smoothSBA = 3
 #Dilate the functional brain mask by n layers
 dilate_mask = 0 # int
 #retrain the analysis to the gray matter instate of the brain
@@ -186,9 +163,8 @@ cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
 cut_coordsY = [-7, -6, -5, -3, -2, 0, 1, 3, 4, 5] #list of int
 cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 
-SBAspace = ['atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
+SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
 erod_seed  = True
-smoothSBA = 4
 
 #######for matrix analysis (step 10)
 #### name of the atlases  you want to use for the matrix analysis
@@ -199,24 +175,18 @@ segmentation_name_list = [lvl1, lvl2, lvl3, lvl4, lvl1LR, lvl2LR, lvl3LR, lvl4LR
 # threshold_val is the percentage of the correlation image that will be removed
 threshold_val = 10 # int
 ##use high quality anat image as background for figures
-oversample_map = False # True or Falsecorrection_direction
-
+oversample_map = False # True or False
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
-#selected_atlases = [lvl3LR_file, lvl4LR_file]  # Your selected atlases for SBA
-#panda_files = [lvl3LR, lvl4LR]  # DataFrames for levels 3 and 4
+selected_atlases = ['atlaslvl4_LR.nii.gz']  # Using NEW VERSION format (single atlas)
+panda_files = [pd.DataFrame({'region':['retrosplenial'],'label':[162]})]  # Using NEW VERSION format (single DataFrame)
 
-selected_atlases = ['atlaslvl4_LR.nii.gz', 'registered_bodiesfaces_mask.nii', 'registered_bodiesfaces_LR.nii', 'registered_bodiesfaces_LR.nii']  # Your selected atlases for SBA
-panda_files = [
-    pd.DataFrame({'region': ['retrosplenial'], 'label': [162]}),
-    pd.DataFrame({'region': ['bodies-faces'], 'label': [1]}),
-    pd.DataFrame({'region': ['L_bodies-faces'], 'label': [1]}),
-    pd.DataFrame({'region': ['R_bodies-faces'], 'label': [2]})]
 #For QC value to define specific and non-spe correlation
 specific_roi_tresh = 0.2
 delta_thresh = 0.1
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,5,6,7,8,10,12,13,14,15,100,200]
+Skip_step = [100,200] # Changed to match requested values
+
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
                                                BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space, use_master_for_Allineate,
                                                correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,

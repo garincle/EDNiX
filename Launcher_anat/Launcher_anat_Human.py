@@ -8,9 +8,9 @@ import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
 import anatomical._0_Pipeline_launcher
 
-species = 'Human'  
+species = 'Human'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Desktop\BIDS_k9"))  # Will be replaced from OLD
+bids_dir = '/srv/projects/easymribrain/data/MRI/Human/BIDS_Rutgers/'
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 atlas_dir = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", species)
 Lut_dir = opj(MAIN_PATH, "Atlas_library", "LUT_files")
@@ -31,13 +31,12 @@ Aseg_refLR = config["paths"]["Aseg_refLR"]
 FreeSlabel_ctab = config["lookup_tables"]["FreeSlabel_ctab_list"]
 
 ########### Subject loader with BIDS##############
-layout= BIDSLayout(bids_dir,  validate=True)
-report = BIDSReport(layout)
+layout= BIDSLayout(bids_dir,  validate=False)
 df = layout.to_df()
 df.head()
 
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
+allinfo_study_c = df[(df['suffix'] == 'T1w') & (df['extension'] == '.nii.gz')]
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -92,14 +91,14 @@ aff_metric_ants_Transl = 'mattes'
 aff_metric_ants = 'mattes' 
 
 ####Choose to normalize using T1 or T2
-type_norm = 'acq-VNav_T1w'  
-otheranat = 'acq-VNav_T2w'  
+type_norm = 'acq-HCP_T1w'
+otheranat = ''
 orientation = 'RPI'  
 BIDStype = 2
 
 ###masking
-masking_img = 'acq-VNav_T2w'  
-brain_skullstrip_1 ='_bet0.45'  
+masking_img = 'acq-HCP_T1w'
+brain_skullstrip_1 ='_bet0.30'
 #precise
 brain_skullstrip_2 ='synthstrip'  
 do_fMRImasks = True
@@ -128,7 +127,7 @@ do_surfacewith = 'T1andT2'
 ### Block3: step 16 (QC)
 ### Block3: step 100 (Clean)
 ### Block3: step 200 (QC itksnap)
-Skip_step = [100,200]
+Skip_step = [10,11,12,13,14,15,100,200]
 
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step,

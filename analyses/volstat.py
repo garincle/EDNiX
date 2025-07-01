@@ -5,7 +5,19 @@ import numpy as np
 import pandas as pd
 import nibabel as nib
 import matplotlib.pyplot as plt
+import Tools.Load_EDNiX_requirement
 
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import statsmodels.formula.api as smf
+from statsmodels.tools.sm_exceptions import ConvergenceWarning
+import warnings
+from os.path import join as opj
+
+warnings.filterwarnings('ignore')
 ##########################################
 ########### Subject loader################
 ##########################################
@@ -26,9 +38,12 @@ spgo = subprocess.getoutput
 #################################################################################################
 
 ##################################################################find the values that are droped because too small
-def extractVol(s_bind, afni_sif, Pd_allinfo_study, regressor_list, all_ID, all_Session, all_data_path, type_norm, segmentation_name_list, segmentation_ID_list, atlas_names_Seg_list, atlas_ref_list, bids_dir):
+def extractVol(MAIN_PATH, FS_dir, allinfo_study_c, regressor_list, all_ID, all_Session, all_data_path, type_norm, segmentation_name_list,
+               segmentation_ID_list, atlas_names_Seg_list, list_atlases, bids_dir):
 
-    for segmentation, IDSEG, atlas_ref, atlas_names_Seg in zip(atlas_names_Seg_list, segmentation_ID_list, atlas_ref_list, segmentation_name_list):
+    s_path, afni_sif, fsl_sif, fs_sif, itk_sif, wb_sif, strip_sif, s_bind = Tools.Load_EDNiX_requirement.load_requirement(
+        MAIN_PATH, bids_dir, FS_dir)
+    for segmentation, IDSEG, atlas_ref, atlas_names_Seg in zip(atlas_names_Seg_list, segmentation_ID_list, list_atlases, segmentation_name_list):
 
         atlasval = nib.load(atlas_ref).get_fdata()
         label_atlas = np.unique(atlasval)
@@ -56,8 +71,10 @@ def extractVol(s_bind, afni_sif, Pd_allinfo_study, regressor_list, all_ID, all_S
 
             command = 'singularity run' + s_bind + afni_sif + '3dhistog -int ' + label_img
             table = spgo(command)
+            # Remove the first line (AFNI version info)
+            table = table.split('\n', 1)[1]  # Split on first newline and keep everything after it
 
-            with open(txtfile, 'wb') as myfile:
+            with open(txtfile, 'w') as myfile:
                 myfile.write(table)
 
             data = pd.read_table(txtfile, delim_whitespace=True)
@@ -122,210 +139,175 @@ def extractVol(s_bind, afni_sif, Pd_allinfo_study, regressor_list, all_ID, all_S
             # extract their index in the atlas and in the file
             list_volume_index_indexesall = []
             label_atlas_index_indexesall = []
+
             for val in uniqueValues:
-                ttt = np.argwhere(list_volume_index==val)
-                list_volume_index_indexesall = np.append(list_volume_index_indexesall, ttt)
-                ddd = np.argwhere(label_atlas==val)
-                label_atlas_index_indexesall = np.append(label_atlas_index_indexesall, ddd)
+                ttt = np.argwhere(list_volume_index == val).flatten()
+                list_volume_index_indexesall.extend(ttt.tolist())
+                ddd = np.argwhere(label_atlas == val).flatten()
+                label_atlas_index_indexesall.extend(ddd.tolist())
 
-            # keep the names of the regions included in the atlas
-            list_name_atlas_final = atlas_names_Seg[~atlas_names_Seg.label.isin(label_atlas_index_indexesall)]
+            # Convert to numpy arrays of integer type
+            list_volume_index_indexesall = np.array(list_volume_index_indexesall, dtype=int)
+            label_atlas_index_indexesall = np.array(label_atlas_index_indexesall, dtype=int)
 
-            ####indiv
-            # remvove them from the sub index
+            # Filter the atlas names
+            filtered_df = atlas_names_Seg[atlas_names_Seg['label'].isin(label_atlas)].reset_index(drop=True)
+
+            # Keep the names of regions NOT in the atlas (opposite logic?)
+            list_name_atlas_final = filtered_df[~filtered_df.label.isin(label_atlas_index_indexesall)]
+
+            # Remove regions from sub-index
             list_volume_final = np.delete(np.array(list_volume), list_volume_index_indexesall)[1:]
             list_index_final = np.delete(np.array(list_volume_index), list_volume_index_indexesall)[1:]
+
             final_pd_orig = pd.DataFrame({'values': list_volume_final, 'label': list_index_final})
             data_volumes = pd.merge(final_pd_orig, list_name_atlas_final, on='label').transpose()
             data_volumes.columns = data_volumes.loc['region']
             data_volumes = data_volumes.drop(index=['region', 'label'])
-            IDsession = pd.DataFrame([[ID, Session]], columns=['ID', 'Session'], index=['values'])
+            IDsession = pd.DataFrame([[ID, Session]], columns=['subject', 'session'], index=['values'])
 
             ########concatenate all volume files
             data_volumes2 = data_volumes.join(IDsession)
-            data_volumes3 = data_volumes2.set_index(['Session', 'ID'])
+            data_volumes3 = data_volumes2.set_index(['session', 'subject'])
             all_data_volumes = pd.concat([all_data_volumes, data_volumes3])
 
         ####################################################################contat that the excel array
-        allinfo_study = Pd_allinfo_study.set_index(['Session', 'ID'])
-        result = pd.merge(allinfo_study, all_data_volumes, on=['ID', 'Session'])
+        allinfo_study = allinfo_study_c.set_index(['session', 'subject'])
+        result = pd.merge(allinfo_study, all_data_volumes, on=['subject', 'session'])
 
-        for regressor in regressor_list:
-            out_results = opj(bids_dir, 'Results')
-            if not os.path.exists(out_results): os.mkdir(out_results)
-            out_results_V = opj(out_results, 'Volumes')
-            if not os.path.exists(out_results_V): os.mkdir(out_results_V)
-            out_results_V = out_results_V + '/' + IDSEG
-            if not os.path.exists(out_results_V): os.mkdir(out_results_V)
-            out_results_V = out_results_V + '/' + regressor
-            if not os.path.exists(out_results_V): os.mkdir(out_results_V)
-            result.to_excel(out_results_V + '/' + IDSEG + '.xlsx')
-            result.reset_index(inplace=True)
+        sns.set(style="whitegrid")
+        plt.switch_backend('Agg')
 
-            if IDSEG == 'Aseg_mac':
-                out_results_Aseg_mac = out_results_V
-                result['White_Matter'] = result['Cerebral_White_Matter_R'] + result['Cerebral_White_Matter_L']
-                result['SC'] = result['Thalamus_Proper_L'] + result['Caudate_L'] + result['Putamen_L'] + result['Pallidum_L'] + \
-                               result['Accumbens_area_L'] + result['VentralDC_L'] + result['Thalamus_Proper_R'] + result['Caudate_R'] + \
-                               result['Putamen_R'] + result['Pallidum_R'] + result['Accumbens_area_R'] + result['VentralDC_R']
-                result['Cortex'] = result['Cerebral_Cortex_R'] + result['Cerebral_Cortex_L']
-                result['Hippocampus'] = result['Hippocampus_L'] + result['Hippocampus_R']
-                result['Amygdala'] = result['Amygdala_L'] + result['Amygdala_R']
-                result['Cerebellum_White_Matter'] = result['Cerebellum_White_Matter_L'] + result['Cerebellum_White_Matter_R']
-                result['Cerebellum_Cortex'] = result['Cerebellum_Cortex_L'] + result['Cerebellum_Cortex_R']
+        def plot_longitudinal_results(result, regressor_list, list_name_atlas_final, IDSEG, bids_dir):
+            # --- Handle subject column ---
+            if isinstance(result.index, pd.MultiIndex) or 'subject' in result.index.names:
+                result = result.reset_index()
 
+            if 'subject' not in result.columns:
+                raise ValueError("The dataframe must contain a 'subject' column.")
 
-            for n, region in enumerate(list(list_name_atlas_final['region'])):
-                x =regressor
-                y = str(region)
-                subject = 'ID'
+            result['subject'] = result['subject'].astype(str)
+            print("Available columns after subject handling:", result.columns.tolist())
 
-                data = result[[x, y, subject]].dropna(axis=0)
+            # --- Convert region columns to numeric ---
+            roi_list = list_name_atlas_final['region'].astype(str).tolist()
+            for col in roi_list:
+                if col in result.columns:
+                    result[col] = pd.to_numeric(result[col], errors='coerce')
 
-                for key, grp in data.groupby(subject):
-                    plt.plot(grp[x], grp[y], 'o-', label=key)
-                plt.legend(bbox_to_anchor=(1.04, 0.5), loc="center left", borderaxespad=0)
-                plt.tight_layout()
-                plt.subplots_adjust(bottom=0.13)
-                plt.xlabel(regressor)
-                plt.savefig(out_results_V + '/' + region + '.jpg', dpi=300)
-                plt.close('all')
+            # --- Loop over regressors ---
+            for regressor in regressor_list:
+                out_path = opj(bids_dir, 'Results', 'Volumes', IDSEG, regressor)
+                os.makedirs(out_path, exist_ok=True)
 
-            ############################################################################
-            ################### whole brain Session 1###################################
-            ############################################################################
-            file_path = out_results_Aseg_mac + '/Aseg_mac.xlsx'
-            result2 = result.copy()
-            if os.path.exists(file_path):
+                result.to_excel(opj(out_path, f'{IDSEG}.xlsx'), index=False)
 
-                result3 = pd.read_excel(file_path)
-                result3['ID'] = result3['ID'].fillna(method='ffill')
+                # --- Loop over ROIs ---
+                for region in roi_list:
+                    if region not in result.columns:
+                        print(f"Skipping {region} - not found in results")
+                        continue
 
-                result2['Whole_Brain'] = result3['Cerebral_White_Matter_L'] + result3['Cerebral_Cortex_L'] + result3['Lateral_Ventricle_L'] + result3['Inf_Lat_Vent_L'] + \
-                     result3['Cerebellum_White_Matter_L'] + \
-                     result3['Cerebellum_Cortex_L'] + result3['Thalamus_Proper_L'] + result3['Caudate_L'] + result3['Putamen_L'] + result3['Pallidum_L'] + result3['3rd_Ventricle'] + \
-                     result3['4th_Ventricle'] + result3['Brain_Stem'] + result3['Hippocampus_L'] + result3['Amygdala_L'] + result3['Accumbens_area_L'] + \
-                     result3['VentralDC_L'] + result3['choroid_plexus_L'] + result3['Cerebral_White_Matter_R'] + result3['Cerebral_Cortex_R'] + \
-                     result3['Lateral_Ventricle_R'] + result3['Inf_Lat_Vent_R'] + result3['Cerebellum_White_Matter_R'] + result3['Cerebellum_Cortex_R'] + \
-                     result3['Thalamus_Proper_R'] + \
-                     result3['Caudate_R'] + result3['Putamen_R'] + result3['Pallidum_R'] + result3['Hippocampus_R'] + result3['Amygdala_R'] + result3['Accumbens_area_R'] + \
-                     result3['VentralDC_R'] + result3['choroid_plexus_R'] + result3['WM_hypointensities'] + result3['Optic_Chiasm']
+                    try:
+                        # Create safe names for the model
+                        safe_region = f"region_{region}".replace(' ', '_').replace('-', '_').replace('(', '').replace(
+                            ')', '').replace('.', '')
+                        safe_regressor = f"reg_{regressor}".replace(' ', '_').replace('-', '_').replace('(',
+                                                                                                        '').replace(')',
+                                                                                                                    '').replace(
+                            '.', '')
 
+                        # Make a working copy with safe column names
+                        df = result[['subject', regressor, region]].copy().dropna()
+                        df.columns = ['subject', safe_regressor, safe_region]
 
-                out_results_V2 = out_results_V + '/' + 'divided_by_whole_brain'
-                if not os.path.exists(out_results_V2): os.mkdir(out_results_V2)
+                        if df.empty:
+                            print(f"No data for {region} vs {regressor}")
+                            continue
 
-                # Divide the content of each column in the list by the value
-                for n, region in enumerate(list(list_name_atlas_final['region'])):
-                    result2[str(region)] = result2[str(region)] / result2['Whole_Brain']
+                        df = df.sort_values(['subject', safe_regressor])
+                        subjects = df['subject'].unique()
 
-                result2.to_excel(out_results_V2 + '/' + IDSEG + '.xlsx')
+                        plt.figure(figsize=(10, 6))
 
-                for n, region in enumerate(list(list_name_atlas_final['region'])):
+                        # Plot subject trajectories
+                        colors = plt.cm.rainbow(np.linspace(0, 1, len(subjects)))
+                        for subj, color in zip(subjects, colors):
+                            subj_df = df[df['subject'] == subj]
+                            plt.plot(subj_df[safe_regressor], subj_df[safe_region],
+                                     'o-', color=color, alpha=0.6, markersize=4, linewidth=1)
 
-                    x = regressor
-                    y = str(region)
-                    subject = 'ID'
+                        # Prepare data for LME
+                        with warnings.catch_warnings():
+                            warnings.simplefilter('ignore', ConvergenceWarning)
 
-                    data = result2[[x, y, subject]].dropna(axis=0)
+                            # Standardize the regressor
+                            df['_reg_z'] = (df[safe_regressor] - df[safe_regressor].mean()) / df[safe_regressor].std()
 
-                    for key, grp in data.groupby(subject):
-                        plt.plot(grp[x], grp[y], 'o-', label=key)
-                    plt.legend(bbox_to_anchor=(1.04, 0.5), loc="center left", borderaxespad=0)
-                    plt.tight_layout()
-                    plt.subplots_adjust(bottom=0.13)
-                    plt.xlabel(regressor)
-                    plt.savefig(out_results_V2 + '/' + region + '.jpg', dpi=300)
-                    plt.close('all')
+                            # Fit the mixed effects model
+                            model = smf.mixedlm(f"{safe_region} ~ _reg_z", data=df, groups=df["subject"])
+                            result_mixed = model.fit(reml=False, method="lbfgs", maxiter=200)
 
+                            coef = result_mixed.params.get("_reg_z", np.nan)
+                            intercept = result_mixed.params.get("Intercept", np.nan)
+                            pval = result_mixed.pvalues.get("_reg_z", np.nan)
 
-            ############################################################################
-            ################### whole brain Session 1###################################
-            ############################################################################
+                            # Create grid for predictions
+                            x_grid = np.linspace(df[safe_regressor].min(), df[safe_regressor].max(), 100)
+                            x_grid_z = (x_grid - df[safe_regressor].mean()) / df[safe_regressor].std()
 
-            file_path = out_results_Aseg_mac + '/Aseg_mac.xlsx'
-            result2 = result.copy()
-            result2['ID'] = result2['ID'].fillna(method='ffill')
-            if os.path.exists(file_path):
-                result3 = pd.read_excel(file_path)
-                result3['ID'] = result3['ID'].fillna(method='ffill')
+                            # Get fixed effects parameters and covariance matrix
+                            params = result_mixed.params
+                            cov = result_mixed.cov_params()
 
-                out_results_V2 = out_results_V + '/' + 'divided_by_whole_brain_session1'
-                if not os.path.exists(out_results_V2): os.mkdir(out_results_V2)
+                            # We only want the fixed effects part (Intercept and _reg_z)
+                            fe_params = params[['Intercept', '_reg_z']]
+                            fe_cov = cov.loc[['Intercept', '_reg_z'], ['Intercept', '_reg_z']]
 
-                for ID in list(pd.array(all_ID).unique()):
-                    Whole_Brain = result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Cerebral_White_Matter_L'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Cerebral_Cortex_L'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Lateral_Ventricle_L'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Inf_Lat_Vent_L'] + \
-                     result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Cerebellum_White_Matter_L'] + \
-                     result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Cerebellum_Cortex_L'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Thalamus_Proper_L'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Caudate_L'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Putamen_L'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Pallidum_L'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), '3rd_Ventricle'] + \
-                     result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), '4th_Ventricle'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Brain_Stem'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Hippocampus_L'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Amygdala_L'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Accumbens_area_L'] + \
-                     result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'VentralDC_L'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'choroid_plexus_L'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Cerebral_White_Matter_R'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Cerebral_Cortex_R'] + \
-                     result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Lateral_Ventricle_R'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Inf_Lat_Vent_R'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Cerebellum_White_Matter_R'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Cerebellum_Cortex_R'] + \
-                     result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Thalamus_Proper_R'] + \
-                     result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Caudate_R'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Putamen_R'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Pallidum_R'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Hippocampus_R'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Amygdala_R'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Accumbens_area_R'] + \
-                     result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'VentralDC_R'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'choroid_plexus_R'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'WM_hypointensities'] + result3.loc[result3['Session'] == 1 & (result3['ID'] == ID), 'Optic_Chiasm']
+                            # Create design matrix for predictions
+                            X = np.column_stack([np.ones_like(x_grid_z), x_grid_z])
 
-                    # Divide the content of each column in the list by the value
-                    for n, region in enumerate(list(list_name_atlas_final['region'])):
-                        print(result2.loc[(result2['ID'] == ID), str(region)])
+                            # Calculate predictions (fixed effects only)
+                            pred_vals = X @ fe_params
 
-                        result2.loc[(result2['ID'] == ID), str(region)] = result2.loc[(result2['ID'] == ID), str(region)] / float(Whole_Brain)
+                            # Calculate standard errors for predictions
+                            pred_var = np.sum(X @ fe_cov * X, axis=1)
+                            pred_se = np.sqrt(pred_var)
 
-                        print(result2.loc[(result2['ID'] == ID), str(region)] / float(Whole_Brain))
-                        print(float(Whole_Brain))
+                            # Calculate confidence intervals
+                            ci_lower_pred = pred_vals - 1.96 * pred_se
+                            ci_upper_pred = pred_vals + 1.96 * pred_se
 
-                result2.to_excel(out_results_V2 + '/' + IDSEG + '.xlsx')
+                            # Plot the population trend and CI
+                            plt.plot(x_grid, pred_vals, color='black', linewidth=2, label='Population Trend')
+                            plt.fill_between(x_grid, ci_lower_pred, ci_upper_pred,
+                                             color='gray', alpha=0.3, label='95% CI')
 
-                for n, region in enumerate(list(list_name_atlas_final['region'])):
+                            stats_text = (f"Slope (z): {coef:.2f}\n"
+                                          f"p-value: {pval:.2f}\n"
+                                          f"intercept: {intercept:.2f}\n")
 
-                    x = regressor
-                    y = str(region)
-                    subject = 'ID'
+                        # Final formatting
+                        plt.gca().text(0.05, 0.95, stats_text,
+                                       transform=plt.gca().transAxes,
+                                       verticalalignment='top',
+                                       bbox=dict(facecolor='white', alpha=0.8))
+                        plt.xlabel(regressor, fontsize=12)
+                        plt.ylabel(f'{region} Volume', fontsize=12)
+                        plt.title(f'Longitudinal: {region} vs {regressor}', fontsize=14)
+                        plt.grid(True, alpha=0.3)
+                        plt.tight_layout()
+                        plt.legend(loc='lower right')
 
-                    data = result2[[x, y, subject]].dropna(axis=0)
+                        plt.savefig(opj(out_path, f'{region}_longitudinal.jpg'),
+                                    dpi=300, bbox_inches='tight')
+                        plt.close()
 
-                    for key, grp in data.groupby(subject):
-                        plt.plot(grp[x], grp[y], 'o-', label=key)
-                    plt.legend(bbox_to_anchor=(1.04, 0.5), loc="center left", borderaxespad=0)
-                    plt.tight_layout()
-                    plt.subplots_adjust(bottom=0.13)
-                    plt.xlabel(regressor)
-                    plt.savefig(out_results_V2 + '/' + region + '.jpg', dpi=300)
-                    plt.close('all')
+                    except Exception as e:
+                        print(f"Error plotting {region} vs {regressor}: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
+                        plt.close()
 
-
-            ############################################################################
-            ################### whole brain Session 1###################################
-            ############################################################################
-
-            out_results_V2 = out_results_V + '/' + 'divided_by_regions_session1'
-            if not os.path.exists(out_results_V2): os.mkdir(out_results_V2)
-            result2 = result.copy()
-            result2['ID'] = result2['ID'].fillna(method='ffill')
-
-            for ID in list(pd.array(all_ID).unique()):
-                # Divide the content of each column in the list by the value
-                for n, region in enumerate(list(list_name_atlas_final['region'])):
-                    print(result2.loc[(result2['ID'] == ID), str(region)])
-                    print(float(Whole_Brain))
-                    print(float(result2.loc[result2['Session'] == 1 & (result2['ID'] == ID), str(region)]))
-                    result2.loc[(result2['ID'] == ID), str(region)] = 100*((result2.loc[(result2['ID'] == ID), str(region)] / float(result2.loc[result2['Session'] == 1 & (result2['ID'] == ID), str(region)])))
-                    print(result2.loc[(result2['ID'] == ID), str(region)])
-
-            result2.to_excel(out_results_V2 + '/' + IDSEG + '.xlsx')
-
-            for n, region in enumerate(list(list_name_atlas_final['region'])):
-
-                x = regressor
-                y = str(region)
-                subject = 'ID'
-
-                data = result2[[x, y, subject]].dropna(axis=0)
-
-                for key, grp in data.groupby(subject):
-                    plt.plot(grp[x], grp[y], 'o-', label=key)
-                plt.legend(bbox_to_anchor=(1.04, 0.5), loc="center left", borderaxespad=0)
-                plt.tight_layout()
-                plt.subplots_adjust(bottom=0.13)
-                plt.xlabel(regressor)
-                plt.savefig(out_results_V2 + '/' + region + '.jpg', dpi=300)
-                plt.close('all')
+        # Usage:
+        plot_longitudinal_results(result, regressor_list, list_name_atlas_final, IDSEG, bids_dir)

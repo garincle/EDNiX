@@ -248,7 +248,7 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         with open(output_for_mask[:-7] + '.json', "w") as outfile:
             outfile.write(json_object)
 
-    elif brain_skullstrip.startswith('CustumNilearn_'):
+    elif brain_skullstrip.startswith('CustomNilearn_'):
         # Extract the cutoff values from the string
         _, lower_cutoff, upper_cutoff = brain_skullstrip.split('_')
         lower_cutoff = float(lower_cutoff)
@@ -295,7 +295,7 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
             outfile.write(json_object)
 
 
-    elif brain_skullstrip.startswith('CustumNilearnExcludeZeros_'):
+    elif brain_skullstrip.startswith('CustomNilearnExcludeZeros_'):
         # Extract the cutoff values from the string
         _, lower_cutoff, upper_cutoff = brain_skullstrip.split('_')
         lower_cutoff = float(lower_cutoff)
@@ -341,7 +341,7 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
             outfile.write(json_object)
 
     # Handle 'Custom' type skullstripping dynamically for percentile
-    elif brain_skullstrip.startswith('CustumThreshold_'):
+    elif brain_skullstrip.startswith('CustomThreshold_'):
         # Extract the percentile from the string
         percentile = int(brain_skullstrip.split('_')[1])
 
@@ -409,7 +409,7 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         with open(output_for_mask[:-7] + '.json', "w") as outfile:
             outfile.write(json_object)
 
-    elif brain_skullstrip == 'Custum_ANTS_NL':
+    elif brain_skullstrip == 'Custom_ANTS_NL':
         IMG = ants.image_read(input_for_msk)
         REF_IMG = ants.image_read(master)
         mtx1 = ants.registration(fixed=IMG, moving=REF_IMG, type_of_transform='Translation',
@@ -429,7 +429,7 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
             outfile.write(json_object)
 
 
-    elif brain_skullstrip == 'Custum_ANTS_Garin':
+    elif brain_skullstrip == 'Custom_ANTS_Garin':
         IMG = ants.image_read(input_for_msk)
         REF_IMG = ants.image_read(master)
 
@@ -537,7 +537,7 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
             outfile.write(json_object)
 
     else:
-        nl = "ERROR: brain_skullstrip not recognized, check that brain_skullstrip_1 or brain_skullstrip_2 are correctly written!!"
+        nl = "ERROR: brain_skullstrip not recognized, check that Method_mask_func is correctly written!!"
         diary.write(f'\n{nl}')
         raise Exception(bcolors.FAIL + nl + bcolors.ENDC)
 

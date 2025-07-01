@@ -36,7 +36,7 @@ def do_fMRImasks(masks_dir, labels_dir, type_norm, fMRImasks, overwrite,s_bind,a
     # for RS analysis
     Ventri_mask = ',4,5,43,44,14'
     White_mask  = ',2,41'
-
+    Gmask_mask = ',3,42'
     # 2) MASKS for denoising Resting State Data
     img = ants.image_read(opj(masks_dir,'brain_mask_in_anat_DC.nii.gz'))
     dilate = ants.morphology(img, operation='dilate', radius=2, mtype='binary', shape='ball')
@@ -48,6 +48,8 @@ def do_fMRImasks(masks_dir, labels_dir, type_norm, fMRImasks, overwrite,s_bind,a
         outfile.write(json_object)
 
     if fMRImasks=='aseg':
+
+        ##### Creat Vmask
         command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + Ventri_mask + ')" -prefix ' + opj(masks_dir, type_norm + 'Vmask.nii.gz')
         nl = spgo(command)
         diary.write(f'\n{nl}')
@@ -66,6 +68,28 @@ def do_fMRImasks(masks_dir, labels_dir, type_norm, fMRImasks, overwrite,s_bind,a
         with open(opj(masks_dir, type_norm + 'Vmask_erod.json'), "w") as outfile:
             outfile.write(json_object)
 
+        ##### Creat Gmask
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + Gmask_mask + ')" -prefix ' + opj(masks_dir, type_norm + 'Gmask.nii.gz')
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": opj(labels_dir, type_norm + 'aseg.nii.gz'),
+                      "Description": 'Gray matterr mask.', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(masks_dir, type_norm + 'Gmask.json'), "w") as outfile:
+            outfile.write(json_object)
+
+        img = ants.image_read(opj(masks_dir, type_norm + 'Gmask.nii.gz'))
+        eroded = ants.morphology(img, operation='erode', radius=1, mtype='binary', shape='ball')
+        ants.image_write(eroded, opj(masks_dir, type_norm + 'Gmask_erod.nii.gz'), ri=False)
+
+        dictionary = {"Sources": opj(masks_dir, type_norm + 'Gmask.nii.gz'),
+                      "Description": 'eroded.', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(opj(masks_dir, type_norm + 'Gmask_erod.json'), "w") as outfile:
+            outfile.write(json_object)
+
+        ##### Creat Wmask
         command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(labels_dir, type_norm + 'aseg.nii.gz') + ' -expr "amongst(a' + White_mask + ')" -prefix ' + opj(masks_dir, type_norm + 'Wmask.nii.gz')
         nl = spgo(command)
         diary.write(f'\n{nl}')

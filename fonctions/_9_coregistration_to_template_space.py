@@ -108,7 +108,18 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
             with open(output2[:-7] + '.json', "w") as outfile:
                 outfile.write(json_object)
 
-        elif deoblique == 'WARP' or deoblique == 'WARP_without_3drefit':
+        elif deoblique == 'deob_WO_orient':
+            command = 'singularity run' + s_bind + afni_sif + '3drefit -deoblique ' + overwrite + ' ' + output2
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+            dictionary = {"Sources": input2,
+                          "Description": 'change header orientation + deoblique (3drefit, AFNI).'},
+            json_object = json.dumps(dictionary, indent=2)
+            with open(output2[:-7] + '.json', "w") as outfile:
+                outfile.write(json_object)
+
+        elif deoblique == 'WARP' or deoblique == 'WARP_without_3drefit' or deoblique == 'WARPbaboon':
             # reorient the fields according to the json file
             command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix ' + output2 + \
             ' ' +  output2
@@ -313,7 +324,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
             with open(output2[:-7] + '.json', "w") as outfile:
                 outfile.write(json_object)
 
-        elif deoblique == 'WARP' or deoblique == 'WARP_without_3drefit':
+        elif deoblique == 'WARP' or deoblique == 'WARP_without_3drefit' or deoblique == 'WARPbaboon':
             # reorient the fields according to the json file
             command = 'singularity run' + s_bind + afni_sif + '3dWarp' + overwrite + ' -deoblique -NN -prefix ' + output2 + \
                       ' ' + output2

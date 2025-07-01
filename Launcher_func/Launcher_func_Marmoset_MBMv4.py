@@ -42,35 +42,7 @@ allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
-list_to_keep = [
-('IONm07', '01'),
-('IONm07', '02'),
-('IONm07', '03'),
-('IONm08', '01'),
-('IONm08', '02'),
-('IONm08', '03'),
-('IONm08', '04'),
-('IONm08', '05'),
-('IONm08', '06'),
-('IONm09', '01'),
-('IONm09', '02'),
-('IONm09', '03'),
-('IONm09', '04'),
-('IONm09', '05'),
-('IONm10', '01'),
-('IONm11', '01'),
-('IONm11', '02'),
-('IONm11', '03'),
-('IONm11', '04'),
-('IONm11', '05'),
-('IONm11', '06'),
-('IONm12', '01'),
-('IONm12', '02'),
-('IONm12', '03'),
-('IONm12', '04'),
-('IONm12', '05'),
-('IONm12', '06'),
-('IONm12', '07')]
+list_to_keep = []
 list_to_remove = []
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 

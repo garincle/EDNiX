@@ -6,11 +6,11 @@ opj = os.path.join
 MAIN_PATH = opj('/srv/projects/easymribrain/code/EDNiX/')
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
-import anatomical._0_Pipeline_launcher
-
-species = 'Macaque'
+import analyses.volstat
+import pandas as pd
+species = 'Human'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj('/scratch/cgarin/Macaque/BIDS_Cdt_Garin'))
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj("/srv/projects/easymribrain/data/MRI/Human/ds004856/"))  # Will be replaced from OLD
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 atlas_dir = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", species)
 Lut_dir = opj(MAIN_PATH, "Atlas_library", "LUT_files")
@@ -37,7 +37,7 @@ df = layout.to_df()
 df.head()
 
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
+allinfo_study_c = df[(df['suffix'] == 'T1w') & (df['extension'] == '.nii.gz')]
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -66,11 +66,11 @@ atlas_dfs = Tools.Read_atlas.extract_atlas_definitions(config)
     config["atlas_definitions"]["lvl4LR"]["atlas_file"])
 
 # Create combined lists
-list_atlases = [lvl1_file, lvl2_file, lvl3_file, lvl4_file,
-    lvl1LR_file, lvl2LR_file, lvl3LR_file, lvl4LR_file]
+list_atlases = [lvl1_file,  lvl1LR_file, lvl2_file, lvl2LR_file, lvl3_file, lvl3LR_file, lvl4_file,
+    lvl4LR_file]
 #### for 14 (surfaces) ####
-list_atlases_2 = [lvl1_file, lvl2_file, lvl3_file, lvl4_file,
-    lvl1LR_file, lvl2LR_file, lvl3LR_file, lvl4LR_file]
+list_atlases_2 = [lvl1_file,  lvl1LR_file, lvl2_file, lvl2LR_file, lvl3_file, lvl3LR_file, lvl4_file,
+    lvl4LR_file]
 
 ### file to standardize space
 FS_buckner40_TIF = opj(FS_dir,'MacaqueYerkes19')
@@ -84,29 +84,28 @@ do_manual_crop = False
 overwrite_option = True
 
 check_visualy_final_mask = False
-deoblique='WARP_without_3drefit'
+deoblique='deob_WO_orient'
 
 n_for_ANTS='hammingWindowedSinc'
 type_of_transform = 'SyN'
 aff_metric_ants_Transl = 'mattes'
-aff_metric_ants = 'MI'
+aff_metric_ants = 'mattes'
 
 ####Choose to normalize using T1 or T2
-type_norm = 'T1' # T1 or T2
-otheranat = 'T2FLAIR'
-orientation = 'RAP'
-BIDStype = 1
+type_norm = 'acq-MPRAGE_run-1_T1w'
+otheranat = ''
+orientation = 'RPI'
+BIDStype = 'sub-{ID}_ses-{Session}_{Timage}.nii*'
 
 ###masking
-masking_img = 'T1'
-brain_skullstrip_1 ='Custum_Macaque2' # bet2_ANTS or MachinL
+masking_img = 'acq-MPRAGE_run-1_T1w'
+brain_skullstrip_1 ='synthstrip'
 #precise
-brain_skullstrip_2 ='Custum_QWARP' # bet2_ANTS or MachinL
-do_fMRImasks = True
+brain_skullstrip_2 ='synthstrip'
 do_fMRImasks = True
 fMRImasks = 'aseg' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
-Align_img_to_template = '3dAllineate' #3dAllineate or No or @Align_Centers
-cost3dAllineate = 'hel'
+Align_img_to_template = '@Align_Centers'
+cost3dAllineate = 'lpa'
 
 #creat_study_template with type_norm img
 creat_study_template = True
@@ -114,29 +113,48 @@ creat_study_template = True
 which_on = 'max' # all or max
 type_of_transform_stdyT = 'SyN'
 aff_metric_ants_Transl_template = 'mattes'
-Atemplate_to_Stemplate = 'T1'
-template_skullstrip = 'Manual'
+Atemplate_to_Stemplate = 'acq-MPRAGE_run-1_T1w'
+template_skullstrip = 'muSkullStrip_Human'
 do_surfacewith = 'T1'
 
+import pandas as pd
 
-### Block1: step 1,2 (orienting, cleaning images)
-### Block1: step 3 (study template)
-### Block2: step 4 (study template mask QC itksnap)
-### Block2: step 5 (template brain)
-### Block2: step 6 (registration stdy template)
-### Block2: step 7 (registration anat to template)
-### Block3: step 8,9 (altases, masks, fmri masks)
-### Block3: step 10,11,12,13,14,15 (surfaces)
-### Block3: step 16 (QC)
-### Block3: step 100 (Clean)
-### Block3: step 200 (QC itksnap)
-Skip_step = [100,200]
+# Load data (assuming allinfo_study_c is already loaded)
+participants_path = "/srv/projects/easymribrain/data/MRI/Human/ds004856/participants.tsv"
+participants_df = pd.read_csv(participants_path, sep='\t')
 
-anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
-    orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step,
-    check_visualy_each_img, do_fMRImasks, BASE_SS, which_on, all_ID_max, all_data_path_max, all_ID,
-    all_Session, all_data_path, template_skullstrip, list_atlases, Aseg_ref, Aseg_refLR, FS_dir,
-    do_surfacewith, Atemplate_to_Stemplate, FS_buckner40_TIF,FS_buckner40_GCS, Lut_file, otheranat,
-    type_norm, all_Session_max, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list,
-    list_atlases_2, cost3dAllineate, Align_img_to_template, species, type_of_transform,
-    type_of_transform_stdyT, fMRImasks, overwrite_option, MAIN_PATH, aff_metric_ants_Transl, aff_metric_ants_Transl_template)
+# First convert subject IDs to strings in both datasets
+participants_df['numeric_id'] = participants_df['participant_id'].str.extract(r'sub-(\d+)').astype(str)
+allinfo_study_c['subject_str'] = allinfo_study_c['subject'].astype(str)
+
+# Rebuild age_map with string keys
+age_map = {}
+for _, row in participants_df.iterrows():
+    subj_id = row['numeric_id']
+    age_data = {
+        1: row.get('AgeMRI_W1'),
+        2: row.get('AgeMRI_W2'),
+        3: row.get('AgeMRI_W3')
+    }
+    age_map[subj_id] = age_data
+
+# Convert session numbers to integers explicitly
+allinfo_study_c['age'] = allinfo_study_c.apply(
+    lambda row: age_map.get(str(row['subject']), {}).get(int(row['session'])),
+    axis=1)
+# Verification
+print(f"Added age to {allinfo_study_c['age'].notna().sum()} rows")
+print("Sample ages:")
+print(allinfo_study_c[['subject', 'session', 'age']].head(10))
+
+regressor_list = ['age']
+segmentation_name_list = [lvl1, lvl1LR, lvl2, lvl2LR,
+    lvl3, lvl3LR, lvl4, lvl4LR]
+segmentation_ID_list = ['lvl1', 'lvl1LR', 'lvl2', 'lvl2LR',
+    'lvl3', 'lvl3LR', 'lvl4', 'lvl4LR']
+
+atlas_names_Seg_list = [os.path.basename(path) for path in list_atlases]
+
+
+analyses.volstat.extractVol(MAIN_PATH, FS_dir, allinfo_study_c, regressor_list, all_ID, all_Session, all_data_path, type_norm, segmentation_name_list,
+           segmentation_ID_list, atlas_names_Seg_list, list_atlases, bids_dir)

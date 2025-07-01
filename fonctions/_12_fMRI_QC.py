@@ -14,15 +14,12 @@ import nibabel as nib
 import pandas as pd
 import datetime
 import json
-import ants
-import numpy as np
+import time
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr, entropy
 from sklearn.metrics import mutual_info_score
 from matplotlib.gridspec import GridSpec
 from sklearn.preprocessing import StandardScaler
-from scipy.ndimage import gaussian_filter
-
 
 class bcolors:
     HEADER = '\033[95m'
@@ -641,11 +638,15 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
     if not ope(opj(dir_path, '10_Results')):
         os.mkdir(opj(dir_path, '10_Results'))
 
+    # Try to remove directory if it exists
     if ope(output_results):
-        shutil.rmtree(output_results)
-        os.mkdir(output_results)
-    else:
-        os.mkdir(output_results)
+        shutil.rmtree(output_results, ignore_errors=True)
+        # Wait a bit to avoid race condition (especially on network filesystems)
+        time.sleep(0.1)
+
+    # Ensure it's gone before recreating
+    if not ope(output_results):
+        os.makedirs(output_results)
 
     for i in range(0, int(nb_run)):
         qc_values = {}  # Dictionary to store all QC metrics

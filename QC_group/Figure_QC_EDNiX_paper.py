@@ -10,15 +10,14 @@ opj = os.path.join
 opd = os.path.dirname
 
 # Load data
-source_csv = "/home/cgarin/Documents/EDNiX_study/MRI/QC_func_inter-species/QC_results_summary.csv"
+source_csv = "/srv/projects/easymribrain/data/MRI/QC_func_inter-species/QC_results_summary.csv"
 df = pd.read_csv(source_csv)
 
 # Clean species names
 df['species'] = df['species'].str.replace('BIDS_Cdt_Garin', '').str.replace('BIDS_BenHamed', '').str.strip()
 
 # Select 6 key metrics to visualize
-metrics = ['Median', 'Variance', 'Density (Positive Correlations)',
-           'Density (Negative Correlations)', 'W-statistic', 'P-value']
+metrics = ["hemisphere_t_intra_vs_inter", "hemisphere_inter_mean", "hemisphere_intra_left_mean", "stdev", "cnr", "fwhm"]
 
 # Melt dataframe
 melted = df.melt(id_vars=['species'], value_vars=metrics,
