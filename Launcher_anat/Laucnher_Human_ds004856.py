@@ -8,9 +8,9 @@ import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
 import anatomical._0_Pipeline_launcher
 
-species = 'Macaque'
+species = 'Human'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj('/scratch/cgarin/Macaque/BIDS_Cdt_Garin'))
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj("/srv/projects/easymribrain/data/MRI/Human/ds004856/"))  # Will be replaced from OLD
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 atlas_dir = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", species)
 Lut_dir = opj(MAIN_PATH, "Atlas_library", "LUT_files")
@@ -37,7 +37,7 @@ df = layout.to_df()
 df.head()
 
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
+allinfo_study_c = df[(df['suffix'] == 'T1w') & (df['extension'] == '.nii.gz')]
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -84,29 +84,28 @@ do_manual_crop = False
 overwrite_option = True
 
 check_visualy_final_mask = False
-deoblique='WARP_without_3drefit'
+deoblique='deob_WO_orient'
 
 n_for_ANTS='hammingWindowedSinc'
 type_of_transform = 'SyN'
 aff_metric_ants_Transl = 'mattes'
-aff_metric_ants = 'MI'
+aff_metric_ants = 'mattes'
 
 ####Choose to normalize using T1 or T2
-type_norm = 'T1' # T1 or T2
-otheranat = 'T2FLAIR'
-orientation = 'RAP'
-BIDStype = 1
+type_norm = 'acq-MPRAGE_run-1_T1w'
+otheranat = ''
+orientation = 'RPI'
+BIDStype = 'sub-{ID}_ses-{Session}_{Timage}.nii*'
 
 ###masking
-masking_img = 'T1'
-brain_skullstrip_1 ='Custum_Macaque2' # bet2_ANTS or MachinL
+masking_img = 'acq-MPRAGE_run-1_T1w'
+brain_skullstrip_1 ='synthstrip'
 #precise
-brain_skullstrip_2 ='Custum_QWARP' # bet2_ANTS or MachinL
-do_fMRImasks = True
+brain_skullstrip_2 ='synthstrip'
 do_fMRImasks = True
 fMRImasks = 'aseg' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
-Align_img_to_template = '3dAllineate' #3dAllineate or No or @Align_Centers
-cost3dAllineate = 'hel'
+Align_img_to_template = '@Align_Centers'
+cost3dAllineate = 'lpa'
 
 #creat_study_template with type_norm img
 creat_study_template = True
@@ -114,10 +113,9 @@ creat_study_template = True
 which_on = 'max' # all or max
 type_of_transform_stdyT = 'SyN'
 aff_metric_ants_Transl_template = 'mattes'
-Atemplate_to_Stemplate = 'T1'
-template_skullstrip = 'Manual'
+Atemplate_to_Stemplate = 'acq-MPRAGE_run-1_T1w'
+template_skullstrip = 'synthstrip'
 do_surfacewith = 'T1'
-
 
 ### Block1: step 1,2 (orienting, cleaning images)
 ### Block1: step 3 (study template)
@@ -130,7 +128,7 @@ do_surfacewith = 'T1'
 ### Block3: step 16 (QC)
 ### Block3: step 100 (Clean)
 ### Block3: step 200 (QC itksnap)
-Skip_step = [100,200]
+Skip_step = [1,2,3,10,11,12,13,14,15,100,200]
 
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step,

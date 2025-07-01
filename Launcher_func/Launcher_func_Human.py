@@ -12,7 +12,7 @@ import fonctions._0_Pipeline_launcher
 
 species = 'Human'
 # Override os.path.join to always return Linux-style paths
-bids_dir = '/scratch/cgarin/Human/BIDS_HBN'
+bids_dir = '/srv/projects/easymribrain/data/MRI/Human/BIDS_Rutgers/'
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 atlas_dir = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", species)
 Lut_dir = opj(MAIN_PATH, "Atlas_library", "LUT_files")
@@ -37,7 +37,7 @@ df = layout.to_df()
 df.head()
 
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'T1w') & (df['extension'] == '.nii.gz') & (df['acquisition'] == 'VNav')]
+allinfo_study_c = df[(df['suffix'] == 'T1w') & (df['extension'] == '.nii.gz')]
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -91,19 +91,19 @@ endfmri = '*_task-rest_*.nii.gz' # string
 endjson = '*_task-rest_*.json' # string
 endmap = '*fMRI_epi.nii.gz' # string
 orientation = 'RPI' # string
-deoblique='header' #header or WARP
+deoblique='WARP_without_3drefit' #header or WARP
 
 ## prior anatomical processing
 coregistration_longitudinal = False #True or False
-type_norm = 'acq-VNav_T1w' # T1 or T2
+type_norm = 'acq-HCP_T1w'
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
-TfMRI = 'acq-VNav_T1w' # string
+TfMRI = 'acq-HCP_T1w'
 ### if you don't have any anatomical image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
 folderforTemplate_Anat = ''
 
 ## masking
 doMaskingfMRI = True # True or False
-Method_mask_func = 'nilearn' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = '3dSkullStrip' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 costAllin = 'lpc+' # string
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
@@ -121,7 +121,7 @@ do_anat_to_func = True # True or False
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
 creat_study_template = False # True or False
 #folder where you stored the stdy template
-study_template_atlas_forlder = '/scratch/cgarin/Mouse_lemur/BIDS_CG/sty_template/'  # sting
+study_template_atlas_forlder = '/scratch/cgarin/Human/BIDS_CG/sty_template/'  # sting
 stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_mask.nii.gz') # sting
 stdy_template = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
 GM_mask_studyT = opj(study_template_atlas_forlder, 'atlases', 'Gmask.nii.gz') # sting
@@ -185,7 +185,7 @@ specific_roi_tresh = 0.2
 delta_thresh = 0.1
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,5,6,100,200] # Changed to match requested values
+Skip_step = [4,100,200] # Changed to match requested values
 
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
                                                BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space, use_master_for_Allineate,

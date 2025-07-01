@@ -7,7 +7,7 @@ import datetime
 import json
 import fonctions
 import fonctions._2b_fix_orient
-
+import fonctions._2a_correct_img
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'

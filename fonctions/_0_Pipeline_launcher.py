@@ -165,7 +165,7 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
 
             anat_subject =  opj(volumes_dir,ID + type_norm + '_brain.nii.gz')
             brainmask    = opj(masks_dir,'brain_mask_in_anat_DC.nii.gz')
-            G_mask       = opj(labels_dir, type_norm + 'Gmask.nii.gz')
+            G_mask       = opj(masks_dir, type_norm + 'Gmask.nii.gz')
             if use_erode_V_func_masks == True:
                 V_mask = opj(masks_dir, type_norm + 'Vmask_erod.nii.gz')
             else:

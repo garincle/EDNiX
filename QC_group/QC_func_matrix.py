@@ -20,7 +20,7 @@ opd = os.path.dirname
 ope = os.path.exists
 
 # Define paths
-BIDS_DIR = '/srv/projects/easymribrain/data/MRI/Rat/BIDS_GdGSR/'
+BIDS_DIR = '/srv/projects/easymribrain/data/MRI/Rat/BIDS_Gd/'
 OUTPUT_DIR = opj(BIDS_DIR, "group_qc_analysis")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -73,8 +73,7 @@ def load_qc_data(bids_dir):
             # Create flat dictionary for this subject
             subject_data = {
                 'subject': subject,
-                'session': session if session else 'no_session'
-            }
+                'session': session if session else 'no_session'}
 
             # Extract network metrics
             if 'network_metrics' in qc_data:
@@ -94,6 +93,8 @@ def load_qc_data(bids_dir):
             # Extract specificity category
             if 'specificity_results' in qc_data and 'target_specificity' in qc_data['specificity_results']:
                 subject_data['Correlation_Category'] = qc_data['specificity_results']['target_specificity'].get('Category', 'Unknown')
+                subject_data['Specific_Correlation'] = qc_data['specificity_results']['target_specificity'].get('Specific_Correlation', 'Unknown')
+                subject_data['NonSpecific_Correlation'] = qc_data['specificity_results']['target_specificity'].get('NonSpecific_Correlation', 'Unknown')
 
             all_data.append(subject_data)
 

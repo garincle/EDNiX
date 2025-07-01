@@ -15,6 +15,7 @@ packages = {
     "pybids": "0.16.5",
     "openpyxl": "3.1.0",      # corrected version format
     "nitime": "0.11",
+    "torch": "2.7.1+cu126",
 }
 
 def install_with_pip(package, version):

@@ -10,7 +10,7 @@ from nilearn.masking import compute_epi_mask
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 import Tools.Load_EDNiX_requirement
-from fonctions import extract_filename
+import Launcher_analysis.Load_BIDS_data_for_analysis
 #################################################################################################
 #### LOADER YUNG LEMUR
 #################################################################################################
