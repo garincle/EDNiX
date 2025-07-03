@@ -1,15 +1,15 @@
 import pandas as pd
 import os
-import sys
 from bids import BIDSLayout
-from bids.reports import BIDSReport
 opn = os.path.normpath
 opj = os.path.join
 MAIN_PATH = opj('/srv/projects/easymribrain/code/EDNiX/')
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
-import fonctions._0_Pipeline_launcher
-
+import analyses._Group_anal__func_DicLearn
+import analyses._Group_anal_3dTtest
+import analyses._Group_anal_3dLMEr_Mirror
+import Launcher_analysis.Load_BIDS_data_for_analysis
 species = 'RatWHS'
 
 '''
@@ -235,16 +235,43 @@ panda_files = [pd.DataFrame({'region':['retrosplenial'],'label':[162]})]  # Data
 #For QC value to define specific and non-spe correlation
 specific_roi_tresh = 0.2
 delta_thresh = 0.1
-############ Right in a list format the steps that you want to skip
-Skip_step = [1,2,3,4,6,7,8,9,11,12,13,14,15,100,200]
-fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
-                                               BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space, use_master_for_Allineate,
-                                               correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
-                                               TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
-                                               dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
-                                               n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,
-                                               oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step,
-                                               bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
-                                               folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list, band,
-                                               extract_Vc, selected_atlases_matrix, specific_roi_tresh, delta_thresh, extract_GS, MAIN_PATH,
-                                               DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, FS_dir, normalize)
+
+#### specific to analysis ###
+
+oversample_map = True
+oversample_dictionary = False
+min_size = 10
+cut_coords = 10
+alpha = 0.0001
+alpha_dic = 11
+component_list = [7, 17]
+lower_cutoff = 0.1
+upper_cutoff = 0.95
+
+images_dir, all_ID, all_Session, all_data_path, max_sessionlist, mean_imgs, templatelow =  Launcher_analysis.Load_BIDS_data_for_analysis.load_data(bids_dir, df, ntimepoint_treshold, list_to_keep, list_to_remove, endfmri)
+treshold_or_stat = 'stat'
+templatehigh = '/srv/projects/easymribrain/code/EDNiX/Atlas_library/Atlases_V2/RatWHS/templateT2_SS.nii.gz'
+mask_func = '/srv/projects/easymribrain/data/MRI/Rat/BIDS_Gd/sub-302107/ses-1/func/01_prepro/03_atlas_space/Gmask.nii.gz'
+TR = None  # 'value du calculate in s', 'Auto', 'None'
+
+smoothing = 1
+# Define model and GLT specifications
+model = "(1|Subj)*Hemisphere"
+glt_spec = [(1, 'Overall_Effect', 'Hemisphere : 0.5*L +0.5*R'),
+    (2, 'Hemisphere_Effect', 'Hemisphere : 1*L -1*R')]
+contrast_names = ['Overall_Effect', 'Hemisphere_Effect']
+midline_x=0
+visualize = 'percentile'
+percent = 10
+
+
+analyses._Group_anal__func_DicLearn.dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, oversample_dictionary,
+              bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, templatelow, templatehigh, TR, smoothing)
+
+analyses._Group_anal_3dTtest._3dttest_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, cut_coords, panda_files, selected_atlases,
+              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, endfmri, mean_imgs, ntimepoint_treshold)
+
+analyses._Group_anal_3dLMEr_Mirror._3dLMEr_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, cut_coords,
+                  panda_files, selected_atlases, lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha,
+                  all_ID, all_Session, all_data_path, endfmri, mean_imgs,
+                  ntimepoint_treshold, model, glt_spec, contrast_names, midline_x, visualize, percent)

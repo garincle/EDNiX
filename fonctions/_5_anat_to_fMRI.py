@@ -45,17 +45,22 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
     # Get voxel sizes
     delta_x, delta_y, delta_z = [str(round(abs(x), 10)) for x in img.header.get_zooms()[:3]]
 
-    #### apply skull stripping
-    command = 'singularity run' + s_bind + afni_sif + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro1,'maskDilat_Allineate_in_func.nii.gz') + \
-              ' -b ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz') + \
-    ' -prefix ' +  opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz') + ' -expr "a*b"'
-    nl = spgo(command)
-    diary.write(f'\n{nl}')
-    print(nl)
-    dictionary = {"ADD_Sources": [opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz'),
-                              opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz')],
-                  "ADD_Description": 'Skull strippng (3dcalc, AFNI).', },
-    # Path to the JSON file
+    # Paths
+    mean_path = opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz')
+    mask_path = opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz')
+    # Skull strip
+    mean_img = nib.load(mean_path)
+    mask_img = nib.load(mask_path)
+    masked_img = nib.Nifti1Image(mean_img.get_fdata() * mask_img.get_fdata(), mean_img.affine, mean_img.header)
+    nib.save(masked_img, mean_path)
+    # Logging
+    msg = f"Applied skull stripping: {mean_path} masked by {mask_path}"
+    diary.write(f"\n{msg}")
+    print(msg)
+    # Metadata
+    dictionary = {
+        "ADD_Sources": [mean_path, mask_path],
+        "ADD_Description": "Skull stripping (Nilearn/Nibabel equivalent of AFNI 3dcalc)."}
     json_file_path = opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.json')
     # Load existing JSON data
     with open(json_file_path, "r") as infile:
@@ -211,9 +216,9 @@ def Refimg_to_meanfMRI(REF_int, SED, anat_func_same_space, TfMRI, dir_fMRI_Refth
 
     # doesn't work for two different 1d matrices... so let's do it separately....
 
-    for input1, output2 in zip([opj(dir_fMRI_Refth_RS_prepro2,'mask_ref.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'maskDilat.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'Vmask.nii.gz'), 
-        opj(dir_fMRI_Refth_RS_prepro2,'Wmask.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'Gmask.nii.gz')], 
-        [opj(dir_fMRI_Refth_RS_prepro1,'mask_ref.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1,'maskDilat.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1,'Vmask.nii.gz'), 
+    for input1, output2 in zip([opj(dir_fMRI_Refth_RS_prepro2,'mask_ref.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'maskDilat.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'Vmask.nii.gz'),
+        opj(dir_fMRI_Refth_RS_prepro2,'Wmask.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'Gmask.nii.gz')],
+        [opj(dir_fMRI_Refth_RS_prepro1,'mask_ref.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1,'maskDilat.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1,'Vmask.nii.gz'),
         opj(dir_fMRI_Refth_RS_prepro1,'Wmask.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1,'Gmask.nii.gz')]):
         if ope(input1):
             # mask

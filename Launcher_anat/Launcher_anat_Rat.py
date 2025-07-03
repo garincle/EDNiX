@@ -10,7 +10,7 @@ import anatomical._0_Pipeline_launcher
 
 species = 'RatWHS'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj(r"C:\Users\cgarin\Desktop\BIDS_k9"))
+bids_dir = '/srv/projects/easymribrain/data/MRI/Rat/BIDS_Gd'
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 atlas_dir = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", species)
 Lut_dir = opj(MAIN_PATH, "Atlas_library", "LUT_files")
@@ -31,19 +31,50 @@ Aseg_refLR = config["paths"]["Aseg_refLR"]
 FreeSlabel_ctab = config["lookup_tables"]["FreeSlabel_ctab_list"]
 
 ########### Subject loader with BIDS##############
-layout= BIDSLayout(bids_dir,  validate=True)
+layout= BIDSLayout(bids_dir,  validate=False)
 report = BIDSReport(layout)
 df = layout.to_df()
 df.head()
 
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
+allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
+list_of_ones = [1] * len(allinfo_study_c)
+allinfo_study_c['session'] = list_of_ones
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
-list_to_remove = []
+list_to_remove = [
+        ('300301', '1'),
+        ('300302', '1'),
+        ('300303', '1'),
+        ('300304', '1'),
+        ('300305', '1'),
+        ('300306', '1'),
+        ('300307', '1'),
+        ('300308', '1'),
+        ('300309', '1'),
+        ('300600', '1'),
+        ('300601', '1'),
+        ('300602', '1'),
+        ('300603', '1'),
+        ('300604', '1'),
+        ('300605', '1'),
+        ('300606', '1'),
+        ('300607', '1'),
+        ('300608', '1'),
+        ('300609', '1'),
+        ('300800', '1'),
+        ('300801', '1'),
+        ('300802', '1'),
+        ('300803', '1'),
+        ('300804', '1'),
+        ('300805', '1'),
+        ('300806', '1'),
+        ('300807', '1'),
+        ('300808', '1'),
+        ('300809', '1')]
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
 atlas_dfs = Tools.Read_atlas.extract_atlas_definitions(config)
@@ -91,6 +122,7 @@ deoblique='WARP_without_3drefit'
 
 n_for_ANTS='hammingWindowedSinc'
 type_of_transform = 'SyNCC'
+aff_metric_ants_Transl = 'mattes'
 aff_metric_ants = 'MI'
 
 ####Choose to normalize using T1 or T2
@@ -114,6 +146,7 @@ creat_study_template = False
 #do you want to use all the data or only the last one of each subject (for longitud inal co-registration)
 which_on = 'all' # all or max
 type_of_transform_stdyT = 'SyN'
+aff_metric_ants_Transl_template = 'mattes'
 Atemplate_to_Stemplate = ''
 template_skullstrip = ''
 
@@ -163,7 +196,7 @@ Lut_file = opj(Lut_dir,'Multispecies_LUT_Dual.txt')
 ### Block3: step 16 (QC)
 ### Block3: step 100 (Clean)
 ### Block3: step 200 (QC itksnap)
-Skip_step = [100,200]
+Skip_step = [1,2,3,4,5,6,7,9,10,11,12,13,14,15,16,17,100,200]
 
 anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
     orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step,
@@ -172,4 +205,4 @@ anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, 
     do_surfacewith, Atemplate_to_Stemplate, FS_buckner40_TIF,FS_buckner40_GCS, Lut_file, otheranat,
     type_norm, all_Session_max, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list,
     list_atlases_2, cost3dAllineate, Align_img_to_template, species, type_of_transform,
-    type_of_transform_stdyT, fMRImasks, overwrite_option, MAIN_PATH)
+    type_of_transform_stdyT, fMRImasks, overwrite_option, MAIN_PATH, aff_metric_ants_Transl, aff_metric_ants_Transl_template)
