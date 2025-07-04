@@ -243,7 +243,7 @@ oversample_dictionary = False
 min_size = 10
 cut_coords = 10
 alpha = 0.0001
-alpha_dic = 11
+alpha_dic = 10
 component_list = [7, 17]
 lower_cutoff = 0.1
 upper_cutoff = 0.95
@@ -254,7 +254,7 @@ templatehigh = '/srv/projects/easymribrain/code/EDNiX/Atlas_library/Atlases_V2/R
 mask_func = '/srv/projects/easymribrain/data/MRI/Rat/BIDS_Gd/sub-302107/ses-1/func/01_prepro/03_atlas_space/Gmask.nii.gz'
 TR = None  # 'value du calculate in s', 'Auto', 'None'
 
-smoothing = 1
+smoothing = None
 # Define model and GLT specifications
 model = "(1|Subj)*Hemisphere"
 glt_spec = [(1, 'Overall_Effect', 'Hemisphere : 0.5*L +0.5*R'),

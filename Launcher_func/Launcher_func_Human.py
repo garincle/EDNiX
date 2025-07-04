@@ -42,7 +42,13 @@ allinfo_study_c = df[(df['suffix'] == 'T1w') & (df['extension'] == '.nii.gz')]
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
-list_to_keep = []
+list_to_keep = [
+('NDARJG740PM8', '01'),
+('NDARJT064LRE', '01'),
+('NDARKF779EK2', '01'),
+('NDARKG720WXN', '01'),
+('NDARKH171DG8', '01'),
+('NDARKK774VP5', '01')]
 list_to_remove = []
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 

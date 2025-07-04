@@ -44,26 +44,27 @@ def load_data(bids_dir, df, ntimepoint_treshold, list_to_keep, list_to_remove, e
 
     ### this is just to list all subject in a ID + 'ses-' + str(Session) way (usefull for the variable "deoblique_exeption")
     animal_ID = []
-
-    #let's add all the the string to those lists
     for ID in pd.unique(allinfo_study_c_formax.ID):
         list_session = allinfo_study_c_formax.loc[allinfo_study_c_formax['ID'] == ID].Session.dropna()
+        # Convert sessions to numeric values
+        list_session = list_session.astype(int)
         listereverse = list(list_session)
         listereverse.reverse()
-        if len(list(list_session))>1:
+
+        if len(listereverse) > 1:
             max_session.append(np.array(listereverse).max())
         else:
             max_session.append(np.array(listereverse))
 
         for Session in listereverse:
-            print('session numuber ' + str(Session))
+            print('session number ' + str(Session))
 
             # Organization of the folders
-            data_path = opj(bids_dir,'sub-' + ID,'ses-' + str(Session))
+            data_path = opj(bids_dir, 'sub-' + ID, 'ses-' + str(Session))
             all_data_path.append(data_path)
             all_Session.append(Session)
             all_ID.append(ID)
-            if len(list(list_session)) > 1:
+            if len(listereverse) > 1:
                 max_sessionlist.append(np.array(listereverse).max())
             else:
                 max_sessionlist.append(np.array(listereverse))
