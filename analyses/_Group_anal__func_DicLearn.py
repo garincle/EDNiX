@@ -72,6 +72,11 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
                   f"-input {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite -bound_type SLAB"
         nl = spgo(command)
         print(nl)
+    else:
+        command = f"singularity run {s_bind} {afni_sif} 3dresample -master {mean_imgs[0]} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
+                  f"-input {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite -bound_type SLAB"
+        nl = spgo(command)
+        print(nl)
 
     lowresanat = ants.image_read(templatelow)  # Low-resolution atlas
     anat = ants.image_read(templatehigh)  # High-resolution anatomical image
@@ -95,14 +100,10 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
         result_dir = opj(output_results1, 'dicL'+ str(component))
         if not os.path.exists(result_dir): os.mkdir(result_dir)
 
-        if oversample_dictionary == True:
-            dict_learning = DictLearning(mask= opj(output_results1, 'mask_mean_func_overlapp.nii.gz'),n_components=component, alpha=alpha_dic, n_epochs=1,
-                                         verbose=10, standardize="zscore_sample", random_state=0, n_jobs=1, smoothing_fwhm=smoothing, detrend=False, t_r=TR)
-        else:
-            dict_learning = DictLearning(mask=opj(output_results1, 'mask_mean_func_overlapp.nii.gz'),
-                                         n_components=component, alpha=alpha_dic, batch_size=5, standardize="zscore_sample", n_epochs=1,
-                                         verbose=10, random_state=0, n_jobs=1, smoothing_fwhm=smoothing, detrend=False,
-                                         t_r=TR)
+        dict_learning = DictLearning(mask=opj(output_results1, 'mask_mean_func_overlapp.nii.gz'),
+                                     n_components=component, alpha=alpha_dic, batch_size=5, standardize="zscore_sample", n_epochs=1,
+                                     verbose=10, random_state=0, n_jobs=1, smoothing_fwhm=smoothing, detrend=False,
+                                     t_r=TR)
         dict_learning.fit(images_dir)
         print('[Example] Saving results')
         # Decomposition dict_learning embeds their own masker
