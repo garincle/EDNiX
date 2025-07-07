@@ -235,9 +235,9 @@ if not data:
 df = pd.DataFrame(data)
 df = df[df['bids_dataset'] != 'BIDS_Ranft']
 df = df[df['bids_dataset'] != 'ARITEP-PNH']
-df = df[df['bids_dataset'] != 'ARITEP-PNH']
 df = df[df['bids_dataset'] != 'BIDS_merg']
 df = df[df['bids_dataset'] != 'BIDS_GdGSR']
+df = df[df['bids_dataset'] != 'ds004856']
 
 # Define metrics to plot
 exclude_cols = ['species', 'bids_dataset', 'subject', 'session', 'task',

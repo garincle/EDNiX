@@ -11,15 +11,20 @@ def cleanBIDS(BIDS_folder):
         '/**/**/anat/native/02_Wb/volumes/masks/*final_mask.nii.gz',
         '/**/**/anat/native/02_Wb/volumes/masks/*final_mask_2.nii.gz',
         '/**/**/**/**/**/manual_mask.nii.gz',
-        '/sty_template/studytemplate2_T2w/study_template_mask.nii.gz']
+        '/sty_template/studytemplate2_T2w/study_template_mask.nii.gz'
+        '/code/*',
+        '/**/code/*',
+        '/sourcedata/*',
+        '/**/sourcedata/*',
+        '/derivatives/*',
+        '/**/derivatives/*']
 
     for pattern in patterns:
-        keep_files.update(glob.glob(BIDS_folder + pattern))
+        keep_files.update(glob.glob(BIDS_folder + pattern, recursive=True))
 
     # Also keep top-level files in BIDS_folder
     keep_files.update(f for f in glob.glob(BIDS_folder + '/*') if os.path.isfile(f))
 
-    # Show the list of files to keep
     print("\nList of files to KEEP:")
     for f in sorted(keep_files):
         print(f)
@@ -47,25 +52,29 @@ def cleanBIDS(BIDS_folder):
     # Collect all directories, recursively
     all_dirs = [d for d in glob.glob(BIDS_folder + '/**', recursive=True) if os.path.isdir(d)]
 
-    # Keep running the cleanup until no more empty directories remain
-    while True:
-        empty_dirs = [dir for dir in all_dirs if not os.listdir(dir)]  # Find empty directories
-
-        if not empty_dirs:
-            break  # Stop if no empty directories are found
-
-        # Deleting empty directories
-        for dir in empty_dirs:
-            try:
+    # Deleting only directories that are truly empty (contain no files or subdirs)
+    for dir in sorted(all_dirs, reverse=True):  # reverse so children are processed before parents
+        try:
+            if not os.listdir(dir):
                 shutil.rmtree(dir)
                 print(f"Deleted empty directory: {dir}")
-            except Exception as e:
-                print(f"Error deleting directory {dir}: {e}")
-
-        # Refresh directory list
-        all_dirs = [d for d in glob.glob(BIDS_folder + '/**', recursive=True) if os.path.isdir(d)]
+        except Exception as e:
+            print(f"Error checking/deleting directory {dir}: {e}")
 
     print("Cleanup complete!")
+
+
+list = ['/srv/projects/easymribrain/data/MRI/Dog/BIDS_k9', '/srv/projects/easymribrain/data/MRI/Marmoset/BIDS_NIH', '/srv/projects/easymribrain/data/MRI/Marmoset/BIDS_UWO', '/srv/projects/easymribrain/data/MRI/Marmoset/BIDS_NIH_MBM', '/srv/projects/easymribrain/data/MRI/Human/ds004856', '/srv/projects/easymribrain/data/MRI/Human/BIDS_Rutgers', '/srv/projects/easymribrain/data/MRI/Human/BIDS_Ranft', '/srv/projects/easymribrain/data/MRI/Chimpanzee/BIDS_Rilling', '/srv/projects/easymribrain/data/MRI/Macaque/BIDS_Cdt_Garin', '/srv/projects/easymribrain/data/MRI/Macaque/BIDS_BenHamed', '/srv/projects/easymribrain/data/MRI/Macaque/ARITEP-PNH', '/srv/projects/easymribrain/data/MRI/Baboon/BIDS_merg', '/srv/projects/easymribrain/data/MRI/Mouse_lemur/BIDS_Garin', '/srv/projects/easymribrain/data/MRI/Mouse/BIDS_Gd', '/srv/projects/easymribrain/data/MRI/Bat/BIDS_bat']
+
+for path in list:
+	cleanBIDS(path)
+
+
+
+
+
+
+
 
 def clean_func_preserve_manual_and_topfiles(BIDS_folder):
     print("🔒 Starting cleanup of `func/` — keeping only `manual_mask.nii.gz` and top-level files")
@@ -110,4 +119,4 @@ def clean_func_preserve_manual_and_topfiles(BIDS_folder):
     print("✅ Cleanup done.")
 
 # Example usage:
-# clean_func_preserve_manual_and_topfiles("/path/to/BIDS")
+clean_func_preserve_manual_and_topfiles("/srv/projects/easymribrain/data/MRI/Rat/BIDS_Gd")
