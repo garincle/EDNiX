@@ -1,5 +1,4 @@
 import os
-import pandas as pd
 from bids import BIDSLayout
 from bids.reports import BIDSReport
 opn = os.path.normpath
@@ -7,10 +6,9 @@ opj = os.path.join
 MAIN_PATH = opj('/srv/projects/easymribrain/code/EDNiX/')
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
-import analyses._Group_anal__func_DicLearn
 import analyses._Group_anal_3dTtest
 import analyses._Group_anal_3dLMEr_Mirror
-import Launcher_analysis.Load_BIDS_data_for_analysis
+import Tools.Load_BIDS_data_for_analysis
 
 species = 'CatinDog'
 ## linux ##
@@ -118,9 +116,9 @@ selected_atlases = ['atlaslvl4_LR.nii.gz', 'registered_bodiesfaces_mask.nii', 'r
 panda_files = [pd.DataFrame({'region': ['retrosplenial'], 'label': [162]}), pd.DataFrame({'region': ['bodies-faces'], 'label': [1]}),
     pd.DataFrame({'region': ['R_bodies-faces', 'L_bodies-faces'], 'label': [2, 1]})]
 
-ntimepoint_treshold = 100
 endfmri = '*_task-rest_*.nii.gz' # string
-images_dir, all_ID, all_Session, all_data_path, max_sessionlist, mean_imgs, templatelow =  Launcher_analysis.Load_BIDS_data_for_analysis.load_data(bids_dir, df, ntimepoint_treshold, list_to_keep, list_to_remove, endfmri)
+
+all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max, mean_imgs, images_dir =  Tools.Load_BIDS_data_for_analysis.reverse_load_data_bids(bids_dir, file_pattern="residual_in_template.nii.gz")
 
 oversample_map = True
 oversample_dictionary = False
@@ -136,6 +134,8 @@ treshold_or_stat = 'stat'
 study_template_atlas_forlder = bids_dir + '/sty_template'
 folder_atlases = opj(study_template_atlas_forlder, 'atlases/') # sting
 mask_func     = opj(folder_atlases, 'Gmask.nii.gz') # sting
+templatelow = ''
+
 type_norm = 'T1w' # T1 or T2
 #templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template.nii.gz') # sting
 templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_T1w/study_template.nii.gz')
@@ -157,9 +157,9 @@ templatehigh = opj(r'/mnt/c/Users/cgarin/Documents/EDNiX/Atlas_library/Atlases_V
 
 templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_T1w/study_template.nii.gz')
 analyses._Group_anal_3dTtest._3dttest_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, cut_coords, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, endfmri, mean_imgs, ntimepoint_treshold)
+              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, endfmri, mean_imgs)
 
 analyses._Group_anal_3dLMEr_Mirror._3dLMEr_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, cut_coords,
                   panda_files, selected_atlases, lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha,
                   all_ID, all_Session, all_data_path, endfmri, mean_imgs,
-                  ntimepoint_treshold, model, glt_spec, contrast_names, midline_x, visualize, percent)
+                  model, glt_spec, contrast_names, midline_x, visualize, percent)

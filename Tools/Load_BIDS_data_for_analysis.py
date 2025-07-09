@@ -44,27 +44,26 @@ def load_data(bids_dir, df, ntimepoint_treshold, list_to_keep, list_to_remove, e
 
     ### this is just to list all subject in a ID + 'ses-' + str(Session) way (usefull for the variable "deoblique_exeption")
     animal_ID = []
+
+    #let's add all the the string to those lists
     for ID in pd.unique(allinfo_study_c_formax.ID):
         list_session = allinfo_study_c_formax.loc[allinfo_study_c_formax['ID'] == ID].Session.dropna()
-        # Convert sessions to numeric values
-        list_session = list_session.astype(int)
         listereverse = list(list_session)
         listereverse.reverse()
-
-        if len(listereverse) > 1:
+        if len(list(list_session))>1:
             max_session.append(np.array(listereverse).max())
         else:
             max_session.append(np.array(listereverse))
 
         for Session in listereverse:
-            print('session number ' + str(Session))
+            print('session numuber ' + str(Session))
 
             # Organization of the folders
-            data_path = opj(bids_dir, 'sub-' + ID, 'ses-' + str(Session))
+            data_path = opj(bids_dir,'sub-' + ID,'ses-' + str(Session))
             all_data_path.append(data_path)
             all_Session.append(Session)
             all_ID.append(ID)
-            if len(listereverse) > 1:
+            if len(list(list_session)) > 1:
                 max_sessionlist.append(np.array(listereverse).max())
             else:
                 max_sessionlist.append(np.array(listereverse))
@@ -168,3 +167,83 @@ def load_data(bids_dir, df, ntimepoint_treshold, list_to_keep, list_to_remove, e
 
     print("Remaining all_data_path:", all_data_path)
     return(images_dir, all_ID, all_Session, all_data_path, max_sessionlist, mean_imgs, templatelow)
+
+
+from pathlib import Path
+import re
+from collections import defaultdict
+
+def reverse_load_data_bids(bids_dir, network_quality, file_pattern="residual_in_template.nii.gz"):
+    all_ID = []
+    all_Session = []
+    all_data_path = []
+    all_ID_max = []
+    all_Session_max = []
+    all_data_path_max = []
+
+    mean_imgs = []
+    images_dir = []
+
+    subject_sessions = defaultdict(set)
+    subject_session_path = defaultdict(list)
+
+    for path in Path(bids_dir).rglob(f"*{file_pattern}"):
+        full_path = path.resolve()
+        parent_dir = full_path.parent
+
+        # Match subject and session from either path or filename
+        match = re.search(r"sub-([a-zA-Z0-9]+)[/_]ses-([0-9a-zA-Z]+)", str(full_path))
+        if not match:
+            match = re.search(r"sub-([a-zA-Z0-9]+)_ses-([0-9a-zA-Z]+)", path.name)
+        if not match:
+            continue
+
+        subject = match.group(1)
+        session = match.group(2)
+
+        all_ID.append(subject)
+        all_Session.append(session)
+        all_data_path.append(str(parent_dir))
+        subject_sessions[subject].add(session)
+        subject_session_path[(subject, session)].append(str(parent_dir))
+
+        if network_quality == 'all':
+            images_dir.append(str(full_path))
+        elif network_quality in ['Spurious', 'Specific', 'No', 'Unspecific']:
+            # Path to the JSON file (adjust as needed)
+            json_path = f"{opd(parent_dir)}/01_funcspace/10_Results/fMRI_QC_SNR/*_QC_values.json"
+
+            # Load the JSON file (example, you might need glob to find the exact file)
+            import json
+            import glob
+
+            json_files = glob.glob(json_path, recursive=True)
+            if json_files:
+                with open(json_files[0], 'r') as f:
+                    qc_data = json.load(f)
+
+                # Extract the category
+                category = qc_data.get("specificity_results", {}).get("target_specificity", {}).get("Category", "")
+
+                # Append if the category matches
+                if category == network_quality:
+                    images_dir.append(str(full_path))
+
+            # Also check for corresponding mean image
+        mean_image_path = parent_dir / 'Mean_Image_RcT_SS_in_template.nii.gz'
+        if mean_image_path.exists():
+            mean_imgs.append(str(mean_image_path))
+
+    # Find max session per subject
+    for subject in subject_sessions:
+        sessions = list(subject_sessions[subject])
+        sessions_sorted = sorted(sessions, key=lambda x: int(re.sub(r'\D', '', x)), reverse=True)
+        max_ses = sessions_sorted[0]
+        all_ID_max.append(subject)
+        all_Session_max.append(max_ses)
+        all_data_path_max.append(subject_session_path[(subject, max_ses)][0])
+
+    print("Recovered subjects and sessions from BIDS files.")
+    return (all_ID, all_Session, all_data_path,
+            all_ID_max, all_Session_max, all_data_path_max,
+            mean_imgs, images_dir)

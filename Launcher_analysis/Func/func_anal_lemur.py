@@ -143,7 +143,6 @@ all_Session =  [item for i, item in enumerate(all_Session) if i not in removelis
 all_data_path =  [item for i, item in enumerate(all_data_path) if i not in removelist]
 max_sessionlist =  [item for i, item in enumerate(max_sessionlist) if i not in removelist]
 
-ntimepoint_treshold = 100
 endfmri = '*_task-rest_*.nii.gz' # string
 
 images_dir = []
@@ -164,23 +163,6 @@ for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, m
         nl = 'ERROR : No func image found, we are look for an image define such as opj(dir_fMRI_Refth_RS, endfmri) and here it is ' + str(
             opj(dir_fMRI_Refth_RS, endfmri)) + ' I would check how you define "endfmri"'
         raise ValueError(nl)
-    list_RS_list = list_RS.copy()
-    list_pop_index = []
-
-    for imageF in list_RS_list:
-        # Load the fMRI NIfTI image
-        fmri_image = nib.load(imageF)
-        # Get the shape of the image (x, y, z, t)
-        image_shape = fmri_image.shape
-        # Check the number of time points (4th dimension)
-        if len(image_shape) == 4:
-            ntimepoint = image_shape[3]  # The 4th dimension represents time
-
-            if int(ntimepoint) < ntimepoint_treshold:
-                index_of_imageF = list_RS.index(imageF)
-                list_RS.pop(index_of_imageF)
-                list_pop_index.append(index_of_imageF)
-
     nb_run = len(list_RS)
     # Setup for distortion correction using Fieldmaps
 
@@ -247,7 +229,7 @@ gltCode = "-gltCode groupeffect 'Sess : 0.5*01 +0.5*02'"
 
 import analyses._Group_anal_3dLMEr_SBA
 analyses._Group_anal_3dLMEr_SBA._3dLMEr_EDNiX(bids_dir, BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, cut_coordsZ, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, ntimepoint_treshold, interaction_sessrun, gltCode)
+              lower_cutoff, upper_cutoff, s_bind, afni_sif, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs, interaction_sessrun, gltCode)
 
 analyses._Groupe_anal__func_DicLearn.dicstat(BASE_SS, oversample_map, mask_func, folder_atlases, cut_coordsX, cut_coordsY, alpha_dic, component_list,
              cut_coordsZ, bids_dir, images_dir, mean_imgs, min_size, lower_cutoff, upper_cutoff, afni_sif, s_bind, templatelow, templatehigh)

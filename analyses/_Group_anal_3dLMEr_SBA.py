@@ -27,7 +27,7 @@ spgo = subprocess.getoutput
 #################################################################################################
 def _3dLMEr_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, folder_atlases, cut_coords, panda_files, selected_atlases,
               lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs,
-                                              ntimepoint_treshold, model, gltCode, stat_img):
+                                              model, gltCode, stat_img):
 
     s_path, afni_sif, fsl_sif, fs_sif, itk_sif, wb_sif, strip_sif, s_bind = Tools.Load_EDNiX_requirement.load_requirement(
         MAIN_PATH, bids_dir, FS_dir)
@@ -114,27 +114,12 @@ def _3dLMEr_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func
                 # Check the func runs
                 list_RS = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endfmri)))
                 RS = [os.path.basename(i) for i in list_RS]
-
+                extract_filename
                 if len(list_RS) == 0:
                     nl = 'ERROR : No func image found, we are look for an image define such as opj(dir_fMRI_Refth_RS, endfmri) and here it is ' + str(
                         opj(dir_fMRI_Refth_RS, endfmri)) + ' I would check how you define "endfmri"'
                     raise ValueError(nl)
-                list_RS_list = list_RS.copy()
-                list_pop_index = []
 
-                for imageF in list_RS_list:
-                    # Load the fMRI NIfTI image
-                    fmri_image = nib.load(imageF)
-                    # Get the shape of the image (x, y, z, t)
-                    image_shape = fmri_image.shape
-                    # Check the number of time points (4th dimension)
-                    if len(image_shape) == 4:
-                        ntimepoint = image_shape[3]  # The 4th dimension represents time
-
-                        if int(ntimepoint) < ntimepoint_treshold:
-                            index_of_imageF = list_RS.index(imageF)
-                            list_RS.pop(index_of_imageF)
-                            list_pop_index.append(index_of_imageF)
 
                 nb_run = len(list_RS)
                 # Setup for distortion correction using Fieldmaps

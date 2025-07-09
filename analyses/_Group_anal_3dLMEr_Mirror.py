@@ -514,42 +514,36 @@ def _3dLMEr_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func
                 for ID, Session, data_path in zip(all_ID, all_Session, all_data_path):
                     # Get input directory for current seed (either L or R version)
                     input_dir = opj(data_path, 'func', '01_prepro', '03_atlas_space', '10_Results', 'SBA', current_seed)
-
                     if not ope(input_dir):
                         continue
 
                     # Process each run
                     for run_idx, run_path in enumerate(sorted(glob.glob(opj(data_path, 'func', endfmri)))):
-                        img = nib.load(run_path)
-                    if len(img.shape) == 4 and img.shape[3] < ntimepoint_treshold:
-                        continue
+                        root_RS = extract_filename(os.path.basename(run_path))
+                        original_file = opj(input_dir, f"{root_RS}_correlations_fish.nii.gz")
 
-                    root_RS = extract_filename(os.path.basename(run_path))
-                    original_file = opj(input_dir, f"{root_RS}_correlations_fish.nii.gz")
+                        if not ope(original_file):
+                            continue
 
-                    if not ope(original_file):
-                        continue
+                        # Handle resampling if needed
+                        if master_file is None:
+                            master_file = original_file
+                        elif not check_grid_match(master_file, original_file):
+                            original_file = resample_to_match(master_file, original_file, afni_sif, s_bind)
 
-                    # Handle resampling if needed
-                    if master_file is None:
-                        master_file = original_file
-                    elif not check_grid_match(master_file, original_file):
-                        original_file = resample_to_match(master_file, original_file, afni_sif, s_bind)
+                        # Create mirrored version
+                        mirrored_file = mirror_hemisphere(original_file, input_dir, midline_x, current_is_left)
 
-                    # Create mirrored version
-                    mirrored_file = mirror_hemisphere(original_file, input_dir, midline_x, current_is_left)
+                        # Determine which hemisphere we're analyzing
+                        analyzed_hemisphere = 'L' if current_is_left else 'R'
 
-                    # Determine which hemisphere we're analyzing
-                    analyzed_hemisphere = 'L' if current_is_left else 'R'
-
-                    # Add to design matrix
-                    design_data.append({
-                        'Subj': str(ID),
-                        'Sess': f'Sess_{Session}',
-                        'run': f'run_{run_idx}',
-                        'Hemisphere': analyzed_hemisphere,
-                        'InputFile': mirrored_file
-                    })
+                        # Add to design matrix
+                        design_data.append({
+                            'Subj': str(ID),
+                            'Sess': f'Sess_{Session}',
+                            'run': f'run_{run_idx}',
+                            'Hemisphere': analyzed_hemisphere,
+                            'InputFile': mirrored_file})
 
             # Skip if no data
             if not design_data:
