@@ -26,7 +26,7 @@ spgo = subprocess.getoutput
 #### Seed base analysis
 #################################################################################################
 def _3dttest_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, cut_coords, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, endfmri, mean_imgs, ntimepoint_treshold):
+              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, endfmri, mean_imgs):
 
     s_path, afni_sif, fsl_sif, fs_sif, itk_sif, wb_sif, strip_sif, s_bind = Tools.Load_EDNiX_requirement.load_requirement(
         MAIN_PATH, bids_dir, FS_dir)
@@ -91,7 +91,6 @@ def _3dttest_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_fun
             return subprocess.getoutput(command)
 
         # Loop through each region in the pandas dataframe
-
         for column, row in panda_file.T.items():
             Seed_name = row['region']
             Seed_name = format_seed_name(Seed_name)
@@ -105,15 +104,12 @@ def _3dttest_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_fun
             # Loop over all subjects and collect their Fisher maps for each region
 
             unique_IDs = np.unique(all_ID)  # Liste des ID uniques
-
             for ID in unique_IDs:
                 # Trouver les index où l'ID correspond
                 indices = [i for i, x in enumerate(all_ID) if x == ID]
 
                 subject_results = []
-
                 for idx in indices:
-                    Session = all_Session[idx]
                     data_path = all_data_path[idx]
 
                     dir_fMRI_Refth_RS = opj(data_path, 'func')
@@ -124,15 +120,10 @@ def _3dttest_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_fun
                     list_RS_list = list_RS.copy()
 
                     for imageF in list_RS_list:
-                        fmri_image = nib.load(imageF)
-                        image_shape = fmri_image.shape
-
-                        if len(image_shape) == 4 and image_shape[3] >= ntimepoint_treshold:
-                            root_RS = extract_filename(os.path.basename(imageF))
-                            input_results = opj(dir_fMRI_Refth_RS_prepro3, '10_Results', 'SBA', Seed_name)
-
-                            if ope(opj(input_results, root_RS + '_correlations_fish.nii.gz')):
-                                subject_results.append(opj(input_results, root_RS + '_correlations_fish.nii.gz'))
+                        root_RS = extract_filename(os.path.basename(imageF))
+                        input_results = opj(dir_fMRI_Refth_RS_prepro3, '10_Results', 'SBA', Seed_name)
+                        if ope(opj(input_results, root_RS + '_correlations_fish.nii.gz')):
+                            subject_results.append(opj(input_results, root_RS + '_correlations_fish.nii.gz'))
 
                 if subject_results:
                     output_file = opj(output_folder, f"{ID}_avg_fisher_map.nii.gz")

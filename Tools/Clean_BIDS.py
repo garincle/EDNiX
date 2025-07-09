@@ -70,12 +70,6 @@ for path in list:
 	cleanBIDS(path)
 
 
-
-
-
-
-
-
 def clean_func_preserve_manual_and_topfiles(BIDS_folder):
     print("🔒 Starting cleanup of `func/` — keeping only `manual_mask.nii.gz` and top-level files")
 

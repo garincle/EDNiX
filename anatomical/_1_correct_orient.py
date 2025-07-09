@@ -2,7 +2,7 @@ import os
 import subprocess
 import shutil
 import glob
-from fonctions import extract_filename
+from fonctions.extract_filename import extract_filename
 import json
 from nilearn.image import resample_to_img
 from nilearn.image import math_img
