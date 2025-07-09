@@ -1068,6 +1068,27 @@ def Skullstrip_method(step_skullstrip, template_skullstrip, study_template_atlas
             with open(output_for_mask[:-7] + '.json', "w") as outfile:
                 outfile.write(json_object)
 
+        elif brain_skullstrip == 'muSkullStrip_cross_species_step1':
+            command = 'python3 ' + opj(opd(afni_sif), 'NHP-BrainExtraction', 'UNet_Model', 'muSkullStrip.py') + \
+                      ' -in ' + input_for_msk + \
+                      ' -model ' + opj(opd(afni_sif), 'NHP-BrainExtraction', 'UNet_Model', 'models','model-02-_cross_species-epoch') + \
+                      ' -out ' + process_dir
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+
+            shutil.copyfile(opj(opd(output_for_mask), extract_filename(input_for_msk) + '_pre_mask.nii.gz'),
+                            output_for_mask)
+            command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 2'
+            nl = spgo(command)
+            diary.write(f'\n{nl}')
+            print(nl)
+            dictionary = {"Sources": input_for_msk,
+                          "Description": 'Brain mask (U-Net).', }
+            json_object = json.dumps(dictionary, indent=2)
+            with open(output_for_mask[:-7] + '.json', "w") as outfile:
+                outfile.write(json_object)
+
         elif brain_skullstrip == 'Custum_Macaque2':
             import re
             # Use a regular expression to find the session number (ses-XX)

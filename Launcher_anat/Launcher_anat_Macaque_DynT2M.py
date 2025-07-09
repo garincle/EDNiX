@@ -107,9 +107,9 @@ BIDStype = 1
 
 ###masking
 masking_img = 'T1w'
-brain_skullstrip_1 ='Custum_Baboon' # bet2_ANTS or MachinL
+brain_skullstrip_1 ='muSkullStrip_cross_species_step1' # bet2_ANTS or MachinL
 #precise
-brain_skullstrip_2 ='Custum_QWARP' # bet2_ANTS or MachinL
+brain_skullstrip_2 ='NoSkullStrip' # bet2_ANTS or MachinL
 do_fMRImasks = True
 fMRImasks = 'aseg' #must be aseg or custom, if custom  please add a ventricle and whitte matter mask in the template space named such as Vmask, Wmask
 Align_img_to_template = '@Align_Centers' #3dAllineate or No or @Align_Centers
