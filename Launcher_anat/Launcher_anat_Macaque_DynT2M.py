@@ -100,13 +100,13 @@ aff_metric_ants_Transl = 'mattes'
 aff_metric_ants = 'MI'
 
 ####Choose to normalize using T1 or T2
-type_norm = 'T1w' # T1 or T2
+type_norm = 'T2w' # T1 or T2
 otheranat = '' #NA if none
 orientation = 'LSP'
 BIDStype = 1
 
 ###masking
-masking_img = 'T1w'
+masking_img = 'T2w'
 brain_skullstrip_1 ='muSkullStrip_cross_species_step1' # bet2_ANTS or MachinL
 #precise
 brain_skullstrip_2 ='NoSkullStrip' # bet2_ANTS or MachinL
@@ -123,7 +123,7 @@ type_of_transform_stdyT = ''
 aff_metric_ants_Transl_template = ''
 Atemplate_to_Stemplate = ''
 template_skullstrip = ''
-do_surfacewith = 'T1' #'T1' 'T1andT2'
+do_surfacewith = 'T2' #'T1' 'T1andT2'
 
 ### Block1: step 1,2 (orienting, cleaning images)
 ### Block1: step 3 (study template)
