@@ -12,7 +12,7 @@ import fonctions._0_Pipeline_launcher
 
 species = 'Macaque'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Tools.Load_subject_with_BIDS.linux_path('/srv/projects/easymribrain/data/MRI/Macaque/BIDS_BenHamed')
+bids_dir = Tools.Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/data/MRI/Macaque/BIDS_DynT2M/'))
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')
 atlas_dir = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", species)
 Lut_dir = opj(MAIN_PATH, "Atlas_library", "LUT_files")
@@ -45,7 +45,7 @@ print(df['suffix'].unique())
 print(df['extension'].unique())
 print(df['datatype'].unique())
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
+allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -103,16 +103,16 @@ deoblique='header' #header or WARP_without_3drefit
 
 ## prior anatomical processing
 coregistration_longitudinal = False #True or False
-type_norm = 'T1w' # T1 or T2
+type_norm = 'T2w' # T1 or T2
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
-TfMRI = 'T1w' # string
+TfMRI = 'T2w' # string
 ### if you don't have any anatomical image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
 folderforTemplate_Anat = ''
 
 ## masking
 doMaskingfMRI = True # True or False
 Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
-costAllin = '' # string
+costAllin = 'lpc' # string
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
@@ -120,9 +120,9 @@ anat_func_same_space = False # True or False
 use_master_for_Allineate = False
 n_for_ANTS = 'hammingWindowedSinc' # string
 registration_fast = False
-type_of_transform = 'SyNOnly'
-aff_metric_ants_Transl = 'mattes' # string
-aff_metric_ants = 'CC'
+type_of_transform = 'SyN'
+aff_metric_ants_Transl = 'MI' # string
+aff_metric_ants = 'MI'
 do_anat_to_func = True # True or False
 
 ##### if you don't have an anat then template will be the same as anat...

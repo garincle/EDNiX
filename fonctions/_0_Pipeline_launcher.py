@@ -137,15 +137,32 @@ def preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_te
             else:
                 template_anat_for_fmri = glob.glob(opj(opd(data_path),'ses-' + str(Session),'anat','native','02_Wb', 'volumes', '*' + TfMRI + '_brain.nii*'))
                 if len(template_anat_for_fmri) > 1:
-                    nl = "WARNING: we found multiple anat template for this animal, please choose one!"
+                    nl = "WARNING: we found multiple anat template for this animal, THIS IS NOT NORMAL, please check what happened"
                     print(bcolors.WARNING + nl + bcolors.ENDC)
                     diary.write(f'\n{nl}')
-                    data_path_anat = input("Please enter manually a data_path_anat for preprocessing:")
                 elif len(template_anat_for_fmri) == 0:
-                    nl = ("ERROR: We haven't found any anat template for this animal! We can't continue ! please provide a valid link for at least one anat image! "
-                          "current link is :") + str(template_anat_for_fmri)
+                    nl = "WARNING: we havn't found an anat template for this animal, in this SESSION, please check that this is what you want!! also check that do_anat_to_func = True  anat_func_same_space = False"
+                    print(bcolors.WARNING + nl + bcolors.ENDC)
                     diary.write(f'\n{nl}')
-                    raise Exception(bcolors.FAIL + nl + bcolors.ENDC)
+                    nl = 'INFO: Lets scanned the whole subject folder'
+                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                    diary.write(f'\n{nl}')
+                    template_anat_for_fmri = glob.glob(opj(opd(data_path),'**','anat','native','02_Wb', 'volumes', '*' + TfMRI + '_brain.nii*'))
+                    if len(template_anat_for_fmri) == 1:
+                        nl = "WARNING: we found one anat template for this animal, let's continue with it"
+                        print(bcolors.WARNING + nl + bcolors.ENDC)
+                        diary.write(f'\n{nl}')
+                        data_path_anat = opd(opd(opd(opd(opd(template_anat_for_fmri[0])))))
+                    elif len(template_anat_for_fmri) > 1:
+                        nl = "WARNING: we found multiple anat template for this animal, we will choose the first one by DEFAULT!"
+                        print(bcolors.WARNING + nl + bcolors.ENDC)
+                        diary.write(f'\n{nl}')
+                        data_path_anat = opd(opd(opd(opd(opd(template_anat_for_fmri[0])))))
+                    else:
+                        nl = ("ERROR: We haven't found any anat template for this animal! We can't continue ! please provide a valid link for at least one anat image! "
+                              "current link is :") + str(template_anat_for_fmri)
+                        diary.write(f'\n{nl}')
+                        raise Exception(bcolors.FAIL + nl + bcolors.ENDC)
                 else :
                     data_path_anat = opd(opd(opd(opd(opd(template_anat_for_fmri[0])))))
                     nl = 'INFO: We found this image as template: ' + str(template_anat_for_fmri)
