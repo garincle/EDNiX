@@ -91,7 +91,6 @@ def correct_orient(BIDStype,
             ###########remove norm anat #########
             ###################################
         elif len(list_anat)>1:
-
             nl = 'INFO: We found ' + str(len(list_anat)) + ' anat images for this session'
             print(bcolors.OKGREEN + nl + bcolors.ENDC)
             diary.write(f'\n{nl}')

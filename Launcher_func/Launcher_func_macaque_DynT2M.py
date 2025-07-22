@@ -111,7 +111,7 @@ folderforTemplate_Anat = ''
 
 ## masking
 doMaskingfMRI = True # True or False
-Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = 'muSkullStrip_cross_species' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 costAllin = 'lpc' # string
 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
@@ -194,7 +194,7 @@ specific_roi_tresh = 0.2
 delta_thresh = 0.1
 
 ############ Right in a list format the steps that you want to skip
-Skip_step = [4,100,200] # Changed to match requested values
+Skip_step = [1,2,4,100,200] # Changed to match requested values
 
 fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
                                                BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space, use_master_for_Allineate,
