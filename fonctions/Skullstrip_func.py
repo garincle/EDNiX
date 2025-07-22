@@ -9,9 +9,10 @@ import nilearn
 import numpy as np
 from nilearn.masking import compute_epi_mask
 from anatomical import Histrogram_mask_EMB
+from fonctions.extract_filename import extract_filename
 import datetime
 import json
-
+import shutil
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -190,6 +191,28 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         dictionary = {"Sources": input_for_msk,
                       "Description": ['binary brain mask (3dSkullStrip, AFNI)',
                                       'fill holes and dilation (3dmask_tool,AFNI).'], }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output_for_mask[:-7] + '.json', "w") as outfile:
+            outfile.write(json_object)
+
+    elif brain_skullstrip == 'muSkullStrip_cross_species':
+        command = 'python3 ' + opj(opd(afni_sif), 'NHP-BrainExtraction', 'UNet_Model', 'muSkullStrip.py') + \
+                  ' -in ' + input_for_msk + \
+                  ' -model ' + opj(opd(afni_sif), 'NHP-BrainExtraction', 'UNet_Model', 'models',
+                                   'model-02-_cross_species-epoch') + \
+                  ' -out ' + opd(input_for_msk)
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+
+        shutil.copyfile(opj(opd(output_for_mask), extract_filename(input_for_msk) + '_pre_mask.nii.gz'),
+                        output_for_mask)
+        command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 2'
+        nl = spgo(command)
+        diary.write(f'\n{nl}')
+        print(nl)
+        dictionary = {"Sources": input_for_msk,
+                      "Description": 'Brain mask (U-Net).', }
         json_object = json.dumps(dictionary, indent=2)
         with open(output_for_mask[:-7] + '.json', "w") as outfile:
             outfile.write(json_object)

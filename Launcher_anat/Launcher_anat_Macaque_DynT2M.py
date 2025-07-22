@@ -49,7 +49,7 @@ allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
-list_to_keep = []
+list_to_keep = [('PC09251', '24')]
 list_to_remove = []
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
@@ -107,7 +107,7 @@ BIDStype = 1
 
 ###masking
 masking_img = 'T2w'
-brain_skullstrip_1 ='muSkullStrip_cross_species_step1' # bet2_ANTS or MachinL
+brain_skullstrip_1 ='muSkullStrip_cross_species' # bet2_ANTS or MachinL
 #precise
 brain_skullstrip_2 ='NoSkullStrip' # bet2_ANTS or MachinL
 do_fMRImasks = True
