@@ -43,14 +43,13 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
     for panda_file, atlas in zip(segmentation_name_list, selected_atlases_matrix):
         for i in range(int(nb_run)):
 
-            runname = '_'.join([atlas, 'run', str(i)])
+            runname = '_'.join([atlas[0], 'run', str(i)])
 
             root_RS = extract_filename(RS[i])
             func_filename = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
 
             if ope(func_filename):
-                atlas = extract_filename(atlas)
-                atlas_filename = opj(dir_fMRI_Refth_RS_prepro1, atlas + '.nii.gz')
+                atlas_filename = opj(dir_fMRI_Refth_RS_prepro1, ID + '_seg-' + atlas[0] + '_dseg.nii.gz')
 
                 output_results = opj(dir_fMRI_Refth_RS_prepro1, '10_Results')
                 if not ope(output_results):
@@ -94,10 +93,10 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                         nl = f"  Image 2: {values[1]}"
                         run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-                        caca = nilearn.image.resample_to_img(atlas_filename, func_filename, interpolation='nearest')
-                        caca.to_filename(atlas_filename)
+                        dummy = nilearn.image.resample_to_img(atlas_filename, func_filename, interpolation='nearest')
+                        dummy.to_filename(atlas_filename)
 
-                        extracted_data = nib.load(atlas_filename).get_fdata()
+                        extracted_data = nib.load(atlas_filename).get_fdata()[:,:,:,atlas[1]]
                         labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
                         labeled_img2.to_filename(atlas_filename)
 
