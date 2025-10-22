@@ -36,6 +36,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
     for space in SBAspace:
         for i in range(int(nb_run)):
             root_RS = extract_filename(RS[i])
+            ID = root_RS.split('_')[0]
             if space=='func':
                 direction_results = dir_fMRI_Refth_RS_prepro1
                 func_filename     = opj(direction_results, root_RS + '_residual.nii.gz')
@@ -105,10 +106,10 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                                            mask_img=opj(direction_results, 'cortical_mask_funcrsp.nii.gz'))
                 brain_time_series = brain_masker.fit_transform(func_filename)
 
-                selected_atlases_basename = [opb(path) for path in selected_atlases]
-                for panda_file, atlas in zip(panda_files, selected_atlases_basename):
 
-                    atlas_filename = opj(direction_results, atlas)
+                for panda_file, atlas in zip(panda_files, selected_atlases):
+
+                    atlas_filename = opj(direction_results, ID + '_seg-' + atlas[0]+ '_dseg.nii.gz')
                     output_results = opj(direction_results, '10_Results', 'SBA')
 
                     if not ope(opj(direction_results, '10_Results')):
@@ -143,7 +144,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
 
                         atlas_path = opj(output_folder, Seed_name + '.nii.gz')
 
-                        command = (sing_afni + '3dcalc -overwrite -a ' + atlas_filename  +
+                        command = (sing_afni + '3dcalc -overwrite -a ' + atlas_filename + '[' + str(atlas[1]) +']' +
                                    ' -expr "ispositive(a)*(iszero(ispositive((a-' + str(Seed_label) + ')^2)))" -prefix '
                                    + atlas_path)
                         run_cmd.do(command,diary_file)
