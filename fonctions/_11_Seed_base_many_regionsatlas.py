@@ -1,60 +1,40 @@
+import os
 import nilearn
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')  # Set the non-interactive backend
-from nilearn import image
-from nilearn import plotting
-import subprocess
-import os
-from nilearn.input_data import NiftiMasker
-import nibabel as nib
-from nilearn.input_data import NiftiLabelsMasker
+import matplotlib.pyplot as plt
+from nilearn import image,plotting
 from nilearn.image import resample_to_img
-from fonctions.extract_filename import extract_filename
+from nilearn.input_data import NiftiMasker,NiftiLabelsMasker
+import nibabel as nib
 import scipy.ndimage as ndimage
 import ants
-import datetime
 import json
-import matplotlib.pyplot as plt
 
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-#Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
-opn = os.path.normpath
 opd = os.path.dirname
 ope = os.path.exists
 opi = os.path.isfile
 
-spco = subprocess.check_output
-spgo = subprocess.getoutput
+from Tools import run_cmd
+from fonctions.extract_filename import extract_filename
+
 
 #################################################################################################
 ####Seed base analysis
 ################################################################################################# 
 def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
     dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func,
-        cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, s_bind, afni_sif, diary_file, smoothSBA, TR_val):
+        cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, sing_afni, diary_file, smoothSBA, TR_val):
 
-    ct = datetime.datetime.now()
-    diary = open(diary_file, "a")
-    diary.write(f'\n{ct}')
+
     nl = '##  Working on step ' + str(11) + '(function: _11_Seed_base_many_regionsatlas).  ##'
-    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-    diary.write(f'\n{nl}')
+    run_cmd.msg(nl,diary_file,'HEADER')
 
     for space in SBAspace:
-        for i in range(0, int(nb_run)):
+        for i in range(int(nb_run)):
             root_RS = extract_filename(RS[i])
             if space=='func':
                 direction_results = dir_fMRI_Refth_RS_prepro1
@@ -101,8 +81,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                     cortical_mask_func = opj(direction_results,'mask_brain.nii.gz') # should change the name as mask_ref.nii.gz
             else:
                 nl = 'WARNING: will not perform ' + str(direction_results) + ' space because SBAspace is ' + str(SBAspace)
-                print(bcolors.WARNING + nl + bcolors.ENDC)
-                diary.write(f'\n{nl}')
+                run_cmd.msg(nl,diary_file,'WARNING')
 
 
             if ope(func_filename):
@@ -132,9 +111,9 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                     atlas_filename = opj(direction_results, atlas)
                     output_results = opj(direction_results, '10_Results', 'SBA')
 
-                    if not os.path.exists(opj(direction_results, '10_Results')):
+                    if not ope(opj(direction_results, '10_Results')):
                         os.mkdir(opj(direction_results, '10_Results'))
-                    if not os.path.exists(output_results):
+                    if not ope(output_results):
                         os.mkdir(output_results)
 
                     ##########################################################################
@@ -159,17 +138,15 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                         Seed_label = row['label']
 
                         output_folder = opj(output_results, Seed_name)
-                        if not os.path.exists(output_folder):
+                        if not ope(output_folder):
                             os.mkdir(output_folder)
 
                         atlas_path = opj(output_folder, Seed_name + '.nii.gz')
 
-                        command = ('singularity run' + s_bind + afni_sif + '3dcalc -overwrite -a ' + atlas_filename  +
+                        command = (sing_afni + '3dcalc -overwrite -a ' + atlas_filename  +
                                    ' -expr "ispositive(a)*(iszero(ispositive((a-' + str(Seed_label) + ')^2)))" -prefix '
                                    + atlas_path)
-                        nl = spgo(command)
-                        diary.write(f'\n{nl}')
-                        print(nl)
+                        run_cmd.do(command,diary_file)
                         dictionary = {"Sources": atlas_filename,
                                       "Description": 'ispositive(a)*(iszero(ispositive((a-' + str(Seed_label) + ')^2))) (3dcalc, AFNI).'},
                         json_object = json.dumps(dictionary, indent=2)
@@ -185,8 +162,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                         # Check if all the values in the image are zero
                         if np.all(labels == 0):
                             nl = "WARNING: The NIfTI image is empty (all voxel values are zero)."
-                            print(nl)
-                            diary.write(f'\n{nl}')
+                            run_cmd.msg(nl, diary_file, 'WARNING')
 
                             diary_file_WARNING = opj(opd(opd(dir_fMRI_Refth_RS_prepro1)), 'SEED_' + str(Seed_name) + '_EMPTY_WARNING.txt')
                             if not opi(diary_file_WARNING):
@@ -219,8 +195,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                                 if label == 0:
                                     continue  # Skip background
                                 nl = f"Processing label: {label}"
-                                print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                                diary.write(f'\n{nl}')
+                                run_cmd.msg(nl, diary_file, 'OKGREEN')
 
                                 # Isolate the current region (region is 1 where label matches, else 0)
                                 region_mask = (atlas_img.numpy() == label).astype(np.uint8)
@@ -230,13 +205,11 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                                     eroded_region_1 = erode_region(region_mask, iterations=1)
                                     if np.sum(eroded_region_1) > 10:  # Check if the region still has enough voxels
                                         nl = f"Label {label}: Eroded by 1 voxel, still has voxels."
-                                        print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                                        diary.write(f'\n{nl}')
+                                        run_cmd.msg(nl, diary_file, 'OKGREEN')
                                         final_result[eroded_region_1 > 0] = label
                                     else:
                                         nl = f"Label {label}: Eroding by 1 voxel removes too many voxels, keeping original region."
-                                        print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                                        diary.write(f'\n{nl}')
+                                        run_cmd.msg(nl, diary_file, 'OKGREEN')
                                         final_result[region_mask > 0] = label  # Keep the original mask
                                 else:
                                     final_result[region_mask > 0] = label  # Keep the original mask
@@ -255,8 +228,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                                 outfile.write(json_object)
 
                             nl = f"Eroded atlas saved to: {output_path}"
-                            print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                            diary.write(f'\n{nl}')
+                            run_cmd.msg(nl, diary_file, 'OKGREEN')
 
                             # Get the global signal within each seed
                             labels_img = resample_to_img(output_path, func_filename, interpolation='nearest')
@@ -304,8 +276,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                             seed_to_voxel_correlations_fisher_z = np.arctanh(seed_to_voxel_correlations)
                             nl = "Seed-to-voxel correlation Fisher-z transformed: min = %.3f; max = %.3f" % (seed_to_voxel_correlations_fisher_z.min(),
                                                                                                              seed_to_voxel_correlations_fisher_z.max())
-                            print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                            diary.write(f'\n{nl}')
+                            run_cmd.msg(nl, diary_file, 'OKGREEN')
 
                             seed_to_voxel_correlations_img_fish = brain_masker.inverse_transform(
                                 seed_to_voxel_correlations_fisher_z.T)
@@ -326,8 +297,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                             # Check if all the values in the image are zero
                             if np.all(correlation_val == 0):
                                 nl = "WARNING: The NIfTI image is empty (all voxel values are zero)."
-                                print(nl)
-                                diary.write(f'\n{nl}')
+                                run_cmd.msg(nl, diary_file, 'WARNING')
 
                             else:
 
@@ -378,9 +348,6 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                                     plt.close('all')
             else:
                 nl = 'WARNING: ' + str(func_filename) + ' not found!!'
-                print(bcolors.WARNING + nl + bcolors.ENDC)
-                diary.write(f'\n{nl}')
+                run_cmd.msg(nl, diary_file, 'WARNING')
 
-    diary.write(f'\n')
-    diary.close()
 

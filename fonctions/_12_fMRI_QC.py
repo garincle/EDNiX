@@ -1,39 +1,25 @@
-import nilearn
 import os
+import nilearn
 from nilearn import image
 from nilearn.input_data import NiftiLabelsMasker
 import shutil
-import subprocess
 from shutil import copyfile
 import math
 import scipy
+from scipy.stats import pearsonr, entropy
 from nitime.lazy import scipy_linalg as linalg
 import nitime.utils as utils
-from fonctions.extract_filename import extract_filename
 import nibabel as nib
 import pandas as pd
-import datetime
 import json
 import time
 import matplotlib.pyplot as plt
-from scipy.stats import pearsonr, entropy
-from sklearn.metrics import mutual_info_score
 from matplotlib.gridspec import GridSpec
+from sklearn.metrics import mutual_info_score
 from sklearn.preprocessing import StandardScaler
+import ants
+import numpy as np
 
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-
-# File path operations
 opj = os.path.join
 opb = os.path.basename
 opn = os.path.normpath
@@ -42,26 +28,18 @@ ope = os.path.exists
 ops = os.path.splitext
 opa = os.path.abspath
 
-# Subprocess operations
-spco = subprocess.check_output
-spgo = subprocess.getoutput
+from Tools import run_cmd
+from fonctions.extract_filename import extract_filename
 
-import ants
-import numpy as np
-from scipy.ndimage import gaussian_filter
-
-import ants
-import numpy as np
-import ants
-from scipy.ndimage import gaussian_filter
-
-def create_surrogate_from_label_atlas(anat_img):
+def create_surrogate_from_label_atlas(anat_img,diary_file):
     """Create a surrogate T1/T2-like image from a label atlas using inversion trick with safer handling."""
     atlas_data = anat_img.numpy()
 
     valid_mask = atlas_data > 0
     if not np.any(valid_mask):
-        raise ValueError("Input label atlas contains no non-zero values.")
+        nl = "Input label atlas contains no non-zero values."
+        run_cmd.msg(nl, diary_file, 'WARNING')
+        raise ValueError(nl)
 
     # Get only valid data
     atlas_data_valid = atlas_data[valid_mask]
@@ -69,7 +47,8 @@ def create_surrogate_from_label_atlas(anat_img):
 
     if len(unique_values) < 2:
         # Instead of failing, fallback to flat image with small noise
-        print("WARNING: Only one label found, generating flat surrogate image with noise.")
+        nl="WARNING: Only one label found, generating flat surrogate image with noise."
+        run_cmd.msg(nl,diary_file,'WARNING')
         surrogate_data = np.zeros_like(atlas_data, dtype=np.float32)
         surrogate_data[valid_mask] = 50 + np.random.normal(0, 1, size=np.sum(valid_mask))
     else:
@@ -88,7 +67,7 @@ def create_surrogate_from_label_atlas(anat_img):
     return surrogate_img
 
 
-def detect_image_type(anat_img, atlas_img):
+def detect_image_type(anat_img, atlas_img,diary_file):
     """Detect whether anatomical image is T1 or T2 weighted based on tissue contrast."""
     try:
         # Get numpy arrays
@@ -119,10 +98,10 @@ def detect_image_type(anat_img, atlas_img):
             # Typical T2 contrasts: CSF > GM > WM
             t2_likelihood = 0
             if gm_mean > wm_mean: t2_likelihood += 1
-
-            print("t1_likelihood " + str(t1_likelihood))
-            print("t2_likelihood " + str(t2_likelihood))
-
+            nl = "t1_likelihood " + str(t1_likelihood)
+            run_cmd.msg(nl, diary_file, 'ENDC')
+            nl = "t2_likelihood " + str(t2_likelihood)
+            run_cmd.msg(nl, diary_file, 'ENDC')
             # Determine image type
             if t1_likelihood > t2_likelihood:
                 image_type = "T1"
@@ -155,7 +134,8 @@ def detect_image_type(anat_img, atlas_img):
                 "t2_likelihood": np.nan
             }
     except Exception as e:
-        print(f"ERROR in detect_image_type: {str(e)}")
+        nl = 'ERROR in detect_image_type: ' + str(e)
+        run_cmd.msg(nl,diary_file,'FAIL')
         return {
             "image_type": "Unknown",
             "wm_mean": np.nan,
@@ -439,7 +419,7 @@ def fd_jenkinson(in_file, rmax=80., out_file=None, out_array=True):
     flag = 0
     X = [0]
 
-    for i in range(0, pm.shape[0]):
+    for i in range(pm.shape[0]):
         T_rb = np.matrix(pm[i].reshape(4, 4))
 
         if flag == 0:
@@ -621,16 +601,13 @@ def save_qc_values(output_results, root_RS, qc_values):
 
 
 def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro3,
-            RS, nb_run, s_bind, afni_sif, diary_file):
+            RS, nb_run, sing_afni, diary_file):
     """
     Main function for fMRI quality control analysis with enhanced coverage analysis and image type detection.
     """
-    ct = datetime.datetime.now()
-    diary = open(diary_file, "a")
-    diary.write(f'\n{ct}')
+
     nl = '##  Working on step ' + str(12) + '(function: _12_fMRI_QC).  ##'
-    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-    diary.write(f'\n{nl}')
+    run_cmd.msg(nl, diary_file, 'HEADER')
 
     dir_path = dir_fMRI_Refth_RS_prepro1
     output_results = opj(dir_path, '10_Results', 'fMRI_QC_SNR')
@@ -659,14 +636,12 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
 
         if not ope(func_filename):
             nl = 'WARNING: ' + str(func_filename) + ' not found!!'
-            print(bcolors.WARNING + nl + bcolors.ENDC)
-            diary.write(f'\n{nl}')
+            run_cmd.msg(nl, diary_file, 'WARNING')
             continue
 
         if not ope(atlas_filename):
             nl = 'WARNING: no atlas lvl 1 LR found, this is a requirement for some of QC analysis'
-            print(bcolors.WARNING + nl + bcolors.ENDC)
-            diary.write(f'\n{nl}')
+            run_cmd.msg(nl, diary_file, 'WARNING')
             continue
 
         # Load and check image headers
@@ -689,8 +664,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
             if differences:
                 for field, values in differences.items():
                     nl = f"{field}: Image 1: {values[0]}, Image 2: {values[1]}"
-                    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                    diary.write(f'\n{nl}')
+                    run_cmd.msg(nl, diary_file, 'OKGREEN')
 
                 # Resample atlas to match fMRI
                 dummy = nilearn.image.resample_to_img(atlas_filename, func_filename, interpolation='nearest')
@@ -701,12 +675,10 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
                 labeled_img2.to_filename(atlas_filename)
             else:
                 nl = "No differences found in the specified fields."
-                print(bcolors.OKGREEN + nl + bcolors.ENDC)
-                diary.write(f'\n{nl}')
+                run_cmd.msg(nl, diary_file, 'OKGREEN')
         except Exception as e:
             nl = f"ERROR loading/checking images: {str(e)}"
-            print(bcolors.FAIL + nl + bcolors.ENDC)
-            diary.write(f'\n{nl}')
+            run_cmd.msg(nl, diary_file, 'FAIL')
             continue
 
         # Atlas labels
@@ -727,8 +699,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
             fmri_data = fmri_img.get_fdata()
         except Exception as e:
             nl = f"ERROR loading atlas/fMRI data: {str(e)}"
-            print(bcolors.FAIL + nl + bcolors.ENDC)
-            diary.write(f'\n{nl}')
+            run_cmd.msg(nl, diary_file, 'FAIL')
             continue
 
         # Compute SNR for each region
@@ -786,8 +757,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
             snr_results, noise = compute_snr(atlas_data, fmri_data, labels)
         except Exception as e:
             nl = f"ERROR computing SNR: {str(e)}"
-            print(bcolors.FAIL + nl + bcolors.ENDC)
-            diary.write(f'\n{nl}')
+            run_cmd.msg(nl, diary_file, 'FAIL')
             snr_results = {}
             noise = np.nan
 
@@ -876,8 +846,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
 
             except Exception as e:
                 nl = f"ERROR processing {QCexplain}: {str(e)}"
-                print(bcolors.WARNING + nl + bcolors.ENDC)
-                diary.write(f'\n{nl}')
+                run_cmd.msg(nl, diary_file, 'WARNING')
 
         # Motion analysis
         try:
@@ -889,8 +858,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
             qc_values['mean_fd'] = np.nanmean(fd_jenkinson_array) if len(fd_jenkinson_array) > 0 else np.nan
         except Exception as e:
             nl = f"ERROR computing FD: {str(e)}"
-            print(bcolors.WARNING + nl + bcolors.ENDC)
-            diary.write(f'\n{nl}')
+            run_cmd.msg(nl, diary_file, 'WARNING')
             fd_jenkinson_array = []
             qc_values['mean_fd'] = np.nan
 
@@ -903,8 +871,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
             qc_values['mean_dvars'] = np.nanmean(calc_dvars_array) if len(calc_dvars_array) > 0 else np.nan
         except Exception as e:
             nl = f"ERROR computing DVARS: {str(e)}"
-            print(bcolors.WARNING + nl + bcolors.ENDC)
-            diary.write(f'\n{nl}')
+            run_cmd.msg(nl, diary_file, 'WARNING')
             calc_dvars_array = []
             qc_values['mean_dvars'] = np.nan
 
@@ -915,8 +882,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
                 raise ValueError("Empty motion parameters file")
         except Exception as e:
             nl = f"ERROR loading motion parameters: {str(e)}"
-            print(bcolors.WARNING + nl + bcolors.ENDC)
-            diary.write(f'\n{nl}')
+            run_cmd.msg(nl, diary_file, 'WARNING')
             motion_params = np.array([])
 
         # Global correlation
@@ -928,8 +894,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
             qc_values['gcor'] = gcor_val
         except Exception as e:
             nl = f"ERROR computing global correlation: {str(e)}"
-            print(bcolors.WARNING + nl + bcolors.ENDC)
-            diary.write(f'\n{nl}')
+            run_cmd.msg(nl, diary_file, 'WARNING')
             qc_values['gcor'] = np.nan
 
         # Ghost ratio
@@ -948,8 +913,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
                 qc_values['ghost_ratio'] = float(ghost_ratio)
             except Exception as e:
                 nl = f"ERROR computing ghost ratio: {str(e)}"
-                print(bcolors.WARNING + nl + bcolors.ENDC)
-                diary.write(f'\n{nl}')
+                run_cmd.msg(nl, diary_file, 'WARNING')
                 qc_values['ghost_ratio'] = np.nan
         else:
             qc_values['ghost_ratio'] = np.nan
@@ -963,11 +927,10 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
                 original_dir = os.getcwd()
                 os.chdir(dir_path)
 
-                command = ('singularity run' + s_bind + afni_sif +
-                           '3dFWHMx -overwrite -combined -mask ' + mask_file +
-                           ' -input ' + anat_file + ' -acf ' + anat_file[:-7] +
-                           '.acf.txt > ' + anat_file[:-7] + '_FWHMx.txt')
-                nl = spgo([command])
+                command = (sing_afni + '3dFWHMx -overwrite -combined -mask ' + mask_file +
+                           ' -input ' + anat_file + ' -acf ' + anat_file[:-7] + '.acf.txt > ' +
+                           anat_file[:-7] + '_FWHMx.txt')
+                run_cmd.do(command, diary_file)
                 os.chdir(original_dir)
 
                 if ope(anat_file[:-7] + '.acf.txt'):
@@ -985,8 +948,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
                 qc_values['fwhm'] = np.nan
         except Exception as e:
             nl = f"ERROR computing FWHM: {str(e)}"
-            print(bcolors.WARNING + nl + bcolors.ENDC)
-            diary.write(f'\n{nl}')
+            run_cmd.msg(nl, diary_file,'WARNING')
             qc_values['fwhm'] = np.nan
 
         # Image similarity metrics
@@ -1018,18 +980,18 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
                 })
 
                 # Detect image type
-                anat_type_stats = detect_image_type(anat_img, atlas_img)
-                image_type_stats = detect_image_type(fmri_img, atlas_img)
+                anat_type_stats = detect_image_type(anat_img, atlas_img,diary_file)
+                image_type_stats = detect_image_type(fmri_img, atlas_img,diary_file)
 
                 if image_type_stats['image_type'] == anat_type_stats['image_type']:
                     modality = 'Same (' + str(image_type_stats['image_type']) + '/' + str(anat_type_stats['image_type']) + ')'
-                    print('anat and func same modality')
+                    run_cmd.msg('anat and func same modality', diary_file, 'OKGREEN')
                 else:
                     modality = 'Different ! (' + str(image_type_stats['image_type']) + '/' + str(
                         anat_type_stats['image_type']) + ')'
-                    print('creat a surogate anat')
+                    run_cmd.msg('create a surogate anat', diary_file, 'WARNING')
                     # Create surrogate anatomical image matching fMRI contrast
-                    surrogate_img = create_surrogate_from_label_atlas(anat_img)
+                    surrogate_img = create_surrogate_from_label_atlas(anat_img,diary_file)
 
                     if surrogate_img is not None:
                         # Save surrogate image
@@ -1041,8 +1003,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
                         anat_img = surrogate_img
 
                         nl = "Created surrogate anatomical image matching fMRI contrast"
-                        print(bcolors.OKBLUE + nl + bcolors.ENDC)
-                        diary.write(f'\n{nl}')
+                        run_cmd.msg(nl, diary_file, 'OKBLUE')
 
                 qc_values.update({
                     'Comp modal': modality,
@@ -1056,21 +1017,17 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
 
                 # Print detection results
                 nl = f"Anatomical image type detected as: {image_type_stats['image_type']}"
-                print(bcolors.OKBLUE + nl + bcolors.ENDC)
-                diary.write(f'\n{nl}')
+                run_cmd.msg(nl, diary_file, 'OKBLUE')
 
                 nl = f"Coverage: {coverage_stats['pct_anat_uncovered']:.1f}% of anatomical not covered by fMRI"
-                print(bcolors.OKBLUE + nl + bcolors.ENDC)
-                diary.write(f'\n{nl}')
+                run_cmd.msg(nl, diary_file, 'OKBLUE')
 
             except Exception as e:
                 nl = f"ERROR in coverage analysis: {str(e)}"
-                print(bcolors.WARNING + nl + bcolors.ENDC)
-                diary.write(f'\n{nl}')
+                run_cmd.msg(nl, diary_file, 'WARNING')
         else:
             nl = "WARNING: Missing anatomical or fMRI image for coverage analysis"
-            print(bcolors.WARNING + nl + bcolors.ENDC)
-            diary.write(f'\n{nl}')
+            run_cmd.msg(nl, diary_file, 'WARNING')
 
         if ope(anat_img_path) and ope(fmri_img_path):
             try:
@@ -1115,8 +1072,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
                     qc_values['nmi'] = np.nan
             except Exception as e:
                 nl = f"ERROR computing image metrics: {str(e)}"
-                print(bcolors.WARNING + nl + bcolors.ENDC)
-                diary.write(f'\n{nl}')
+                run_cmd.msg(nl, diary_file, 'WARNING')
                 qc_values['mi'] = np.nan
                 qc_values['cc'] = np.nan
                 qc_values['jaccard'] = np.nan
@@ -1141,8 +1097,7 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
             qc_values['avg_outcount'] = np.nanmean(outcount) if outcount.size > 0 else np.nan
         except Exception as e:
             nl = f"ERROR loading motion metrics: {str(e)}"
-            print(bcolors.WARNING + nl + bcolors.ENDC)
-            diary.write(f'\n{nl}')
+            run_cmd.msg(nl, diary_file, 'WARNING')
             qc_values['avg_enorm'] = np.nan
             qc_values['avg_velocity'] = np.nan
             qc_values['censor_fraction'] = np.nan
@@ -1160,16 +1115,11 @@ def fMRI_QC(correction_direction, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_p
                              anat_img_path, fmri_img_path)
         except Exception as e:
             nl = f"ERROR creating QC figure: {str(e)}"
-            print(bcolors.FAIL + nl + bcolors.ENDC)
-            diary.write(f'\n{nl}')
+            run_cmd.msg(nl, diary_file, 'FAIL')
 
         # Save QC values to text file
         try:
             save_qc_values(output_results, root_RS, qc_values)
         except Exception as e:
             nl = f"ERROR saving QC values: {str(e)}"
-            print(bcolors.FAIL + nl + bcolors.ENDC)
-            diary.write(f'\n{nl}')
-
-    diary.write(f'\n')
-    diary.close()
+            run_cmd.msg(nl, diary_file, 'FAIL')

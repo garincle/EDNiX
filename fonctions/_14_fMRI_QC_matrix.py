@@ -2,35 +2,24 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy import stats
 from matplotlib.gridspec import GridSpec
+from scipy import stats
 import seaborn as sns
 import json
 import datetime
 from sklearn.cluster import SpectralClustering
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 import shutil
-from fonctions.extract_filename import extract_filename
 import time
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
 
-
-# Path utilities
 opj = os.path.join
 opb = os.path.basename
 opn = os.path.normpath
 opd = os.path.dirname
 ope = os.path.exists
 
+from Tools import run_cmd
+from fonctions.extract_filename import extract_filename
 
 def validate_matrix(matrix, roi_names):
     """Validate matrix with detailed asymmetry reporting"""
@@ -494,12 +483,9 @@ def load_and_validate_matrix(matrix_path):
 def fMRI_QC_matrix(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3,
                    specific_roi_tresh, delta_thresh, RS, nb_run, diary_file):
     """Optimized QC analysis with updated output"""
-    ct = datetime.datetime.now()
-    diary = open(diary_file, "a")
-    diary.write(f'\n{ct}')
+
     nl = '## Working on fMRI QC matrix analysis (optimized) ##'
-    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-    diary.write(f'\n{nl}')
+    run_cmd.msg(nl, diary_file, 'HEADER')
 
     for direction in [dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3]:
         out_results = opj(direction, '10_Results')
@@ -523,8 +509,7 @@ def fMRI_QC_matrix(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMR
 
             if not ope(matrix_file):
                 nl = f'WARNING: Missing matrix file {matrix_file}'
-                print(bcolors.WARNING + nl + bcolors.ENDC)
-                diary.write(f'\n{nl}')
+                run_cmd.msg(nl, diary_file, 'WARNING')
                 continue
 
             try:
@@ -567,14 +552,12 @@ def fMRI_QC_matrix(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMR
                 pd.DataFrame(full_corr, index=roi_names, columns=roi_names).to_csv(
                     opj(out_results_V, f'{root_RS}_corr_matrix.csv'))
 
-                diary.write(f'\n{root_RS} analysis complete\n')
+                run_cmd.msg(f'\n{root_RS} analysis complete\n', diary_file, 'OKGREEN')
+
 
             except Exception as e:
                 nl = f'Error processing {matrix_file}: {str(e)}'
-                print(bcolors.FAIL + nl + bcolors.ENDC)
-                diary.write(f'\n{nl}')
+                run_cmd.msg(nl, diary_file, 'FAIL')
                 continue
 
-    diary.write('\nProcessing complete.\n')
-    diary.close()
-    print(bcolors.OKGREEN + 'QC analysis completed successfully' + bcolors.ENDC)
+    run_cmd.msg('QC analysis completed successfully', diary_file, 'OKGREEN')

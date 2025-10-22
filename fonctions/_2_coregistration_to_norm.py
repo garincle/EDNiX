@@ -1,54 +1,29 @@
 #import
 import os
-import subprocess
-from fonctions.extract_filename import extract_filename
 import ants
-import datetime
 import json
-import fonctions
-import fonctions._2b_fix_orient
-import fonctions._2a_correct_img
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
 
-#Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
-opn = os.path.normpath
 opd = os.path.dirname
 ope = os.path.exists
-spco = subprocess.check_output
-spgo = subprocess.getoutput
+
+from Tools import run_cmd
+from fonctions.extract_filename import extract_filename
+from fonctions import _2b_fix_orient, _2a_correct_img
+
 
 def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map, nb_run, recordings, REF_int, list_map,
-                     deoblique, orientation, DwellT, n_for_ANTS, overwrite,s_bind,afni_sif,fsl_sif,dmap,dbold,config_fd,diary_file):
+                     deoblique, orientation, DwellT, n_for_ANTS, overwrite,sing_afni,sing_fsl,dmap,dbold,config_fd,diary_file):
 
 
-    ct = datetime.datetime.now()
-    diary = open(diary_file, "a")
-    diary.write(f'\n{ct}')
     nl = '##  Working on step ' + str(2) + '(function: _2_coregistration_to_norm).  ##'
-    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-    diary.write(f'\n{nl}')
-    diary.write(f'\n')
-    diary.close()
+    run_cmd.msg(nl, diary_file, 'HEADER')
 
     if recordings != 'very_old':
-
-        diary = open(diary_file, "a")
+        
         nl = 'INFO: DwellT is equal to ' + str(DwellT) + ' please check!!'
-        print(bcolors.OKGREEN + nl + bcolors.ENDC)
-        diary.write(f'\n{nl}')
-        diary.write(f'\n')
-        diary.close()
+        run_cmd.msg(nl, diary_file, 'OKGREEN')
 
     if recordings == 'old':
 
@@ -65,17 +40,12 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
 
         ### 1.0 Start correct img
 
-        fonctions._2a_correct_img.correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings, overwrite, s_bind, afni_sif, fsl_sif, topup_file, diary_file)
+        _2a_correct_img.correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings, overwrite, sing_afni, sing_fsl, topup_file, diary_file)
 
-        command = 'singularity run' + s_bind + fsl_sif + 'fugue -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') + \
-        ' --dwell=' + str(DwellT) + ' --loadfmap=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz') + \
-        ' --unwarpdir=' + correction_direction + ' -u ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP' + '.nii.gz')
-        nl = spgo(command)
-        print(nl)
-        diary = open(diary_file, "a")
-        diary.write(f'\n{nl}')
-        diary.write(f'\n')
-        diary.close()
+        command = (sing_fsl + 'fugue -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') +
+                   ' --dwell=' + str(DwellT) + ' --loadfmap=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz') +
+                   ' --unwarpdir=' + correction_direction + ' -u ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP' + '.nii.gz'))
+        run_cmd.run(command, diary_file)
 
         dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz'),
                                   opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz')],
@@ -90,8 +60,8 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
         imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
         imgI = '_xdtrf_mean_preWARP.nii.gz'
 
-        fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation,
-                                            overwrite, s_bind, afni_sif, diary_file)
+        _2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation,
+                                            overwrite, sing_afni, diary_file)
 
     elif recordings == '2_mapdir':
         i = 0
@@ -106,17 +76,12 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
 
         ### 1.0 Start correct img
 
-        fonctions._2a_correct_img.correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings, overwrite, s_bind, afni_sif, fsl_sif, topup_file, diary_file)
+        _2a_correct_img.correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings, overwrite, sing_afni, sing_fsl, topup_file, diary_file)
 
-        command = 'singularity run' + s_bind + fsl_sif + 'fugue -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') + \
-        ' --dwell=' + str(DwellT) + ' --loadfmap=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz') + \
-        ' --unwarpdir=' + correction_direction + ' -u ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP' + '.nii.gz')
-        nl = spgo(command)
-        print(nl)
-        diary = open(diary_file, "a")
-        diary.write(f'\n{nl}')
-        diary.write(f'\n')
-        diary.close()
+        command = (sing_fsl + 'fugue -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') +
+                   ' --dwell=' + str(DwellT) + ' --loadfmap=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz') +
+                   ' --unwarpdir=' + correction_direction + ' -u ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP' + '.nii.gz'))
+        run_cmd.run(command, diary_file)
 
         dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz'),
                                   opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz')],
@@ -130,7 +95,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
         imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
         imgI = '_xdtrf_mean_preWARP.nii.gz'
 
-        fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif, diary_file)
+        _2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, sing_afni, diary_file)
 
     elif recordings == 'new':
         topup_f = open(opj(dir_fMRI_Refth_RS_prepro1, '4topup.txt'), "w")
@@ -148,17 +113,13 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
 
             ### 1.0 Start correct img
 
-            fonctions._2a_correct_img.correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings, overwrite, s_bind, afni_sif, fsl_sif, topup_file)
+            _2a_correct_img.correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings, overwrite, sing_afni, sing_fsl, topup_file)
 
-            command = 'singularity run' + s_bind + fsl_sif + 'fugue -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') + \
-            ' --dwell=' + str(DwellT) + ' --loadfmap=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz') + \
-            ' --unwarpdir=' + correction_direction + ' -u ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP' + '.nii.gz')
-            nl = spgo(command)
-            print(nl)
-            diary = open(diary_file, "a")
-            diary.write(f'\n{nl}')
-            diary.write(f'\n')
-            diary.close()
+            command = (sing_fsl + 'fugue -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') +
+                       ' --dwell=' + str(DwellT) + ' --loadfmap=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz') +
+                       ' --unwarpdir=' + correction_direction + ' -u ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP' + '.nii.gz'))
+            run_cmd.run(command, diary_file)
+
             dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz'),
                                       opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz')],
                           "Description": 'Distortion correction (fugue from FSL).', }
@@ -170,20 +131,15 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
             imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
             imgI = '_xdtrf_mean_preWARP.nii.gz'
 
-            fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif, diary_file)
+            _2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, sing_afni, diary_file)
 
     elif recordings == 'very_old':
         # ### 1.0 Normalization between runs
         r = REF_int
         root_RS = extract_filename(RS[r])
-        command = 'singularity run' + s_bind + afni_sif + '3dcopy ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') + \
-                  ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP.nii.gz') + overwrite
-        nl = spgo(command)
-        print(nl)
-        diary = open(diary_file, "a")
-        diary.write(f'\n{nl}')
-        diary.write(f'\n')
-        diary.close()
+        command = (sing_afni + '3dcopy ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') +
+                   ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP.nii.gz') + overwrite)
+        run_cmd.run(command, diary_file)
 
         dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz'),
                       "Description": 'Copy.', }
@@ -196,7 +152,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
         imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
         imgI = '_xdtrf_mean_preWARP.nii.gz'
 
-        fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif, diary_file)
+        _2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, sing_afni, diary_file)
 
     ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### 
     ###                                              fix header problems                                                                ###
@@ -209,7 +165,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
                 root_RS = extract_filename(RS[r])
 
                 ### 2.0 Start fix_orient
-                fonctions._2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, s_bind, afni_sif, diary_file)
+                _2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, sing_afni, diary_file)
 
 
     ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### 
@@ -217,7 +173,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
     ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ###
 
     for r in range(0, int(nb_run)):
-        root_RS = extract_filename(RS[r])
+        root_RS     = extract_filename(RS[r])
         root_RS_ref = extract_filename(RS[REF_int])
         REF = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, root_RS_ref + '_xdtr_mean_deob_ref_fudge.nii.gz'))
 
@@ -258,14 +214,9 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
                 outfile.write(json_object)
 
         else:
-            command = 'singularity run' + s_bind + afni_sif + '3dcopy ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS_ref + '_xdtr_deob.nii.gz') + \
-                      ' ' + opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtrf_2ref.nii.gz') + overwrite
-            nl = spgo(command)
-            print(nl)
-            diary = open(diary_file, "a")
-            diary.write(f'\n{nl}')
-            diary.write(f'\n')
-            diary.close()
+            command = (sing_afni + '3dcopy ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS_ref + '_xdtr_deob.nii.gz') +
+                       ' ' + opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtrf_2ref.nii.gz') + overwrite)
+            run_cmd.run(command, diary_file)
 
             dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS_ref + '_xdtr_deob.nii.gz'),
                           "Description": 'Copy.', }

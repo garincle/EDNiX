@@ -8,10 +8,11 @@ def cleanBIDS(BIDS_folder):
     keep_files = set()
     patterns = [
         '/**/**/**/sub-*',
-        '/**/**/anat/native/02_Wb/volumes/masks/*final_mask.nii.gz',
-        '/**/**/anat/native/02_Wb/volumes/masks/*final_mask_2.nii.gz',
-        '/**/**/**/**/**/manual_mask.nii.gz',
-        '/sty_template/studytemplate2_T2w/study_template_mask.nii.gz'
+        '/**/**/anat/native/volumes/masks/*final_mask.nii.gz',
+        '/**/**/anat/native/volumes/masks/*final_mask_2.nii.gz',
+        '/**/**/anat/native/volumes/masks/*final_mask_orig.nii.gz',
+        '**/ses-**/func/preprocessing/space-func/masks/*_final_mask.nii.gz',
+        '/sty_template/derivatives/acpc/volumes/masks/studyTemplate_final_mask.nii.gz'
         '/code/*',
         '/**/code/*',
         '/sourcedata/*',
