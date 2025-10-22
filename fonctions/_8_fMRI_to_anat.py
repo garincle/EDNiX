@@ -1,26 +1,16 @@
 import os
-from fonctions.extract_filename import extract_filename
 import ants
-import datetime
 import json
-from fonctions import plot_QC_func
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
 
-#Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename
 opn = os.path.normpath
 opd = os.path.dirname
 ope = os.path.exists
+
+from Tools import run_cmd
+from fonctions.extract_filename import extract_filename
+from fonctions import plot_QC_func
 
 
 def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
@@ -31,12 +21,8 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
     ################################### registration to anat space ##########################################
     #########################################################################################################
 
-    ct = datetime.datetime.now()
-    diary = open(diary_file, "a")
-    diary.write(f'\n{ct}')
     nl = '##  Working on step ' + str(8) + '(function: _8_fMRI_to_anat).  ##'
-    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-    diary.write(f'\n{nl}')
+    run_cmd.msg(nl, diary_file, 'HEADER')
 
     ############################### ############################### ############################### 
     ############################### apply transfo to anat space to each volume of each func image #
@@ -59,8 +45,7 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
 
     else:
         nl = 'ERROR: If Anat and Func are not in the same space you need to perform that trasnformation (do_anat_to_func = True)'
-        diary.write(f'\n{nl}')
-        raise Exception(bcolors.FAIL + nl + bcolors.ENDC)
+        raise Exception(run_cmd.error(nl, diary_file))
 
     ## test on mean img (to see spatially that is works)
     MEAN  = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'))
@@ -78,13 +63,12 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
         outfile.write(json_object)
 
 
-
     bids_dir = opd(opd(opd(opd(opd(dir_fMRI_Refth_RS_prepro1)))))
-    if not os.path.exists(opj(bids_dir,'QC','meanIMG_in_anat')):
+    if not ope(opj(bids_dir,'QC','meanIMG_in_anat')):
         os.mkdir(opj(bids_dir,'QC','meanIMG_in_anat'))
 
     # Extract ID
-    sub_path = os.path.normpath(dir_fMRI_Refth_RS_prepro2).split(os.sep)
+    sub_path = opn(dir_fMRI_Refth_RS_prepro2).split(os.sep)
     ID = [segment.split('-')[1] for segment in sub_path if segment.startswith('sub-')][0]
 
     plot_QC_func.plot_qc(opj(dir_fMRI_Refth_RS_prepro2,'anat_rsp_in_func.nii.gz'),
@@ -113,7 +97,5 @@ def to_anat_space(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
         with open(OUTPUT[:-7] + '.json', "w") as outfile:
             outfile.write(json_object)
 
-    diary.write(f'\n')
-    diary.close()
 
 

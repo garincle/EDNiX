@@ -1,19 +1,7 @@
 #import
 import os
 import subprocess
-import glob
-import json
-import shutil
-import math
-import numpy as np
-import pandas as pd
 import sys
-import ants
-from bids import BIDSLayout
-from bids.reports import BIDSReport
-from math import pi
-import nibabel as nib
-
 
 ######### to do
 ### add a verbose feature
@@ -33,9 +21,9 @@ MAIN_PATH   = opj('/','srv','projects','easymribrain')
 from sammba import io_conversions, registration
 sys.path.append(opj(MAIN_PATH + 'Code','EasyMRI_brain-master'))
 import anatomical._0_Pipeline_launcher
-import anatomical._1_correct_orient
-import anatomical._2_clean_anat
-import anatomical._3_make_template
+import anatomical.loop1._1_correct_orient
+import anatomical.loop1._2_clean_anat
+import anatomical.studytemplate._3_make_template
 import anatomical._4_create_template_brain
 import anatomical._5_brainT_to_stdyT
 import anatomical._5_brainT_to_stdyT_max
@@ -44,11 +32,11 @@ import anatomical._7_prepar_aseg
 import anatomical._8_do_fMRImasks
 import anatomical._9_nii_to_mgz
 import anatomical._10_FS_1_white
-import anatomical._12_make_pial
-import anatomical._13_FS_freeview
-import anatomical._14_Finalise
-import anatomical._15_to_WB
-import anatomical._200_Data_QC
+import anatomical.loop3._12_make_pial
+import anatomical.loop3._13_FS_freeview
+import anatomical.loop3._14_Finalise
+import anatomical.loop3._15_to_WB
+import anatomical.loop3._200_Data_QC
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -150,14 +138,14 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
             print('skip step ' + str(1))
 
         else:
-            anatomical._1_correct_orient.correct_orient(BIDStype, listTimage, path_anat, ID, Session, otheranat, type_norm, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, dir_prepro, IgotbothT1T2, overwrite)
+            anatomical.loop1._1_correct_orient.correct_orient(BIDStype, listTimage, path_anat, ID, Session, otheranat, type_norm, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, dir_prepro, IgotbothT1T2, overwrite)
 
         if 2 in Skip_step:
             print('skip step ' + str(2))
 
         else:
-            anatomical._2_clean_anat.clean_anat(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, otheranat, type_norm, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, dir_prepro, masking_img, do_manual_crop,
-            brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, overwrite)
+            anatomical.loop1._2_clean_anat.clean_anat(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, otheranat, type_norm, deoblique_exeption1, deoblique_exeption2, deoblique, orientation, dir_prepro, masking_img, do_manual_crop,
+                                                      brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask, overwrite)
 
     ###### STOP THE LOOP ######
 
@@ -167,7 +155,7 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
             print('skip step ' + str(3))
 
         else:
-            anatomical._3_make_template.make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, type_norm, study_template_atlas_forlder, template_skullstrip, BASE_SS, BASE_mask, overwrite)
+            anatomical.loop2._3_make_template.make_template(which_on, all_ID_max, max_session, all_data_path_max, all_ID, all_Session, all_data_path, type_norm, study_template_atlas_forlder, template_skullstrip, BASE_SS, BASE_mask, overwrite)
 
     ###### LOOP AGAIN ######
     for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, max_sessionlist):
@@ -479,7 +467,7 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
             print('skip step ' + str(12))
 
         else:
-            anatomical._12_make_pial.make_pial(FS_dir, animal_folder, type_norm, otheranat, Hmin, Ref_file, do_surfacewith, overwrite)
+            anatomical._loop3._12_make_pial.make_pial(FS_dir, animal_folder, type_norm, otheranat, Hmin, Ref_file, do_surfacewith, overwrite)
 
 
         if check_visualy_each_img == True:
@@ -487,21 +475,21 @@ def preprocess_anat(BIDStype, deoblique_exeption1, deoblique_exeption2, deobliqu
                 print('skip step ' + str(13))
 
             else:
-                anatomical._13_FS_freeview.FS_Freeview(FS_dir, animal_folder, 'pial', Lut_file)
+                anatomical._loop3._13_FS_freeview.FS_Freeview(FS_dir, animal_folder, 'pial', Lut_file)
 
         if 14 in Skip_step:
             print('skip step ' + str(14))
 
         else:
-            anatomical._14_Finalise.FS_finalise(FS_dir, animal_folder, FreeSlabel_ctab_list, list_atlases_2, labels_dir, type_norm, Ref_file)
+            anatomical._loop3._14_Finalise.FS_finalise(FS_dir, animal_folder, FreeSlabel_ctab_list, list_atlases_2, labels_dir, type_norm, Ref_file)
         if 15 in Skip_step:
             print('skip step ' + str(15))
 
         else:
-            anatomical._15_to_WB.WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2)
+            anatomical._loop3._15_to_WB.WB_prep(FS_dir, dir_native, animal_folder, Ref_file, species, list_atlases_2)
 
         if 200 in Skip_step:
             print('skip step ' + str(200))
 
         else:
-            anatomical._200_Data_QC._itk_check_masks(dir_prepro, masks_dir, ID, type_norm)
+            anatomical._loop3._200_Data_QC._itk_check_masks(dir_prepro, masks_dir, ID, type_norm)

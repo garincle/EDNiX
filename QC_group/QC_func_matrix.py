@@ -19,11 +19,6 @@ opb = os.path.basename
 opd = os.path.dirname
 ope = os.path.exists
 
-# Define paths
-BIDS_DIR = '/srv/projects/easymribrain/data/MRI/Rat/BIDS_Gd/'
-OUTPUT_DIR = opj(BIDS_DIR, "group_qc_analysis")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
 # Define plotting style
 plt.style.use('seaborn-v0_8')
 sns.set_context("notebook", font_scale=1.1)
@@ -38,12 +33,11 @@ SELECTED_METRICS = [
     'Mean_Correlation',
     'Std_Correlation',
     'Silhouette_Score',
-    'Davies_Bouldin'
-]
+    'Davies_Bouldin']
 
 def load_qc_data(bids_dir):
     """Load all QC JSON files from BIDS directory structure."""
-    qc_files = glob.glob(f"{BIDS_DIR}/**/**/func/01_prepro/01_funcspace/10_Results/fMRI_QC_matrix/**full_results.json")
+    qc_files = glob.glob(f"{bids_dir}/**/**/func/01_prepro/01_funcspace/10_Results/fMRI_QC_matrix/**full_results.json")
 
     if not qc_files:
         raise ValueError(f"No QC JSON files found in {bids_dir}")
@@ -213,7 +207,7 @@ def create_comprehensive_report(df, output_dir):
                 label += f"\n{row['session']}"
             labels.append(label)
 
-        summary_path = opj(OUTPUT_DIR, "outlier_summary_report.csv")
+        summary_path = opj(output_dir, "outlier_summary_report.csv")
         subject_outliers.to_csv(summary_path, index=False)
 
         # Plot
@@ -285,24 +279,3 @@ def create_comprehensive_report(df, output_dir):
     print("\n=== Report Generation Complete ===")
     print(f"Saved comprehensive report to: {report_path}")
 
-def main():
-    print("Starting BIDS group QC analysis...")
-
-    # Step 1: Load all QC data
-    print("Loading QC data from JSON files...")
-    try:
-        qc_df = load_qc_data(BIDS_DIR)
-        qc_df.to_csv(opj(OUTPUT_DIR, "qc_data_combined.csv"), index=False)
-    except Exception as e:
-        print(f"Fatal error loading data: {str(e)}")
-        return
-
-    # Step 2: Create comprehensive report
-    print("Creating comprehensive report...")
-    create_comprehensive_report(qc_df, OUTPUT_DIR)
-
-    print("\n=== Analysis Complete ===")
-    print(f"Results saved to: {OUTPUT_DIR}")
-
-if __name__ == "__main__":
-    main()

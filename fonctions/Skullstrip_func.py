@@ -8,23 +8,13 @@ import ants
 import nilearn
 import numpy as np
 from nilearn.masking import compute_epi_mask
-from anatomical import Histrogram_mask_EMB
+from anatomical.skullstrip import Histrogram_mask_EMB
 from fonctions.extract_filename import extract_filename
 import datetime
 import json
 import shutil
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
 
-#Path to the excels files and data structure
+
 opj = os.path.join
 opb = os.path.basename
 opn = os.path.normpath
@@ -33,6 +23,7 @@ ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
+from Tools import run_cmd
 
 def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
                                                       overwrite, costAllin, type_of_transform,
@@ -42,8 +33,7 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
     diary = open(diary_file, "a")
     diary.write(f'\n{ct}')
     nl = '##  Working on step ' + str(3) + '(function: Skullstrip_func).  ##'
-    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-    diary.write(f'\n{nl}')
+    run_cmd.msg(nl, diary_file, 'HEADER')
 
     input_for_msk    = opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz')
     output_for_mask  = opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz')

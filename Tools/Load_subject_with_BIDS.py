@@ -17,15 +17,18 @@ def linux_path(path_input):
         # Extract the drive letter and map it to /mnt/ in Linux (e.g., 'C:' -> '/mnt/c')
         drive_letter = linux_path[0].lower()  # Convert drive letter to lowercase
         linux_path = f"/mnt/{drive_letter}" + linux_path[2:].replace("\\", "/")  # Replace backslashes with forward slashes
-
     return linux_path
-
 
 def print_included_tuples(allinfo_study_c):
     included_tuples = allinfo_study_c[['subject', 'session']].dropna().drop_duplicates()
+    included_tuples.sort_values(
+        by=['subject', 'session'],
+        ascending=[True, False],
+        inplace=True)
+    included_tuples.reset_index(drop=True, inplace=True)
     print("Included tuples (ID, session):")
     for _, row in included_tuples.iterrows():
-        print((row['subject'], row['session']))
+        print((row['subject'], row['session']), end=', ')
 
 def load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove):
     all_data_path = []
@@ -37,7 +40,7 @@ def load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove):
     all_Session_max = []
     animal_ID = []
 
-    for ID in pd.unique(allinfo_study_c.subject):
+    for ID in pd.unique(allinfo_study_c.subject.dropna()):
         list_session = allinfo_study_c.loc[allinfo_study_c['subject'] == ID].session.dropna()
 
         # Step 1: Extract and reverse the sessions while keeping leading zeros
@@ -55,7 +58,7 @@ def load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove):
             all_Session_max.append(max_ses)
             animal_ID.append(ID + 'ses-' + str(session))
 
-    for ID, Session in zip(pd.unique(allinfo_study_c.subject), max_session):
+    for ID, Session in zip(pd.unique(allinfo_study_c.subject.dropna()), max_session):
         data_path = os.path.join(bids_dir, 'sub-' + ID, 'ses-' + str(Session))
         all_data_path_max.append(data_path)
         all_ID_max.append(ID)

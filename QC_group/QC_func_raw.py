@@ -19,17 +19,13 @@ opb = os.path.basename
 opd = os.path.dirname
 ope = os.path.exists
 
-# Define paths
-BIDS_DIR = '/srv/projects/easymribrain/data/MRI/Rat/BIDS_GdGSR/'
-OUTPUT_DIR = opj(BIDS_DIR, "group_qc_analysis_raw")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
 # Define plotting style
 plt.style.use('seaborn-v0_8')
 sns.set_context("notebook", font_scale=1.1)
 plt.rcParams['figure.facecolor'] = 'white'
 plt.rcParams['axes.grid'] = True
 plt.rcParams['grid.alpha'] = 0.3
+
 
 # Define metrics of interest
 SELECTED_METRICS = [
@@ -45,8 +41,7 @@ SELECTED_METRICS = [
     'nmi',
     'avg_enorm',
     'censor_fraction',
-    'avg_outcount'
-]
+    'avg_outcount']
 
 def safe_extract(data, key):
     """Safely extract value from dictionary, handling lists and NaN."""
@@ -220,7 +215,7 @@ def create_comprehensive_report(df, output_dir):
                 label += f"\n{row['session']}"
             labels.append(label)
 
-        summary_path = opj(OUTPUT_DIR, "outlier_summary_report.csv")
+        summary_path = opj(output_dir, "outlier_summary_report.csv")
         subject_outliers.to_csv(summary_path, index=False)
         # Plot
         sns.barplot(x='subject', y='outlier_count', hue='session',
@@ -255,25 +250,3 @@ def create_comprehensive_report(df, output_dir):
 
     print("\n=== Report Generation Complete ===")
     print(f"Saved comprehensive report to: {report_path}")
-
-def main():
-    print("Starting BIDS group QC analysis...")
-
-    # Step 1: Load all QC data
-    print("Loading QC data from JSON files...")
-    try:
-        qc_df = load_qc_data(BIDS_DIR)
-        qc_df.to_csv(opj(OUTPUT_DIR, "qc_data_combined.csv"), index=False)
-    except Exception as e:
-        print(f"Fatal error loading data: {str(e)}")
-        return
-
-    # Step 2: Create comprehensive report
-    print("Creating comprehensive report...")
-    create_comprehensive_report(qc_df, OUTPUT_DIR)
-
-    print("\n=== Analysis Complete ===")
-    print(f"Results saved to: {OUTPUT_DIR}")
-
-if __name__ == "__main__":
-    main()

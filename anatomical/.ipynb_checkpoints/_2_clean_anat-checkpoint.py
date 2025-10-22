@@ -2,7 +2,7 @@ import os
 import subprocess
 from nilearn import plotting
 from nilearn.image import resample_to_img
-import anatomical.Skullstrip_method
+import anatomical.skullstrip.Skullstrip_method
 import matplotlib.pyplot as plt
 #Path to the excels files and data structure
 opj = os.path.join
@@ -23,8 +23,8 @@ def clean_anat(cost3dAllineate, bids_dir, listTimage, path_anat, ID, Session, ot
 
     step_skullstrip = 1
     brain_skullstrip = 'brain_skullstrip_1'
-    output_for_mask =  anatomical.Skullstrip_method.Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
-    otheranat, ID, Session, check_visualy_final_mask, overwrite)
+    output_for_mask =  anatomical.skullstrip.Skullstrip_method.Skullstrip_method(step_skullstrip, brain_skullstrip, masking_img, brain_skullstrip_1, brain_skullstrip_2, masks_dir, volumes_dir, dir_prepro, type_norm, n_for_ANTS, dir_transfo, BASE_SS_coregistr, BASE_SS_mask,
+                                                                                 otheranat, ID, Session, check_visualy_final_mask, overwrite)
     print(listTimage)
 
     #### Aplly masking to other anat images
