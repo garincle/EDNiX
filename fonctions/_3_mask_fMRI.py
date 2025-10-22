@@ -78,7 +78,7 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
         outfile.write(json_object)
 
     # Load the image directly
-    mean_img_path = os.path.join(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz')
+    mean_img_path = opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz')
     img = nib.load(mean_img_path)
     # Get voxel sizes
     delta_x, delta_y, delta_z = [str(round(abs(x), 10)) for x in img.header.get_zooms()[:3]]
@@ -110,7 +110,6 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
     # create anat space dir
     if ope(dir_fMRI_Refth_RS_prepro2) == False:
         os.makedirs(dir_fMRI_Refth_RS_prepro2)
-        os.makedirs(opj(dir_fMRI_Refth_RS_prepro2,'tmp'))
 
     ############################### ############################### ############################### 
     ##                         resample the masks for signal extraction                         ###
@@ -133,124 +132,61 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
     with open(opj(dir_fMRI_Refth_RS_prepro2, 'maskDilatanat.json'), "w") as outfile:
         outfile.write(json_object)
 
-    if anat_func_same_space == True:
-        # Original matrix path
-        orig_mat = opj(dir_prepro, f"{ID}_brain_for_Align_Center.1D")
-        # Inverse matrix path
-        mvt_shft = opj(dir_prepro, f"{ID}_brain_for_Align_Center_inv.1D")
 
-        command = (sing_afni +'cat_matvec -ONELINE ' + orig_mat +
-                   ' ' + opj(dir_fMRI_Refth_RS_prepro2, "_brain_for_Align_Center.1D"))
-        run_cmd.do(command, diary_file)
+    for input1, output2 in zip([anat_subject, brainmask, opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz'),
+                                V_mask, W_mask, G_mask],
+                               [opj(dir_fMRI_Refth_RS_prepro2, ('_').join([ID, 'res-func', TfMRI + '.nii.gz'])),
+                                opj(dir_fMRI_Refth_RS_prepro2,'mask_ref.nii.gz'),
+                                opj(dir_fMRI_Refth_RS_prepro2,'maskDilat.nii.gz'),
+                                opj(dir_fMRI_Refth_RS_prepro2,'Vmask.nii.gz'),
+                                opj(dir_fMRI_Refth_RS_prepro2,'Wmask.nii.gz'),
+                                opj(dir_fMRI_Refth_RS_prepro2,'Gmask.nii.gz')]):
 
-        # Generate inverse matrix with proper formatting
-        sing_afni + ('cat_matvec -ONELINE ' + orig_mat + ' -I > ' + mvt_shft)
-        run_cmd.do(command, diary_file)
-
-
-        # move the atlases to the space before the AFNI shift
-        for input1, output2 in zip([anat_subject, brainmask, opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz'), V_mask, W_mask, G_mask],
-            [opj(dir_fMRI_Refth_RS_prepro2,'orig_anat_for_fMRI.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'mask_ref.nii.gz'),
-             opj(dir_fMRI_Refth_RS_prepro2,'maskDilat.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'Vmask.nii.gz'),
-            opj(dir_fMRI_Refth_RS_prepro2,'Wmask.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'Gmask.nii.gz')]):
-
-            if ope(input1):
-                ##### apply the recenter fmri
-                command = (sing_afni + '3dZeropad -I 200 -S 200 -A 200 -P 200 -L 200 -R 200 -S 200 -prefix ' +
-                           output2 + ' ' + input1 + ' -overwrite')
+        if ope(input1):
+            if input1 == anat_subject:
+                command = (sing_afni + '3dresample' + overwrite +
+                           ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz') +
+                           ' -master ' + anat_subject +
+                           ' -input  ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz'))
                 run_cmd.run(command, diary_file)
 
-                if use_master_for_Allineate==True:
-                    ####  may be added if failed!! don't know how to handle that or why it fail!
-                    command = (sing_afni + '3dAllineate -final NN' + overwrite + ' -overwrite -1Dmatrix_apply ' +
-                               mvt_shft + ' -prefix ' + output2 +
-                               ' -master ' + opj(dir_prepro, ID + '_mprage_reorient' + TfMRI + '.nii.gz') +
-                               ' -input  ' + output2)
-                else:
-                    command = (sing_afni + '3dAllineate -final NN' + overwrite + ' -overwrite -1Dmatrix_apply ' +
-                               mvt_shft + ' -prefix ' + output2 + ' -input  ' + output2)
+                # skullstrip the anat
+                command = (sing_afni + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz') +
+                           ' -b ' + anat_subject +
+                           ' -prefix ' + output2 + ' -expr "a*b"')
+                run_cmd.do(command, diary_file)
+
+                command = (sing_afni + '3dresample' + overwrite +
+                           ' -prefix ' + output2 +
+                           ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' +
+                           ' -input  ' + output2)
                 run_cmd.run(command, diary_file)
 
-                ### to reapply the original obliquity
-                caca2 = resample_to_img(output2, opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'), interpolation='nearest')
-                caca2.to_filename(output2)
-
-                dictionary = {"Sources": [input1,
-                                          opj(dir_prepro, ID + '_mprage_reorient' + TfMRI + '.nii.gz'),
-                                          opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz')],
-                              "Description": 'Co-registration and resampling (3dAllineate, AFNI; resample_to_img, nilearn).', }
+                dictionary = {"Sources": [anat_subject,
+                                          opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz'),
+                                          opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')],
+                              "Description": 'Skull stripping and resampling (3dcalc and 3dresample, AFNI).', }
                 json_object = json.dumps(dictionary, indent=2)
-                with open(output2[:-7] + '.json', "w") as outfile:
+                with open(opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.json'), "w") as outfile:
                     outfile.write(json_object)
 
             else:
-                nl = ('WARNING:' + str(input1) + ' not found!!! this may be because you have not provided an aseg file,' +
-                     ' then no extraction of WM or Ventricles or GM will be possible... pls check that!')
-                run_cmd.msg(nl, diary_file, 'OKGREEN')
+                command = (sing_afni + '3dresample' + overwrite +
+                           ' -prefix ' + output2 +
+                           ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' +
+                           ' -input  ' + input1)
+                run_cmd.run(command, diary_file)
 
-        # skullstrip the anat
-        command = (sing_afni + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilat.nii.gz') +
-                   ' -b ' + opj(dir_fMRI_Refth_RS_prepro2, 'orig_anat_for_fMRI.nii.gz') +
-                  ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz') + ' -expr "a*b"')
-        run_cmd.do(command, diary_file)
-
-        dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro2, 'orig_anat_for_fMRI.nii.gz'),
-                                  opj(dir_fMRI_Refth_RS_prepro2,'maskDilat.nii.gz')],
-                      "Description": 'Skull stripping (3dcalc, AFNI).', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.json'), "w") as outfile:
-            outfile.write(json_object)
-
-    else:
-        for input1, output2 in zip([anat_subject, brainmask, opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz'), V_mask, W_mask, G_mask],
-            [opj(dir_fMRI_Refth_RS_prepro2,'orig_anat_for_fMRI.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'mask_ref.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'maskDilat.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'Vmask.nii.gz'), 
-            opj(dir_fMRI_Refth_RS_prepro2,'Wmask.nii.gz'), opj(dir_fMRI_Refth_RS_prepro2,'Gmask.nii.gz')]):
-
-            if ope(input1):
-                if input1 == anat_subject:
-                    command = (sing_afni + '3dresample' + overwrite +
-                               ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz') +
-                               ' -master ' + anat_subject +
-                               ' -input  ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz'))
-                    run_cmd.run(command, diary_file)
-
-                    # skullstrip the anat
-                    command = (sing_afni + '3dcalc' + overwrite + ' -a ' + opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz') +
-                               ' -b ' + anat_subject +
-                               ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2,'orig_anat_for_fMRI.nii.gz') + ' -expr "a*b"')
-                    run_cmd.do(command, diary_file)
-
-                    command = (sing_afni + '3dresample' + overwrite +
-                               ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz') +
-                               ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' +
-                               ' -input  ' + opj(dir_fMRI_Refth_RS_prepro2,'orig_anat_for_fMRI.nii.gz'))
-                    run_cmd.run(command, diary_file)
-
-                    dictionary = {"Sources": [anat_subject,
-                                              opj(dir_fMRI_Refth_RS_prepro2,'maskDilatanat.nii.gz'),
-                                              opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')],
-                                  "Description": 'Skull stripping and resampling (3dcalc and 3dresample, AFNI).', }
-                    json_object = json.dumps(dictionary, indent=2)
-                    with open(opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.json'), "w") as outfile:
-                        outfile.write(json_object)
-
-                else:
-                    command = (sing_afni + '3dresample' + overwrite +
-                               ' -prefix ' + output2 +
-                               ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' +
-                               ' -input  ' + input1)
-                    run_cmd.run(command, diary_file)
-
-                    dictionary = {"Sources": [input1,
-                                              opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')],
-                                  "Description": 'resampling (3dresample, AFNI).', }
-                    json_object = json.dumps(dictionary, indent=2)
-                    with open(output2[:-7] + '.json', "w") as outfile:
-                        outfile.write(json_object)
-            else:
-                nl =  ('WARNING:' + str(input1) + ' not found!!! this may be because you have not provided an aseg file, then no '
-                                      'extraction of WM or Ventricles or GM will be possible... please check that!')
-                run_cmd.msg(nl, diary_file, 'WARNING')
+                dictionary = {"Sources": [input1,
+                                          opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz')],
+                              "Description": 'resampling (3dresample, AFNI).', }
+                json_object = json.dumps(dictionary, indent=2)
+                with open(output2[:-7] + '.json', "w") as outfile:
+                    outfile.write(json_object)
+        else:
+            nl =  ('WARNING:' + str(input1) + ' not found!!! this may be because you have not provided an aseg file, then no '
+                                  'extraction of WM or Ventricles or GM will be possible... please check that!')
+            run_cmd.msg(nl, diary_file, 'WARNING')
 
     nl = "INFO: brain_skullstrip method is " + Method_mask_func
     run_cmd.msg(nl, diary_file, 'OKGREEN')
@@ -258,7 +194,7 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_fMRI_
     run_cmd.msg(nl, diary_file, 'OKGREEN')
 
     #### explore if manual_mask.nii.gz exists?
-    if ope(opj(dir_fMRI_Refth_RS_prepro1,'manual_mask.nii.gz')):
+    if opi(opj(dir_fMRI_Refth_RS_prepro1,'manual_mask.nii.gz')):
 
         nl = 'WARNING: We found a final mask to skullstrip the functional image !!! no Skullstrip will be calculated!'
         run_cmd.msg(nl, diary_file, 'WARNING')
