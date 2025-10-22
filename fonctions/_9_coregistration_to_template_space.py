@@ -22,10 +22,17 @@ from fonctions.extract_filename import extract_filename
 def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3,
                              nb_run, RS, transfo_concat_Anat, w2inv_Anat,do_anat_to_func, list_atlases,
                              BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template,anat_func_same_space,
-                             orientation, REF_int, IhaveanANAT, overwrite,sing_afni,diary_file):
+                             orientation, template,template_labeldir, IhaveanANAT, overwrite,sing_afni,diary_file):
 
     nl = '##  Working on step ' + str(9) + '(function: _9_coregistration_to_template_space).  ##'
     run_cmd.msg(nl, diary_file, 'HEADER')
+
+    # Extract ID
+    sub_path = opn(dir_fMRI_Refth_RS_prepro3).split(os.sep)
+    ID = [segment.split('-')[1] for segment in sub_path if segment.startswith('sub-')][0]
+
+    ref_img   = opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz')
+    anat_func = opj(dir_fMRI_Refth_RS_prepro1, ('_').join([ID, '_space-func', TfMRI + '.nii.gz']))
 
     if IhaveanANAT == False:
         for i in range(int(nb_run)):
@@ -45,8 +52,8 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
             w2inv_fwd     = []
 
             for elem1, elem2 in zip([  # opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_shift_0GenericAffine.mat'),
-                opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_1Warp.nii.gz'),
-                opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_unwarped_0GenericAffine.mat')], [False, False]):
+                ref_img.replace('.nii.gz', '_unwarped_1Warp.nii.gz'),
+                ref_img.replace('.nii.gz', '_0GenericAffine.mat')], [False, False]):
                 if ope(elem1):
                     mvt_shft_ANTs.append(elem1)
                     w2inv_fwd.append(elem2)
@@ -66,7 +73,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         ############################### apply transfo to anat space to Mean_Image image for test ######
         ############################### ############################### ###############################
 
-    for input2, output2, output3 in zip([opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, 'Ref_anat_in_fMRI_anat_resolution.nii.gz')],
+    for input2, output2, output3 in zip([ref_img, anat_func],
                                [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_SS_pre.nii.gz'), opj(dir_fMRI_Refth_RS_prepro1, 'Ref_anat_in_fMRI_anat_resolution_pre.nii.gz')],
                                 [opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz'), opj(dir_fMRI_Refth_RS_prepro3, 'Ref_anat_in_fMRI_anat_resolution_test_in_template.nii.gz')]):
 
@@ -125,8 +132,9 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         with open(output2[:-7] + '.json', "w") as outfile:
             outfile.write(json_object)
 
-
+        '''
         if anat_func_same_space == True:
+            
             # --- Step 1: Load and parse the affine matrix ---
             translation_file = opj(dir_fMRI_Refth_RS_prepro2, '_brain_for_Align_Center.1D')
             affine_params = np.loadtxt(translation_file)  # Load 12-parameter affine
@@ -171,7 +179,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
                        ' -prefix ' + output2 + ' -input ' + output2)
 
             run_cmd.run(command, diary_file)
-
+        '''
         ## test on mean img (to see spatially that is works)
         nl = "starting func to template space on mean image and anat test transformation"
         run_cmd.msg(nl, diary_file, 'OKGREEN')
@@ -203,9 +211,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
     if not ope(opj(bids_dir, 'QC','meanIMG_in_template')):
         os.mkdir(opj(bids_dir, 'QC','meanIMG_in_template'))
 
-    # Extract ID
-    sub_path = opn(dir_fMRI_Refth_RS_prepro3).split(os.sep)
-    ID = [segment.split('-')[1] for segment in sub_path if segment.startswith('sub-')][0]
+
 
     plot_QC_func.plot_qc(opj(dir_fMRI_Refth_RS_prepro3,'BASE_SS_fMRI.nii.gz'),
             opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz'),
@@ -288,8 +294,9 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
         with open(output2[:-7] + '.json', "w") as outfile:
             outfile.write(json_object)
 
+        '''
         if anat_func_same_space == True:
-
+    
             command = (sing_afni + '3dZeropad ' + pad + ' -prefix ' + output3 + ' ' + output2 + ' -overwrite')
             run_cmd.run(command, diary_file)
 
@@ -306,6 +313,7 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
             ## apply on pre-processed imgs
             FUNC = ants.image_read(input2)
             img_name = input2
+        '''
 
         #  transfo
         TRANS = ants.apply_transforms(fixed=REF, moving=FUNC,
@@ -332,17 +340,18 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
     #### apply to every atlas
     if len(list_atlases) > 0:
         for atlas in list_atlases:
+            atlasfile = template + '_seg-' + atlas + '_dseg.nii.gz'
             command = (sing_afni + '3dresample' + overwrite + ' -orient ' + orient_meanimg +
-                       ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro3, opb(atlas)) +
+                       ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro3, atlasfile) +
                        ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' +
-                       ' -input ' + atlas)
+                       ' -input ' + opj(template_labeldir,atlasfile))
             run_cmd.run(command, diary_file)
 
             dictionary = {"Sources": [atlas,
                                       residual_in_template],
                           "Description": ' Resampling (3dresample, AFNI).'},
             json_object = json.dumps(dictionary, indent=2)
-            with open(opj(dir_fMRI_Refth_RS_prepro3, opb(atlas)[:-7] + '.json'), "w") as outfile:
+            with open(opj(dir_fMRI_Refth_RS_prepro3, atlasfile.replace('.nii.gz','.json')), "w") as outfile:
                 outfile.write(json_object)
     else:
         nl = 'WARNING: list_atlases is empty!'
