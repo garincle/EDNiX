@@ -340,11 +340,11 @@ def to_common_template_space(deoblique, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Reft
     #### apply to every atlas
     if len(list_atlases) > 0:
         for atlas in list_atlases:
-            atlasfile = template + '_seg-' + atlas + '_dseg.nii.gz'
+            atlasfile = '_seg-' + atlas + '_dseg.nii.gz'
             command = (sing_afni + '3dresample' + overwrite + ' -orient ' + orient_meanimg +
-                       ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro3, atlasfile) +
+                       ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro3, ID + atlasfile) +
                        ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' +
-                       ' -input ' + opj(template_labeldir,atlasfile))
+                       ' -input ' + opj(template_labeldir,template + atlasfile))
             run_cmd.run(command, diary_file)
 
             dictionary = {"Sources": [atlas,
