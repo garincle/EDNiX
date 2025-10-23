@@ -10,7 +10,7 @@ opd = os.path.dirname
 from Tools import run_cmd
 from fonctions.extract_filename import extract_filename
 
-def correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings,
+def correct_img(dir_prepro_orig_process, dir_prepro_fmap, fMRI_runMean_n4Bias, RS, list_map, RS_map, i, r, recordings,
 				overwrite,sing_afni,sing_fsl,topup_file,diary_file):
 
 	nl = '##  Working on step ' + str(2) + '(function: _2a_correct_img).  ##'
@@ -19,157 +19,137 @@ def correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recording
 	if recordings == '2_mapdir':
 		for z in [0, 1]:
 			root = extract_filename(RS_map[z])
+			fmap_mean = opj(dir_prepro_fmap, root + '_fmap_mean' + str(z) + '.nii.gz')
+			fmap_mean0 = opj(dir_prepro_fmap, root + '_fmap_mean0.nii.gz')
+			fmap_mean1 = opj(dir_prepro_fmap, root + '_fmap_mean1.nii.gz')
 
-			# copy map imag in new location
-			command = (sing_afni + '3dcalc' + overwrite + ' -a ' + list_map[z] +
-					   ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[z]) + ' -expr "a"')
-			run_cmd.do(command, diary_file)
-
-			dictionary = {"Sources": list_map[z],
-						  "Description": 'Copy.', }
-			json_object = json.dumps(dictionary, indent=2)
-			with open(opj(dir_fMRI_Refth_RS_prepro1, RS_map[z][:-7] + '.json'), "w") as outfile:
-				outfile.write(json_object)
+			fmri_to_fmap_align = opj(dir_prepro_fmap, root + '_fmri_to_fmap_align' + str(z) + '.nii.gz')
+			fmri_to_fmap_align_Mean = opj(dir_prepro_fmap, root + '_fmri_to_fmap_align_Mean' + str(z) + '.nii.gz')
+			fmri_to_fmap_concat = opj(dir_prepro_fmap, root + '_fmri_to_fmap_concat' + str(z) + '.nii.gz')
 
 			# mean of the map img
 			command = (sing_afni + '3dTstat' + overwrite + ' -mean -prefix ' +
-					   opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre' + str(z) + '.nii.gz') + ' ' +
-					   opj(dir_fMRI_Refth_RS_prepro1, RS_map[z]))
+					   fmap_mean + ' ' +
+					   list_map[z])
 			run_cmd.run(command, diary_file)
 
-			dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, RS_map[z]),
-						  "Description": '4D Mean (3dTstat, AFNI).', }
-			json_object = json.dumps(dictionary, indent=2)
-			with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre' + str(z) + '.json'), "w") as outfile:
+			dictionary = {"Sources": list_map[z],
+						  "Description": '4D Mean (3dTstat, AFNI).',
+						  "Command": command,}
+			json_object = json.dumps(dictionary, indent=3)
+
+			with open(opj(dir_prepro_orig_process, root + '_map_mean_pre' + str(z) + '.json'), "w") as outfile:
 				outfile.write(json_object)
 
 			# register each volume to the base image
 			command = (sing_afni + '3dvolreg' + overwrite + ' -verbose -zpad 1 -base ' +
-					   opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre' + str(z) + '.nii.gz') +
-					   ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align' + str(z) + '.nii.gz') +
-					   ' -cubic ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[z]))
+					   fmap_mean +
+					   ' -prefix ' + fmri_to_fmap_align +
+					   ' -cubic ' + opj(dir_prepro_orig_process, RS_map[z]))
 			run_cmd.run(command, diary_file)
 
-			dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, RS_map[z]),
-									  opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre' + str(z) + '.nii.gz')],
-						  "Description": 'Rigid Realignment (3dvolreg,AFNI).', }
-			json_object = json.dumps(dictionary, indent=2)
-			with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align' + str(z) + '.json'), "w") as outfile:
+			dictionary = {"Sources": [opj(dir_prepro_orig_process, RS_map[z]),
+									  fmap_mean],
+						  "Description": 'Rigid Realignment (3dvolreg,AFNI).', "Command": command,}
+			json_object = json.dumps(dictionary, indent=3)
+			with open(fmri_to_fmap_align.replace('.nii.gz','json'), "w") as outfile:
 				outfile.write(json_object)
 
 			# mean of the map img to ref img
 			command = (sing_afni + '3dTstat' + overwrite + ' -mean -prefix ' +
-					   opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean' + str(z) + '.nii.gz') + ' ' +
-					   opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align' + str(z) + '.nii.gz'))
+					   fmri_to_fmap_align_Mean + ' ' +
+					   fmri_to_fmap_align)
 			run_cmd.run(command, diary_file)
 
-			dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align' + str(z) + '.nii.gz'),
-						  "Description": '4D Mean (3dTstat, AFNI).', }
-			json_object = json.dumps(dictionary, indent=2)
-			with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean' + str(z) + '.json'), "w") as outfile:
+			dictionary = {"Sources": fmri_to_fmap_align,
+						  "Description": '4D Mean (3dTstat, AFNI).', "Command": command,}
+			json_object = json.dumps(dictionary, indent=3)
+			with open(fmri_to_fmap_align_Mean.replace('.nii.gz','json'), "w") as outfile:
 				outfile.write(json_object)
-
 
 		root = extract_filename(RS_map[0])
 		root1 = extract_filename(RS_map[1])
 
 		command = (sing_afni + '3dTcat' + overwrite +
-				   ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se.nii.gz') +
-				   ' ' + opj(dir_fMRI_Refth_RS_prepro1, root1 + '_map_mean' + str(1) + '.nii.gz') +
-				   ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean' + str(0) + '.nii.gz'))
+				   ' -prefix ' + fmri_to_fmap_concat +
+				   ' ' + fmap_mean1 +
+				   ' ' + fmap_mean0)
 		run_cmd.run(command, diary_file)
 
-		dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root1 + '_map_mean' + str(1) + '.nii.gz'),
-								  opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean' + str(0) + '.nii.gz')],
-					  "Description": 'concatenation in 4D (3dTcat,AFNI).', }
-		json_object = json.dumps(dictionary, indent=2)
-		with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_se.json'), "w") as outfile:
+		dictionary = {"Sources": [fmap_mean1,
+								  fmap_mean0],
+					  "Description": 'concatenation in 4D (3dTcat,AFNI).', "Command": command,}
+		json_object = json.dumps(dictionary, indent=3)
+		with open(fmri_to_fmap_concat.replace('.nii.gz','json'), "w") as outfile:
 			outfile.write(json_object)
 
 	else:
 		root    = extract_filename(RS_map[i])
 		root_rs = extract_filename(RS[r])
-
-		#copy map imag in new location
-		command = (sing_afni + '3dcalc' + overwrite + ' -a ' + list_map[i] +
-				   ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[i]) + ' -expr "a"')
-		run_cmd.do(command, diary_file)
-
-		dictionary = {"Sources": list_map[i],
-					  "Description": 'Copy.', }
-		json_object = json.dumps(dictionary, indent=2)
-		with open(opj(dir_fMRI_Refth_RS_prepro1, RS_map[i][:-7] + '.json'), "w") as outfile:
-			outfile.write(json_object)
-
+		
+		fmap_mean = opj(dir_prepro_fmap, root + '_fmap_mean.nii.gz')
+		fmri_to_fmap_align = opj(dir_prepro_fmap, root + '_fmri_to_fmap_align.nii.gz')
+		fmri_to_fmap_align_Mean = opj(dir_prepro_fmap, root + '_fmri_to_fmap_align_Mean.nii.gz')
+		fmri_to_fmap_concat = opj(dir_prepro_fmap, root + '_fmri_to_fmap_concat.nii.gz')
+		
 		# mean of the map img
 		command = (sing_afni + '3dTstat' + overwrite + ' -mean -prefix '
-				   + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre.nii.gz') + ' ' +
-				   opj(dir_fMRI_Refth_RS_prepro1, RS_map[i]))
+				   + fmap_mean + ' ' +
+				   opj(dir_prepro_orig_process, RS_map[i]))
 		run_cmd.run(command, diary_file)
 
-		dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, RS_map[i]),
-					  "Description": '4D Mean (3dTstat, AFNI).', }
-		json_object = json.dumps(dictionary, indent=2)
-		with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre.json'), "w") as outfile:
+		dictionary = {"Sources": opj(dir_prepro_orig_process, RS_map[i]),
+					  "Description": '4D Mean (3dTstat, AFNI).', "Command": command,}
+		json_object = json.dumps(dictionary, indent=3)
+		with open(fmap_mean.replace('.nii.gz','json'), "w") as outfile:
 			outfile.write(json_object)
 
 		# register each volume to the base image
 		command = (sing_afni + '3dvolreg' + overwrite + ' -verbose -zpad 1 -base ' +
-				   opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre.nii.gz') +
-				   ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align.nii.gz') +
-				   ' -cubic ' + opj(dir_fMRI_Refth_RS_prepro1, RS_map[i]))
+				   fmap_mean +
+				   ' -prefix ' + fmri_to_fmap_align +
+				   ' -cubic ' + opj(dir_prepro_orig_process, RS_map[i]))
 		run_cmd.run(command, diary_file)
 
-		dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, RS_map[i]),
-								  opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean_pre.nii.gz')],
-					  "Description": 'Rigid Realignment (3dvolreg,AFNI).', }
-		json_object = json.dumps(dictionary, indent=2)
-		with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align.json'), "w") as outfile:
+		dictionary = {"Sources": [opj(dir_prepro_orig_process, RS_map[i]),
+								  fmap_mean],
+					  "Description": 'Rigid Realignment (3dvolreg,AFNI).', "Command": command,}
+		json_object = json.dumps(dictionary, indent=3)
+		
+		with open(fmri_to_fmap_align.replace('.nii.gz','json'), "w") as outfile:
 			outfile.write(json_object)
 
 		# mean of the map img to ref img
 		command = (sing_afni + '3dTstat' + overwrite + ' -mean -prefix ' +
-				   opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean.nii.gz') +
-				   ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align.nii.gz'))
+				   fmri_to_fmap_align_Mean +
+				   ' ' + fmri_to_fmap_align)
 		run_cmd.run(command, diary_file)
 
-		dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root + '_map_align.nii.gz'),
-					  "Description": '4D Mean (3dTstat, AFNI).', }
-		json_object = json.dumps(dictionary, indent=2)
-		with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean.json'), "w") as outfile:
+		dictionary = {"Sources": fmri_to_fmap_align,
+					  "Description": '4D Mean (3dTstat, AFNI).', "Command": command,}
+		json_object = json.dumps(dictionary, indent=3)
+		with open(fmri_to_fmap_align_Mean.replace('.nii.gz','json'), "w") as outfile:
 			outfile.write(json_object)
 
-
-		command = (sing_afni + '3dTcat' + overwrite + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se.nii.gz') +
-				   ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean.nii.gz') +
-				   ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_rs + '_xdtr_mean.nii.gz'))
+		command = (sing_afni + '3dTcat' + overwrite + ' -prefix ' + fmri_to_fmap_concat +
+				   ' ' + fmri_to_fmap_align_Mean +
+				   ' ' + fMRI_runMean_n4Bias)
 		run_cmd.run(command, diary_file)
 
-		dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root + '_map_mean.nii.gz'),
-								  opj(dir_fMRI_Refth_RS_prepro1, root_rs + '_xdtr_mean.nii.gz')],
-					  "Description": 'concatenation in 4D (3dTcat,AFNI).', }
-		json_object = json.dumps(dictionary, indent=2)
-		with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_se.json'), "w") as outfile:
+		dictionary = {"Sources": [fmri_to_fmap_align_Mean,
+								  fMRI_runMean_n4Bias],
+					  "Description": 'concatenation in 4D (3dTcat,AFNI).', "Command": command,}
+		json_object = json.dumps(dictionary, indent=3)
+		with open(fmri_to_fmap_concat.replace('.nii.gz','json'), "w") as outfile:
 			outfile.write(json_object)
 
-
-
-	#####correct image for topup (i.e. remove the slices that do not fit topup requirement)
-	#fslroi <input> <output> <xmin> <xsize> <ymin> <ysize> <zmin> <zsize>
-	#command = 'fslroi ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se.nii.gz') + \
-	#' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se1.nii.gz') + \
-	#' 0 -1 0 -1 1 132'
-	#' 1 77 0 -1 0 -1'
-	#spco([command], shell=True)
-
-	#https://www.jiscmail.ac.uk/cgi-bin/webadmin?A2=fsl;67dcb45c.1209
-	#I agree with Matt that you probably have an odd number of voxels in one direction (usually in the slice direction). 
-	#In topup, for various reasons, the images dimensions has to be an integer multiple of each sub-sampling level one uses. 
-	#We usually just throw away the top or bottom slice (provided it is outside the brain) in these cases.
-
-	#### zeropad ?? add a slice instead of removing!!!
-
-	im = nb.load(opj(dir_fMRI_Refth_RS_prepro1, root + '_se.nii.gz'))
+	fmri_to_fmap_even = opj(dir_prepro_fmap, root + '_fmri_to_fmap_even.nii.gz')
+	fMRI_runMean_fieldmap = opj(dir_prepro_fmap, root + '_space-func_desc-runMean_fieldmap.nii.gz')
+	fMRI_runMean_fieldmap_rads = opj(dir_prepro_fmap, root + '_space-func_desc-runMean_fieldmap_rads.nii.gz')
+	fMRI_runMean_fieldmap_mag = opj(dir_prepro_fmap, root + '_space-func_desc-runMean_fieldmap_mag.nii.gz')
+	fMRI_b0_distortion_corrected = opj(dir_prepro_fmap, root + '_b0_distortion_corrected.nii.gz')
+	# make sure that the number of voxels are even in each dimension
+	im = nb.load(fmri_to_fmap_concat)
 	imdata = im.get_fdata()
 	s = imdata.shape
 
@@ -179,60 +159,55 @@ def correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recording
 		if b < 3:
 			if (d % 2) == 0:
 				nl = "{0} is even, no need to remove a slice"
-
 			else:
 				nl = "{0} is odd, we will have to remove a slice"
 				imdata = imdata.take(range(d - 1), axis=b)
 
 			run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-	nb.Nifti1Image(imdata, im.affine, hdr).to_filename(opj(dir_fMRI_Refth_RS_prepro1, root + '_se1.nii.gz'))
-	dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root + '_se.nii.gz'),
-				  "Description": 'Make sure that the number of voxels are even in each dimension. (Nifti1Image, nilearn)', }
-	json_object = json.dumps(dictionary, indent=2)
-	with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_se1.json'), "w") as outfile:
+	nb.Nifti1Image(imdata, im.affine, hdr).to_filename(fmri_to_fmap_even)
+	dictionary = {"Sources": fmri_to_fmap_concat,
+				  "Description": 'Make sure that the number of voxels are even in each dimension. (Nifti1Image, nilearn)', "Command": command,}
+	json_object = json.dumps(dictionary, indent=3)
+	with open(fmri_to_fmap_even.replace('.nii.gz','json'), "w") as outfile:
 		outfile.write(json_object)
 
-
 	### se_map don't change but 1 -1
-	### b02b0 don't change 
-
-	command = (sing_fsl + 'topup --imain=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_se1.nii.gz') +
+	### b02b0 don't change
+	command = (sing_fsl + 'topup --imain=' + fmri_to_fmap_even +
 			   ' --datain=' + topup_file[0] +
 			   ' --config=' + topup_file[1] +
-			   ' --fout=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap.nii.gz') +
-			   ' --iout=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_unwarped.nii.gz'))
-
+			   ' --fout=' + fMRI_runMean_fieldmap +
+			   ' --iout=' + fMRI_b0_distortion_corrected)
 	run_cmd.run(command, diary_file)
 
-	dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root + '_se1.nii.gz'),
+	dictionary = {"Sources": [fmri_to_fmap_even,
 							  topup_file[0],
 							  topup_file[1]],
-				  "Description": 'Create fieldmaps. (topup, FSL)', }
-	json_object = json.dumps(dictionary, indent=2)
-	with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap.json'), "w") as outfile:
+				  "Description": 'Create fieldmaps. (topup, FSL)', "Command": command,}
+	json_object = json.dumps(dictionary, indent=3)
+	with open(fMRI_runMean_fieldmap.replace('.nii.gz','json'), "w") as outfile:
 		outfile.write(json_object)
 
 	##### for fugue
-	command = (sing_fsl + 'fslmaths ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap.nii.gz') + ' -mul ' + str(2*pi) +
-			   ' ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads.nii.gz'))
+	command = (sing_fsl + 'fslmaths ' + fMRI_runMean_fieldmap + ' -mul ' + str(2*pi) +
+			   ' ' + fMRI_runMean_fieldmap_rads)
 	run_cmd.run(command, diary_file)
 
-	dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap.nii.gz'),
-				  "Description": 'conversion into rads. (fslmaths, FSL)', }
-	json_object = json.dumps(dictionary, indent=2)
-	with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads.json'), "w") as outfile:
+	dictionary = {"Sources": fMRI_runMean_fieldmap,
+				  "Description": 'conversion into rads. (fslmaths, FSL)', "Command": command,}
+	json_object = json.dumps(dictionary, indent=3)
+	with open(fMRI_runMean_fieldmap_rads.replace('.nii.gz','json'), "w") as outfile:
 		outfile.write(json_object)
 
-
-	command = (sing_fsl + 'fslmaths ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_unwarped.nii.gz') +
-			   ' -Tmean ' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_mag.nii.gz'))
+	command = (sing_fsl + 'fslmaths ' + fMRI_b0_distortion_corrected +
+			   ' -Tmean ' + fMRI_runMean_fieldmap_mag)
 	run_cmd.run(command, diary_file)
 
-	dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root + '_unwarped.nii.gz'),
-				  "Description": '4D Mean (fslmaths, FSL).', }
-	json_object = json.dumps(dictionary, indent=2)
-	with open(opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_mag.json'), "w") as outfile:
+	dictionary = {"Sources": fMRI_b0_distortion_corrected,
+				  "Description": '4D Mean (fslmaths, FSL).', "Command": command,}
+	json_object = json.dumps(dictionary, indent=3)
+	with open(fMRI_runMean_fieldmap_mag.replace('.nii.gz','json'), "w") as outfile:
 		outfile.write(json_object)
 
 

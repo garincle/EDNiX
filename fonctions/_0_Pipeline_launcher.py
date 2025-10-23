@@ -70,7 +70,7 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
          dir_prepro_template_process, dir_prepro_template_rs, dir_prepro_template_task) = getpath.func(data_path,
                                                                                                        reference)
 
-        for path in [path_func, dir_fmap, dir_prepro_orig, dir_prepro_orig_labels, dir_prepro_orig_masks,
+        for path in [path_func, dir_fmap, dir_prepro_fmap, dir_prepro_orig, dir_prepro_orig_labels, dir_prepro_orig_masks,
                      dir_prepro_orig_process, dir_prepro_orig_rs, dir_prepro_orig_task,
                      dir_prepro_acpc, dir_prepro_acpc_labels, dir_prepro_acpc_masks,
                      dir_prepro_acpc_process, dir_prepro_acpc_rs, dir_prepro_acpc_task,
@@ -145,14 +145,12 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
         RS = [opb(i) for i in list_RS]
 
         if len(list_RS) == 0:
-            nl = (
-                        'ERROR : No func image found, we are look for an image define such as opj(dir_fMRI_Refth_RS, endfmri) and here it is ' +
+            nl = ('ERROR : No func image found, we are look for an image define such as opj(dir_fMRI_Refth_RS, endfmri) and here it is ' +
                         str(opj(path_func, endfmri)) + ' I would check how you define "endfmri"')
 
             raise ValueError(run_cmd.error(nl, diary_file))
 
-        nl = (
-                    "INFO: now let's check that this is a real a 4D fMRI image with enough time point as in define with the variable ntimepoint_treshold=" +
+        nl = ("INFO: now let's check that this is a real a 4D fMRI image with enough time point as in define with the variable ntimepoint_treshold=" +
                     str(ntimepoint_treshold))
         run_cmd.msg(nl, diary_file, 'OKGREEN')
 
@@ -221,21 +219,31 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
                     confounds_df = pd.concat([first_column, remaining_columns], axis=1)
 
                     # Save the modified confounds DataFrame back to the TSV file
-                    confounds_df.to_csv(opj(dir_prepro_orig, extract_filename(imageF) + '_confounds_correct.tsv'),
-                                        sep='\t', index=False)
+                    confounds_df.to_csv(opj(dir_prepro_orig, extract_filename(imageF) + '_confounds_correct.tsv'), sep='\t', index=False)
                     print(f"Removed the first {T1_eq} TRs from the confounds file.")
                 else:
                     print("T1_eq is not positive; no rows removed.")
             else:
                 print(f"Confounds file not found: {opj(opd(imageF), extract_filename(imageF) + '_confounds.tsv')}")
 
-        #### find and correct the fmap files
-        list_map = sorted(glob.glob(opj(path_func, endmap)))
-        nl = "looking for fmap image with the command glob.glob(" + str(opj(path_func, endmap))
+        # Find the fmap images
+        list_map = sorted(glob.glob(opj(dir_fmap, endmap)))
+        nl = "looking for fmap image with the command glob.glob(" + str(opj(dir_fmap, endmap))
         run_cmd.msg(nl, diary_file, 'OKGREEN')
-
-        nl = "We found " + str(list_map)
-        run_cmd.msg(nl, diary_file, 'OKGREEN')
+        if len(list_map) == 0:
+            list_map = sorted(glob.glob(opj(path_func, endmap)))
+            nl = "No fmap found in fmap folder, looking now in func folder with the command glob.glob(" + str(
+                opj(path_func, endmap))
+            run_cmd.msg(nl, diary_file, 'OKGREEN')
+            if len(list_map) > 0:
+                nl = "WARNING: We found some fieldmap images in the func folder, be sure that this is what you want"
+                run_cmd.msg(nl, diary_file, 'WARNING')
+            else:
+                nl = "No fmap found in func folder either"
+                run_cmd.msg(nl, diary_file, 'WARNING')
+        else:
+            nl = "We found " + str(list_map)
+            run_cmd.msg(nl, diary_file, 'OKGREEN')
 
         if len(list_RS) > 0:
             RS_map = [opb(i) for i in list_map]
@@ -530,7 +538,7 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
 
             else:
                 _2_coregistration_to_norm.coregist_to_norm(correction_direction_val,
-                                                           dir_prepro_orig,
+                                                           dir_prepro_orig_process,
                                                            RS, RS_map, nb_run, recordings, REF_int, list_map, deoblique,
                                                            orientation, DwellT_val, n_for_ANTS,
                                                            overwrite, sing_afni, sing_fsl, dmap, dbold, config_f,
