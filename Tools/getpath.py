@@ -141,6 +141,7 @@ def func(data_path,reference):
     path_func    = opj(data_path, 'func')
     #dir_rawfmap     = opj(rawdata_path, 'fmap')
     dir_fmap = opj(data_path, 'fmap')
+    dir_prepro_fmap = opj(dir_fmap, 'preprocessing')
 
     dir_prepro_orig     = opj(path_func, 'orig-func')
     dir_prepro_orig_labels = opj(dir_prepro_orig, 'labels')
@@ -163,7 +164,7 @@ def func(data_path,reference):
     dir_prepro_template_rs = opj(dir_prepro_orig, 'postprocessed_rs')
     dir_prepro_template_task = opj(dir_prepro_orig, 'postprocessed_task')
 
-    return (path_func,dir_fmap, dir_prepro_orig, dir_prepro_orig_labels, dir_prepro_orig_masks,
+    return (path_func,dir_fmap, dir_prepro_fmap, dir_prepro_orig, dir_prepro_orig_labels, dir_prepro_orig_masks,
             dir_prepro_orig_process, dir_prepro_orig_rs, dir_prepro_orig_task,
             dir_prepro_acpc, dir_prepro_acpc_labels, dir_prepro_acpc_masks,
             dir_prepro_acpc_process, dir_prepro_acpc_rs, dir_prepro_acpc_task,

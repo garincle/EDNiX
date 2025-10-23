@@ -13,7 +13,7 @@ from fonctions.extract_filename import extract_filename
 from fonctions import _2b_fix_orient, _2a_correct_img
 
 
-def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map, nb_run, recordings, REF_int, list_map,
+def coregist_to_norm(correction_direction, dir_prepro_fmap, dir_prepro_orig_process, RS, RS_map, nb_run, recordings, REF_int, list_map,
                      deoblique, orientation, DwellT, n_for_ANTS, overwrite,sing_afni,sing_fsl,dmap,dbold,config_fd,diary_file):
 
 
@@ -32,26 +32,28 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
         root    = extract_filename(RS_map[i])
         root_RS = extract_filename(RS[r])
 
-        topup_f = open(opj(dir_fMRI_Refth_RS_prepro1, '4topup.txt'), "w")
+        topup_f = open(opj(dir_prepro_orig_process, '4topup.txt'), "w")
         topup_f.write(dmap + ' \n')
         topup_f.write(dbold + ' \n')
         topup_f.close()
-        topup_file = [opj(dir_fMRI_Refth_RS_prepro1, '4topup.txt'), config_fd]
+        topup_file = [opj(dir_prepro_orig_process, '4topup.txt'), config_fd]
+        fMRI_runMean_n4Bias = opj(dir_prepro_orig_process, root + '_space-func_desc-runMean_n4Bias.nii.gz')
+        fMRI_runMean_fieldmap_rads = opj(dir_prepro_fmap, root + '_space-func_desc-runMean_fieldmap_rads.nii.gz')
+        fMRI_runMean_unwarpped = opj(dir_prepro_orig_process, root + '_space-func_desc-runMean_unwarped.nii.gz')
 
         ### 1.0 Start correct img
+        _2a_correct_img.correct_img(dir_prepro_orig_process, RS, list_map, RS_map, i, r, recordings, overwrite, sing_afni, sing_fsl, topup_file, diary_file)
 
-        _2a_correct_img.correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings, overwrite, sing_afni, sing_fsl, topup_file, diary_file)
-
-        command = (sing_fsl + 'fugue -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') +
-                   ' --dwell=' + str(DwellT) + ' --loadfmap=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz') +
-                   ' --unwarpdir=' + correction_direction + ' -u ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP' + '.nii.gz'))
+        command = (sing_fsl + 'fugue -i ' + fMRI_runMean_n4Bias +
+                   ' --dwell=' + str(DwellT) + ' --loadfmap=' + fMRI_runMean_fieldmap_rads +
+                   ' --unwarpdir=' + correction_direction + ' -u ' + fMRI_runMean_unwarpped)
         run_cmd.run(command, diary_file)
 
-        dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz'),
-                                  opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz')],
+        dictionary = {"Sources": [fMRI_runMean_n4Bias,
+                                  fMRI_runMean_fieldmap_rads],
                       "Description": 'Distortion correction (fugue from FSL).', }
         json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP.json'), "w") as outfile:
+        with open(opj(dir_prepro_orig_process, root_RS + '_xdtrf_mean_preWARP.json'), "w") as outfile:
             outfile.write(json_object)
 
 
@@ -60,7 +62,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
         imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
         imgI = '_xdtrf_mean_preWARP.nii.gz'
 
-        _2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation,
+        _2b_fix_orient.fix_orient(imgO, imgI, dir_prepro_orig_process, root_RS, deoblique, orientation,
                                             overwrite, sing_afni, diary_file)
 
     elif recordings == '2_mapdir':
@@ -68,26 +70,26 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
         r = REF_int
         root = extract_filename(RS_map[i])
         root_RS = extract_filename(RS[r])
-        topup_f = open(opj(dir_fMRI_Refth_RS_prepro1, '4topup.txt'), "w")
+        topup_f = open(opj(dir_prepro_orig_process, '4topup.txt'), "w")
         topup_f.write(dmap + ' \n')
         topup_f.write(dbold + ' \n')
         topup_f.close()
-        topup_file = [opj(dir_fMRI_Refth_RS_prepro1, '4topup.txt'), config_fd]
+        topup_file = [opj(dir_prepro_orig_process, '4topup.txt'), config_fd]
 
         ### 1.0 Start correct img
 
-        _2a_correct_img.correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings, overwrite, sing_afni, sing_fsl, topup_file, diary_file)
+        _2a_correct_img.correct_img(dir_prepro_orig_process, RS, list_map, RS_map, i, r, recordings, overwrite, sing_afni, sing_fsl, topup_file, diary_file)
 
-        command = (sing_fsl + 'fugue -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') +
-                   ' --dwell=' + str(DwellT) + ' --loadfmap=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz') +
-                   ' --unwarpdir=' + correction_direction + ' -u ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP' + '.nii.gz'))
+        command = (sing_fsl + 'fugue -i ' + fMRI_runMean_n4Bias +
+                   ' --dwell=' + str(DwellT) + ' --loadfmap=' + fMRI_runMean_fieldmap_rads +
+                   ' --unwarpdir=' + correction_direction + ' -u ' + fMRI_runMean_unwarpped)
         run_cmd.run(command, diary_file)
 
-        dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz'),
-                                  opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz')],
+        dictionary = {"Sources": [fMRI_runMean_n4Bias,
+                                  fMRI_runMean_fieldmap_rads],
                       "Description": 'Distortion correction (fugue from FSL).', }
         json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP.json'), "w") as outfile:
+        with open(opj(dir_prepro_orig_process, root_RS + '_xdtrf_mean_preWARP.json'), "w") as outfile:
             outfile.write(json_object)
 
         ### 2.0 Start fix_orient
@@ -95,56 +97,56 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
         imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
         imgI = '_xdtrf_mean_preWARP.nii.gz'
 
-        _2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, sing_afni, diary_file)
+        _2b_fix_orient.fix_orient(imgO, imgI, dir_prepro_orig_process, root_RS, deoblique, orientation, overwrite, sing_afni, diary_file)
 
     elif recordings == 'new':
-        topup_f = open(opj(dir_fMRI_Refth_RS_prepro1, '4topup.txt'), "w")
+        topup_f = open(opj(dir_prepro_orig_process, '4topup.txt'), "w")
         topup_f.write(dmap + ' \n')
         topup_f.write(dbold + ' \n')
         topup_f.close()
-        topup_file = [opj(dir_fMRI_Refth_RS_prepro1, '4topup.txt'), config_fd]
+        topup_file = [opj(dir_prepro_orig_process, '4topup.txt'), config_fd]
 
         for i, r in zip(range(0, int(len(list_map))), range(0, int(nb_run))):
             root = extract_filename(RS_map[i])
             root_RS = extract_filename(RS[r])
 
-            for f in os.listdir(opj(dir_fMRI_Refth_RS_prepro1,'tmp')):
-                os.remove(os.path.join(opj(dir_fMRI_Refth_RS_prepro1,'tmp'), f))
+            for f in os.listdir(opj(dir_prepro_orig_process,'tmp')):
+                os.remove(os.path.join(opj(dir_prepro_orig_process,'tmp'), f))
 
             ### 1.0 Start correct img
 
-            _2a_correct_img.correct_img(dir_fMRI_Refth_RS_prepro1, RS, list_map, RS_map, i, r, recordings, overwrite, sing_afni, sing_fsl, topup_file)
+            _2a_correct_img.correct_img(dir_prepro_orig_process, RS, list_map, RS_map, i, r, recordings, overwrite, sing_afni, sing_fsl, topup_file)
 
-            command = (sing_fsl + 'fugue -i ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') +
-                       ' --dwell=' + str(DwellT) + ' --loadfmap=' + opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz') +
-                       ' --unwarpdir=' + correction_direction + ' -u ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP' + '.nii.gz'))
+            command = (sing_fsl + 'fugue -i ' + fMRI_runMean_n4Bias +
+                       ' --dwell=' + str(DwellT) + ' --loadfmap=' + fMRI_runMean_fieldmap_rads +
+                       ' --unwarpdir=' + correction_direction + ' -u ' + fMRI_runMean_unwarpped)
             run_cmd.run(command, diary_file)
 
-            dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz'),
-                                      opj(dir_fMRI_Refth_RS_prepro1, root + '_fieldmap_rads' + '.nii.gz')],
+            dictionary = {"Sources": [fMRI_runMean_n4Bias,
+                                      fMRI_runMean_fieldmap_rads],
                           "Description": 'Distortion correction (fugue from FSL).', }
             json_object = json.dumps(dictionary, indent=2)
-            with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP.json'), "w") as outfile:
+            with open(opj(dir_prepro_orig_process, root_RS + '_xdtrf_mean_preWARP.json'), "w") as outfile:
                 outfile.write(json_object)
             ### 2.0 Start fix_orient
 
             imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
             imgI = '_xdtrf_mean_preWARP.nii.gz'
 
-            _2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, sing_afni, diary_file)
+            _2b_fix_orient.fix_orient(imgO, imgI, dir_prepro_orig_process, root_RS, deoblique, orientation, overwrite, sing_afni, diary_file)
 
     elif recordings == 'very_old':
         # ### 1.0 Normalization between runs
         r = REF_int
         root_RS = extract_filename(RS[r])
-        command = (sing_afni + '3dcopy ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz') +
-                   ' ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP.nii.gz') + overwrite)
+        command = (sing_afni + '3dcopy ' + fMRI_runMean_n4Bias +
+                   ' ' + opj(dir_prepro_orig_process, root_RS + '_xdtrf_mean_preWARP.nii.gz') + overwrite)
         run_cmd.run(command, diary_file)
 
-        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean' + '.nii.gz'),
+        dictionary = {"Sources": fMRI_runMean_n4Bias,
                       "Description": 'Copy.', }
         json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_mean_preWARP.json'), "w") as outfile:
+        with open(opj(dir_prepro_orig_process, root_RS + '_xdtrf_mean_preWARP.json'), "w") as outfile:
             outfile.write(json_object)
 
         ### 2.0 Start fix_orient
@@ -152,7 +154,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
         imgO = '_xdtr_mean_deob_ref_fudge.nii.gz'
         imgI = '_xdtrf_mean_preWARP.nii.gz'
 
-        _2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, sing_afni, diary_file)
+        _2b_fix_orient.fix_orient(imgO, imgI, dir_prepro_orig_process, root_RS, deoblique, orientation, overwrite, sing_afni, diary_file)
 
     ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### 
     ###                                              fix header problems                                                                ###
@@ -165,7 +167,7 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
                 root_RS = extract_filename(RS[r])
 
                 ### 2.0 Start fix_orient
-                _2b_fix_orient.fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, sing_afni, diary_file)
+                _2b_fix_orient.fix_orient(imgO, imgI, dir_prepro_orig_process, root_RS, deoblique, orientation, overwrite, sing_afni, diary_file)
 
 
     ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### 
@@ -175,51 +177,51 @@ def coregist_to_norm(correction_direction, dir_fMRI_Refth_RS_prepro1, RS, RS_map
     for r in range(0, int(nb_run)):
         root_RS     = extract_filename(RS[r])
         root_RS_ref = extract_filename(RS[REF_int])
-        REF = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, root_RS_ref + '_xdtr_mean_deob_ref_fudge.nii.gz'))
+        REF = ants.image_read(opj(dir_prepro_orig_process, root_RS_ref + '_xdtr_mean_deob_ref_fudge.nii.gz'))
 
         if not root_RS == root_RS_ref:  # do not process ref...
 
             # 1.0 calculate co-registration mean image ref to mean image func
-            IMG = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_deob.nii.gz'))
+            IMG = ants.image_read(opj(dir_prepro_orig_process, root_RS + '_xdtr_mean_deob.nii.gz'))
             mTx = ants.registration(fixed=REF, moving=IMG,
                                     type_of_transform='SyNCC',
                                     initial_transform=None,
-                                    outprefix=opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_warp_'))
+                                    outprefix=opj(dir_prepro_orig_process, root_RS + '_xdtr_mean_warp_'))
 
             ##  Apply the transformation  to the mean image
             moved = ants.apply_transforms(fixed=REF, moving=IMG,
                                           transformlist=mTx['fwdtransforms'],
                                           interpolator=n_for_ANTS)
-            ants.image_write(moved, opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_warp.nii.gz'), ri=False)
+            ants.image_write(moved, opj(dir_prepro_orig_process, root_RS + '_xdtr_mean_warp.nii.gz'), ri=False)
 
-            dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_deob.nii.gz'),
-                                      opj(dir_fMRI_Refth_RS_prepro1, root_RS_ref + '_xdtr_mean_deob_ref_fudge.nii.gz')],
+            dictionary = {"Sources": [opj(dir_prepro_orig_process, root_RS + '_xdtr_mean_deob.nii.gz'),
+                                      opj(dir_prepro_orig_process, root_RS_ref + '_xdtr_mean_deob_ref_fudge.nii.gz')],
                           "Description": 'Coregistration (ANTspy).', }
             json_object = json.dumps(dictionary, indent=2)
-            with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_warp.json'), "w") as outfile:
+            with open(opj(dir_prepro_orig_process, root_RS + '_xdtr_mean_warp.json'), "w") as outfile:
                 outfile.write(json_object)
 
             # 2.0 apply to all the volume in the func (_xdtr_deob)
-            FUNC = ants.image_read(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_deob.nii.gz'))
+            FUNC = ants.image_read(opj(dir_prepro_orig_process, root_RS + '_xdtr_deob.nii.gz'))
             moved = ants.apply_transforms(fixed=REF, moving=FUNC,
                                           transformlist=mTx['fwdtransforms'],
                                           interpolator=n_for_ANTS, imagetype=3)
-            ants.image_write(moved, opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtrf_2ref.nii.gz'), ri=False)
+            ants.image_write(moved, opj(dir_prepro_orig_process,root_RS + '_xdtrf_2ref.nii.gz'), ri=False)
 
-            dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtr_mean_deob.nii.gz'),
-                                      opj(dir_fMRI_Refth_RS_prepro1, root_RS_ref + '_xdtrf_2ref.nii.gz')],
+            dictionary = {"Sources": [opj(dir_prepro_orig_process, root_RS + '_xdtr_mean_deob.nii.gz'),
+                                      opj(dir_prepro_orig_process, root_RS_ref + '_xdtrf_2ref.nii.gz')],
                           "Description": 'Coregistration (ANTspy).', }
             json_object = json.dumps(dictionary, indent=2)
-            with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_2ref.json'), "w") as outfile:
+            with open(opj(dir_prepro_orig_process, root_RS + '_xdtrf_2ref.json'), "w") as outfile:
                 outfile.write(json_object)
 
         else:
-            command = (sing_afni + '3dcopy ' + opj(dir_fMRI_Refth_RS_prepro1, root_RS_ref + '_xdtr_deob.nii.gz') +
-                       ' ' + opj(dir_fMRI_Refth_RS_prepro1,root_RS + '_xdtrf_2ref.nii.gz') + overwrite)
+            command = (sing_afni + '3dcopy ' + opj(dir_prepro_orig_process, root_RS_ref + '_xdtr_deob.nii.gz') +
+                       ' ' + opj(dir_prepro_orig_process,root_RS + '_xdtrf_2ref.nii.gz') + overwrite)
             run_cmd.run(command, diary_file)
 
-            dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS_ref + '_xdtr_deob.nii.gz'),
+            dictionary = {"Sources": opj(dir_prepro_orig_process, root_RS_ref + '_xdtr_deob.nii.gz'),
                           "Description": 'Copy.', }
             json_object = json.dumps(dictionary, indent=2)
-            with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_xdtrf_2ref.json'), "w") as outfile:
+            with open(opj(dir_prepro_orig_process, root_RS + '_xdtrf_2ref.json'), "w") as outfile:
                 outfile.write(json_object)
