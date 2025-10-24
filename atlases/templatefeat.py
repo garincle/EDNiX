@@ -8,7 +8,6 @@ opb = os.path.basename
 def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_norm,kind, atlas_followers):
 
     # by default variables
-
     FS_refs       = opj(FS_tools, 'standard_mesh_atlases_macaque')
     BALSAname     = ''  # to get a surface to surface co-registration
     balsa_folder  = ''
@@ -23,7 +22,6 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
 
 
     path_label_code = opj(path_ref, 'label_code')
-
     if 'T1' in type_norm:
         suffix_template = 'T1w'
     if 'T2' in type_norm:

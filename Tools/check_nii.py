@@ -5,7 +5,6 @@ import ants
 import nibabel as nib
 from nilearn.image import resample_to_img
 from nilearn.image import new_img_like
-
 opj = os.path.join
 
 from Tools import run_cmd
@@ -160,7 +159,41 @@ def resamp_no_check(source,target,imgtype,path_code,labelname,diary_file,sing_wb
                ' ' + opj(path_code, labelname + '_label.txt') + ' ' + source + ' -drop-unused-labels')
         run_cmd.run(cmd, diary_file)
 
+def normalize_anat_type(name: str) -> str:
+    """Normalize anatomical type to 'T1w' or 'T2w'."""
+    if not name:  # empty string or None
+        return ''
+    if 'T1w' in name:
+        return 'T1w'
+    if 'T2w' in name:
+        return 'T2w'
+    if 'T1' in name:
+        return 'T1w'
+    if 'T2' in name:
+        return 'T2w'
+    raise ValueError(
+        f"Cannot infer T1/T2 suffix from filename '{name}'. "
+        "Expected a chunk containing 'T1' or 'T2'.")
 
 
+def keep_header(input_file, reference_image):
+    """
+    Ensures header conservation when transforming extracted data to NIfTI format.
 
+    Args:
+        input_file (str): Input file path
+        reference_image: Reference image to copy the header from
 
+    Returns:
+        str: Path to the generated file
+    """
+    # Load extracted data
+    extracted_data = nib.load(input_file).get_fdata()
+
+    # Create new image with reference header
+    labeled_img2 = new_img_like(reference_image, extracted_data, copy_header=True)
+
+    # Save result (overwrites original file)
+    labeled_img2.to_filename(input_file)
+
+    return input_file

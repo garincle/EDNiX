@@ -25,9 +25,9 @@ spgo = subprocess.getoutput
 
 from Tools import run_cmd
 
-def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
+def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, maskDilatfunc, dir_prepro_orig_process,
                                                       overwrite, costAllin, type_of_transform,
-                                                      aff_metric_ants, s_bind, afni_sif, fsl_sif, fs_sif, itk_sif,diary_file):
+                                                      aff_metric_ants, s_bind, afni_sif, fsl_sif, sing_fs, itk_sif,diary_file):
 
     ct = datetime.datetime.now()
     diary = open(diary_file, "a")
@@ -35,47 +35,49 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
     nl = '##  Working on step ' + str(3) + '(function: Skullstrip_func).  ##'
     run_cmd.msg(nl, diary_file, 'HEADER')
 
-    input_for_msk    = opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz')
-    output_for_mask  = opj(dir_fMRI_Refth_RS_prepro1, 'maskDilat_Allineate_in_func.nii.gz')
-    master           = opj(dir_fMRI_Refth_RS_prepro2, 'anat_rsp_in_func.nii.gz')
+    Mean_Image_RcT_for_mask = opj(dir_prepro_orig_process, 'Mean_Image_RcT_for_mask.nii.gz')
+    Mean_Image_RcT_for_mask_1D = opj(dir_prepro_orig_process, 'Mean_Image_RcT_for_mask.1D')
+    Mean_Image_RcT_for_mask_1D_INV = opj(dir_prepro_orig_process, 'Mean_Image_RcT_for_mask_INV.1D')
+    Mean_Image_RcT_for_mask_desc = opj(dir_prepro_orig_process, 'Mean_Image_RcT_for_mask_')
+    Mean_Image_RcT_for_mask_shift = opj(dir_prepro_orig_process, 'Mean_Image_RcT_for_mask_shift.nii.gz')
+    transo = [opj(dir_prepro_orig_process, 'Mean_Image_RcT_for_mask_1Warp.nii.gz'),
+    opj(dir_prepro_orig_process, 'Mean_Image_RcT_for_mask_0GenericAffine.mat')]
     brain_skullstrip = Method_mask_func
-
 
     if brain_skullstrip == "3dAllineate":
         ##### mask the func img
         command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -cmass -EPI -final NN -float -twobest 5 -fineblur 0 -nomask -base ' + \
-                  master + ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz') + \
-                  ' -source ' + opj(dir_fMRI_Refth_RS_prepro1,'Mean_Image.nii.gz') + ' -' + costAllin + ' -1Dmatrix_save ' + \
-                  opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.1D') + \
+                  master + ' -prefix ' + Mean_Image_RcT_for_mask + \
+                  ' -source ' + input_for_msk + ' -' + costAllin + ' -1Dmatrix_save ' + \
+                  Mean_Image_RcT_for_mask_1D + \
                   ' -master ' + master
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
-        dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
+        dictionary = {"Sources": [input_for_msk,
                                   master],
-                      "Description": 'Co-registration (3dAllineate,AFNI).', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.json'), "w") as outfile:
-            outfile.write(json_object)
+                      "Description": 'Co-registration (3dAllineate,AFNI).',
+                      "Command": command, }
+        json_object = json.dumps(dictionary, indent=3)
+        with open(Mean_Image_RcT_for_mask.replace('.nii.gz', '.json'), "w") as outfile:
+            outfile.write(json_object)          
 
-        command = 'singularity run' + s_bind + afni_sif + 'cat_matvec ' + opj(dir_fMRI_Refth_RS_prepro1,
-                                                                              'Mean_Image_RcT_for_mask.1D') + \
-                  ' -I | tail -n +3 > ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask_INV.1D')
+        command = 'singularity run' + s_bind + afni_sif + 'cat_matvec ' + Mean_Image_RcT_for_mask_1D + \
+                  ' -I | tail -n +3 > ' + Mean_Image_RcT_for_mask_1D_INV
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
 
-        command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -final NN -1Dmatrix_apply ' + opj(
-            dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask_INV.1D') + \
+        command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -final NN -1Dmatrix_apply ' + Mean_Image_RcT_for_mask_1D_INV + \
                   ' -prefix ' + output_for_mask + \
-                  ' -master ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz') + \
-                  ' -input  ' + opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz')
+                  ' -master ' + input_for_msk + \
+                  ' -input  ' + maskDilatfunc
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
-        dictionary = {"Sources": [opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz'),
-                                  opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image.nii.gz'),
-                                  opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask_INV.1D')],
+        dictionary = {"Sources": [maskDilatfunc,
+                                  input_for_msk,
+                                  Mean_Image_RcT_for_mask_1D_INV],
                       "Description": 'Co-registration (3dAllineate,AFNI).', }
         json_object = json.dumps(dictionary, indent=2)
         with open(output_for_mask[:-7] + '.json', "w") as outfile:
@@ -209,22 +211,23 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
 
     elif brain_skullstrip =='bet2':
         ##### create an approximate brain mask
-        command = 'singularity run' + s_bind + fsl_sif + 'bet2 ' + input_for_msk + ' ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz') + \
+        command = 'singularity run' + s_bind + fsl_sif + 'bet2 ' + input_for_msk + ' ' + Mean_Image_RcT_for_mask + \
         ' -f 0.70'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
         dictionary = {"Sources": input_for_msk,
-                      "Description": 'skull stripping (bet2,FSL).', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.json'), "w") as outfile:
+                      "Description": 'skull stripping (bet2,FSL).',
+                      "Command": command, }
+        json_object = json.dumps(dictionary, indent=3)
+        with open(Mean_Image_RcT_for_mask.replace('.nii.gz', '.json'), "w") as outfile:
             outfile.write(json_object)
 
-        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz') + ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
+        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + Mean_Image_RcT_for_mask + ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
-        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz'),
+        dictionary = {"Sources": Mean_Image_RcT_for_mask,
                       "Description": 'binary mask (3dcalc "step(x)", AFNI)', }
         json_object = json.dumps(dictionary, indent=2)
         with open(output_for_mask[:-7] + '.json', "w") as outfile:
@@ -238,24 +241,25 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         f_value = brain_skullstrip[-4:]
         # Create the approximate brain mask using bet2
         command = f'singularity run {s_bind}{fsl_sif} bet2 {input_for_msk} ' \
-                  f'{opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")} -f {f_value}'
+                  f'{Mean_Image_RcT_for_mask} -f {f_value}'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
         dictionary = {"Sources": input_for_msk,
-                      "Description": 'skull stripping (bet2,FSL).', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.json'), "w") as outfile:
+                      "Description": 'skull stripping (bet2,FSL).',
+                      "Command": command, }
+        json_object = json.dumps(dictionary, indent=3)
+        with open(Mean_Image_RcT_for_mask.replace('.nii.gz', '.json'), "w") as outfile:
             outfile.write(json_object)
 
         # Run the AFNI 3dcalc command to create the final mask
         command = f'singularity run {s_bind}{afni_sif} 3dcalc -a ' \
-                  f'{opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")} ' \
+                  f'{Mean_Image_RcT_for_mask} ' \
                   f'-expr "step(a)" -prefix {output_for_mask} -overwrite'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
-        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask.nii.gz'),
+        dictionary = {"Sources": Mean_Image_RcT_for_mask,
                       "Description": 'binary mask (3dcalc "step(x)", AFNI)', }
         json_object = json.dumps(dictionary, indent=2)
         with open(output_for_mask[:-7] + '.json', "w") as outfile:
@@ -268,12 +272,12 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         upper_cutoff = float(upper_cutoff)
 
         # Convert to float
-        command = f'singularity run {s_bind}{fs_sif} mri_convert -odt float {input_for_msk} {opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")}'
+        command = f'singularity run {s_bind}{sing_fs} mri_convert -odt float {input_for_msk} {Mean_Image_RcT_for_mask}'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
         # Compute the EPI mask using nilearn with the given cutoff values
-        mask_img = compute_epi_mask(f'{opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")}', lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff, connected=True, opening=3,
+        mask_img = compute_epi_mask(f'{Mean_Image_RcT_for_mask}', lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff, connected=True, opening=3,
                                     exclude_zeros=False, ensure_finite=True)
         mask_img.to_filename(output_for_mask)
 
@@ -299,7 +303,7 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         diary.write(f'\n{nl}')
         print(nl)
         dictionary = {"Sources": [input_for_msk,
-                                  opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")],
+                                  Mean_Image_RcT_for_mask],
                       "Description": ['convertion to float (mri_convert, Freesurfer)',
                                       'binary brain mask (compute_epi_mask,nilearn).',
                                       'fill holes and dilation (3dmask_tool, AFNI'],}
@@ -314,13 +318,13 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         lower_cutoff = float(lower_cutoff)
         upper_cutoff = float(upper_cutoff)
         # Convert to float
-        command = f'singularity run {s_bind}{fs_sif} mri_convert -odt float {input_for_msk} {opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")}'
+        command = f'singularity run {s_bind}{sing_fs} mri_convert -odt float {input_for_msk} {Mean_Image_RcT_for_mask}'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
 
         # Compute the EPI mask using nilearn with the given cutoff values
-        mask_img = compute_epi_mask(f'{opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")}', lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff, connected=True, opening=3,
+        mask_img = compute_epi_mask(f'{Mean_Image_RcT_for_mask}', lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff, connected=True, opening=3,
                                     exclude_zeros=True, ensure_finite=True)
         mask_img.to_filename(output_for_mask)
         # Use AFNI to process the mask
@@ -344,7 +348,7 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         diary.write(f'\n{nl}')
         print(nl)
         dictionary = {"Sources": [input_for_msk,
-                                  opj(dir_fMRI_Refth_RS_prepro1, "Mean_Image_RcT_for_mask.nii.gz")],
+                                  Mean_Image_RcT_for_mask],
                       "Description": ['convertion to float (mri_convert, Freesurfer)',
                                       'binary brain mask (compute_epi_mask,nilearn).',
                                       'fill holes and dilation (3dmask_tool, AFNI',
@@ -397,7 +401,7 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
     elif brain_skullstrip.startswith('Vol_sammba_'):
         volume = int(brain_skullstrip.split('_')[2])
 
-        command = 'singularity run' + s_bind + fs_sif + 'mri_convert -odt float ' + input_for_msk + ' ' + input_for_msk[:-7] + '_float.nii.gz'
+        command = 'singularity run' + s_bind + sing_fs + 'mri_convert -odt float ' + input_for_msk + ' ' + input_for_msk[:-7] + '_float.nii.gz'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -426,8 +430,8 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         IMG = ants.image_read(input_for_msk)
         REF_IMG = ants.image_read(master)
         mtx1 = ants.registration(fixed=IMG, moving=REF_IMG, type_of_transform='Translation',
-                                 outprefix=opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask_'))
-        REF_MASK = ants.image_read(opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz'))
+                                 outprefix=Mean_Image_RcT_for_mask_desc)
+        REF_MASK = ants.image_read(maskDilatfunc)
         tmp_mask1 = ants.apply_transforms(fixed=IMG, moving=REF_MASK,
                                           transformlist=mtx1['fwdtransforms'], interpolator='nearestNeighbor')
         tmp_mask1 = ants.threshold_image(tmp_mask1, 0.5, 1, 1, 0, True)
@@ -435,7 +439,7 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         ants.image_write(tmp_mask1, output_for_mask, ri=False)
         dictionary = {"Sources": [input_for_msk,
                                   master,
-                                  opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz')],
+                                  maskDilatfunc],
                       "Description": ['binary brain mask (ANTSpy).'], }
         json_object = json.dumps(dictionary, indent=2)
         with open(output_for_mask[:-7] + '.json', "w") as outfile:
@@ -447,13 +451,13 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         REF_IMG = ants.image_read(master)
 
         mtx1 = ants.registration(fixed=IMG, moving=REF_IMG, type_of_transform='Translation',
-                                 outprefix=opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask_shift'))
+                                 outprefix=Mean_Image_RcT_for_mask_shift)
         MEAN_tr = ants.apply_transforms(fixed=IMG, moving=REF_IMG, transformlist=mtx1['fwdtransforms'],
                                         interpolator='nearestNeighbor')
-        ants.image_write(MEAN_tr, opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask_shift.nii.gz'),
+        ants.image_write(MEAN_tr, Mean_Image_RcT_for_mask_shift,
                          ri=False)
         mTx = ants.registration(fixed=IMG, moving=REF_IMG,
-                                outprefix=opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask_'),
+                                outprefix=Mean_Image_RcT_for_mask_desc,
                                 initial_transform=mtx1['fwdtransforms'],
                                 type_of_transform=type_of_transform,
                                 aff_metric=aff_metric_ants,
@@ -471,11 +475,9 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
                                 reg_shrink_factors=(8, 4, 2, 1),
                                 verbose=True)
 
-        transfo_concat = \
-            [opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask_1Warp.nii.gz'),
-             opj(dir_fMRI_Refth_RS_prepro1, 'Mean_Image_RcT_for_mask_0GenericAffine.mat')]
+        transfo_concat = transo
 
-        REF_MASK = ants.image_read(opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz'))
+        REF_MASK = ants.image_read(maskDilatfunc)
         tmp_mask1 = ants.apply_transforms(fixed=IMG, moving=REF_MASK,
                                           transformlist=transfo_concat, interpolator='nearestNeighbor')
 
@@ -499,7 +501,7 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
         print(nl)
         dictionary = {"Sources": [input_for_msk,
                                   master,
-                                  opj(dir_fMRI_Refth_RS_prepro2, 'maskDilat.nii.gz')],
+                                  maskDilatfunc],
                       "Description": ['binary brain mask (ANTSpy).',
                                       'fill holes (3dmasktool,AFNI)',
                                       'resampling (3dresample, AFNI)'], }
@@ -523,14 +525,14 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
     elif brain_skullstrip == 'Manual':
         def run_command_and_wait(cmd):
             nl ='INFO: Running command:' +  cmd
-            print(bcolors.OKGREEN + nl + bcolors.ENDC)
+            run_cmd.msg(nl, diary_file, 'OKGREEN')
             result = subprocess.run(cmd, shell=True)
             if result.returncode == 0:
                 nl = 'INFO: Command completed successfully.'
-                print(bcolors.OKGREEN + nl + bcolors.ENDC)
+                run_cmd.msg(nl, diary_file, 'OKGREEN')
             else:
                 nl = 'WARNING: Command failed with return code: ' +  result.returncode
-                print(bcolors.WARNING + nl +  bcolors.ENDC)
+                run_cmd.msg(nl, diary_file, 'WARNING')
 
         if not ope(output_for_mask):
             command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + input_for_msk + ' -expr "step(a)" -prefix ' + output_for_mask
@@ -552,7 +554,7 @@ def Skullstrip_func(Method_mask_func, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_
     else:
         nl = "ERROR: brain_skullstrip not recognized, check that Method_mask_func is correctly written!!"
         diary.write(f'\n{nl}')
-        raise Exception(bcolors.FAIL + nl + bcolors.ENDC)
+        raise Exception(run_cmd.error(nl, diary_file))
 
     diary.write(f'\n')
     diary.close()
