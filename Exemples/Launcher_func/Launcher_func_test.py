@@ -13,9 +13,11 @@ MAIN_PATH = opj('/','srv','projects','easymribrain','code','EDNiX_Pilote','EDNiX
 
 sys.path.insert(1, opj(MAIN_PATH))
 
-from Tools import Load_subject_with_BIDS,Read_atlas,getpath
+from Tools import Load_subject_with_BIDS,getpath
+from atlases import atlas4func
 from anatomical import set_launcher
 from fonctions import _0_Pipeline_launcher
+
 
 species   = 'Macaque'
 reference = 'EDNIx'
@@ -29,18 +31,6 @@ reference = 'EDNIx'
 # Override os.path.join to always return Linux-style paths
 
 bids_dir = Load_subject_with_BIDS.linux_path(opj('/','srv','projects','easymribrain','data','MRI','Macaque','BIDS_BenHamed'))
-
-
-
-
-atlas_dir = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", species)
-Lut_dir = opj(MAIN_PATH, "Atlas_library", "LUT_files")
-
-# Define your path variables
-path_vars = {'atlas_dir': atlas_dir,'Lut_dir': Lut_dir}
-# Load and process config.
-config_file_path = opj(MAIN_PATH, "Atlas_library", "Atlases_V2", "atlas_config_V2.json")
-config = Read_atlas.load_config(Load_subject_with_BIDS.linux_path(config_file_path), path_vars)
 
 ########### Subject loader with BIDS##############
 layout= BIDSLayout(bids_dir,  validate=True)
@@ -59,30 +49,6 @@ list_to_remove = []
 
 
 
-'''
-atlas_dfs = Read_atlas.extract_atlas_definitions(config)
-(lvl1, lvl1LR, lvl2, lvl2LR,
-    lvl3, lvl3LR, lvl4, lvl4LR) = (
-    atlas_dfs['lvl1'], atlas_dfs['lvl1LR'],
-    atlas_dfs['lvl2'], atlas_dfs['lvl2LR'],
-    atlas_dfs['lvl3'], atlas_dfs['lvl3LR'],
-    atlas_dfs['lvl4'], atlas_dfs['lvl4LR'])
-# Get all atlas file paths
-(lvl1_file, lvl1LR_file, lvl2_file, lvl2LR_file,
-    lvl3_file, lvl3LR_file, lvl4_file, lvl4LR_file) = (
-    config["atlas_definitions"]["lvl1"]["atlas_file"],
-    config["atlas_definitions"]["lvl1LR"]["atlas_file"],
-    config["atlas_definitions"]["lvl2"]["atlas_file"],
-    config["atlas_definitions"]["lvl2LR"]["atlas_file"],
-    config["atlas_definitions"]["lvl3"]["atlas_file"],
-    config["atlas_definitions"]["lvl3LR"]["atlas_file"],
-    config["atlas_definitions"]["lvl4"]["atlas_file"],
-    config["atlas_definitions"]["lvl4LR"]["atlas_file"])
-
-# Create combined lists
-list_atlases = [lvl1_file, lvl2_file, lvl3_file, lvl4_file,
-    lvl1LR_file, lvl2LR_file, lvl3LR_file, lvl4LR_file]
-'''
 overwrite_option = True #True or False overwrite previous analysis if in BIDS
 
 #### functional images paramters definition
@@ -199,22 +165,27 @@ smoothSBA = 3
 
 #######for matrix analysis (step 10)
 #### name of the atlases  you want to use for the matrix analysis
-#selected_atlases_matrix = list_atlases.copy()
-segmentation_name_list = [lvl1, lvl2, lvl3, lvl4, lvl1LR, lvl2LR, lvl3LR, lvl4LR]
+selected_atlases_matrix = 'all'
+wanted_level            = 'all'
 
 #######for seed analysis (step 11)
 # threshold_val is the percentage of the correlation image that will be removed
 threshold_val = 10 # int
 ##use high quality anat image as background for figures
 oversample_map = False # True or False
-
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
-selected_atlases = ['EDNIxCSCLR',3]  # Using NEW VERSION format (single atlas)
-panda_files = [pd.DataFrame({'region':['retrosplenial'],'label':[162]})]  # Using NEW VERSION format (single DataFrame)
+selected_atlases = 'default'
+panda_files      = 'default'
 
 #For QC value to define specific and non-spe correlation
 specific_roi_tresh = 0.2
 delta_thresh = 0.1
+
+
+
+Lut_dir,selected_atlases_matrix,wanted_level,segmentation_name_list,selected_atlases,panda_files = (
+    atlas4func.setup(MAIN_PATH,species,reference,selected_atlases_matrix,wanted_level,selected_atlases,panda_files))
+
 
 ############ Right in a list format the steps that you want to skip
 Skip_step = [4,100,200] # Changed to match requested values
