@@ -25,22 +25,22 @@ from fonctions import _9_coregistration_to_template_space, _10_Correl_matrix, _1
     _12_fMRI_QC, _14_fMRI_QC_matrix, _100_Data_Clean, _200_Data_QC
 from fonctions.extract_filename import extract_filename
 
-
 def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
                     BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space, use_master_for_Allineate,
                     correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
-                    TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
+                    TfMRI, GM_mask_studyT, GM, creat_study_template, type_norm, coregistration_longitudinal,
                     dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
-                    n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlases, selected_atlases, panda_files,
+                    n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlas, selected_atlases, panda_files,
                     endfmri, endjson, endmap,
                     oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val,
                     Skip_step,
                     bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
                     folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list,
-                    band,
+                    band, animalPosition, humanPosition, doWARPonfunc,
                     extract_Vc, selected_atlases_matrix, specific_roi_tresh, delta_thresh, extract_GS, MAIN_PATH,
                     DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, normalize,
-                    reftemplate_path, reference, function_is_rest):
+                    reftemplate_path, reference, function_is_rest, **kwargs):
+
     sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _, sing_synstrip, Unetpath = Load_EDNiX_requirement.load_requirement(
         MAIN_PATH, reftemplate_path, bids_dir, 'yes')
 
@@ -56,26 +56,26 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
         overwrite = ' -overwrite'
     # Usage
     type_norm = check_nii.normalize_anat_type(type_norm)
+    TfMRI = check_nii.normalize_anat_type(TfMRI)
 
     for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, all_Session_max):
         nl = 'INFO: Work on ' + str(ID) + ' session ' + str(Session)
         run_cmd.printcolor(nl, 'HEADER')
 
         # Resting data organization folders ###########################################################################
-        (path_func, dir_fmap, dir_prepro_orig, dir_prepro_orig_labels, dir_prepro_orig_masks,
+        (path_func, dir_fmap, dir_prepro_fmap, dir_prepro_orig, dir_prepro_orig_labels, dir_prepro_orig_masks,
          dir_prepro_orig_process, dir_prepro_orig_rs, dir_prepro_orig_task,
          dir_prepro_acpc, dir_prepro_acpc_labels, dir_prepro_acpc_masks,
          dir_prepro_acpc_process, dir_prepro_acpc_rs, dir_prepro_acpc_task,
          dir_prepro_template, dir_prepro_template_labels, dir_prepro_template_masks,
-         dir_prepro_template_process, dir_prepro_template_rs, dir_prepro_template_task) = getpath.func(data_path,
-                                                                                                       reference)
+         dir_prepro_template_process, dir_prepro_template_rs, dir_prepro_template_task, dir_prepro_acpc_matrices, dir_prepro_orig_matrices) = getpath.func(data_path, reference)
 
         for path in [path_func, dir_fmap, dir_prepro_fmap, dir_prepro_orig, dir_prepro_orig_labels, dir_prepro_orig_masks,
                      dir_prepro_orig_process, dir_prepro_orig_rs, dir_prepro_orig_task,
                      dir_prepro_acpc, dir_prepro_acpc_labels, dir_prepro_acpc_masks,
                      dir_prepro_acpc_process, dir_prepro_acpc_rs, dir_prepro_acpc_task,
                      dir_prepro_template, dir_prepro_template_labels, dir_prepro_template_masks,
-                     dir_prepro_template_process, dir_prepro_template_rs, dir_prepro_template_task]:
+                     dir_prepro_template_process, dir_prepro_template_rs, dir_prepro_template_task, dir_prepro_acpc_matrices, dir_prepro_orig_matrices]:
 
             if not os.path.exists(path):
                 if function_is_rest and path in (dir_prepro_orig_rs, dir_prepro_acpc_rs, dir_prepro_template_rs):
@@ -337,7 +337,7 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
                         f.write(stc)
                     f.close()
                 except:
-                    cmd = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";singularity run' + sing_afni + '3dinfo -slice_timing ' + \
+                    cmd = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";' + sing_afni + '3dinfo -slice_timing ' + \
                           list_RS[0]
                     nl = spgo(cmd).split('\n')
                     STC = nl[-1].split('|')
@@ -522,40 +522,27 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
-                _1_fMRI_preTTT_in_fMRIspace.preprocess_data(dir_prepro_orig_process,
-                                                            RS,
-                                                            list_RS,
-                                                            nb_run,
-                                                            T1_eq,
-                                                            TR_val,
-                                                            Slice_timing_info,
-                                                            overwrite,
-                                                            sing_afni, diary_file, diary_WARNING)
+                _1_fMRI_preTTT_in_fMRIspace.preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Slice_timing_info,
+                    overwrite, sing_afni, diary_file,diary_WARNING)
 
             if 2 in Skip_step:
                 nl = 'skip step ' + str(2)
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
-                _2_coregistration_to_norm.coregist_to_norm(correction_direction_val,
-                                                           dir_prepro_orig_process,
-                                                           RS, RS_map, nb_run, recordings, REF_int, list_map, deoblique,
-                                                           orientation, DwellT_val, n_for_ANTS,
-                                                           overwrite, sing_afni, sing_fsl, dmap, dbold, config_f,
-                                                           diary_file)
+                _2_coregistration_to_norm.coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_orig_process, RS, RS_map, nb_run, recordings,
+                     REF_int, list_map, animalPosition, humanPosition, doWARPonfunc, dir_prepro_orig_matrices, orientation, DwellT, n_for_ANTS,
+                     overwrite, sing_afni, sing_fsl, dmap, dbold, config_f, diary_file)
 
             if 3 in Skip_step:
                 nl = 'skip step ' + str(3)
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
-                _3_mask_fMRI.Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr, TfMRI, dir_prepro_orig,
-                                                dir_prepro_acpc, use_master_for_Allineate,
-                                                dir_prepro_template, RS, nb_run, REF_int, ID, dir_prepro, brainmask,
-                                                V_mask, W_mask, G_mask, dilate_mask,
-                                                costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform,
-                                                aff_metric_ants,
-                                                sing_afni, sing_fs, sing_fsl, sing_itk, diary_file)
+                _3_mask_fMRI.Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepro_orig_process, dir_prepro_orig_masks, dir_prepro_acpc_masks, dir_prepro_acpc_process,
+                       dir_prepro_template_process, RS, nb_run, REF_int, ID, dir_prepro, brainmask, V_mask, W_mask, G_mask, dilate_mask,
+                       costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
+                       sing_afni,sing_fs, sing_fsl, sing_itk,diary_file)
 
             if 4 in Skip_step:
                 nl = 'skip step ' + str(4)

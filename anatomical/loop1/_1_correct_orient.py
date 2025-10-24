@@ -294,8 +294,6 @@ def correct_orient(BIDStype,
                 run_cmd.run(cmd, diary_file)
                 desc = 'Correction of the fields orientation.'
 
-
-
         dictionary = {"Sources": anatname1 + ListimageMyeline[Im] + '.nii.gz',
                       "Description": desc, }
         json_object = json.dumps(dictionary, indent=2)

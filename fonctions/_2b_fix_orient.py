@@ -6,58 +6,84 @@ import shutil
 import json
 
 opj = os.path.join
-
+opi = os.path.isfile
 from Tools import run_cmd
-
-def fix_orient(imgO, imgI, dir_fMRI_Refth_RS_prepro1, root_RS, deoblique, orientation, overwrite, sing_afni,diary_file):
+from Tools import get_orientation
+def fix_orient(runMean_reorient, fMRI_runMean_unwarpped, list_RS, animalP, humanP, orientation, doWARPonfunc, sing_afni, diary_file):
 
     nl = '##  Working on step ' + str(2) + '(function: _2a_fix_orient).  ##'
     run_cmd.msg(nl, diary_file, 'HEADER')
 
-    if deoblique == 'WARP_without_3drefit' or deoblique == 'no_deoblique' or deoblique == 'deob_WO_orient':  # do nothing
-        nl = 'do not reorient with 3drefit, just copy'
-        run_cmd.msg(nl, diary_file, 'OKGREEN')
+    if len(list_RS)>1:
+        if len(humanP) != len(list_RS):
+            if len(humanP) == 1:
+                humanP = humanP*len(list_RS)
+                run_cmd.msg('it is assumed that the subject position in the scanner remained the same in every image ', diary_file, 'WARNING')
+            else:
+                nl = 'check the parameters: ther must be a position set for each type of images. If you do not know, leave it empty'
+                run_cmd.msg(nl, diary_file, 'WARNING')
 
-        shutil.copyfile(opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgI), opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO))
-        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgI),
-                      "Description": ' Copy', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO[:-7] + '.json'), "w") as outfile:
-            outfile.write(json_object)
+        if len(animalP) != len(list_RS):
+            if len(animalP) == 1:
+                animalP = animalP * len(list_RS)
+                run_cmd.msg('it is assumed that the subject position in the scanner remained the same in every image ',
+                            diary_file, 'WARNING')
+            else:
+                nl = 'check the parameters: ther must be a position set for each type of images. If you do not know, leave it empty'
+                run_cmd.msg(nl, diary_file, 'WARNING')
 
-    elif deoblique == 'WARP' or deoblique == 'header_WO_deob' or deoblique == 'WARP_Gridset':
-        command = (sing_afni + '3drefit ' + overwrite + ' -orient ' + orientation + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI))
-        run_cmd.run(command, diary_file)
+    if humanP[0] == '':
+        if opi(list_RS[0].replace('.nii.gz', 'json')):
+            f = open(list_RS[0].replace('.nii.gz', 'json'))
+            info = json.load(f)
+            try:
+                humanP[0] = info['PatientPosition']
+                run_cmd.msg('the subject was scanned with the following position parameter : ' + humanP[0],
+                            diary_file, 'OKGREEN')
+            except:
+                humanP[0] = humanP[0]
 
-        shutil.copyfile(opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI), opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO))
-        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgI),
-                      "Description": ' Change header orientation (3drefit,AFNI', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO[:-7] + '.json'), "w") as outfile:
-            outfile.write(json_object)
+    if animalP[0] == '':
+        animalP[0] = 'humanlike'
 
-    elif deoblique == 'header':
-        command = (sing_afni + '3drefit ' + overwrite + ' -deoblique -orient ' + orientation + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI))
-        run_cmd.run(command, diary_file)
+    cmd = sing_afni + '3dinfo -orient ' + fMRI_runMean_unwarpped
+    msg, _ = run_cmd.get(cmd, diary_file)
+    orient = msg.decode("utf-8").split('\n')[-2]
 
-        shutil.copyfile(opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI), opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO))
-        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgI),
-                      "Description": ' deoblique and Change header orientation (3drefit,AFNI', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO[:-7] + '.json'), "w") as outfile:
-            outfile.write(json_object)
+    cmd = sing_afni + '3dinfo -is_oblique ' + fMRI_runMean_unwarpped
+    msg, _ = run_cmd.get(cmd, diary_file)
+    obli = msg.decode("utf-8").split('\n')[-2]
 
-    elif deoblique == 'WARPbaboon':
-        command = (sing_afni + '3drefit ' + overwrite + ' -deoblique -duporigin ' + opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI) +
-                   '  -orient ' + orientation + ' ' +  opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI))
-        run_cmd.run(command, diary_file)
+    if obli == '1' or doWARPonfunc==True:
+        cmd = sing_afni + '3dWarp -overwrite -deoblique -prefix ' + runMean_reorient + ' ' + fMRI_runMean_unwarpped
+        run_cmd.run(cmd, diary_file)
+        desc = 'Correction of the obliquity.'
 
-        shutil.copyfile(opj(dir_fMRI_Refth_RS_prepro1,root_RS + imgI), opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO))
-        dictionary = {"Sources": opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgI),
-                      "Description": ' deoblique and Change header orientation (3drefit,AFNI', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_fMRI_Refth_RS_prepro1, root_RS + imgO[:-7] + '.json'), "w") as outfile:
-            outfile.write(json_object)
+        cmd = sing_afni + '3dinfo -orient ' + runMean_reorient
+        msg, _ = run_cmd.get(cmd, diary_file)
 
+        orient = msg.decode("utf-8").split('\n')[-2]
 
+    else:
+        cmd = sing_afni + '3dcalc -overwrite -a ' + fMRI_runMean_unwarpped + ' -prefix ' + runMean_reorient + ' -expr "a"'
+        run_cmd.do(cmd, diary_file)
+        desc = 'Copy .'
+
+    if not orientation == '':
+        cmd = sing_afni + '3drefit -overwrite -orient ' + orientation + ' ' + runMean_reorient
+        run_cmd.run(cmd, diary_file)
+    else:
+        if not animalP == 'humanlike':
+            neworient = get_orientation.getreal(humanP, animalP, orient)
+            run_cmd.msg('the new orientation will be : ' + neworient, diary_file, 'OKGREEN')
+
+            cmd = sing_afni + '3drefit -overwrite -orient ' + neworient + ' ' + runMean_reorient
+            run_cmd.run(cmd, diary_file)
+            desc = 'Correction of the fields orientation.'
+
+    dictionary = {"Sources": fMRI_runMean_unwarpped,
+                  "Description": desc, }
+    json_object = json.dumps(dictionary, indent=2)
+    with open(runMean_reorient.replace('.nii.gz', '.json'), "w") as outfile:
+        outfile.write(json_object)
 

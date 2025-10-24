@@ -155,7 +155,7 @@ def resamp_no_check(source,target,imgtype,path_code,labelname,diary_file,sing_wb
     labeled_img2.to_filename(source)
 
     if imgtype == 'label':
-        cmd = (sig_wb + 'wb_command -volume-label-import' + ' ' + source +
+        cmd = (sing_wb + 'wb_command -volume-label-import' + ' ' + source +
                ' ' + opj(path_code, labelname + '_label.txt') + ' ' + source + ' -drop-unused-labels')
         run_cmd.run(cmd, diary_file)
 
