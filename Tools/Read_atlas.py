@@ -2,6 +2,9 @@ import os
 import json
 import pandas as pd
 
+opj = os.path.join
+ope = os.path.exists
+
 def load_config(config_path, path_vars):
     """Improved config loader with path replacement and fallback resolution"""
     try:
@@ -29,13 +32,13 @@ def load_config(config_path, path_vars):
         # Handle BASE_SS fallback logic if the path doesn't exist
         if "paths" in config and "BASE_SS" in config["paths"]:
             base_ss_path = config["paths"]["BASE_SS"]
-            if not os.path.exists(base_ss_path):
+            if not ope(base_ss_path):
                 # Check fallbacks if they exist
                 fallbacks = config["paths"].get("_BASE_SS_fallbacks", [])
                 for fallback in fallbacks:
                     print(fallback)
-                    print(os.path.exists(fallback))
-                    if os.path.exists(fallback):
+                    print(ope(fallback))
+                    if ope(fallback):
                         config["paths"]["BASE_SS"] = fallback
                         break
                 else:
