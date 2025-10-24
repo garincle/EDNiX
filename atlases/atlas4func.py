@@ -27,9 +27,15 @@ def setup(MAIN_PATH,species,reference,selected_atlases_matrix,wanted_level,selec
     atlas_dfs   = Read_atlas.extract_atlas_definitions(config)
 
     if selected_atlases_matrix == 'all':
-        selected_atlases_matrix = available
+        selected = []
+        level    = []
+        for i in available:
+            for j in range(lvl_nb):
+                selected.append(available[i])
+                level.append(j)
+        selected_atlases_matrix = [selected,level]
     else:
-        selected_atlases_matrix = available[selected_atlases_matrix]
+        selected_atlases_matrix = selected_atlases_matrix
     if wanted_level == 'all':
         wanted_level = range(lvl_nb)
 
