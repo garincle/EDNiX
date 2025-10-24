@@ -30,7 +30,6 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
     nl = '##  Working on step ' + str(10) + '(function: _10_Correl_matrix).  ##'
     run_cmd.msg(nl, diary_file, 'HEADER')
 
-
     out_results = opj(bids_dir, 'Results')
     out_results_V = opj(out_results, 'fMRI_matrix')
 
@@ -43,7 +42,7 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
     for panda_file, atlas in zip(segmentation_name_list, selected_atlases_matrix):
         for i in range(int(nb_run)):
 
-            runname = '_'.join([atlas[0], 'run', str(i)])
+            runname = '_'.join([atlas[0],atlas[1], 'run', str(i)])
 
             root_RS = extract_filename(RS[i])
             func_filename = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
@@ -96,7 +95,7 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                         dummy = nilearn.image.resample_to_img(atlas_filename, func_filename, interpolation='nearest')
                         dummy.to_filename(atlas_filename)
 
-                        extracted_data = nib.load(atlas_filename).get_fdata()[:,:,:,atlas[1]]
+                        extracted_data = nib.load(atlas_filename).get_fdata()
                         labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
                         labeled_img2.to_filename(atlas_filename)
 
@@ -113,7 +112,7 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
 
                 # Load your brain atlas data
                 atlas_img = nib.load(atlas_filename)
-                atlas_data = atlas_img.get_fdata()
+                atlas_data = atlas_img.get_fdata()[:,:,:,atlas[1]]
 
                 # Flatten the atlas data for easy comparison
                 atlas_flat = np.unique(atlas_data.flatten().astype(int))
@@ -169,7 +168,7 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                                          '*(equals(a,' + str(int(old_label)) + ')))+'
                 string_build_atlas2 = "'" + string_build_atlas[:-1] + "'"
 
-                command = (sing_afni + '3dcalc' + ' -a ' + atlas_filename + ' -expr ' + string_build_atlas2 +
+                command = (sing_afni + '3dcalc' + ' -a ' + atlas_filename + '[' + str(atlas[1]) + '] -expr ' + string_build_atlas2 +
                            ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, '_'.join([runname,'filtered.nii.gz'])) +
                            ' -overwrite')
                 run_cmd.do(command, diary_file)
