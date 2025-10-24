@@ -52,7 +52,7 @@ def correct_img(dir_prepro_orig_process, dir_prepro_fmap, fMRI_runMean_n4Bias, R
 									  fmap_mean],
 						  "Description": 'Rigid Realignment (3dvolreg,AFNI).', "Command": command,}
 			json_object = json.dumps(dictionary, indent=3)
-			with open(fmri_to_fmap_align.replace('.nii.gz','json'), "w") as outfile:
+			with open(fmri_to_fmap_align.replace('.nii.gz','.json'), "w") as outfile:
 				outfile.write(json_object)
 
 			# mean of the map img to ref img
@@ -64,7 +64,7 @@ def correct_img(dir_prepro_orig_process, dir_prepro_fmap, fMRI_runMean_n4Bias, R
 			dictionary = {"Sources": fmri_to_fmap_align,
 						  "Description": '4D Mean (3dTstat, AFNI).', "Command": command,}
 			json_object = json.dumps(dictionary, indent=3)
-			with open(fmri_to_fmap_align_Mean.replace('.nii.gz','json'), "w") as outfile:
+			with open(fmri_to_fmap_align_Mean.replace('.nii.gz','.json'), "w") as outfile:
 				outfile.write(json_object)
 
 		root = extract_filename(RS_map[0])
@@ -80,7 +80,7 @@ def correct_img(dir_prepro_orig_process, dir_prepro_fmap, fMRI_runMean_n4Bias, R
 								  fmap_mean0],
 					  "Description": 'concatenation in 4D (3dTcat,AFNI).', "Command": command,}
 		json_object = json.dumps(dictionary, indent=3)
-		with open(fmri_to_fmap_concat.replace('.nii.gz','json'), "w") as outfile:
+		with open(fmri_to_fmap_concat.replace('.nii.gz','.json'), "w") as outfile:
 			outfile.write(json_object)
 
 	else:
@@ -101,7 +101,7 @@ def correct_img(dir_prepro_orig_process, dir_prepro_fmap, fMRI_runMean_n4Bias, R
 		dictionary = {"Sources": opj(dir_prepro_orig_process, RS_map[i]),
 					  "Description": '4D Mean (3dTstat, AFNI).', "Command": command,}
 		json_object = json.dumps(dictionary, indent=3)
-		with open(fmap_mean.replace('.nii.gz','json'), "w") as outfile:
+		with open(fmap_mean.replace('.nii.gz','.json'), "w") as outfile:
 			outfile.write(json_object)
 
 		# register each volume to the base image
@@ -116,7 +116,7 @@ def correct_img(dir_prepro_orig_process, dir_prepro_fmap, fMRI_runMean_n4Bias, R
 					  "Description": 'Rigid Realignment (3dvolreg,AFNI).', "Command": command,}
 		json_object = json.dumps(dictionary, indent=3)
 		
-		with open(fmri_to_fmap_align.replace('.nii.gz','json'), "w") as outfile:
+		with open(fmri_to_fmap_align.replace('.nii.gz','.json'), "w") as outfile:
 			outfile.write(json_object)
 
 		# mean of the map img to ref img
@@ -128,7 +128,7 @@ def correct_img(dir_prepro_orig_process, dir_prepro_fmap, fMRI_runMean_n4Bias, R
 		dictionary = {"Sources": fmri_to_fmap_align,
 					  "Description": '4D Mean (3dTstat, AFNI).', "Command": command,}
 		json_object = json.dumps(dictionary, indent=3)
-		with open(fmri_to_fmap_align_Mean.replace('.nii.gz','json'), "w") as outfile:
+		with open(fmri_to_fmap_align_Mean.replace('.nii.gz','.json'), "w") as outfile:
 			outfile.write(json_object)
 
 		command = (sing_afni + '3dTcat' + overwrite + ' -prefix ' + fmri_to_fmap_concat +
@@ -140,7 +140,7 @@ def correct_img(dir_prepro_orig_process, dir_prepro_fmap, fMRI_runMean_n4Bias, R
 								  fMRI_runMean_n4Bias],
 					  "Description": 'concatenation in 4D (3dTcat,AFNI).', "Command": command,}
 		json_object = json.dumps(dictionary, indent=3)
-		with open(fmri_to_fmap_concat.replace('.nii.gz','json'), "w") as outfile:
+		with open(fmri_to_fmap_concat.replace('.nii.gz','.json'), "w") as outfile:
 			outfile.write(json_object)
 
 	fmri_to_fmap_even = opj(dir_prepro_fmap, root + '_fmri_to_fmap_even.nii.gz')
@@ -169,7 +169,7 @@ def correct_img(dir_prepro_orig_process, dir_prepro_fmap, fMRI_runMean_n4Bias, R
 	dictionary = {"Sources": fmri_to_fmap_concat,
 				  "Description": 'Make sure that the number of voxels are even in each dimension. (Nifti1Image, nilearn)', "Command": command,}
 	json_object = json.dumps(dictionary, indent=3)
-	with open(fmri_to_fmap_even.replace('.nii.gz','json'), "w") as outfile:
+	with open(fmri_to_fmap_even.replace('.nii.gz','.json'), "w") as outfile:
 		outfile.write(json_object)
 
 	### se_map don't change but 1 -1
@@ -186,7 +186,7 @@ def correct_img(dir_prepro_orig_process, dir_prepro_fmap, fMRI_runMean_n4Bias, R
 							  topup_file[1]],
 				  "Description": 'Create fieldmaps. (topup, FSL)', "Command": command,}
 	json_object = json.dumps(dictionary, indent=3)
-	with open(fMRI_runMean_fieldmap.replace('.nii.gz','json'), "w") as outfile:
+	with open(fMRI_runMean_fieldmap.replace('.nii.gz','.json'), "w") as outfile:
 		outfile.write(json_object)
 
 	##### for fugue
@@ -197,7 +197,7 @@ def correct_img(dir_prepro_orig_process, dir_prepro_fmap, fMRI_runMean_n4Bias, R
 	dictionary = {"Sources": fMRI_runMean_fieldmap,
 				  "Description": 'conversion into rads. (fslmaths, FSL)', "Command": command,}
 	json_object = json.dumps(dictionary, indent=3)
-	with open(fMRI_runMean_fieldmap_rads.replace('.nii.gz','json'), "w") as outfile:
+	with open(fMRI_runMean_fieldmap_rads.replace('.nii.gz','.json'), "w") as outfile:
 		outfile.write(json_object)
 
 	command = (sing_fsl + 'fslmaths ' + fMRI_b0_distortion_corrected +
@@ -207,7 +207,7 @@ def correct_img(dir_prepro_orig_process, dir_prepro_fmap, fMRI_runMean_n4Bias, R
 	dictionary = {"Sources": fMRI_b0_distortion_corrected,
 				  "Description": '4D Mean (fslmaths, FSL).', "Command": command,}
 	json_object = json.dumps(dictionary, indent=3)
-	with open(fMRI_runMean_fieldmap_mag.replace('.nii.gz','json'), "w") as outfile:
+	with open(fMRI_runMean_fieldmap_mag.replace('.nii.gz','.json'), "w") as outfile:
 		outfile.write(json_object)
 
 

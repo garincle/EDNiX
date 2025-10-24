@@ -9,7 +9,7 @@ import Tools.Read_atlas
 import fonctions._0_Pipeline_launcher
 
 species = 'Mouse'
-## linux ##
+## linux ##FS_dir
 # Override os.path.join to always return Linux-style paths
 bids_dir = '/srv/projects/easymribrain/data/MRI/Mouse/BIDS_Gd'
 FS_dir    = opj(MAIN_PATH,'FS_Dir_tmp')

@@ -3,14 +3,14 @@ import ants
 import json
 import numpy as np
 import nibabel as nib
-import nilearn
+import subprocess
 
 opj = os.path.join
 opb = os.path.basename
 opd = os.path.dirname
 ope = os.path.exists
 opi = os.path.isfile
-
+spgo = subprocess.getoutput
 from Tools import run_cmd,diaryfile, check_nii
 from fonctions.extract_filename import extract_filename
 
@@ -23,7 +23,6 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
     run_cmd.msg(nl, diary_file, 'HEADER')
 
     for i in range(0, int(nb_run)):
-
         nl = 'work on ' + str(dir_prepro_orig_process) + ' run ' + str(i +1)
         run_cmd.msg(nl, diary_file, 'OKGREEN')
         root = extract_filename(RS[i])
@@ -36,7 +35,7 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
         fMRI_stc = opj(dir_prepro_orig_process, 'stc.txt')
         fMRI_outcount = opj(dir_prepro_orig_process, root + '_space-func_desc-outcount.r$run.1D')
         file_volreg = opj(dir_prepro_orig_process, root + '_volreg_dfile.1D')
-        fMRI_volreg = opj(dir_prepro_orig_process,'_space-func_desc-volreg.nii.gz')
+        fMRI_volreg = opj(dir_prepro_orig_process, root + '_space-func_desc-volreg.nii.gz')
         matrix_volreg = opj(dir_prepro_orig_process, root + 'volreg.aff12.1D')
         censore1D = opj(dir_prepro_orig_process, root + '_space-func_desc-censor.1D')
         censoretxt = opj(dir_prepro_orig_process, root + '_space-func_desc-censor.txt')
@@ -57,43 +56,40 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
 
             command = (sing_afni + '3dTcat -prefix ' + base_fMRI_targeted +
                        ' ' + raw_func + '[' + str(cut_low) + '-' + str(cut_high - 1) + ']' + overwrite)
-            run_cmd.do(command, diary_file)
-
             dictionary = {"Sources": [base_fMRI_targeted,
                                       opj(opd(raw_func), root, '.txt')],
                           "Description": 'Remove volumes.',
                           "Command": command,}
-            json_object = json.dumps(dictionary, indent=2)
-            with open(base_fMRI_targeted.replace('.nii.gz','json'), "w") as outfile:
+            json_object = json.dumps(dictionary, indent=3)
+            with open(base_fMRI_targeted.replace('.nii.gz','.json'), "w") as outfile:
                 outfile.write(json_object)
             raw_func = base_fMRI_targeted
+            run_cmd.do(command, diary_file)
 
         img = nib.load(raw_func)
         nb_vol = img.shape[-1]  # For 4D data, last dimension is time
 
         command = (sing_afni + '3dTcat -prefix ' + base_fMRI +
                    ' ' + raw_func + '[' + str(T1_eq) + '-' + str(nb_vol - 1) + ']' + overwrite)
-        run_cmd.do(command, diary_file)
-
         dictionary = {"Sources": base_fMRI,
                       "Description": 'Remove first volumes.',
                       "Command": command,}
         json_object = json.dumps(dictionary, indent=3)
-        with open(base_fMRI.replace('.nii.gz','json'), "w") as outfile:
+        with open(base_fMRI.replace('.nii.gz','.json'), "w") as outfile:
             outfile.write(json_object)
+        run_cmd.do(command, diary_file)
 
         # Despiking
         command = (sing_afni + '3dDespike -NEW -nomask' + overwrite + ' -prefix ' +
                    fMRI_despike +
                    ' ' + base_fMRI)
-        run_cmd.run(command, diary_file)
-
         dictionary = {"Sources": base_fMRI,
                       "Description": 'Despiking.',
                       "Command": command,}
         json_object = json.dumps(dictionary, indent=3)
-        with open(fMRI_despike.replace('.nii.gz','json'), "w") as outfile:
+        with open(fMRI_despike.replace('.nii.gz','.json'), "w") as outfile:
             outfile.write(json_object)
+        run_cmd.run(command, diary_file)
 
         # slice-timing correction -heptic!!!!!!
         if Slice_timing_info == 'Auto':
@@ -102,36 +98,35 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
                            ' -TR ' + str(TR) + ' -tpattern @' + fMRI_stc +
                            ' -prefix ' + fMRI_SliceT +
                            ' ' + fMRI_despike)
-                run_cmd.run(command, diary_file)
-
                 dictionary = {"Sources": fMRI_despike,
                               "Description": 'Slice timing correction.',
                               "Command": command,}
                 json_object = json.dumps(dictionary, indent=3)
-                with open(fMRI_SliceT.replace('.nii.gz','json'), "w") as outfile:
+                with open(fMRI_SliceT.replace('.nii.gz','.json'), "w") as outfile:
                     outfile.write(json_object)
+                run_cmd.run(command, diary_file)
 
             else:
-                cmd = ('export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";' + sing_afni + '3dinfo -slice_timing ' + base_fMRI)
-                nl,_= run_cmd.get(cmd,diary_file)
-                info = nl.decode("utf-8").split('\n')[0]
-                STC = info.split('|')
-
+                cmd = 'export SINGULARITYENV_AFNI_NIFTI_TYPE_WARN="NO";' + sing_afni + '3dinfo -slice_timing ' + \
+                      list_RS[0]
+                nl = spgo(cmd).split('\n')
+                STC = nl[-1].split('|')
                 STC = list(map(float, STC))
                 if np.sum(STC) > 0:
-                    # means that AFNI has access to the slice timing in the nifti header
+                    nl = "INFO: SliceTiming = " + str(STC)
+                    run_cmd.msg(nl, diary_file, 'OKGREEN')
 
                     command = (sing_afni + '3dTshift -wsinc9 ' + overwrite +
                                ' -prefix ' + fMRI_SliceT +
                                ' ' + fMRI_despike)
-                    run_cmd.run(command, diary_file)
-
                     dictionary = {"Sources": fMRI_despike,
                                   "Description": 'Slice timing correction.',
                                   "Command": command,}
                     json_object = json.dumps(dictionary, indent=3)
-                    with open(fMRI_SliceT.replace('.nii.gz','json'), "w") as outfile:
+                    with open(fMRI_SliceT.replace('.nii.gz','.json'), "w") as outfile:
                         outfile.write(json_object)
+                    run_cmd.run(command, diary_file)
+
                 else:
                     nl = "WARNING: Slice Timing not found, this will be particularly DANGEROUS, you SHOULD PROVIDE MANUALLY ONE!"
                     run_cmd.msg(nl, diary_file, 'WARNING')
@@ -141,29 +136,26 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
                     command = (sing_afni + '3dcalc -a ' + fMRI_despike +
                                ' -prefix ' + fMRI_SliceT +
                                ' -expr "a"' + overwrite)
-                    run_cmd.do(command, diary_file)
-
                     dictionary = {"Sources": fMRI_despike,
                                   "Description": 'copy.',
                                   "Command": command,}
                     json_object = json.dumps(dictionary, indent=3)
-
-                    with open(fMRI_SliceT.replace('.nii.gz','json'), "w") as outfile:
+                    with open(fMRI_SliceT.replace('.nii.gz','.json'), "w") as outfile:
                         outfile.write(json_object)
+                    run_cmd.do(command, diary_file)
 
         elif isinstance(Slice_timing_info, list) == False and Slice_timing_info.split(' ')[0] == '-tpattern':
             command = (sing_afni+ '3dTshift -wsinc9 ' + overwrite +
                        ' -TR ' + str(TR) + ' ' + Slice_timing_info +
                        ' -prefix ' + fMRI_SliceT +
                        ' ' + fMRI_despike)
-            run_cmd.run(command, diary_file)
-
             dictionary = {"Sources": fMRI_despike,
                           "Description": 'Slice timing correction.',
                           "Command": command,}
             json_object = json.dumps(dictionary, indent=3)
-            with open(fMRI_SliceT.replace('.nii.gz','json'), "w") as outfile:
+            with open(fMRI_SliceT.replace('.nii.gz','.json'), "w") as outfile:
                 outfile.write(json_object)
+            run_cmd.run(command, diary_file)
 
         elif isinstance(Slice_timing_info, list) == True:
 
@@ -171,14 +163,15 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
                        ' -TR ' + str(TR) + ' -tpattern @' + fMRI_stc +
                        ' -prefix ' + fMRI_SliceT +
                        ' ' + fMRI_despike)
-            run_cmd.run(command, diary_file)
-
             dictionary = {"Sources": fMRI_despike,
                           "Description": 'Slice timing correction.',
                           "Command": command,}
             json_object = json.dumps(dictionary, indent=3)
-            with open(fMRI_SliceT.replace('.nii.gz','json'), "w") as outfile:
+            with open(fMRI_SliceT.replace('.nii.gz','.json'), "w") as outfile:
                 outfile.write(json_object)
+            run_cmd.run(command, diary_file)
+
+
         else:
             nl = 'ERROR : please check Slice_timing_info, this variable is not define as it should'
             raise ValueError(run_cmd.error(nl, diary_file))
@@ -186,14 +179,15 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
         command = (sing_afni + '3dTstat' + overwrite + ' -mean -prefix ' +
                    fMRI_runMean +
                    ' ' + fMRI_SliceT)
-        run_cmd.run(command, diary_file)
 
         dictionary = {"Sources": fMRI_SliceT,
                       "Description": 'Mean image.',
                       "Command": command,}
         json_object = json.dumps(dictionary, indent=3)
-        with open(fMRI_runMean.replace('.nii.gz','json'), "w") as outfile:
+        with open(fMRI_runMean.replace('.nii.gz','.json'), "w") as outfile:
             outfile.write(json_object)
+        run_cmd.run(command, diary_file)
+
 
         # outlier fraction for each volume
         command = (sing_afni +  '3dToutcount' + overwrite + ' -automask -fraction -polort 4 -legendre ' +
@@ -208,20 +202,19 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
                    ' -1Dfile ' + file_volreg +
                    ' -prefix ' + fMRI_volreg +
                    ' -cubic' +
-                   ' -twodup ' +
+                   ' -twodup' +
                    ' -1Dmatrix_save ' + matrix_volreg +
                    ' ' + fMRI_SliceT)
-        run_cmd.run(command, diary_file)
-
-        check_nii.keep_header(fMRI_volreg, fMRI_SliceT)
-
         dictionary = {"Sources": [fMRI_SliceT,
                                   fMRI_runMean],
                       "Description": 'Rigid realignment (3dVolreg from AFNI).',
                       "Command": command,}
         json_object = json.dumps(dictionary, indent=3)
-        with open(fMRI_volreg.replace('.nii.gz','json'), "w") as outfile:
+        with open(fMRI_volreg.replace('.nii.gz','.json'), "w") as outfile:
             outfile.write(json_object)
+        run_cmd.run(command, diary_file)
+
+        check_nii.keep_header(fMRI_volreg, fMRI_SliceT)
 
         # censoring # see ex 10 in 1d_tool
         command = (sing_afni + '1d_tool.py' + overwrite + ' -infile ' + file_volreg +
@@ -251,14 +244,13 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
         command = (sing_afni + '3dTstat' + overwrite + ' -mean -prefix ' +
                    fMRI_runMean_align +
                    ' ' + fMRI_volreg)
-        run_cmd.run(command, diary_file)
-
         dictionary = {"Sources": fMRI_volreg,
                       "Description": 'Mean image.',
                       "Command": command,}
         json_object = json.dumps(dictionary, indent=3)
-        with open(fMRI_runMean_align.replace('.nii.gz','json'), "w") as outfile:
+        with open(fMRI_runMean_align.replace('.nii.gz','.json'), "w") as outfile:
             outfile.write(json_object)
+        run_cmd.run(command, diary_file)
 
         # BiasFieldCorrection
         IMG = ants.image_read(fMRI_runMean_align)
@@ -268,8 +260,7 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
                                            spline_param=200)
         ants.image_write(N4, fMRI_runMean_n4Bias, ri=False)
         dictionary = {"Sources": opj(dir_prepro_orig_process, root + '_xdtr_mean_preWARP.nii.gz'),
-                      "Description": 'Bias field correction (N4).',
-                      "Command": command,}
+                      "Description": 'Bias field correction (N4).',}
         json_object = json.dumps(dictionary, indent=3)
-        with open(fMRI_runMean_n4Bias.replace('.nii.gz','json'), "w") as outfile:
+        with open(fMRI_runMean_n4Bias.replace('.nii.gz','.json'), "w") as outfile:
             outfile.write(json_object)

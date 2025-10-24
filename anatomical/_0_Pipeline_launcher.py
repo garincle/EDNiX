@@ -20,9 +20,7 @@ opi = os.path.isfile
 
 #https://bids-standard.github.io/pybids/reports/index.html
 
-from Tools import Load_EDNiX_requirement
-from Tools import getpath
-
+from Tools import Load_EDNiX_requirement, check_nii, getpath
 from anatomical import transfoparams
 from anatomical import _loop1
 from anatomical import _loop2
@@ -53,29 +51,12 @@ def preprocess_anat(BIDStype, BASE_mask, coregistration_longitudinal, creat_stud
     if overwrite_option == True:
         overwrite = ' -overwrite'
 
-    def normalize_anat_type(name: str) -> str:
-        """Normalize anatomical type to 'T1w' or 'T2w'."""
-        if not name:  # empty string or None
-            return ''
-        if 'T1w' in name:
-            return 'T1w'
-        if 'T2w' in name:
-            return 'T2w'
-        if 'T1' in name:
-            return 'T1w'
-        if 'T2' in name:
-            return 'T2w'
-        raise ValueError(
-            f"Cannot infer T1/T2 suffix from filename '{name}'. "
-            "Expected a chunk containing 'T1' or 'T2'."
-        )
-
     type_norm_orig = type_norm
     otheranat_orig = otheranat
     # Usage
-    type_norm = normalize_anat_type(type_norm)
-    otheranat = normalize_anat_type(otheranat)
-    masking_img = normalize_anat_type(masking_img)
+    type_norm = check_nii.normalize_anat_type(type_norm)
+    otheranat = check_nii.normalize_anat_type(otheranat)
+    masking_img = check_nii.normalize_anat_type(masking_img)
     listTimage   = [type_norm]
     IgotbothT1T2 = bool(otheranat.strip())
 
