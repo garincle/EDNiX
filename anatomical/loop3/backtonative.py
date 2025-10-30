@@ -15,8 +15,65 @@ from Tools import check_nii
 
 from anatomical import norm2template
 
+'''          ┌────────────┐
+             │  Reference │  (e.g. EDNiX)
+             └────┬───────┘
+                  │
+          (native → reference)
+                  │
+        ┌─────────┴─────────┐
+        │                   │
+   [Longitudinal]      [Study Template]
+  (refSession)       (studyTemplate)
+        │                   │
+        └─────────┬─────────┘
+                  │
+            Native space
+'''
+
 def get(ID,datapath,bids_dir,Session,max_ses,suffix,type_norm,BASE_SS, BASE_mask,BASE_atlas_folder,study_template_atlas_folder,
         creat_study_template,coregistration_longitudinal,reference,transfoS,species,diary_file):
+    """
+    TRANSFORMATION PACKAGE STRUCTURE:
+
+    Each package contains 11 elements organized as follows:
+
+    package = [
+        ref_name,           # 1 # str: Reference space name ('template', 'refSession', 'studyTemplate')
+        source_image,       # 2 # str: Path to source image to transform FROM
+        source_mask,        # 3 # str: Path to source mask/brain mask
+        label_base_path,    # 4 # str: Base path for segmentation labels (append region names)
+        template_volume,    # 5 # str: Path to target template volume
+        template_masks,     # 6 # str: Directory for template-space masks
+        template_labels,    # 7 # str: Directory for template-space labels
+        transfoinv,         # 8 # list: Inverse transformation files [mat, nii.gz...]
+        w2inv,              # 9 # list: Boolean flags for using warps in inverse [True, False...]
+        transfofwd,         # 10 # list: Forward transformation files [nii.gz, mat...]
+        w2fwd               # 11 # list: Boolean flags for using warps in forward [False, True...]]
+
+    SPECIFIC EXAMPLES:
+
+    1. NATIVE → TEMPLATE (package1 - forward transformation):
+       ref_name = 'template'
+       transfoinv = ['native_to_template_0GenericAffine.mat', 'native_to_template_1InverseWarp.nii.gz']
+       w2inv = [True, False]  # Use affine, then apply inverse warp
+       transfofwd = ['native_to_template_1Warp.nii.gz', 'native_to_template_0GenericAffine.mat']
+       w2fwd = [False, False] # Apply warp, then affine
+
+    2. NATIVE → REFSESSION (package2 - longitudinal):
+       ref_name = 'refSession'
+
+    3. NATIVE → STUDYTEMPLATE (package3):
+       ref_name = 'studyTemplate'
+
+    USAGE PATTERNS:
+    Forward Transformation (Native → Template):
+    result = apply_transforms(
+        fixed_image=package[4],      # template_volume
+        moving_image=package[1],     # source_image
+        transform_list=package[8],   # transfofwd
+        warp_flags=package[10]       # w2fwd)
+    """
 
     nl = 'set every step of transformation'
     run_cmd.msg(nl, diary_file, 'HEADER')
@@ -215,7 +272,6 @@ def get(ID,datapath,bids_dir,Session,max_ses,suffix,type_norm,BASE_SS, BASE_mask
                 package3.extend([transfoinv3new, w2inv3new, transfofwd3new, w2fwd3new])
                 package2.extend([transfoinv2, w2inv2, transfofwd2, w2fwd2])
                 package = [package1,package3,package2]
-
     return package
 
 def apply(ID,volumes_dir,masks_dir,labels_dir,bids_dir,info,listTimage,targetsuffix,
@@ -265,7 +321,7 @@ def apply(ID,volumes_dir,masks_dir,labels_dir,bids_dir,info,listTimage,targetsuf
 
                 QC_plot.mosaic(info[i][1],
                                opj(info[i][4], '_'.join([ID, 'space-' + info[i][0], 'desc-SS', Timage]) + '.nii.gz'),
-                               opj(bids_dir, 'QC', '_'.join([ID, 'space-' + info[i][0], Timage]),
+                               opj(bids_dir, 'QC', '_'.join(['backtonative_native_in_space-' + info[i][0], Timage]),
                                '_'.join([ID, 'space-' + info[i][0], Timage]) + '.png'))
 
                 QC_plot.mosaic(img_ref,

@@ -1,7 +1,6 @@
 import os
-import subprocess
 import json
-import re
+import ants
 import nibabel as nib
 
 from nilearn.image import resample_to_img
@@ -18,43 +17,44 @@ opi = os.path.isfile
 from Tools import run_cmd,get_orientation
 from fonctions.extract_filename import extract_filename
 from fonctions import Skullstrip_func
+from fonctions import plot_QC_func
 
-def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepro_orig_process, dir_prepro_orig_masks, dir_prepro_acpc_masks, dir_prepro_acpc_process,
-                       dir_prepro_template_process, RS, nb_run, REF_int, ID, dir_prepro, brainmask, V_mask, W_mask, G_mask, dilate_mask,
+def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_acpc_masks, dir_prepro_acpc_process,
+                       dir_prepro_template_process, RS, nb_run, REF_int, ID, dir_transfo, brainmask, V_mask, W_mask, G_mask, dilate_mask, n_for_ANTS, bids_dir,
                        costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
-                       sing_afni,sing_fs, sing_fsl, sing_itk,diary_file):
+                       sing_afni, sing_fs, sing_fsl, sing_itk, diary_file):
 
     nl = '##  Working on step ' + str(3) + '(function: _3_mask_fMRI).  ##'
     run_cmd.msg(nl, diary_file, 'HEADER')
     ### create a list of the image to be corrected
 
     root_RS_ref = extract_filename(RS[REF_int])
-    fMRI_runMean_reoriented_list = ' ' + opj(dir_prepro_orig_process, root_RS_ref + '_space-func_desc-fMRI_runMean_reoriented.nii.gz')
-    fMRI_runMean_reoriented_list1 = [opj(dir_prepro_orig_process, root_RS_ref + '_space-func_desc-fMRI_runMean_reoriented.nii.gz')]
-    residual_motion = opj(dir_prepro_orig_process, 'all_runs_space-func_desc-fMRI_residual_motion.nii.gz')
-    Mean_Image = opj(dir_prepro_orig_process, 'all_runs_space-func_desc-fMRI_Mean_Image.nii.gz')
-    Mean_Image_SS = opj(dir_prepro_orig_process, 'all_runs_space-func_desc-fMRI_Mean_Image_SS.nii.gz')
+    ffMRI_runMean_inRef_list = ' ' + opj(dir_prepro_raw_process, root_RS_ref + '_space-func_desc-fMRI_run_inRef.nii.gz')
+    ffMRI_runMean_inRef_list1 = [opj(dir_prepro_raw_process, root_RS_ref + '_space-func_desc-fMRI_runMean_inRef.nii.gz')]
+    residual_motion = opj(dir_prepro_raw_process, 'all_runs_space-func_desc-fMRI_residual_motion.nii.gz')
+    Mean_Image = opj(dir_prepro_raw_process, 'all_runs_space-func_desc-fMRI_Mean_Image.nii.gz')
     BASE_SS_fMRI = opj(dir_prepro_template_process, 'BASE_SS_fMRI.nii.gz')
-    maskDilatanat = opj(dir_prepro_acpc_masks, 'maskDilatanat.nii.gz')
-    anat_res_func = opj(dir_prepro_acpc_process, ('_').join([ID, 'res-func', TfMRI + '.nii.gz']))
-    maskDilatfunc = opj(dir_prepro_acpc_masks, 'maskDilat.nii.gz')
+    maskDilatanat = opj(dir_prepro_acpc_masks, ID + '_space-acpc_mask_dilated.nii.gz')
+    maskDilatfunc = opj(dir_prepro_acpc_masks, ID + '_space-acpc_mask_dilated_res_func.nii.gz')
+    anat_res_func = opj(dir_prepro_acpc_process, ('_').join(['anat_space-acpc_res-func', TfMRI + '.nii.gz']))
+
     ### ref of the manual mask
-    final_mask = opj(dir_prepro_orig_masks, ID + '_final_mask_orig.nii.gz')
-    Prepro_fMRI_mask = opj(dir_prepro_orig_masks, ID + '_fMRI_mask.nii.gz')
+    final_mask = opj(dir_prepro_raw_masks, ID + '_final_mask_orig.nii.gz')
+    Prepro_fMRI_mask = opj(dir_prepro_raw_masks, ID + '_fMRI_mask.nii.gz')
 
     for r in range(int(nb_run)):
         root_RS = extract_filename(RS[r])
         if not RS[r] == RS[REF_int]: # do not process ref...
             # add the co-registered mean image to the list
-            fMRI_run_inRef = opj(dir_prepro_orig_process, root_RS + '_space-func_desc-fMRI_run_inRef.nii.gz')
-            fMRI_runMean_reoriented_list = fMRI_runMean_reoriented_list + ' ' + fMRI_run_inRef #add images in the same space
-            fMRI_runMean_reoriented_list1.append(fMRI_run_inRef)
+            fMRI_run_inRef = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-fMRI_run_inRef.nii.gz')
+            ffMRI_runMean_inRef_list = ffMRI_runMean_inRef_list + ' ' + fMRI_run_inRef #add images in the same space
+            ffMRI_runMean_inRef_list1.append(fMRI_run_inRef)
 
     ################################################################# create a mean image to use for the anat to func and recenter
     ###### average all func data and clean the image #####
 
-    command = (sing_afni + '3dTcat' + overwrite + ' -prefix ' + residual_motion + fMRI_runMean_reoriented_list)
-    dictionary = {"Sources": fMRI_runMean_reoriented_list,
+    command = (sing_afni + '3dTcat' + overwrite + ' -prefix ' + residual_motion + ffMRI_runMean_inRef_list)
+    dictionary = {"Sources": ffMRI_runMean_inRef_list,
                   "Description": '4D concatenation (3dTcat,AFNI).',
                   "Command": command,}
     json_object = json.dumps(dictionary, indent=3)
@@ -64,29 +64,21 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepr
 
     #################################### production of Mean image ####################################
 
-    mean_haxby = mean_img(fMRI_runMean_reoriented_list1)
+    mean_haxby = mean_img(ffMRI_runMean_inRef_list1)
     mean_haxby.to_filename(Mean_Image)
-    dictionary = {"Sources": fMRI_runMean_reoriented_list1,
+    dictionary = {"Sources": ffMRI_runMean_inRef_list1,
                   "Description": 'mean image (mean_image, nilearn).',}
     json_object = json.dumps(dictionary, indent=3)
     with open(Mean_Image.replace('.nii.gz', '.json'), "w") as outfile:
         outfile.write(json_object)
 
-    mean_haxby = mean_img(fMRI_runMean_reoriented_list1)
-    mean_haxby.to_filename(Mean_Image_SS)
-    dictionary = {"Sources": fMRI_runMean_reoriented_list1,
-                  "Description": 'mean image (mean_image, nilearn).',}
-    json_object = json.dumps(dictionary, indent=3)
-    with open(Mean_Image_SS.replace('.nii.gz', '.json'), "w") as outfile:
-        outfile.write(json_object)
-
     # Load the image directly
-    img = nib.load(Mean_Image_SS)
+    img = nib.load(Mean_Image)
     # Get voxel sizes
     delta_x, delta_y, delta_z = [str(round(abs(x), 10)) for x in img.header.get_zooms()[:3]]
 
     # Usage
-    orient_meanimg = get_orientation.get_orientation_nibabel(Mean_Image_SS)
+    orient_meanimg = get_orientation.get_orientation_nibabel(Mean_Image)
     nl = 'Orientation: ' + orient_meanimg
     run_cmd.msg(nl, diary_file, 'OKGREEN')
 
@@ -135,13 +127,12 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepr
                                 opj(dir_prepro_acpc_masks,'Vmask.nii.gz'),
                                 opj(dir_prepro_acpc_masks,'Wmask.nii.gz'),
                                 opj(dir_prepro_acpc_masks,'Gmask.nii.gz')]):
-
         if ope(input1):
             if input1 == anat_subject:
                 command = (sing_afni + '3dresample' + overwrite +
                            ' -prefix ' + maskDilatanat +
                            ' -master ' + anat_subject +
-                           ' -input  ' + maskDilatanat)
+                           ' -input ' + maskDilatanat)
                 run_cmd.run(command, diary_file)
 
                 # skullstrip the anat
@@ -152,8 +143,8 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepr
 
                 command = (sing_afni + '3dresample' + overwrite +
                            ' -prefix ' + output2 +
-                           ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' +
-                           ' -input  ' + output2)
+                           ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
+                           ' -input ' + output2)
                 run_cmd.run(command, diary_file)
 
                 dictionary = {"Sources": [anat_subject,
@@ -165,12 +156,11 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepr
                 with open(anat_res_func.replace('.nii.gz', '.json'), "w") as outfile:
                     outfile.write(json_object)
                 run_cmd.run(command, diary_file)
-
             else:
                 command = (sing_afni + '3dresample' + overwrite +
                            ' -prefix ' + output2 +
-                           ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' +
-                           ' -input  ' + input1)
+                           ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
+                           ' -input ' + input1)
                 run_cmd.run(command, diary_file)
 
                 dictionary = {"Sources": [input1,
@@ -194,7 +184,7 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepr
     #### explore if manual_mask.nii.gz exists?
     if opi(final_mask):
         nl = 'WARNING: We found a final mask to skullstrip the functional image !!! no Skullstrip will be calculated!'
-        v
+
         nl = 'INFO: please delete' + final_mask + ' if you want retry to create a skulstripp images'
         run_cmd.msg(nl, diary_file, 'OKGREEN')
 
@@ -215,21 +205,27 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepr
         nl = "INFO: no manual mask found "
         run_cmd.msg(nl, diary_file, 'OKGREEN')
         if anat_func_same_space:
-            command = (sing_afni + '3dcalc' + overwrite + ' -a ' + opj(dir_prepro_acpc_masks,'maskDilat.nii.gz') +
-                       ' -prefix ' + Prepro_fMRI_mask + ' -expr "a"')
-            run_cmd.do(command, diary_file)
-
-            dictionary = {"Sources": opj(dir_prepro_acpc_masks,'maskDilat.nii.gz'),
-                          "Description": 'Copy.',
-                          "Command": command, }
-            json_object = json.dumps(dictionary, indent=3)
-            with open(Prepro_fMRI_mask.replace('.nii.gz', '.json'), "w") as outfile:
-                outfile.write(json_object)
-            run_cmd.run(command, diary_file)
+            MEAN = ants.image_read(Mean_Image)
+            IMG = ants.image_read(maskDilatanat)
+            matrix = opj(dir_transfo, 'acpc_0GenericAffine.mat')
+            MEAN_tr = ants.apply_transforms(fixed=MEAN, moving=IMG, whichtoinvert=[True],
+                                            transformlist=matrix, interpolator='nearestNeighbor')
+            ants.image_write(MEAN_tr, Prepro_fMRI_mask, ri=False)
 
             nl = 'you are using the mask from the anat img'
             run_cmd.msg(nl, diary_file, 'OKGREEN')
+
         else:
-            Skullstrip_func.Skullstrip_func(Method_mask_func, Mean_Image, Prepro_fMRI_mask, anat_res_func, maskDilatfunc, dir_prepro_orig_process,
+            Skullstrip_func.Skullstrip_func(Method_mask_func, Mean_Image, Prepro_fMRI_mask, anat_res_func, maskDilatfunc, dir_prepro_raw_process,
                                                       overwrite, costAllin, type_of_transform,
                                                       aff_metric_ants, sing_afni, sing_fsl, sing_fs, sing_itk, diary_file)
+
+    if not ope(opj(bids_dir, 'QC')):
+        os.mkdir(opj(bids_dir, 'QC'))
+    if not ope(opj(bids_dir, 'QC', 'check_mask_fMRI')):
+        os.mkdir(opj(bids_dir, 'QC', 'check_mask_fMRI'))
+
+    ####plot the QC
+    plot_QC_func.plot_qc(Mean_Image,
+                         Prepro_fMRI_mask,
+                         opj(bids_dir, 'QC', 'check_fmri_mask', root_RS_ref + '_check_mask_fMRI.png'))

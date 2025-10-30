@@ -6,7 +6,7 @@ from bids.reports import BIDSReport
 opj = os.path.join
 opb = os.path.basename
 
-MAIN_PATH = opj('/','srv','projects','easymribrain','code','EDNiX_Pilote','EDNiX_WIP')
+MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS
@@ -174,7 +174,7 @@ preftool                    = 'ITK'                 # 'freeview' or 'ITK'
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = [1,2,3,4,13,100,200]
+Skip_step = [13,100,200]
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #

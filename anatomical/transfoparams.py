@@ -92,17 +92,6 @@ def set(transfo_message,IgotbothT1T2,creat_study_template,brain_skullstrip_1,bra
                     if list_transfo[i][dictname] == '' :
                         list_transfo[i][dictname] = list_transfo[refnb][dictname]
 
-
-
-
-
-
-
-
-
-
-
-
     return (Align_img_to_template,list_transfo)
 
 

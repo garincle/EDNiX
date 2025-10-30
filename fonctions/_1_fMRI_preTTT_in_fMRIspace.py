@@ -4,7 +4,7 @@ import json
 import numpy as np
 import nibabel as nib
 import subprocess
-
+import glob
 opj = os.path.join
 opb = os.path.basename
 opd = os.path.dirname
@@ -13,36 +13,47 @@ opi = os.path.isfile
 spgo = subprocess.getoutput
 from Tools import run_cmd,diaryfile, check_nii
 from fonctions.extract_filename import extract_filename
+from fonctions import _2b_fix_orient
 
 ##### XXX add ICA or DL to visualize pre-processing effect
 
-def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Slice_timing_info,
-                    overwrite, sing_afni, diary_file,diary_WARNING):
+def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slice_timing_info, dir_prepro_raw_matrices,
+                    overwrite, sing_afni, diary_file,animalPosition, humanPosition, orientation, doWARPonfunc, diary_WARNING):
 
     nl = '##  Working on step ' + str(1) + '(function: _1_fMRI_preTTT_in_fMRIspace).  ##'
     run_cmd.msg(nl, diary_file, 'HEADER')
 
     for i in range(0, int(nb_run)):
-        nl = 'work on ' + str(dir_prepro_orig_process) + ' run ' + str(i +1)
+        nl = 'work on ' + str(dir_prepro_raw_process) + ' run ' + str(i +1)
         run_cmd.msg(nl, diary_file, 'OKGREEN')
         root = extract_filename(RS[i])
         raw_func = list_RS[i]
-        base_fMRI_targeted = opj(dir_prepro_orig_process, root + '_space-func_desc-vol_rmv_from_txt.nii.gz')
-        base_fMRI = opj(dir_prepro_orig_process, root + '_space-func_desc-vol_rmv.nii.gz')
-        fMRI_despike = opj(dir_prepro_orig_process, root + '_space-func_desc-despiked.nii.gz')
-        fMRI_SliceT = opj(dir_prepro_orig_process, root + '_space-func_desc-despiked.nii.gz')
-        fMRI_runMean = opj(dir_prepro_orig_process, root + '_space-func_desc-runMean.nii.gz')
-        fMRI_stc = opj(dir_prepro_orig_process, 'stc.txt')
-        fMRI_outcount = opj(dir_prepro_orig_process, root + '_space-func_desc-outcount.r$run.1D')
-        file_volreg = opj(dir_prepro_orig_process, root + '_volreg_dfile.1D')
-        fMRI_volreg = opj(dir_prepro_orig_process, root + '_space-func_desc-volreg.nii.gz')
-        matrix_volreg = opj(dir_prepro_orig_process, root + 'volreg.aff12.1D')
-        censore1D = opj(dir_prepro_orig_process, root + '_space-func_desc-censor.1D')
-        censoretxt = opj(dir_prepro_orig_process, root + '_space-func_desc-censor.txt')
-        motion_enorm = opj(dir_prepro_orig_process, root + '_space-func_desc-motion_enorm.1D')
-        deriv = opj(dir_prepro_orig_process, root + '_space-func_desc-deriv.1D')
-        fMRI_runMean_align = opj(dir_prepro_orig_process, root + '_space-func_desc-runMean_align.nii.gz')
-        fMRI_runMean_n4Bias = opj(dir_prepro_orig_process, root + '_space-func_desc-runMean_n4Bias.nii.gz')
+        base_fMRI_targeted = opj(dir_prepro_raw_process, root + '_space-func_desc-vol_rmv_from_txt.nii.gz')
+        base_fMRI = opj(dir_prepro_raw_process, root + '_space-func_desc-vol_rmv.nii.gz')
+        fMRI_despike = opj(dir_prepro_raw_process, root + '_space-func_desc-despiked.nii.gz')
+        fMRI_SliceT = opj(dir_prepro_raw_process, root + '_space-func_desc-SliceTfixed.nii.gz')
+        fMRI_runMean = opj(dir_prepro_raw_process, root + '_space-func_desc-runMean.nii.gz')
+        fMRI_stc = opj(dir_prepro_raw_process, 'stc.txt')
+        fMRI_outcount = opj(dir_prepro_raw_process, root + '_space-func_desc-outcount.r$run.1D')
+
+        outpuprefix_motion = opj(dir_prepro_raw_matrices, root + '_space-func_desc-motion_correction')
+        mat_files_pattern = opj(dir_prepro_raw_matrices, root + '_space-func_desc-motion_correction_*.mat')
+        fMRI_run_motion_corrected = opj(dir_prepro_raw_process, root + '_space-func_desc-motion_corrected.nii.gz')
+        fMRI_run_motion_corrected_orient = opj(dir_prepro_raw_process, root + '_space-func_desc-motion_corrected_orient.nii.gz')
+        fMRI_run_motion_corrected_orientMEAN = opj(dir_prepro_raw_process, root + '_space-func_desc-motion_corrected_orientMEAN.nii.gz')
+        matrix_motion_correction = opj(dir_prepro_raw_matrices, root + '_space-func_desc-motion_correction.txt')
+
+        censore1D = opj(dir_prepro_raw_process, root + '_space-func_desc-censor.1D')
+        censoretxt = opj(dir_prepro_raw_process, root + '_space-func_desc-censor.txt')
+        demean = opj(dir_prepro_raw_process, root + '_space-func_desc-demean.1D')
+        deriv = opj(dir_prepro_raw_process, root + '_space-func_desc-deriv.1D')
+        motion_enorm = opj(dir_prepro_raw_process, root + '_space-func_desc-motion_enorm.1D')
+
+        fMRI_runMean_align = opj(dir_prepro_raw_process, root + '_space-func_desc-runMean_align.nii.gz')
+        fMRI_runMean_n4Bias = opj(dir_prepro_raw_process, root + '_space-func_desc-runMean_n4Bias.nii.gz')
+
+        fMRI_BASE = opj(dir_prepro_raw_process, root + '_space-func_desc-fMRI_BASE.nii.gz')
+        fMRI_BASE_Mean = opj(dir_prepro_raw_process, root + '_space-func_desc-fMRI_BASE_Mean.nii.gz')
 
         # Clean bad volumes
         if ope(opj(opd(list_RS[i]), root, '.txt')) == True:
@@ -94,7 +105,7 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
         # slice-timing correction -heptic!!!!!!
         if Slice_timing_info == 'Auto':
             if opi(fMRI_stc):
-                command = (sing_afni + '3dTshift -wsinc9 ' + overwrite +
+                command = (sing_afni + '3dTshift -wsinc9' + overwrite +
                            ' -TR ' + str(TR) + ' -tpattern @' + fMRI_stc +
                            ' -prefix ' + fMRI_SliceT +
                            ' ' + fMRI_despike)
@@ -116,7 +127,7 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
                     nl = "INFO: SliceTiming = " + str(STC)
                     run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-                    command = (sing_afni + '3dTshift -wsinc9 ' + overwrite +
+                    command = (sing_afni + '3dTshift -wsinc9' + overwrite +
                                ' -prefix ' + fMRI_SliceT +
                                ' ' + fMRI_despike)
                     dictionary = {"Sources": fMRI_despike,
@@ -145,7 +156,7 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
                     run_cmd.do(command, diary_file)
 
         elif isinstance(Slice_timing_info, list) == False and Slice_timing_info.split(' ')[0] == '-tpattern':
-            command = (sing_afni+ '3dTshift -wsinc9 ' + overwrite +
+            command = (sing_afni+ '3dTshift -wsinc9' + overwrite +
                        ' -TR ' + str(TR) + ' ' + Slice_timing_info +
                        ' -prefix ' + fMRI_SliceT +
                        ' ' + fMRI_despike)
@@ -158,8 +169,7 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
             run_cmd.run(command, diary_file)
 
         elif isinstance(Slice_timing_info, list) == True:
-
-            command = (sing_afni + '3dTshift -wsinc9 ' + overwrite +
+            command = (sing_afni + '3dTshift -wsinc9' + overwrite +
                        ' -TR ' + str(TR) + ' -tpattern @' + fMRI_stc +
                        ' -prefix ' + fMRI_SliceT +
                        ' ' + fMRI_despike)
@@ -170,8 +180,6 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
             with open(fMRI_SliceT.replace('.nii.gz','.json'), "w") as outfile:
                 outfile.write(json_object)
             run_cmd.run(command, diary_file)
-
-
         else:
             nl = 'ERROR : please check Slice_timing_info, this variable is not define as it should'
             raise ValueError(run_cmd.error(nl, diary_file))
@@ -188,36 +196,111 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
             outfile.write(json_object)
         run_cmd.run(command, diary_file)
 
-
         # outlier fraction for each volume
         command = (sing_afni +  '3dToutcount' + overwrite + ' -automask -fraction -polort 4 -legendre ' +
                    fMRI_SliceT + ' > ' +
                    fMRI_outcount)
         run_cmd.run(command, diary_file)
 
+        '''
         # realignment intra-run (volreg)
         # register each volume to the base image
         command = (sing_afni + '3dvolreg' + overwrite + ' -verbose -zpad 1 -base ' +
                    fMRI_runMean +
-                   ' -1Dfile ' + file_volreg +
-                   ' -prefix ' + fMRI_volreg +
+                   ' -1Dfile ' + file_motion_correction +
+                   ' -prefix ' + fMRI_run_motion_corrected +
                    ' -cubic' +
                    ' -twodup' +
-                   ' -1Dmatrix_save ' + matrix_volreg +
+                   ' -1Dmatrix_save ' + matrix_motion_correction +
                    ' ' + fMRI_SliceT)
         dictionary = {"Sources": [fMRI_SliceT,
                                   fMRI_runMean],
                       "Description": 'Rigid realignment (3dVolreg from AFNI).',
                       "Command": command,}
         json_object = json.dumps(dictionary, indent=3)
-        with open(fMRI_volreg.replace('.nii.gz','.json'), "w") as outfile:
+        with open(fMRI_run_motion_corrected.replace('.nii.gz','.json'), "w") as outfile:
             outfile.write(json_object)
         run_cmd.run(command, diary_file)
 
-        check_nii.keep_header(fMRI_volreg, fMRI_SliceT)
+        check_nii.keep_header(fMRI_run_motion_corrected, fMRI_SliceT)
+        '''
+
+        ### 2.0 Start fix_orient
+        _2b_fix_orient.fix_orient(fMRI_BASE, fMRI_SliceT, list_RS,
+                                  animalPosition, humanPosition, orientation, doWARPonfunc, sing_afni, diary_file)
+
+        command = (sing_afni + '3dTstat' + overwrite + ' -mean -prefix ' +
+                   fMRI_BASE_Mean +
+                   ' ' + fMRI_BASE)
+        dictionary = {"Sources": fMRI_BASE,
+                      "Description": 'Mean image.',
+                      "Command": command,}
+        json_object = json.dumps(dictionary, indent=3)
+        with open(fMRI_BASE_Mean.replace('.nii.gz','.json'), "w") as outfile:
+            outfile.write(json_object)
+        run_cmd.run(command, diary_file)
+
+        # Realignment intra-run avec ANTs motion_correction
+        motion_result = ants.motion_correction(
+            image=ants.image_read(fMRI_BASE),
+            fixed=ants.image_read(fMRI_BASE_Mean),  # Image de base
+            verbose=True,
+            type_of_transform='BOLDRigid',
+            interpolator='bSpline',
+            outprefix=outpuprefix_motion)
+
+        motion_array = motion_result['FD']
+        print(f"FD directement disponible: {len(motion_array)} valeurs")
+
+        # Sauvegarder simplement
+        np.savetxt(matrix_motion_correction, motion_array, fmt='%.6f')
+
+        # Sauvegarder l'image realignée
+        motion_result['motion_corrected'].to_filename(fMRI_run_motion_corrected_orient)
+        command = (sing_afni + '3dTstat' + overwrite + ' -mean -prefix ' +
+                   fMRI_run_motion_corrected_orientMEAN +
+                   ' ' + fMRI_run_motion_corrected_orient)
+        dictionary = {"Sources": fMRI_run_motion_corrected_orient,
+                      "Description": 'Mean image.',
+                      "Command": command,}
+        json_object = json.dumps(dictionary, indent=3)
+        with open(fMRI_run_motion_corrected_orientMEAN.replace('.nii.gz','.json'), "w") as outfile:
+            outfile.write(json_object)
+        run_cmd.run(command, diary_file)
+
+        # Realignment intra-run avec ANTs motion_correction
+        motion_result = ants.motion_correction(
+            image=ants.image_read(fMRI_SliceT),
+            fixed=ants.image_read(fMRI_runMean),  # Image de base
+            verbose=True,
+            type_of_transform='BOLDRigid',
+            interpolator='bSpline')
+
+        # Sauvegarder l'image realignée
+        motion_result['motion_corrected'].to_filename(fMRI_run_motion_corrected)
+
+        """Créer une transformation composite de tous les mouvements"""
+        mat_files = sorted(glob.glob(mat_files_pattern))
+        print(f"Combining {len(mat_files)} motion transformation files")
+        if not mat_files:
+            raise ValueError("Aucun fichier .mat trouvé")
+        # Commencer avec la transformation identité
+
+        # Créer le JSON de métadonnées
+        command = (f"ants.motion_correction with Rigid transform, "
+                   f"fixed base image, linear interpolation")
+
+        dictionary = {
+            "Sources": [fMRI_SliceT, fMRI_runMean],
+            "Description": 'Rigid realignment (ANTs motion_correction).',
+            "Command": command,}
+
+        json_object = json.dumps(dictionary, indent=3)
+        with open(fMRI_run_motion_corrected.replace('.nii.gz', '.json'), "w") as outfile:
+            outfile.write(json_object)
 
         # censoring # see ex 10 in 1d_tool
-        command = (sing_afni + '1d_tool.py' + overwrite + ' -infile ' + file_volreg +
+        command = (sing_afni + '1d_tool.py' + overwrite + ' -infile ' + matrix_motion_correction +
                    ' -derivative -censor_prev_TR -collapse_cols euclidean_norm' +
                    ' -moderate_mask -1.2 1.2 -show_censor_count' +
                    ' -write_censor ' + censore1D +
@@ -226,25 +309,25 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
 
         # compute motion magnitude time series: the Euclidean norm
         # (sqrt(sum squares)) of the motion parameter derivatives
-        command = (sing_afni + '1d_tool.py' + overwrite + ' -infile ' + file_volreg +
+        command = (sing_afni + '1d_tool.py' + overwrite + ' -infile ' + matrix_motion_correction +
                    ' -set_nruns 1 -derivative -collapse_cols euclidean_norm' +
                    ' -write ' + motion_enorm)
         run_cmd.run(command, diary_file)
 
         # writing regressors # get the first derivative
-        command = (sing_afni + '1d_tool.py' + overwrite + ' -infile ' + file_volreg +
+        command = (sing_afni + '1d_tool.py' + overwrite + ' -infile ' + matrix_motion_correction +
                    ' -derivative -write ' + deriv)
         run_cmd.run(command, diary_file)
 
         # writing regressors get demean
-        command = (sing_afni + '1d_tool.py' + overwrite + ' -infile ' + opj(dir_prepro_orig_process, root + '_dfile.1D') +
-                   ' -demean -write ' + opj(dir_prepro_orig_process, root + '_xdtr_demean.1D'))
+        command = (sing_afni + '1d_tool.py' + overwrite + ' -infile ' + opj(dir_prepro_raw_process, root + '_dfile.1D') +
+                   ' -demean -write ' + demean)
         run_cmd.run(command, diary_file)
 
         command = (sing_afni + '3dTstat' + overwrite + ' -mean -prefix ' +
                    fMRI_runMean_align +
-                   ' ' + fMRI_volreg)
-        dictionary = {"Sources": fMRI_volreg,
+                   ' ' + fMRI_run_motion_corrected)
+        dictionary = {"Sources": fMRI_run_motion_corrected,
                       "Description": 'Mean image.',
                       "Command": command,}
         json_object = json.dumps(dictionary, indent=3)
@@ -259,7 +342,7 @@ def preprocess_data(dir_prepro_orig_process, RS, list_RS, nb_run, T1_eq, TR, Sli
                                            convergence={'iters': [50, 50, 50, 50], 'tol': 1e-07},
                                            spline_param=200)
         ants.image_write(N4, fMRI_runMean_n4Bias, ri=False)
-        dictionary = {"Sources": opj(dir_prepro_orig_process, root + '_xdtr_mean_preWARP.nii.gz'),
+        dictionary = {"Sources": opj(dir_prepro_raw_process, root + '_xdtr_mean_preWARP.nii.gz'),
                       "Description": 'Bias field correction (N4).',}
         json_object = json.dumps(dictionary, indent=3)
         with open(fMRI_runMean_n4Bias.replace('.nii.gz','.json'), "w") as outfile:

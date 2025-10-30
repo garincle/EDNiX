@@ -15,11 +15,10 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
     list_atlas = [['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]]
 
     # search for the relevant folder
-    for dirpath, dirnames, filenames in os.walk(opj(path_ATLAS,'atlas')):
+    for dirpath, dirnames, filenames in os.walk(opj(path_ATLAS, 'atlas')):
         folder_name = fnmatch.filter(dirnames, specie)
         if folder_name:
             path_ref = opj(dirpath, folder_name[0])
-
 
     path_label_code = opj(path_ref, 'label_code')
     if 'T1' in type_norm:
