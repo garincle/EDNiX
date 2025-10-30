@@ -100,7 +100,7 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
 
         if ope(dir_RS_ICA_native) == False:
             os.makedirs(dir_RS_ICA_native)
-
+    fail=True
     if do_not_correct_signal == False:
         for i in range(int(nb_run)):
             try:
@@ -196,9 +196,7 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
                 elif post_treatment_method == 'Grandjean':
                     # --- Définition des chemins principaux ---
                     regressors_file = opj(dir_prepro_orig_postprocessed, 'regressors.1D')
-                    matrix_motion_correction = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction.txt')
-                    print(ope(matrix_motion_correction))
-
+                    matrix_motion_correction = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction.1D')
                     wm_signal = opj(dir_prepro_orig_postprocessed, 'wm.1D')
                     csf_signal = opj(dir_prepro_orig_postprocessed, 'csf.1D')
 
@@ -216,8 +214,9 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
 
                     # --- Combinaison des régressors (motion + WM + CSF) ---
                     run_cmd.msg("Combining regressors (motion + WM + CSF)", diary_file, 'OKCYAN')
-                    cmd = f"1dcat {matrix_motion_correction} {wm_signal} {csf_signal} > {regressors_file}"
-                    run_cmd.run(cmd, diary_file)
+
+                    subprocess.run(f"{sing_afni}1dcat {matrix_motion_correction} {wm_signal} {csf_signal} > {regressors_file}",
+                        shell=True, check=True)
 
                     # --- Application du bandpass + régression des confounds ---
                     fwhm_str = str(blur) if blur > 0 else "0"
@@ -231,12 +230,13 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
                         f"-ort {regressors_file} "
                         f"-prefix {prefiltered} "
                         f"-input {input} "
-                        f"{overwrite}"
-                    )
+                        f"{overwrite}")
                     run_cmd.run(cmd, diary_file)
 
                     # --- Restauration du niveau de base (Grandjean) ---
                     run_cmd.msg("Restoring mean intensity with fslmaths", diary_file, 'OKCYAN')
+                    cmd = f"{sing_fsl}fslmaths {input} -Tmean {Mean}"
+                    run_cmd.run(cmd, diary_file)
                     cmd = f"{sing_fsl}fslmaths {prefiltered} -add {Mean} {residual}"
                     run_cmd.run(cmd, diary_file)
                 else:

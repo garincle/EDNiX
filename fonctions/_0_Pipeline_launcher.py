@@ -566,19 +566,19 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
-                _8_fMRI_to_anat.to_anat_space(dir_prepro_orig, dir_prepro_acpc,
-                                              nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space, dir_prepro_acpc_postprocessed, dir_prepro_orig_postprocessed, diary_file)
+                _8_fMRI_to_anat.to_anat_space(dir_prepro_acpc_process, dir_prepro_orig_process, bids_dir, ID, TfMRI,
+                nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space, dir_prepro_acpc_postprocessed, dir_prepro_orig_postprocessed, diary_file)
 
             if 9 in Skip_step:
                 nl = 'skip step ' + str(9)
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
-                _9_coregistration_to_template_space.to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prepro_template_labels,
-                            dir_prepro_orig_postprocessed, dir_prepro_acpc_postprocessed, dir_prepro_template_postprocessed,
-                             nb_run, RS, do_anat_to_func, list_atlas, info, dir_prepro_orig_process,
-                             BASE_SS_mask, GM, GM_mask_studyT, creat_study_template,anat_func_same_space, dir_prepro_acpc_process,
-                             dir_prepro_template_masks, IhaveanANAT, overwrite,sing_afni,diary_file)
+                _9_coregistration_to_template_space.to_common_template_space(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prepro_orig, dir_prepro_orig_process,
+    dir_prepro_acpc_labels,dir_prepro_acpc, dir_prepro_acpc_postprocessed, anat_subject, dir_prepro_acpc_process,
+    RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func, dir_prepro_acpc_masks, TfMRI,
+    dir_prepro_template_postprocessed, dir_prepro_template_labels, dir_prepro_template_masks,
+    cut_coordsY, threshold_val, sing_afni, diary_file, smoothSBA, TR_val, dir_prepro_template, dir_prepro_template_process)
 
             if 10 in Skip_step:
                 nl = 'skip step ' + str(10)
