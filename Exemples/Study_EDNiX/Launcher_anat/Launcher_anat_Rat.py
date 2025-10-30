@@ -6,7 +6,7 @@ from bids.reports import BIDSReport
 opj = os.path.join
 opb = os.path.basename
 
-MAIN_PATH = opj('/','srv','projects','easymribrain','code','EDNiX_Pilote','EDNiX_WIP')
+MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS
@@ -21,7 +21,7 @@ from anatomical import set_launcher
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/BIDS_Gd/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/Rat/BIDS_Gd/'))
 
 # which format ?
 BIDStype = 2
@@ -206,7 +206,7 @@ preftool                    = 'ITK'                 # 'freeview' or 'ITK'
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = [1,2,3,4,5,6,7,13,100,200]
+Skip_step = [13,100,200]
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #

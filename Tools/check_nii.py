@@ -137,10 +137,6 @@ def resamp(source,target,imgtype,path_code,labelname,diary_file,sing_wb):
 
 def resamp_no_check(source,target,imgtype,path_code,labelname,diary_file,sing_wb):
 
-    # Compare specific fields
-    fields_to_compare = ['dimensions', 'spacing']
-    tolerance = 0.0000006
-
     if imgtype == 'label' or imgtype == 'msk':
         interp = 'nearest'
     elif imgtype == 'pet' or imgtype == 'bold':
@@ -155,7 +151,7 @@ def resamp_no_check(source,target,imgtype,path_code,labelname,diary_file,sing_wb
     labeled_img2.to_filename(source)
 
     if imgtype == 'label':
-        cmd = (sing_wb + 'wb_command -volume-label-import' + ' ' + source +
+        cmd = (sing_wb + 'wb_command -volume-label-iimgtypemport' + ' ' + source +
                ' ' + opj(path_code, labelname + '_label.txt') + ' ' + source + ' -drop-unused-labels')
         run_cmd.run(cmd, diary_file)
 

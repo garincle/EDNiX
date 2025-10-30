@@ -23,21 +23,12 @@ from fonctions.extract_filename import extract_filename
 #################################################################################################
 ####Seed base analysis
 #################################################################################################
-def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix, segmentation_name_list,
-                  ID, Session, TR_val,
+def correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_matrix, segmentation_name_list,
+                  ID, Session, TR_val, dir_prepro_orig_labels, dir_prepro_orig,
                   bids_dir,sing_afni,diary_file):
 
     nl = '##  Working on step ' + str(10) + '(function: _10_Correl_matrix).  ##'
     run_cmd.msg(nl, diary_file, 'HEADER')
-
-    out_results = opj(bids_dir, 'Results')
-    out_results_V = opj(out_results, 'fMRI_matrix')
-
-    if not ope(out_results):
-        os.mkdir(out_results)
-
-    if not ope(out_results_V):
-        os.mkdir(out_results_V)
 
     for panda_file, atlas in zip(segmentation_name_list, selected_atlases_matrix):
         for i in range(int(nb_run)):
@@ -45,15 +36,15 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
             runname = '_'.join([atlas[0],atlas[1], 'run', str(i)])
 
             root_RS = extract_filename(RS[i])
-            func_filename = opj(dir_fMRI_Refth_RS_prepro1, root_RS + '_residual.nii.gz')
+            func_filename = opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')
 
             if ope(func_filename):
-                atlas_filename = opj(dir_fMRI_Refth_RS_prepro1, ID + '_seg-' + atlas[0] + '_dseg.nii.gz')
+                atlas_filename = opj(dir_prepro_orig_labels, ID + '_seg-' + atlas[0] + '_dseg.nii.gz')
 
-                output_results = opj(dir_fMRI_Refth_RS_prepro1, '10_Results')
+                output_results = opj(dir_prepro_orig, 'Stats')
                 if not ope(output_results):
                     os.mkdir(output_results)
-                output_results = opj(dir_fMRI_Refth_RS_prepro1, '10_Results', 'correl_matrix')
+                output_results = opj(dir_prepro_orig, 'Stats', 'Correl_matrix')
                 if not ope(output_results):
                     os.mkdir(output_results)
 
@@ -169,7 +160,7 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                 string_build_atlas2 = "'" + string_build_atlas[:-1] + "'"
 
                 command = (sing_afni + '3dcalc' + ' -a ' + atlas_filename + '[' + str(atlas[1]) + '] -expr ' + string_build_atlas2 +
-                           ' -prefix ' + opj(dir_fMRI_Refth_RS_prepro1, '_'.join([runname,'filtered.nii.gz'])) +
+                           ' -prefix ' + opj(output_results, '_'.join([runname,'filtered.nii.gz'])) +
                            ' -overwrite')
                 run_cmd.do(command, diary_file)
 
@@ -177,12 +168,12 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                                           func_filename],
                               "Description": string_build_atlas2 + ' (3dcalc, AFNI).'},
                 json_object = json.dumps(dictionary, indent=2)
-                with open(opj(dir_fMRI_Refth_RS_prepro1, '_'.join([runname,'filtered.json'])), "w") as outfile:
+                with open(opj(output_results, '_'.join([runname,'filtered.json'])), "w") as outfile:
                     outfile.write(json_object)
 
                 ################## EROD the seed if possible ##################
                 # Load your atlas image
-                atlas_path = opj(dir_fMRI_Refth_RS_prepro1, '_'.join([runname,'filtered.nii.gz']))
+                atlas_path = opj(output_results, '_'.join([runname,'filtered.nii.gz']))
                 atlas_img = ants.image_read(atlas_path)
                 # Get the unique region labels in the atlas
                 labels = np.unique(atlas_img.numpy())  # Assumes label 0 is background
@@ -236,19 +227,19 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
 
                 final_atlas = ants.from_numpy(final_result, spacing=atlas_img.spacing, origin=atlas_img.origin,
                                               direction=atlas_img.direction)
-                output_path = opj(dir_fMRI_Refth_RS_prepro1, '_'.join([runname,'filtered','eroded.nii.gz']))
+                output_path = opj(output_results, '_'.join([runname,'filtered','eroded.nii.gz']))
                 ants.image_write(final_atlas, output_path)
                 dictionary = {"Sources": atlas_filename,
                               "Description": 'Erosion (numpy and ANTspy).'},
                 json_object = json.dumps(dictionary, indent=2)
-                with open(opj(dir_fMRI_Refth_RS_prepro1, '_'.join([runname,'filtered','eroded.json'])), "w") as outfile:
+                with open(opj(output_results, '_'.join([runname,'filtered','eroded.json'])), "w") as outfile:
                     outfile.write(json_object)
 
                 nl = f"Eroded atlas saved to: {output_path}"
                 run_cmd.msg(nl, diary_file, 'ENDC')
 
                 ##########################################################################
-                NAD_masker = NiftiLabelsMasker(labels_img=opj(dir_fMRI_Refth_RS_prepro1, '_'.join([runname,'filtered','eroded.nii.gz'])),
+                NAD_masker = NiftiLabelsMasker(labels_img=opj(output_results, '_'.join([runname,'filtered','eroded.nii.gz'])),
                                                 detrend=False,
                                                 smoothing_fwhm=None,
                                                 low_pass=None,
@@ -259,14 +250,14 @@ def correl_matrix(dir_fMRI_Refth_RS_prepro1, RS, nb_run, selected_atlases_matrix
                 try:
                     time_series = NAD_masker.fit_transform(func_filename)
                 except:
-                    dummy = nilearn.image.resample_to_img(opj(dir_fMRI_Refth_RS_prepro1, atlas + '_filtered.nii.gz'), func_filename, interpolation='nearest')
-                    dummy.to_filename(opj(dir_fMRI_Refth_RS_prepro1, atlas + '_filtered.nii.gz'))
-                    extracted_data = nib.load(opj(dir_fMRI_Refth_RS_prepro1, atlas + '_filtered.nii.gz')).get_fdata()
+                    dummy = nilearn.image.resample_to_img(opj(output_results, atlas + '_filtered.nii.gz'), func_filename, interpolation='nearest')
+                    dummy.to_filename(opj(output_results, atlas + '_filtered.nii.gz'))
+                    extracted_data = nib.load(opj(output_results, atlas + '_filtered.nii.gz')).get_fdata()
                     labeled_img2 = nilearn.image.new_img_like(func_filename, extracted_data, copy_header=True)
-                    labeled_img2.to_filename(opj(dir_fMRI_Refth_RS_prepro1, atlas + '_filtered.nii.gz'))
+                    labeled_img2.to_filename(opj(output_results, atlas + '_filtered.nii.gz'))
 
                     NAD_masker = NiftiLabelsMasker(
-                        labels_img=opj(dir_fMRI_Refth_RS_prepro1, '_'.join([runname,'filtered.nii.gz'])), # must be a mistake ......
+                        labels_img=opj(output_results, '_'.join([runname,'filtered.nii.gz'])), # must be a mistake ......
                         detrend=False,
                         smoothing_fwhm=None,
                         low_pass=None,

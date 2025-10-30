@@ -133,7 +133,7 @@ def clean_anat(Align_img_to_template, bids_dir, listTimage, list_transfo, ID, Se
 
         norm2template.norm(ID, anat_input2 + type_norm + '.nii.gz', output4mask, dir_prepro,
                            'acpc', BASE_SS_anat_res, '',
-                           dir_transfo, list_transfo[refnb2]["type_of_transform"], 'shift', 'acpc',
+                           dir_transfo, list_transfo[refnb2]["type_of_transform"], 'Translation', 'acpc',
                            list_transfo[refnb2]["affmetricT"], list_transfo[refnb2]["affmetric"], list_transfo[refnb2]["interpol"],
                            diary_file, sing_wb, '_desc-64_' + type_norm, 0)
 

@@ -27,7 +27,7 @@ from Tools import run_cmd
 
 def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, maskDilatfunc, dir_prepro_orig_process,
                                                       overwrite, costAllin, type_of_transform,
-                                                      aff_metric_ants, s_bind, afni_sif, fsl_sif, sing_fs, itk_sif,diary_file):
+                                                      aff_metric_ants, afni_sif, fsl_sif, sing_fs, itk_sif,diary_file):
 
     ct = datetime.datetime.now()
     diary = open(diary_file, "a")
@@ -44,53 +44,14 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
     opj(dir_prepro_orig_process, 'Mean_Image_RcT_for_mask_0GenericAffine.mat')]
     brain_skullstrip = Method_mask_func
 
-    if brain_skullstrip == "3dAllineate":
-        ##### mask the func img
-        command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -cmass -EPI -final NN -float -twobest 5 -fineblur 0 -nomask -base ' + \
-                  master + ' -prefix ' + Mean_Image_RcT_for_mask + \
-                  ' -source ' + input_for_msk + ' -' + costAllin + ' -1Dmatrix_save ' + \
-                  Mean_Image_RcT_for_mask_1D + \
-                  ' -master ' + master
-        nl = spgo(command)
-        diary.write(f'\n{nl}')
-        print(nl)
-        dictionary = {"Sources": [input_for_msk,
-                                  master],
-                      "Description": 'Co-registration (3dAllineate,AFNI).',
-                      "Command": command, }
-        json_object = json.dumps(dictionary, indent=3)
-        with open(Mean_Image_RcT_for_mask.replace('.nii.gz', '.json'), "w") as outfile:
-            outfile.write(json_object)          
-
-        command = 'singularity run' + s_bind + afni_sif + 'cat_matvec ' + Mean_Image_RcT_for_mask_1D + \
-                  ' -I | tail -n +3 > ' + Mean_Image_RcT_for_mask_1D_INV
-        nl = spgo(command)
-        diary.write(f'\n{nl}')
-        print(nl)
-
-        command = 'singularity run' + s_bind + afni_sif + '3dAllineate' + overwrite + ' -final NN -1Dmatrix_apply ' + Mean_Image_RcT_for_mask_1D_INV + \
-                  ' -prefix ' + output_for_mask + \
-                  ' -master ' + input_for_msk + \
-                  ' -input  ' + maskDilatfunc
-        nl = spgo(command)
-        diary.write(f'\n{nl}')
-        print(nl)
-        dictionary = {"Sources": [maskDilatfunc,
-                                  input_for_msk,
-                                  Mean_Image_RcT_for_mask_1D_INV],
-                      "Description": 'Co-registration (3dAllineate,AFNI).', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(output_for_mask[:-7] + '.json', "w") as outfile:
-            outfile.write(json_object)
-
-    elif brain_skullstrip == '3dSkullStrip':
-        command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
+    if brain_skullstrip == '3dSkullStrip':
+        command = afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
             '-input ' + input_for_msk + ' -blur_fwhm 2 -orig_vol -mask_vol'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
 
-        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
+        command = afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
         ' -input ' + output_for_mask + ' -fill_holes -dilate_input -1 1'
         nl = spgo(command)
         diary.write(f'\n{nl}')
@@ -104,13 +65,13 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
 
     elif brain_skullstrip == '3dSkullStrip_monkey':
 
-        command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
+        command = afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
             '-input ' + input_for_msk + ' -blur_fwhm 2 -orig_vol -mask_vol -monkey'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
 
-        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
+        command = afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
         ' -input ' + output_for_mask + ' -fill_holes -dilate_input 2'
         nl = spgo(command)
         diary.write(f'\n{nl}')
@@ -124,13 +85,13 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
 
 
     elif brain_skullstrip == '3dSkullStrip_monkeynodil':
-        command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
+        command = afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
             '-input ' + input_for_msk + ' -blur_fwhm 2 -orig_vol -mask_vol -monkey'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
 
-        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
+        command = afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
         ' -input ' + output_for_mask + ' -fill_holes'
         nl = spgo(command)
         diary.write(f'\n{nl}')
@@ -144,18 +105,18 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
             outfile.write(json_object)
 
     elif brain_skullstrip == '3dSkullStrip_dog':
-        command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
+        command = afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
             '-input ' + input_for_msk + ' -orig_vol -mask_vol -monkey -use_skull'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
 
-        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + output_for_mask + ' -expr "step(a-4)" -prefix ' + output_for_mask + ' -overwrite'
+        command = afni_sif + '3dcalc -a ' + output_for_mask + ' -expr "step(a-4)" -prefix ' + output_for_mask + ' -overwrite'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
 
-        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
+        command = afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
         ' -input ' + output_for_mask + ' -fill_holes -dilate_input -1 2'
         nl = spgo(command)
         diary.write(f'\n{nl}')
@@ -169,13 +130,13 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
             outfile.write(json_object)
 
     elif brain_skullstrip == '3dSkullStrip_marmoset':
-        command = 'singularity run' + s_bind + afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
+        command = afni_sif + '3dSkullStrip -prefix ' + output_for_mask + ' -overwrite ' + \
             '-input ' + input_for_msk + ' -blur_fwhm 1 -orig_vol -mask_vol -marmoset'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
 
-        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
+        command = afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
         ' -input ' + output_for_mask + ' -fill_holes -dilate_input 1'
         nl = spgo(command)
         diary.write(f'\n{nl}')
@@ -199,7 +160,7 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
 
         shutil.copyfile(opj(opd(output_for_mask), extract_filename(input_for_msk) + '_pre_mask.nii.gz'),
                         output_for_mask)
-        command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input'
+        command = f'{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -211,7 +172,7 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
 
     elif brain_skullstrip =='bet2':
         ##### create an approximate brain mask
-        command = 'singularity run' + s_bind + fsl_sif + 'bet2 ' + input_for_msk + ' ' + Mean_Image_RcT_for_mask + \
+        command = fsl_sif + 'bet2 ' + input_for_msk + ' ' + Mean_Image_RcT_for_mask + \
         ' -f 0.70'
         nl = spgo(command)
         diary.write(f'\n{nl}')
@@ -223,7 +184,7 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
         with open(Mean_Image_RcT_for_mask.replace('.nii.gz', '.json'), "w") as outfile:
             outfile.write(json_object)
 
-        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + Mean_Image_RcT_for_mask + ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
+        command = afni_sif + '3dcalc -a ' + Mean_Image_RcT_for_mask + ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -240,7 +201,7 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
         # Extract the last two digits to use as the -f value
         f_value = brain_skullstrip[-4:]
         # Create the approximate brain mask using bet2
-        command = f'singularity run {s_bind}{fsl_sif} bet2 {input_for_msk} ' \
+        command = f'{fsl_sif} bet2 {input_for_msk} ' \
                   f'{Mean_Image_RcT_for_mask} -f {f_value}'
         nl = spgo(command)
         diary.write(f'\n{nl}')
@@ -253,7 +214,7 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
             outfile.write(json_object)
 
         # Run the AFNI 3dcalc command to create the final mask
-        command = f'singularity run {s_bind}{afni_sif} 3dcalc -a ' \
+        command = f'{afni_sif} 3dcalc -a ' \
                   f'{Mean_Image_RcT_for_mask} ' \
                   f'-expr "step(a)" -prefix {output_for_mask} -overwrite'
         nl = spgo(command)
@@ -272,7 +233,7 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
         upper_cutoff = float(upper_cutoff)
 
         # Convert to float
-        command = f'singularity run {s_bind}{sing_fs} mri_convert -odt float {input_for_msk} {Mean_Image_RcT_for_mask}'
+        command = f'{sing_fs} mri_convert -odt float {input_for_msk} {Mean_Image_RcT_for_mask}'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -283,7 +244,7 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
 
 
         # Use AFNI to process the mask
-        command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 1'
+        command = f'{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 1'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -298,7 +259,7 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
         binary_smoothed_mask = ants.iMath(binary_smoothed_mask, operation='GetLargestComponent')
         ants.image_write(binary_smoothed_mask, output_for_mask, ri=False)
         # Resample the mask image
-        command = f'singularity run {s_bind}{afni_sif} 3dresample -master {input_for_msk} -prefix {output_for_mask} -input {output_for_mask} -overwrite -bound_type SLAB'
+        command = f'{afni_sif} 3dresample -master {input_for_msk} -prefix {output_for_mask} -input {output_for_mask} -overwrite -bound_type SLAB'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -318,7 +279,7 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
         lower_cutoff = float(lower_cutoff)
         upper_cutoff = float(upper_cutoff)
         # Convert to float
-        command = f'singularity run {s_bind}{sing_fs} mri_convert -odt float {input_for_msk} {Mean_Image_RcT_for_mask}'
+        command = f'{sing_fs} mri_convert -odt float {input_for_msk} {Mean_Image_RcT_for_mask}'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -328,7 +289,7 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
                                     exclude_zeros=True, ensure_finite=True)
         mask_img.to_filename(output_for_mask)
         # Use AFNI to process the mask
-        command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 1'
+        command = f'{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 1'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -343,7 +304,7 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
         binary_smoothed_mask = ants.iMath(binary_smoothed_mask, operation='GetLargestComponent')
         ants.image_write(binary_smoothed_mask, output_for_mask, ri=False)
         # Resample the mask image
-        command = f'singularity run {s_bind}{afni_sif} 3dresample -master {input_for_msk} -prefix {output_for_mask} -input {output_for_mask} -overwrite -bound_type SLAB'
+        command = f'{afni_sif} 3dresample -master {input_for_msk} -prefix {output_for_mask} -input {output_for_mask} -overwrite -bound_type SLAB'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -371,7 +332,7 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
         mask_imag.to_filename(output_for_mask)
 
         # Use AFNI to process the mask
-        command = f'singularity run {s_bind}{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 1'
+        command = f'{afni_sif} 3dmask_tool -overwrite -prefix {output_for_mask} -input {output_for_mask} -fill_holes -dilate_input 1'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -386,7 +347,7 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
         binary_smoothed_mask = ants.iMath(binary_smoothed_mask, operation='GetLargestComponent')
         ants.image_write(binary_smoothed_mask, output_for_mask, ri=False)
         # Resample the mask image
-        command = f'singularity run {s_bind}{afni_sif} 3dresample -master {input_for_msk} -prefix {output_for_mask} -input {output_for_mask} -overwrite -bound_type SLAB'
+        command = f'{afni_sif} 3dresample -master {input_for_msk} -prefix {output_for_mask} -input {output_for_mask} -overwrite -bound_type SLAB'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -401,7 +362,7 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
     elif brain_skullstrip.startswith('Vol_sammba_'):
         volume = int(brain_skullstrip.split('_')[2])
 
-        command = 'singularity run' + s_bind + sing_fs + 'mri_convert -odt float ' + input_for_msk + ' ' + input_for_msk[:-7] + '_float.nii.gz'
+        command = sing_fs + 'mri_convert -odt float ' + input_for_msk + ' ' + input_for_msk[:-7] + '_float.nii.gz'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -490,12 +451,12 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
         binary_smoothed_mask = ants.threshold_image(smoothed_mask, low_thresh=0.5, high_thresh=1)
         binary_smoothed_mask = ants.iMath(binary_smoothed_mask, operation='GetLargestComponent')
         ants.image_write(binary_smoothed_mask, output_for_mask, ri=False)
-        command = 'singularity run' + s_bind + afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
+        command = afni_sif + '3dmask_tool -overwrite -prefix ' + output_for_mask + \
                   ' -input ' + output_for_mask + ' -fill_holes'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
-        command = f'singularity run {s_bind}{afni_sif} 3dresample -master {input_for_msk} -prefix {output_for_mask} -input {output_for_mask} -overwrite -bound_type SLAB'
+        command = f'{afni_sif} 3dresample -master {input_for_msk} -prefix {output_for_mask} -input {output_for_mask} -overwrite -bound_type SLAB'
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -511,7 +472,7 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
 
 
     elif brain_skullstrip == 'NoSkullStrip':
-        command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + input_for_msk + \
+        command = afni_sif + '3dcalc -a ' + input_for_msk + \
                   ' -expr "step(a)" -prefix ' + output_for_mask + ' -overwrite'
         nl = spgo(command)
         diary.write(f'\n{nl}')
@@ -535,12 +496,12 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
                 run_cmd.msg(nl, diary_file, 'WARNING')
 
         if not ope(output_for_mask):
-            command = 'singularity run' + s_bind + afni_sif + '3dcalc -a ' + input_for_msk + ' -expr "step(a)" -prefix ' + output_for_mask
+            command = afni_sif + '3dcalc -a ' + input_for_msk + ' -expr "step(a)" -prefix ' + output_for_mask
             nl = spgo(command)
             diary.write(f'\n{nl}')
             print(nl)
 
-        command = ('singularity run' + s_bind + itk_sif + 'itksnap -g ' + input_for_msk + ' -s ' + output_for_mask)
+        command = (itk_sif + 'itksnap -g ' + input_for_msk + ' -s ' + output_for_mask)
         run_command_and_wait(command)
         nl = command
         diary.write(f'\n{nl}')

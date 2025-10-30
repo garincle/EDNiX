@@ -25,9 +25,9 @@ from fonctions.extract_filename import extract_filename
 #################################################################################################
 ####Seed base analysis
 ################################################################################################# 
-def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2,
-    dir_fMRI_Refth_RS_prepro3, RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func,
-        cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, sing_afni, diary_file, smoothSBA, TR_val):
+def SBA(SBAspace, BASE_SS_coregistr, erod_seed,
+    RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func,
+        cut_coordsY, threshold_val, sing_afni, diary_file, smoothSBA, TR_val):
 
 
     nl = '##  Working on step ' + str(11) + '(function: _11_Seed_base_many_regionsatlas).  ##'
@@ -38,48 +38,69 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
             root_RS = extract_filename(RS[i])
             ID = root_RS.split('_')[0]
             if space=='func':
-                direction_results = dir_fMRI_Refth_RS_prepro1
-                func_filename     = opj(direction_results, root_RS + '_residual.nii.gz')
+                atlas_dir = dir_prepro_orig_labels
+                direction_results = opj(dir_prepro_orig, 'Stats')
+                if not ope(direction_results):
+                    os.mkdir(direction_results)
+                direction_results = opj(dir_prepro_orig, 'Stats', 'Correl_matrix')
+                if not ope(direction_results):
+                    os.mkdir(direction_results)
+
+                func_filename     = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')
 
                 if oversample_map == True:
                     ### not possible yet
-                    studytemplatebrain = opj(direction_results, 'Ref_anat_in_fMRI_anat_resolution.nii.gz')
+                    studytemplatebrain = opj(dir_prepro_orig_process, ('_').join(['anat_space-acpc-func', TfMRI + '.nii.gz']))
                 else:
-                    studytemplatebrain = opj(direction_results, 'Ref_anat_in_fMRI.nii.gz')
+                    studytemplatebrain = opj(dir_prepro_orig_process, ('_').join(['anat_space-acpc-func', TfMRI + '.nii.gz']))
 
                 if use_cortical_mask_func == True:
-                    cortical_mask_func = opj(direction_results,'Gmask.nii.gz')
+                    cortical_mask_func = opj(dir_prepro_acpc_masks,'Gmask.nii.gz')
                 else:
-                    cortical_mask_func = opj(direction_results,'mask_ref.nii.gz')
+                    cortical_mask_func = opj(dir_prepro_acpc_masks,'mask_ref.nii.gz')
 
             elif space=='anat':
-                direction_results = dir_fMRI_Refth_RS_prepro2
-                func_filename     = opj(direction_results, root_RS + '_residual_in_anat.nii.gz')
+                atlas_dir = dir_prepro_acpc_labels
+                direction_results = opj(dir_prepro_acpc, 'Stats')
+                if not ope(direction_results):
+                    os.mkdir(direction_results)
+                direction_results = opj(dir_prepro_acpc, 'Stats', 'Correl_matrix')
+                if not ope(direction_results):
+                    os.mkdir(direction_results)
+
+                func_filename     = opj(dir_prepro_acpc_postprocessed, root_RS + '_space-acpc-anat_desc-fMRI_residual.nii.gz')
 
                 if oversample_map == True:
                     ## to test
-                    studytemplatebrain = opj(direction_results,'orig_anat_for_plot.nii.gz')
+                    studytemplatebrain = anat_subject
                 else:
-                    studytemplatebrain = opj(direction_results,'anat_rsp_in_func.nii.gz')
+                    studytemplatebrain = opj(dir_prepro_acpc_process, ('_').join(['anat_space-acpc_res-func', TfMRI + '.nii.gz']))
 
                 if use_cortical_mask_func == True:
-                    cortical_mask_func = opj(direction_results,'Gmask.nii.gz')
+                    cortical_mask_func = opj(dir_prepro_orig_masks,'Gmask.nii.gz')
                 else:
-                    cortical_mask_func = opj(direction_results,'mask_ref.nii.gz')
+                    cortical_mask_func = opj(dir_prepro_orig_masks,'mask_ref.nii.gz')
 
             elif space == 'atlas':
-                direction_results = dir_fMRI_Refth_RS_prepro3
-                func_filename     = opj(direction_results, root_RS + '_residual_in_template.nii.gz')
+                direction_results = opj(dir_prepro_template, 'Stats')
+                if not ope(direction_results):
+                    os.mkdir(direction_results)
+                direction_results = opj(dir_prepro_template, 'Stats', 'Correl_matrix')
+                if not ope(direction_results):
+                    os.mkdir(direction_results)
+                output_results = direction_results
+                atlas_dir = dir_prepro_template_labels
+                func_filename     = opj(dir_prepro_template_postprocessed, root_RS + '_space-acpc-anat_desc-fMRI_residual.nii.gz')
 
                 if oversample_map == True:
                     studytemplatebrain = BASE_SS_coregistr
                 else:
-                    studytemplatebrain = opj(direction_results,'BASE_SS_fMRI.nii.gz')
+                    studytemplatebrain = opj(dir_prepro_template_process,'BASE_SS_fMRI.nii.gz')
 
                 if use_cortical_mask_func == True:
-                    cortical_mask_func = opj(direction_results,'Gmask.nii.gz')
+                    cortical_mask_func = opj(dir_prepro_template_masks,'Gmask.nii.gz')
                 else:
-                    cortical_mask_func = opj(direction_results,'mask_brain.nii.gz') # should change the name as mask_ref.nii.gz
+                    cortical_mask_func = opj(dir_prepro_template_masks, 'mask_ref.nii.gz')
             else:
                 nl = 'WARNING: will not perform ' + str(direction_results) + ' space because SBAspace is ' + str(SBAspace)
                 run_cmd.msg(nl,diary_file,'WARNING')
@@ -109,13 +130,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
 
                 for panda_file, atlas in zip(panda_files, selected_atlases):
 
-                    atlas_filename = opj(direction_results, ID + '_seg-' + atlas[0]+ '_dseg.nii.gz')
-                    output_results = opj(direction_results, '10_Results', 'SBA')
-
-                    if not ope(opj(direction_results, '10_Results')):
-                        os.mkdir(opj(direction_results, '10_Results'))
-                    if not ope(output_results):
-                        os.mkdir(output_results)
+                    atlas_filename = opj(atlas_dir, ID + '_seg-' + atlas[0]+ '_dseg.nii.gz')
 
                     ##########################################################################
                     def format_seed_name(seed_name):
@@ -165,7 +180,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                             nl = "WARNING: The NIfTI image is empty (all voxel values are zero)."
                             run_cmd.msg(nl, diary_file, 'WARNING')
 
-                            diary_file_WARNING = opj(opd(opd(dir_fMRI_Refth_RS_prepro1)), 'SEED_' + str(Seed_name) + '_EMPTY_WARNING.txt')
+                            diary_file_WARNING = opj(opd(opd(output_results)), 'SEED_' + str(Seed_name) + '_EMPTY_WARNING.txt')
                             if not opi(diary_file_WARNING):
                                 diary_file_WARNING_file = open(diary_file_WARNING, "w")
                                 diary_file_WARNING_file.write(f'\n{nl}')
@@ -327,21 +342,21 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_fMRI_Refth_RS_prepro1, dir_f
                                     outfile.write(json_object)
 
                                 # PLot the results
-                                if direction_results == dir_fMRI_Refth_RS_prepro1:
+                                if direction_results == output_results:
                                     display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
                                         colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
                                     display.savefig(opj(output_folder, root_RS + '_.jpg'))
                                     display.close()
                                     plt.close('all')
 
-                                elif direction_results == dir_fMRI_Refth_RS_prepro2:
+                                elif direction_results == output_results:
                                     display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
                                         colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
                                     display.savefig(opj(output_folder, root_RS + '_.jpg'))
                                     display.close()
                                     plt.close('all')
 
-                                elif direction_results == dir_fMRI_Refth_RS_prepro3:
+                                elif direction_results == output_results:
                                     display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
                                         colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
                                     display.savefig(opj(output_folder, root_RS + '_.jpg'))

@@ -136,27 +136,40 @@ def stytemplate(data_path,reference,BALSAname):
             wb_template_dir,wb_template_vol,wb_template_labels,wb_template_masks,
             wb_balsa_dir,wb_balsa_vol,wb_balsa_labels,wb_balsa_masks)
 
-def func(data_path,reference):
+def func(data_path,reference, resting_or_task):
     #path_rawfunc = opj(rawdata_path, 'func')
     path_func    = opj(data_path, 'func')
     #dir_rawfmap     = opj(rawdata_path, 'fmap')
     dir_fmap = opj(data_path, 'fmap')
     dir_prepro_fmap = opj(dir_fmap, 'preprocessing')
 
-    dir_prepro_orig     = opj(path_func, 'native')
+    dir_prepro_raw = opj(path_func, 'raw')
+    dir_prepro_raw_process = opj(dir_prepro_raw, 'preprocessing')
+    dir_prepro_raw_masks = opj(dir_prepro_raw, 'masks')
+    dir_prepro_raw_matrices = opj(dir_prepro_raw, 'matrices')
+
+    dir_prepro_orig     = opj(path_func, 'acpc-func')
     dir_prepro_orig_labels = opj(dir_prepro_orig, 'labels')
     dir_prepro_orig_masks = opj(dir_prepro_orig, 'masks')
     dir_prepro_orig_process = opj(dir_prepro_orig, 'preprocessing')
-    dir_prepro_orig_rs = opj(dir_prepro_orig, 'postprocessed_rs')
-    dir_prepro_orig_task = opj(dir_prepro_orig, 'postprocessed_task')
+    if resting_or_task == 'resting':
+        dir_prepro_orig_postprocessed = opj(dir_prepro_orig, 'postprocessed_rs')
+    elif resting_or_task == 'task':
+        dir_prepro_orig_postprocessed = opj(dir_prepro_orig, 'postprocessed_task')
+    else:
+        ValueError('Error: resting_or_task should be either "resting" or "task"')
     dir_prepro_orig_matrices = opj(dir_prepro_orig, 'matrices')
 
     dir_prepro_acpc     = opj(path_func, 'acpc-anat')
     dir_prepro_acpc_labels = opj(dir_prepro_acpc, 'labels')
     dir_prepro_acpc_masks = opj(dir_prepro_acpc, 'masks')
     dir_prepro_acpc_process = opj(dir_prepro_acpc, 'preprocessing')
-    dir_prepro_acpc_rs = opj(dir_prepro_acpc, 'postprocessed_rs')
-    dir_prepro_acpc_task = opj(dir_prepro_acpc, 'postprocessed_task')
+    if resting_or_task == 'resting':
+        dir_prepro_acpc_postprocessed = opj(dir_prepro_orig, 'postprocessed_rs')
+    elif resting_or_task == 'task':
+        dir_prepro_acpc_postprocessed = opj(dir_prepro_orig, 'postprocessed_task')
+    else:
+        ValueError('Error: resting_or_task should be either "resting" or "task"')
     dir_prepro_acpc_matrices = opj(dir_prepro_acpc, 'matrices')
 
 
@@ -164,15 +177,20 @@ def func(data_path,reference):
     dir_prepro_template_labels = opj(dir_prepro_template, 'labels')
     dir_prepro_template_masks = opj(dir_prepro_template, 'masks')
     dir_prepro_template_process = opj(dir_prepro_template, 'preprocessing')
-    dir_prepro_template_rs = opj(dir_prepro_template, 'postprocessed_rs')
-    dir_prepro_template_task = opj(dir_prepro_template, 'postprocessed_task')
+    if resting_or_task == 'resting':
+        dir_prepro_template_postprocessed = opj(dir_prepro_orig, 'postprocessed_rs')
+    elif resting_or_task == 'task':
+        dir_prepro_template_postprocessed = opj(dir_prepro_orig, 'postprocessed_task')
+    else:
+        ValueError('Error: resting_or_task should be either "resting" or "task"')
 
-    return (path_func, dir_fmap, dir_prepro_fmap, dir_prepro_orig, dir_prepro_orig_labels, dir_prepro_orig_masks,
-            dir_prepro_orig_process, dir_prepro_orig_rs, dir_prepro_orig_task,
+    return (dir_prepro_raw, dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_raw_matrices, path_func, dir_fmap, dir_prepro_fmap,
+            dir_prepro_orig, dir_prepro_orig_labels, dir_prepro_orig_masks,
+            dir_prepro_orig_process, dir_prepro_orig_postprocessed,
             dir_prepro_acpc, dir_prepro_acpc_labels, dir_prepro_acpc_masks,
-            dir_prepro_acpc_process, dir_prepro_acpc_rs, dir_prepro_acpc_task,
+            dir_prepro_acpc_process, dir_prepro_acpc_postprocessed,
             dir_prepro_template, dir_prepro_template_labels, dir_prepro_template_masks,
-            dir_prepro_template_process, dir_prepro_template_rs, dir_prepro_template_task, dir_prepro_acpc_matrices, dir_prepro_orig_matrices)
+            dir_prepro_template_process, dir_prepro_template_postprocessed, dir_prepro_acpc_matrices, dir_prepro_orig_matrices)
 
 
 def pet(data_path, reference, BALSAname):

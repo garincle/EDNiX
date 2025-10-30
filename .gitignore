@@ -1,0 +1,61 @@
+# ===================================================
+# PROJECT-SPECIFIC DIRECTORIES TO IGNORE
+# ===================================================
+
+# Absolute paths (only take effect if Git is run from this exact location)
+/home/cgarin/PycharmProjects/EDNiX/Atlases_library/
+/home/cgarin/PycharmProjects/EDNiX/Tool_library/
+/home/cgarin/PycharmProjects/EDNiX/venvEDNiX/
+
+# Relative patterns (work regardless of project location)
+Atlases_library/
+Tool_library/
+venvEDNiX/
+
+# Match all subdirectories recursively
+**/Atlases_library/**
+**/Tool_library/**
+**/venvEDNiX/**
+
+# ===================================================
+# PYTHON / NEUROIMAGING DEVELOPMENT FILES
+# ===================================================
+# FICHIERS TYPIQUES DE DÉVELOPPEMENT PYTHON / NEURO
+
+# Large data files (e.g., MRI)
+*.nii
+*.nii.gz
+*.img
+*.hdr
+*.mgz
+*.mgh
+
+# Temporary or backup files
+*.tmp
+*.temp
+*~
+*.bak
+.DS_Store
+
+# Logs and output files
+*.log
+*.out
+*.o
+
+# Local or environment-specific configs
+config_local.json
+settings_local.py
+.env
+
+# Python virtual environments (general pattern)
+venv/
+.venv/
+env/
+ENV/
+
+# PyCharm and cache directories
+.idea/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

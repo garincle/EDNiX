@@ -196,34 +196,34 @@ delta_thresh = 0.1
 function_is_rest = False
 doWARPonfunc = False
 reference = 'EDNiX'
-
+resting_or_task = 'resting'  # 'resting' or 'task'
 atlas_followers =  [[], [], [], []]
-path_ATLAS = "/home/cgarin/PycharmProjects/Atlases_library/"
+
 (FS_refs, template_dir, reference,balsa_folder, BALSAname, balsa_brainT1,BASE_atlas_folder, BASE_template, BASE_SS,
  BASE_mask, BASE_Gmask, BASE_Wmask, BASE_Vmask,CSF, GM, WM, Aseg_ref,list_atlas, path_label_code,all_ID,
  all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max,
- fs_tools,reftemplate_path,MNIBcorrect_indiv, masking_img) = set_launcher.get(MAIN_PATH,bids_dir,allinfo_study_c,species,list_to_keep,
-                                                               list_to_remove,reference,type_norm,'', '', atlas_followers)
+ fs_tools,reftemplate_path,MNIBcorrect_indiv, masking_img) = set_launcher.get(MAIN_PATH,bids_dir,allinfo_study_c,
+                                                               species,list_to_keep,
+                                                               list_to_remove,reference,type_norm,
+                                                            '', '', atlas_followers)
 
 #######for matrix analysis (step 11)
 #### name of the atlases  you want to use for the matrix analysis
 selected_atlases_matrix = list_atlas.copy()
 segmentation_name_list = []
-
-
-Skip_step = [3,4,6,7,8,9,10,11,12,13,14,15,16,100,200]
-fonctions._0_Pipeline_launcher.preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
-                    BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space, use_master_for_Allineate,
+deoblique = ''
+post_treatment_method = 'Grandjean'
+Skip_step = [2,3,4,5,6,8,9,10,11,12,13,14,15,16,100,200]
+fonctions._0_Pipeline_launcher.preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max,
+                    BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
                     correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
                     TfMRI, GM_mask_studyT, GM, creat_study_template, type_norm, coregistration_longitudinal,
                     dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
                     n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlas, selected_atlases, panda_files,
-                    endfmri, endjson, endmap,
-                    oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val,
-                    Skip_step,
-                    bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
+                    endfmri, endjson, endmap, oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val,
+                    Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
                     folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list,
-                    band, animalPosition, humanPosition, doWARPonfunc,
+                    band, animalPosition, humanPosition, doWARPonfunc, resting_or_task,
                     extract_Vc, selected_atlases_matrix, specific_roi_tresh, delta_thresh, extract_GS, MAIN_PATH,
                     DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, normalize,
-                    reftemplate_path, reference, function_is_rest)
+                    reftemplate_path, reference, BASE_atlas_folder, post_treatment_method)
