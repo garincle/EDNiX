@@ -25,9 +25,11 @@ from fonctions.extract_filename import extract_filename
 #################################################################################################
 ####Seed base analysis
 ################################################################################################# 
-def SBA(SBAspace, BASE_SS_coregistr, erod_seed,
-    RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func,
-        cut_coordsY, threshold_val, sing_afni, diary_file, smoothSBA, TR_val):
+def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prepro_orig, dir_prepro_orig_process,
+    dir_prepro_acpc_labels,dir_prepro_acpc, dir_prepro_acpc_postprocessed, anat_subject, dir_prepro_acpc_process,
+    RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func, dir_prepro_acpc_masks, TfMRI,
+    dir_prepro_template_postprocessed, dir_prepro_template_labels, dir_prepro_template_masks,
+    cut_coordsY, threshold_val, sing_afni, diary_file, smoothSBA, TR_val, dir_prepro_template, dir_prepro_template_process):
 
 
     nl = '##  Working on step ' + str(11) + '(function: _11_Seed_base_many_regionsatlas).  ##'
@@ -77,9 +79,9 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed,
                     studytemplatebrain = opj(dir_prepro_acpc_process, ('_').join(['anat_space-acpc_res-func', TfMRI + '.nii.gz']))
 
                 if use_cortical_mask_func == True:
-                    cortical_mask_func = opj(dir_prepro_orig_masks,'Gmask.nii.gz')
+                    cortical_mask_func = opj(dir_prepro_acpc_masks,'Gmask.nii.gz')
                 else:
-                    cortical_mask_func = opj(dir_prepro_orig_masks,'mask_ref.nii.gz')
+                    cortical_mask_func = opj(dir_prepro_acpc_masks,'mask_ref.nii.gz')
 
             elif space == 'atlas':
                 direction_results = opj(dir_prepro_template, 'Stats')

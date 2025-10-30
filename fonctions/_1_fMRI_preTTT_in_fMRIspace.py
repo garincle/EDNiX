@@ -5,6 +5,7 @@ import numpy as np
 import nibabel as nib
 import subprocess
 import glob
+from pathlib import Path
 opj = os.path.join
 opb = os.path.basename
 opd = os.path.dirname
@@ -41,7 +42,7 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
         fMRI_run_motion_corrected = opj(dir_prepro_raw_process, root + '_space-func_desc-motion_corrected.nii.gz')
         fMRI_run_motion_corrected_orient = opj(dir_prepro_raw_process, root + '_space-func_desc-motion_corrected_orient.nii.gz')
         fMRI_run_motion_corrected_orientMEAN = opj(dir_prepro_raw_process, root + '_space-func_desc-motion_corrected_orientMEAN.nii.gz')
-        matrix_motion_correction = opj(dir_prepro_raw_matrices, root + '_space-func_desc-motion_correction.txt')
+        matrix_motion_correction = opj(dir_prepro_raw_matrices, root + '_space-func_desc-motion_correction.1D')
 
         censore1D = opj(dir_prepro_raw_process, root + '_space-func_desc-censor.1D')
         censoretxt = opj(dir_prepro_raw_process, root + '_space-func_desc-censor.txt')
@@ -249,11 +250,41 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
             interpolator='bSpline',
             outprefix=outpuprefix_motion)
 
-        motion_array = motion_result['FD']
-        print(f"FD directement disponible: {len(motion_array)} valeurs")
+        def extract_motion_params_antspy(matrices_dir, output_1D):
+            """
+            Extrait les paramètres de mouvement (rotations + translations)
+            à partir des fichiers *_0GenericAffine.mat produits par ants.motion_correction().
+            Sortie compatible 3dDeconvolve (.1D).
+            """
+            mat_files = sorted(Path(matrices_dir).glob('*_0GenericAffine.mat'))
 
-        # Sauvegarder simplement
-        np.savetxt(matrix_motion_correction, motion_array, fmt='%.6f')
+            if not mat_files:
+                raise FileNotFoundError(f"Aucun fichier *_0GenericAffine.mat trouvé dans {matrices_dir}")
+
+            motion_params = []
+
+            for mat in mat_files:
+                t = ants.read_transform(str(mat))
+                params = t.parameters  # [Rx, Ry, Rz, Tx, Ty, Tz]
+
+                if len(params) < 6:
+                    raise ValueError(f"Le fichier {mat} ne contient pas 6 paramètres attendus (trouvé {len(params)}).")
+
+                Rx, Ry, Rz, Tx, Ty, Tz = params[:6]
+
+                # ANTs donne les rotations en radians → conversion degrés pour compatibilité AFNI
+                roll, pitch, yaw = np.degrees([Rx, Ry, Rz])
+
+                motion_params.append([roll, pitch, yaw, Tx, Ty, Tz])
+            motion_params = np.array(motion_params)
+            np.savetxt(output_1D, motion_params, fmt="%.6f", delimiter=" ")
+
+            print(f"[INFO] Paramètres de mouvement sauvegardés dans {output_1D}")
+            print(f"[INFO] Format: roll pitch yaw dS dL dP (deg, mm)")
+
+        extract_motion_params_antspy(
+            matrices_dir=dir_prepro_raw_matrices,
+            output_1D=matrix_motion_correction)
 
         # Sauvegarder l'image realignée
         motion_result['motion_corrected'].to_filename(fMRI_run_motion_corrected_orient)

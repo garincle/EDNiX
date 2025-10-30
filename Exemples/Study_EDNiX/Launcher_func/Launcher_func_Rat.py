@@ -212,8 +212,8 @@ atlas_followers =  [[], [], [], []]
 selected_atlases_matrix = list_atlas.copy()
 segmentation_name_list = []
 deoblique = ''
-post_treatment_method = 'Grandjean'
-Skip_step = [2,3,4,5,6,8,9,10,11,12,13,14,15,16,100,200]
+post_treatment_method = 'AFNI'
+Skip_step = [2,3,4,5,6,12,13,14,15,16,100,200]
 fonctions._0_Pipeline_launcher.preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max,
                     BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
                     correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
