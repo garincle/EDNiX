@@ -163,7 +163,7 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
         for atlas in list_atlases[0]:
             atlasfile = ID + '_seg-' + atlas + '_dseg.nii.gz'
             command = (sing_afni + '3dresample' + overwrite + ' -orient ' + orient_meanimg +
-                       ' -prefix ' + opj(template_dir_labels, atlasfile) +
+                       ' -prefix ' + opj(dir_prepro_template_labels, atlasfile) +
                        ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
                        ' -input ' + opj(template_dir_labels, species + '_seg-' + atlas + '_dseg.nii.gz'))
             run_cmd.run(command, diary_file)
