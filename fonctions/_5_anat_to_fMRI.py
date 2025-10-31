@@ -17,8 +17,8 @@ from Tools import run_cmd, check_nii
 from fonctions import _2b_fix_orient
 def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process, RS, nb_run, ID, bids_dir, dir_prepro_raw_masks, REF_int, dir_prepro_raw_matrices, recordings,
                        n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlases, labels_dir, anat_subject, dir_transfo, IhaveanANAT, do_anat_to_func, TR_val,
-                       type_of_transform, registration_fast, dir_prepro_acpc_masks, dir_prepro_acpc_process, dir_prepro_orig_masks, dir_prepro_acpc_labels, 
-                       dir_prepro_orig_labels, BASE_atlas_folder, dir_prepro_orig_process, doWARPonfunc,
+                       type_of_transform, registration_fast, dir_prepro_acpc_masks, dir_prepro_acpc_process, dir_prepro_orig_masks, dir_prepro_acpc_labels,
+                       dir_prepro_orig_labels, BASE_atlas_folder, dir_prepro_orig_process, doWARPonfunc, template_dir_labels, species, template_dir_masks,
                        overwrite, sing_afni,diary_file):
 
     nl = '##  Working on step ' + str(5) + '(function: _5_anat_to_fMRI).  ##'
@@ -32,6 +32,11 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
         cmd.append(str(vox))
     pad = ' '.join(cmd)
 
+    if IhaveanANAT == True:
+        orig_mask = dir_prepro_acpc_masks
+    else:
+        orig_mask = template_dir_masks
+
     Mean_Image = opj(dir_prepro_raw_process, 'all_runs_space-func_desc-fMRI_Mean_Image.nii.gz')
     Mean_Image_SS = opj(dir_prepro_raw_process, 'all_runs_space-func_desc-fMRI_Mean_Image_SS.nii.gz')
     Prepro_fMRI_mask = opj(dir_prepro_raw_masks, ID + '_fMRI_mask.nii.gz')
@@ -42,7 +47,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
     anat_in_acpc_func = opj(dir_prepro_orig_process, ('_').join(['anat_space-acpc-func', TfMRI + '.nii.gz']))
 
     Mean_Image_unwarped = opj(dir_prepro_acpc_process, 'all_runs_space-anat_desc-fMRI_Mean_Image_unwarped.nii.gz')
-    maskDilatfunc = opj(dir_prepro_acpc_masks, ID + '_space-acpc_mask_dilated_res_func.nii.gz')
+    maskDilatfunc = opj(orig_mask, ID + '_space-acpc_mask_dilated_res_func.nii.gz')
     anat_res_func = opj(dir_prepro_acpc_process, ('_').join(['anat_space-acpc_res-func', TfMRI + '.nii.gz']))
 
     # Load the image directly
@@ -199,12 +204,12 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
     delta_x, delta_y, delta_z = [str(round(abs(x), 10)) for x in meanImg.header.get_zooms()[:3]]
 
     ## MASKS in func space:
-    for input1, output2 in zip([opj(dir_prepro_acpc_masks,'mask_ref.nii.gz'),
+    for input1, output2 in zip([opj(orig_mask,'mask_ref.nii.gz'),
                                 maskDilatfunc,
-                                opj(dir_prepro_acpc_masks,'Vmask.nii.gz'),
-                                opj(dir_prepro_acpc_masks,'Wmask.nii.gz'),
-                                opj(dir_prepro_acpc_masks,'Gmask.nii.gz')],
-                               [opj(dir_prepro_orig_masks,'mask_ref.nii.gz'),
+                                opj(orig_mask,'Vmask.nii.gz'),
+                                opj(orig_mask,'Wmask.nii.gz'),
+                                opj(orig_mask,'Gmask.nii.gz')],
+                               [opj(orig_mask,'mask_ref.nii.gz'),
                                 maskDilat_funcspace,
                                 opj(dir_prepro_orig_masks,'Vmask.nii.gz'),
                                 opj(dir_prepro_orig_masks,'Wmask.nii.gz'),
@@ -250,7 +255,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
             nl = 'WARNING:' + str(input1) + ' not found!!! this may be because you have not provided an aseg file, ' + \
                  ' then no extraction of WM or Ventricles or GM will be possible... pls check that!'
             run_cmd.msg(nl, diary_file, 'WARNING')
-
+    print("Work on list atlas" + str(list_atlases))
     #### each available atlas in anat space:
     if len(list_atlases[0]) > 0:
         for atlas in list_atlases[0]:
@@ -258,21 +263,21 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                 atlasfile = ID + '_seg-' + str(atlas) + '_dseg.nii.gz'
                 input1    = opj(labels_dir, atlasfile)
             else:
-                atlasfile = ID + '_seg-' + str(atlas) + '_dseg.nii.gz'
-                input1    = opj(BASE_atlas_folder, atlasfile)
+                input1    = opj(template_dir_labels, species + '_seg-' + atlas + '_dseg.nii.gz')
             if not ope(input1):
                 nl = 'WARNING: atlas file ' + str(input1) + ' not found!'
+                print(nl)
             else:
                 # resample to func
                 command = (sing_afni + '3dresample' + overwrite +
                            ' -prefix ' + opj(dir_prepro_acpc_labels, atlasfile) +
                            ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
                            ' -input ' + input1)
+                print(command)
                 dictionary = {"Sources": [input1,
                                           Mean_Image_acpc],
                               "Description": 'Resampling (3dresample, AFNI)', "Command": command, }
                 json_object = json.dumps(dictionary, indent=3)
-                run_cmd.run(command, diary_file)
                 with open(opj(dir_prepro_acpc_labels, atlasfile.replace('.nii.gz','.json')), "w") as outfile:
                     outfile.write(json_object)
                 run_cmd.run(command, diary_file)
@@ -300,6 +305,20 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                     json_object = json.dumps(dictionary, indent=2)
                     with open(opj(dir_prepro_orig_labels, atlasfile.replace('.nii.gz','.json')), "w") as outfile:
                         outfile.write(json_object)
+                else:
+                    # resample to func
+                    command = (sing_afni + '3dresample' + overwrite +
+                               ' -prefix ' + opj(dir_prepro_orig_labels, atlasfile) +
+                               ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
+                               ' -input ' + input1)
+                    print(command)
+                    dictionary = {"Sources": [input1,
+                                              Mean_Image_acpc],
+                                  "Description": 'Resampling (3dresample, AFNI)', "Command": command, }
+                    json_object = json.dumps(dictionary, indent=3)
+                    with open(opj(dir_prepro_orig_labels, atlasfile.replace('.nii.gz', '.json')), "w") as outfile:
+                        outfile.write(json_object)
+                    run_cmd.run(command, diary_file)
     else:
         nl = 'WARNING: list_atlases is empty!'
         run_cmd.msg(nl, diary_file, 'WARNING')

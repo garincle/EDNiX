@@ -544,7 +544,7 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
                 _5_anat_to_fMRI.Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process, RS, nb_run, ID, bids_dir, dir_prepro_raw_masks, REF_int, dir_prepro_raw_matrices, recordings,
                        n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlas, labels_dir, anat_subject, dir_transfo, IhaveanANAT, do_anat_to_func, TR_val,
                        type_of_transform, registration_fast, dir_prepro_acpc_masks, dir_prepro_acpc_process, dir_prepro_orig_masks, dir_prepro_acpc_labels,
-                       dir_prepro_orig_labels, BASE_atlas_folder, dir_prepro_orig_process, doWARPonfunc,
+                       dir_prepro_orig_labels, BASE_atlas_folder, dir_prepro_orig_process, doWARPonfunc, template_dir_labels, species, template_dir_masks,
                        overwrite, sing_afni,diary_file)
 
             if 6 in Skip_step or ICA_cleaning == 'Skip':
@@ -610,8 +610,8 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
-                _12_fMRI_QC.fMRI_QC(correction_direction, dir_prepro_orig, dir_prepro_template, RS, nb_run, sing_afni,
-                                    diary_file)
+                _12_fMRI_QC.fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_process, dir_prepro_template_labels,
+            dir_prepro_template_postprocessed, RS, nb_run, sing_afni, diary_file)
 
             if 14 in Skip_step:
                 nl = 'skip step ' + str(14)
