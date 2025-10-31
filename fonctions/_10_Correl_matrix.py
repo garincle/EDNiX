@@ -25,7 +25,7 @@ from fonctions.extract_filename import extract_filename
 #################################################################################################
 def correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_matrix, segmentation_name_list,
                   ID, Session, TR_val, dir_prepro_orig_labels, dir_prepro_orig,
-                  bids_dir,sing_afni,diary_file):
+                  sing_afni,diary_file):
 
     nl = '##  Working on step ' + str(10) + '(function: _10_Correl_matrix).  ##'
     run_cmd.msg(nl, diary_file, 'HEADER')

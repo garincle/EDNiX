@@ -22,8 +22,8 @@ from fonctions.extract_filename import extract_filename
 
 def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prepro_template_labels,
                             dir_prepro_orig_postprocessed, dir_prepro_acpc_postprocessed, dir_prepro_template_postprocessed,
-                             nb_run, RS, do_anat_to_func, list_atlases, info, dir_prepro_orig_process,
-                             BASE_SS_mask, GM_mask, GM_mask_studyT, creat_study_template,anat_func_same_space, dir_prepro_acpc_process,
+                             nb_run, RS, do_anat_to_func, list_atlases, info, dir_prepro_orig_process, species,
+                             template_dir_labels, template_dir_masks ,anat_func_same_space, dir_prepro_acpc_process,
                              dir_prepro_template_masks, IhaveanANAT, overwrite,sing_afni,diary_file):
 
     nl = '##  Working on step ' + str(9) + '(function: _9_coregistration_to_template_space).  ##'
@@ -56,14 +56,14 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
                 outfile.write(json_object)
     else:
         if do_anat_to_func == True:
-            mvt_shft_INV_ANTs = []
-            w2inv_inv = []
+            mvt_shft_ANTs = []
+            w2inv_fwd = []
             for elem1, elem2 in zip([Mean_Image_unwarped.replace('.nii.gz', '_1Warp.nii.gz'),
                                      Mean_Image_unwarped.replace('.nii.gz', '_0GenericAffine.mat')],
                                     [True, False]):
                 if opi(elem1):
-                    mvt_shft_INV_ANTs.append(elem1)
-                    w2inv_inv.append(elem2)
+                    mvt_shft_ANTs.append(elem1)
+                    w2inv_fwd.append(elem2)
         elif do_anat_to_func == False and anat_func_same_space == True:
             mvt_shft_ANTs = []
             w2inv_fwd     = []
@@ -83,9 +83,9 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
     REF  = ants.image_read(Template_res_func)
 
     TRANS = ants.apply_transforms(fixed=REF, moving=MEAN,
-                                  transformlist=info[0][10] + mvt_shft_ANTs,
-                                  interpolator='bsline',
-                                  whichtoinvert=info[0][11] + w2inv_fwd)
+                                  transformlist=info[0][9] + mvt_shft_ANTs,
+                                  interpolator='bSpline',
+                                  whichtoinvert=info[0][10] + w2inv_fwd)
     ants.image_write(TRANS, Mean_Image_template, ri=False)
 
     dictionary = {"Sources": [Mean_Image_acpc,
@@ -130,9 +130,10 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
             REF = ants.image_read(Template_res_func)
 
             TRANS = ants.apply_transforms(fixed=REF, moving=FUNC,
-                                          transformlist=info[0][10] + mvt_shft_ANTs,
-                                          interpolator='bsline',
-                                          whichtoinvert=info[0][11] + w2inv_fwd)
+                                          transformlist=info[0][9] + mvt_shft_ANTs,
+                                          interpolator='bSpline',
+                                          whichtoinvert=info[0][10] + w2inv_fwd,
+                                          imagetype=3)
             ants.image_write(TRANS, residual_template, ri=False)
 
             dictionary = {"Sources": [residual_template,
@@ -145,8 +146,8 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
             nl = str(residual_template) + ' done!'
             run_cmd.msg(nl, diary_file, 'OKGREEN')
             # Freeing memory
-            del MEAN
-            del TRANS
+            del FUNC
+            del REF
 
     # Load the image directly
     img = nib.load(residual_template)
@@ -162,12 +163,12 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
         for atlas in list_atlases[0]:
             atlasfile = ID + '_seg-' + atlas + '_dseg.nii.gz'
             command = (sing_afni + '3dresample' + overwrite + ' -orient ' + orient_meanimg +
-                       ' -prefix ' + opj(dir_prepro_template_labels, atlasfile) +
-                       ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' +
-                       ' -input ' + opj(dir_prepro_template_labels, template + atlasfile))
+                       ' -prefix ' + opj(template_dir_labels, atlasfile) +
+                       ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
+                       ' -input ' + opj(template_dir_labels, species + '_seg-' + atlas + '_dseg.nii.gz'))
             run_cmd.run(command, diary_file)
 
-            dictionary = {"Sources": [atlas,
+            dictionary = {"Sources": [opj(template_dir_labels, species + '_seg-' + atlas + '_dseg.nii.gz'),
                                       residual_template],
                           "Description": ' Resampling (3dresample, AFNI).'},
             json_object = json.dumps(dictionary, indent=2)
@@ -177,37 +178,26 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
         nl = 'WARNING: list_atlases is empty!'
         run_cmd.msg(nl, diary_file, 'WARNING')
 
-    #### apply to every mask (brain and Gray matter)
+    ## MASKS in func space:
+    for input1, output2 in zip([opj(template_dir_masks, 'mask_ref.nii.gz'),
+                                opj(template_dir_masks, 'Vmask.nii.gz'),
+                                opj(template_dir_masks, 'Wmask.nii.gz'),
+                                opj(template_dir_masks, 'Gmask.nii.gz')],
+                               [opj(dir_prepro_template_masks, 'mask_ref.nii.gz'),
+                                opj(dir_prepro_template_masks, 'Vmask.nii.gz'),
+                                opj(dir_prepro_template_masks, 'Wmask.nii.gz'),
+                                opj(dir_prepro_template_masks, 'Gmask.nii.gz')]):
+        command = (sing_afni + '3dresample' + overwrite +
+                   ' -prefix ' + output2 +
+                   ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
+                   ' -input ' + input1)
+        run_cmd.run(command, diary_file)
 
-    command = (sing_afni + '3dresample' + overwrite + ' -orient ' + orient_meanimg +
-               ' -prefix ' + opj(dir_prepro_template_masks, 'mask_ref.nii.gz') +
-               ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' +
-               ' -input ' + BASE_SS_mask)
-    run_cmd.run(command, diary_file)
-
-    dictionary = {"Sources": [BASE_SS_mask,
-                              residual_template],
-                  "Description": ' Resampling (3dresample, AFNI).'},
-    json_object = json.dumps(dictionary, indent=2)
-    with open(opj(dir_prepro_template_masks, 'mask_ref.nii.gz').replace('.nii.gz', '.json'), "w") as outfile:
-        outfile.write(json_object)
-
-    if creat_study_template== True:
-        MASK = GM_mask_studyT
-    else:
-        MASK = GM_mask
-
-    command = (sing_afni + '3dresample' + overwrite + ' -orient ' + orient_meanimg +
-               ' -prefix ' + opj(dir_prepro_template_masks, 'Gmask.nii.gz') +
-               ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z + ' ' + ' -input  ' + MASK)
-    run_cmd.run(command, diary_file)
-
-    dictionary = {"Sources": [MASK,
-                              residual_template],
-                  "Description": ' Resampling (3dresample, AFNI).'},
-    json_object = json.dumps(dictionary, indent=2)
-    with open(opj(dir_prepro_template_masks, 'Gmask.nii.gz').replace('.nii.gz', '.json'), "w") as outfile:
-        outfile.write(json_object)
-
+        dictionary = {"Sources": [input1,
+                                  residual_template],
+                      "Description": ' Resampling (3dresample, AFNI).'},
+        json_object = json.dumps(dictionary, indent=2)
+        with open(output2.replace('.nii.gz', '.json'), "w") as outfile:
+            outfile.write(json_object)
 
 

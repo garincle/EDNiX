@@ -75,7 +75,6 @@ def stdyT_to_AtlasT(aff_metric_ants_Transl_template, list_atlases, BASE_SS, BASE
         atlasfile = opj(BASE_atlas_folder, species + '_seg-' + atlas + '_dseg.nii.gz')
 
         if opi(atlasfile):
-
             nl = 'INFO: Working in sending ' + atlas + ' into the ' + targetname + 'space'
             run_cmd.msg(nl, diary_file, 'OKGREEN')
 
@@ -106,6 +105,16 @@ def stdyT_to_AtlasT(aff_metric_ants_Transl_template, list_atlases, BASE_SS, BASE
                             mTx['invtransforms'], w2i,'','', '', '','',
                             diary_file, sing_wb)
     else:
-        nl = 'WARNING: ' + segfile + ' not found in list_atlases, we can continue but it might restrict several outcome of the script'
+        nl = 'WARNING: ' + BASE_mask + ' not found in list_atlases, we can continue but it might restrict several outcome of the script'
         run_cmd.msg(nl, diary_file, 'WARNING')
 
+    if opi(BASE_mask):
+        nl = 'INFO: Working in sending ' + BASE_mask + ' in ' + targetname + ' space'
+        run_cmd.msg(nl, diary_file, 'OKGREEN')
+
+        norm2template.apply(sourcename, stdy_template, masks_dir, targetname, BASE_mask,
+                            mTx['invtransforms'], w2i,'','', '', '','',
+                            diary_file, sing_wb)
+    else:
+        nl = 'WARNING: ' + BASE_mask + ' not found in list_atlases, we can continue but it might restrict several outcome of the script'
+        run_cmd.msg(nl, diary_file, 'WARNING')

@@ -34,6 +34,7 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepr
     residual_motion = opj(dir_prepro_raw_process, 'all_runs_space-func_desc-fMRI_residual_motion.nii.gz')
     Mean_Image = opj(dir_prepro_raw_process, 'all_runs_space-func_desc-fMRI_Mean_Image.nii.gz')
     BASE_SS_fMRI = opj(dir_prepro_template_process, 'BASE_SS_fMRI.nii.gz')
+    BASE_SS = opj(dir_prepro_template_process, 'BASE_SS.nii.gz')
     maskDilatanat = opj(dir_prepro_acpc_masks, ID + '_space-acpc_mask_dilated.nii.gz')
     maskDilatfunc = opj(dir_prepro_acpc_masks, ID + '_space-acpc_mask_dilated_res_func.nii.gz')
     anat_res_func = opj(dir_prepro_acpc_process, ('_').join(['anat_space-acpc_res-func', TfMRI + '.nii.gz']))
@@ -81,6 +82,17 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepr
     orient_meanimg = get_orientation.get_orientation_nibabel(Mean_Image)
     nl = 'Orientation: ' + orient_meanimg
     run_cmd.msg(nl, diary_file, 'OKGREEN')
+
+    command = (sing_afni + '3dcalc -a ' + BASE_SS_coregistr +
+               ' -prefix ' + BASE_SS +
+               ' -expr "a"' + overwrite)
+    dictionary = {"Sources": BASE_SS_coregistr,
+                  "Description": 'copy.',
+                  "Command": command, }
+    json_object = json.dumps(dictionary, indent=3)
+    with open(BASE_SS.replace('.nii.gz', '.json'), "w") as outfile:
+        outfile.write(json_object)
+    run_cmd.do(command, diary_file)
 
     command = (sing_afni + '3dresample' + overwrite +
                ' -orient ' + orient_meanimg +

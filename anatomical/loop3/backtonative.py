@@ -291,7 +291,7 @@ def apply(ID,volumes_dir,masks_dir,labels_dir,bids_dir,info,listTimage,targetsuf
                     # the brainmask
                     if opi(info[0][2]):
                         # backward
-                        norm2template.apply('acpc', img_ref, masks_dir,  ID,info[0][2],
+                        norm2template.apply('acpc', img_ref, masks_dir, ID, info[0][2],
                                             info[i][7], info[i][8], '', '', '', Timage, n_for_ANTS,
                                             diary_file, sing_wb)
 

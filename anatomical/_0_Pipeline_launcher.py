@@ -37,8 +37,6 @@ def preprocess_anat(BIDStype, BASE_mask, coregistration_longitudinal, creat_stud
                     BASE_atlas_folder,MNIBcorrect_indiv, animalPosition, humanPosition,balsa_folder,
                     balsa_brainT1,addatlas):
 
-
-
     ### singularity set up
     sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _,sing_synstrip,Unetpath =  Load_EDNiX_requirement.load_requirement(MAIN_PATH,reftemplate_path,bids_dir,'yes')
 

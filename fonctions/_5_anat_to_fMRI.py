@@ -251,7 +251,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                  ' then no extraction of WM or Ventricles or GM will be possible... pls check that!'
             run_cmd.msg(nl, diary_file, 'WARNING')
 
-    #### each available atlas in func space:
+    #### each available atlas in anat space:
     if len(list_atlases[0]) > 0:
         for atlas in list_atlases[0]:
             if IhaveanANAT == True:
@@ -292,7 +292,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                         interpolator='genericLabel',
                         whichtoinvert=w2inv_inv,
                         imagetype=image_type)
-                    ants.image_write(TRANS, opj(dir_prepro_acpc_labels, atlasfile), ri=False)
+                    ants.image_write(TRANS, opj(dir_prepro_orig_labels, atlasfile), ri=False)
 
                     dictionary = {"Sources": [opj(dir_prepro_acpc_labels, atlasfile),
                                               Mean_Image_acpc],
