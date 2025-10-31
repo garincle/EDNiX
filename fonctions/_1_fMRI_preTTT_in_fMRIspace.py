@@ -351,7 +351,7 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
         run_cmd.run(command, diary_file)
 
         # writing regressors get demean
-        command = (sing_afni + '1d_tool.py' + overwrite + ' -infile ' + opj(dir_prepro_raw_process, root + '_dfile.1D') +
+        command = (sing_afni + '1d_tool.py' + overwrite + ' -infile ' + matrix_motion_correction +
                    ' -demean -write ' + demean)
         run_cmd.run(command, diary_file)
 

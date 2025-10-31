@@ -103,7 +103,7 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
     fail=True
     if do_not_correct_signal == False:
         for i in range(int(nb_run)):
-            try:
+            if fail==True:
                 root_RS = extract_filename(RS[i])
                 original_dir = os.getcwd()
                 os.chdir(dir_prepro_orig_process)
@@ -129,15 +129,15 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
                                ' -ortvec ' + demean + ' mot_demean' +
                                ' -ortvec ' + deriv + ' mot_deriv' +
                                ' -censor ' + censore1D +
-                               ' -polort A -float ' +
-                               ' -num_stimts 0 ' + overwrite +
-                               ' -fout -tout ' +
-                               ' -x1D ' + opj(dir_prepro_orig_postprocessed, root_RS + 'X.xmat.1D ') +
+                               ' -polort A -float' +
+                               ' -num_stimts 0' + overwrite +
+                               ' -fout -tout' +
+                               ' -x1D ' + opj(dir_prepro_orig_postprocessed, root_RS + 'X.xmat.1D') +
                                ' -xjpeg ' + opj(dir_prepro_orig_postprocessed, root_RS + 'X.jpg') +
                                ' -x1D_uncensored ' + opj(dir_prepro_orig_postprocessed, root_RS + 'X.nocensor.xmat.1D') +
                                ' -fitts ' + opj(dir_prepro_orig_postprocessed, root_RS + 'Xfittssubj') +
                                ' -errts ' + opj(dir_prepro_orig_postprocessed, root_RS + 'errts') +
-                               ' -x1D_stop ' +
+                               ' -x1D_stop' +
                                ' -bucket ' + opj(dir_prepro_orig_postprocessed, root_RS + 'statssubj'))
 
                     for extract_type, suffix in zip([extract_exterior_CSF, extract_WM, extract_GS, extract_Vc],
@@ -157,7 +157,9 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
 
                     nl = 'INFO: 3dDeconvolve command is ' + command
                     run_cmd.msg(nl, diary_file, 'OKGREEN')
-                    run_cmd.run(command, diary_file)
+                    #run_cmd.run(command, diary_file)
+                    subprocess.run(command,
+                        shell=True, check=True)
 
                     command = (sing_afni + '3dTproject -polort 0' + overwrite + ' -input ' +
                                input +
@@ -191,8 +193,7 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
                     elif normalize == 'psc':
                         run_cmd.do(psc_command, diary_file)
                     else:
-                        run_cmd.msg('no normalization',diary_file)
-
+                        run_cmd.msg('no normalization',diary_file, 'OKCYAN')
                 elif post_treatment_method == 'Grandjean':
                     # --- Définition des chemins principaux ---
                     regressors_file = opj(dir_prepro_orig_postprocessed, 'regressors.1D')
@@ -241,7 +242,7 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
                     run_cmd.run(cmd, diary_file)
                 else:
                     print("post treatement method name: " + str(post_treatment_method) + " do not exists")
-            except:
+            else:
                 root_RS = extract_filename(RS[i])
                 Deconvolve_failed = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-3dDeconvolve_failed.nii.gz')
                 command = (sing_afni + '3dcalc' + overwrite +
@@ -258,6 +259,7 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
                 os.chdir(original_dir)
 
             if not ope(residual):
+                print('path to residual do not exists: ope(residual)=' + str(ope(residual)))
                 root_RS = extract_filename(RS[i])
                 command = (sing_afni + '3dcalc' + overwrite +
                            ' -a ' + input +

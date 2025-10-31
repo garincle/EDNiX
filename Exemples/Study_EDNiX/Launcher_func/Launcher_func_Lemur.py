@@ -94,7 +94,7 @@ do_anat_to_func = True # True or False
 
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
-creat_study_template = False # True or False
+creat_study_template = True # True or False
 #folder where you stored the stdy template
 study_template_atlas_forlder = '/scratch/cgarin/Mouse_lemur/BIDS_Garin/sty_template/' # sting
 stdy_template_mask = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 'study_template_mask.nii.gz') # sting
@@ -137,9 +137,9 @@ cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
 cut_coordsY = [-7, -6, -5, -3, -2, 0, 1, 3, 4, 5] #list of int
 cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 
-SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
+SBAspace = ['func'] #list containing at least on of the string 'func', 'anat', 'atlas'
 erod_seed  = True
-smoothSBA = 0.7
+smoothSBA = 0.5
 
 atlas_followers =  [[], [], [], []]
 path_ATLAS = "/home/cgarin/PycharmProjects/Atlases_library/"
@@ -160,7 +160,7 @@ threshold_val = 10 # int
 ##use high quality anat image as background for figures
 oversample_map = False # True or False
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
-selected_atlases = ['atlaslvl4_LR.nii.gz']  # Using NEW VERSION format (single atlas)
+selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 panda_files = [pd.DataFrame({'region':['retrosplenial'],'label':[162]})]  # Using NEW VERSION format (single DataFrame)
 doWARPonfunc = True
 reference = 'EDNiX'
@@ -168,8 +168,8 @@ resting_or_task = 'resting'  # 'resting' or 'task'
 #For QC value to define specific and non-spe correlation
 specific_roi_tresh = 0.2
 delta_thresh = 0.1
-post_treatment_method = 'Grandjean'
-Skip_step = [1,2,3,4,5,6,12,13,14,15,16,100,200]
+post_treatment_method = 'AFNI'
+Skip_step = [1,2,3,4,5,6,7,8,12,13,14,15,16,100,200]
 fonctions._0_Pipeline_launcher.preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max,
                     BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
                     correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,

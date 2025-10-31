@@ -105,17 +105,22 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
         if coregistration_longitudinal == True:
             if creat_study_template == True:
                 BASE_SS_coregistr = stdy_template
-                BASE_SS_mask = stdy_template_mask
+                template_dir_labels = opj(study_template_atlas_folder, 'derivatives', 'acpc', 'volumes', 'labels')
+                template_dir_masks = opj(study_template_atlas_folder, 'derivatives', 'acpc', 'volumes', 'masks')
             else:
                 BASE_SS_coregistr = BASE_SS
-                BASE_SS_mask = BASE_mask
+                template_dir_labels = BASE_atlas_folder
+                template_dir_masks = opd(BASE_mask)
+
         else:  # No
             if creat_study_template == True:
                 BASE_SS_coregistr = stdy_template
-                BASE_SS_mask = stdy_template_mask
+                template_dir_labels = opj(study_template_atlas_folder, 'derivatives', 'acpc', 'volumes', 'labels')
+                template_dir_masks = opj(study_template_atlas_folder, 'derivatives', 'acpc', 'volumes', 'masks')
             else:
                 BASE_SS_coregistr = BASE_SS
-                BASE_SS_mask = BASE_mask
+                template_dir_labels = BASE_atlas_folder
+                template_dir_masks = opd(BASE_mask)
 
         info = backtonative.get(ID,data_path,bids_dir,Session,max_ses,targetsuffix,type_norm,BASE_SS, BASE_mask,BASE_atlas_folder,study_template_atlas_folder,
             creat_study_template,coregistration_longitudinal,reference,'Final',species,diary_file)
@@ -574,33 +579,31 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
-                _9_coregistration_to_template_space.to_common_template_space(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prepro_orig, dir_prepro_orig_process,
-    dir_prepro_acpc_labels,dir_prepro_acpc, dir_prepro_acpc_postprocessed, anat_subject, dir_prepro_acpc_process,
-    RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func, dir_prepro_acpc_masks, TfMRI,
-    dir_prepro_template_postprocessed, dir_prepro_template_labels, dir_prepro_template_masks,
-    cut_coordsY, threshold_val, sing_afni, diary_file, smoothSBA, TR_val, dir_prepro_template, dir_prepro_template_process)
+                _9_coregistration_to_template_space.to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prepro_template_labels,
+                            dir_prepro_orig_postprocessed, dir_prepro_acpc_postprocessed, dir_prepro_template_postprocessed,
+                             nb_run, RS, do_anat_to_func, list_atlas, info, dir_prepro_orig_process, species,
+                             template_dir_labels, template_dir_masks,anat_func_same_space, dir_prepro_acpc_process,
+                             dir_prepro_template_masks, IhaveanANAT, overwrite,sing_afni,diary_file)
 
             if 10 in Skip_step:
                 nl = 'skip step ' + str(10)
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
-                _10_Correl_matrix.correl_matrix(dir_prepro_orig, RS, nb_run,
-                                                selected_atlases_matrix, segmentation_name_list, ID, Session, TR_val,
-                                                bids_dir, sing_afni, diary_file)
+                _10_Correl_matrix.correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_matrix, segmentation_name_list,
+                  ID, Session, TR_val, dir_prepro_orig_labels, dir_prepro_orig,
+                  sing_afni,diary_file)
 
             if 11 in Skip_step:
                 nl = 'skip step ' + str(11)
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
-                _11_Seed_base_many_regionsatlas.SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig,
-                                                    dir_prepro_acpc,
-                                                    dir_prepro_template, RS, nb_run, selected_atlases, panda_files,
-                                                    oversample_map,
-                                                    use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ,
-                                                    threshold_val,
-                                                    sing_afni, diary_file, smoothSBA, TR_val)
+                _11_Seed_base_many_regionsatlas.SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prepro_orig, dir_prepro_orig_process,
+    dir_prepro_acpc_labels,dir_prepro_acpc, dir_prepro_acpc_postprocessed, anat_subject, dir_prepro_acpc_process,
+    RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func, dir_prepro_acpc_masks, TfMRI, ID,
+    dir_prepro_template_postprocessed, dir_prepro_template_labels, dir_prepro_template_masks, dir_prepro_orig_postprocessed,
+    cut_coordsY, threshold_val, sing_afni, diary_file, smoothSBA, TR_val, dir_prepro_template, dir_prepro_template_process)
 
             if 12 in Skip_step:
                 nl = 'skip step ' + str(12)

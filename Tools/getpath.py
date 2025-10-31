@@ -165,9 +165,9 @@ def func(data_path,reference, resting_or_task):
     dir_prepro_acpc_masks = opj(dir_prepro_acpc, 'masks')
     dir_prepro_acpc_process = opj(dir_prepro_acpc, 'preprocessing')
     if resting_or_task == 'resting':
-        dir_prepro_acpc_postprocessed = opj(dir_prepro_orig, 'postprocessed_rs')
+        dir_prepro_acpc_postprocessed = opj(dir_prepro_acpc, 'postprocessed_rs')
     elif resting_or_task == 'task':
-        dir_prepro_acpc_postprocessed = opj(dir_prepro_orig, 'postprocessed_task')
+        dir_prepro_acpc_postprocessed = opj(dir_prepro_acpc, 'postprocessed_task')
     else:
         ValueError('Error: resting_or_task should be either "resting" or "task"')
     dir_prepro_acpc_matrices = opj(dir_prepro_acpc, 'matrices')
@@ -178,9 +178,9 @@ def func(data_path,reference, resting_or_task):
     dir_prepro_template_masks = opj(dir_prepro_template, 'masks')
     dir_prepro_template_process = opj(dir_prepro_template, 'preprocessing')
     if resting_or_task == 'resting':
-        dir_prepro_template_postprocessed = opj(dir_prepro_orig, 'postprocessed_rs')
+        dir_prepro_template_postprocessed = opj(dir_prepro_template, 'postprocessed_rs')
     elif resting_or_task == 'task':
-        dir_prepro_template_postprocessed = opj(dir_prepro_orig, 'postprocessed_task')
+        dir_prepro_template_postprocessed = opj(dir_prepro_template, 'postprocessed_task')
     else:
         ValueError('Error: resting_or_task should be either "resting" or "task"')
 

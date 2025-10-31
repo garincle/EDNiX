@@ -59,8 +59,6 @@ def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat
     aseg_img     = opj(labels_dir,'_'.join([ID,'seg-4FS','dseg']) + '.nii.gz')
     aseg_img_iso    = opj(labels_dir, '_'.join([ID, 'seg-4FS','res-iso', 'dseg']) + '.nii.gz')
 
-
-
     Ref_file     = ''
     T2_img       = ''
     T1_suffix_T  = ''

@@ -175,7 +175,7 @@ cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
 cut_coordsY = [-7, -6, -5, -3, -2, 0, 1, 3, 4, 5] #list of int
 cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 
-SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
+SBAspace = ['func'] #list containing at least on of the string 'func', 'anat', 'atlas'
 erod_seed  = True
 smoothSBA = 0
 
@@ -185,8 +185,8 @@ threshold_val = 10 # int
 ##use high quality anat image as background for figures
 oversample_map = True # True or False
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
-selected_atlases = ['atlaslvl4_LR.nii.gz']  # Your selected atlases for SBA
-panda_files = [pd.DataFrame({'region':['retrosplenial'],'label':[162]})]  # DataFrames for levels 3 and 4
+selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
+panda_files = [pd.DataFrame({'region':['retrosplenial'],'label':[162]})]  # Using NEW VERSION format (single DataFrame)
 
 #For QC value to define specific and non-spe correlation
 specific_roi_tresh = 0.2
@@ -212,8 +212,8 @@ atlas_followers =  [[], [], [], []]
 selected_atlases_matrix = list_atlas.copy()
 segmentation_name_list = []
 deoblique = ''
-post_treatment_method = 'AFNI'
-Skip_step = [2,3,4,5,6,12,13,14,15,16,100,200]
+post_treatment_method = 'Grandjean'
+Skip_step = [1,2,3,4,6,7,8,9,10,12,13,14,15,16,100,200]
 fonctions._0_Pipeline_launcher.preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max,
                     BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
                     correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
