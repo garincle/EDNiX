@@ -421,7 +421,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                     additional_transformations=additional_transformations,
                     TR=TR_val,
                     sing_afni=sing_afni,
-                    interpolator='bSpline',
+                    interpolator=n_for_ANTS,
                     metadata_sources=[image_to_send_acpc, Mean_Image_acpc],
                     description='Individual motion correction + ACPC normalization')
 
@@ -441,7 +441,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                 FUNCACPC = ants.image_read(Mean_Image_acpc)
                 FUNC = ants.image_read(image_to_send_acpc)
                 MEAN_tr = ants.apply_transforms(fixed=FUNCACPC, moving=FUNC,
-                                                transformlist=additional_transformations, interpolator='bSpline', imagetype=0)
+                                                transformlist=additional_transformations, interpolator=n_for_ANTS, imagetype=0)
                 ants.image_write(MEAN_tr, image_to_creat_acpc, ri=False)
                 dictionary = {"Sources": [image_to_send_acpc,
                                           Mean_Image_acpc],

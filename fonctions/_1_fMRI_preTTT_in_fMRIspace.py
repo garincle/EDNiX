@@ -18,7 +18,7 @@ from fonctions import _2b_fix_orient
 
 ##### XXX add ICA or DL to visualize pre-processing effect
 
-def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slice_timing_info, dir_prepro_raw_matrices,
+def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slice_timing_info, dir_prepro_raw_matrices, n_for_ANTS,
                     overwrite, sing_afni, diary_file,animalPosition, humanPosition, orientation, doWARPonfunc, diary_WARNING):
 
     nl = '##  Working on step ' + str(1) + '(function: _1_fMRI_preTTT_in_fMRIspace).  ##'
@@ -235,11 +235,68 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
             fixed=ants.image_read(fMRI_runMean),  # Image de base
             verbose=True,
             type_of_transform='BOLDRigid',
-            interpolator='bSpline',
+            interpolator=n_for_ANTS,
             outprefix=outpuprefix_motion)
 
         # Sauvegarder l'image realignée
         motion_result['motion_corrected'].to_filename(fMRI_run_motion_corrected)
+        '''
+        def extract_motion_params_antspy(matrices_dir, output_1D):
+            """
+            Correctly extracts motion parameters from ANTs transformation files
+            """
+            mat_files = sorted(Path(matrices_dir).glob('*_0GenericAffine.mat'))
+
+            if not mat_files:
+                raise FileNotFoundError(f"No *_0GenericAffine.mat files found in {matrices_dir}")
+
+            motion_params = []
+
+            for mat in mat_files:
+                # Read the transformation
+                transform = ants.read_transform(str(mat))
+
+                # Get the 4x4 matrix
+                matrix_4x4 = np.array(transform.parameters).reshape(4, 4)
+
+                # Extract the 3x3 rotation matrix
+                rotation_matrix = matrix_4x4[:3, :3]
+
+                # Extract translations (last column, first 3 rows)
+                translations = matrix_4x4[:3, 3]
+
+                # Convert rotation matrix to Euler angles
+                # Robust method to avoid gimbal lock
+                sy = np.sqrt(rotation_matrix[0, 0] ** 2 + rotation_matrix[1, 0] ** 2)
+
+                if sy > 1e-6:  # No gimbal lock
+                    roll = np.arctan2(rotation_matrix[2, 1], rotation_matrix[2, 2])
+                    pitch = np.arctan2(-rotation_matrix[2, 0], sy)
+                    yaw = np.arctan2(rotation_matrix[1, 0], rotation_matrix[0, 0])
+                else:  # Gimbal lock case
+                    roll = np.arctan2(-rotation_matrix[1, 2], rotation_matrix[1, 1])
+                    pitch = np.arctan2(-rotation_matrix[2, 0], sy)
+                    yaw = 0
+
+                # Convert to degrees
+                roll_deg = np.degrees(roll)
+                pitch_deg = np.degrees(pitch)
+                yaw_deg = np.degrees(yaw)
+
+                motion_params.append([roll_deg, pitch_deg, yaw_deg,
+                                      translations[0], translations[1], translations[2]])
+
+            # Save parameters
+            motion_params = np.array(motion_params)
+            np.savetxt(output_1D, motion_params, fmt="%.6f", delimiter=" ")
+
+            print(f"[INFO] {len(motion_params)} volumes processed")
+            print(f"[INFO] Parameters saved: roll pitch yaw Tx Ty Tz (deg, mm)")
+
+        extract_motion_params_antspy(
+            matrices_dir=dir_prepro_raw_matrices,
+            output_1D=file_motion_correction)
+        '''
 
         """Créer une transformation composite de tous les mouvements"""
         mat_files = sorted(glob.glob(mat_files_pattern))

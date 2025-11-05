@@ -159,7 +159,7 @@ def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_
             ##  Apply the transformation to the mean image
             moved = ants.apply_transforms(fixed=REF, moving=IMG,
                                           transformlist=mTx['fwdtransforms'],
-                                          interpolator='nearestNeighbor')
+                                          interpolator=n_for_ANTS)
             ants.image_write(moved, fMRI_runMean_inRef, ri=False)
 
             dictionary = {"Sources": [fMRI_runMean_reoriented,
@@ -169,11 +169,11 @@ def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_
             with open(fMRI_runMean_inRef.replace('.nii.gz', '.json'), "w") as outfile:
                 outfile.write(json_object)
 
-            # 2.0 apply to all the volume in the func (_xdtr_deob)
+            # 2.0 apply to all the volume in the func
             FUNC = ants.image_read(fMRI_reoriented)
             moved = ants.apply_transforms(fixed=REF, moving=FUNC,
                                           transformlist=mTx['fwdtransforms'],
-                                          interpolator='nearestNeighbor', imagetype=3)
+                                          interpolator=n_for_ANTS, imagetype=3)
             ants.image_write(moved, fMRI_run_inRef, ri=False)
 
             dictionary = {"Sources": [runMean_unwarped_reoriented_Ref,

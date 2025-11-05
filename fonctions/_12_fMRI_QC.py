@@ -19,6 +19,7 @@ from sklearn.metrics import mutual_info_score
 from sklearn.preprocessing import StandardScaler
 import ants
 import numpy as np
+from atlases import atlas4func
 
 opj = os.path.join
 opb = os.path.basename
@@ -601,7 +602,7 @@ def save_qc_values(output_results, root_RS, qc_values):
 
 
 def fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_process, dir_prepro_template_labels,
-            dir_prepro_template_postprocessed, RS, nb_run, sing_afni, diary_file):
+            dir_prepro_template_postprocessed, species, dir_prepro_orig_labels, template_dir, MAIN_PATH, RS, nb_run, sing_afni, diary_file):
 
     """
     Main function for fMRI quality control analysis with enhanced coverage analysis and image type detection.
@@ -629,10 +630,13 @@ def fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_proce
         qc_values = {}  # Dictionary to store all QC metrics
         root_RS = extract_filename(RS[i])
 
-
         ######### QC in func space #######
         func_filename = opj(dir_prepro_orig, root_RS + '_xdtrf_2ref.nii.gz')
-        atlas_filename = opj(dir_prepro_orig, 'atlaslvl1_LR.nii.gz')
+        func_filename = opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')
+
+        selected_atlases_matrix = ['EDNIxCSCLR', 1]
+        atlas = [selected_atlases_matrix[0][0],selected_atlases_matrix[1][0]]
+        atlas_filename = opj(dir_prepro_orig_labels, ID + '_seg-' + atlas[0] + '_dseg.nii.gz')
 
         if not ope(func_filename):
             nl = 'WARNING: ' + str(func_filename) + ' not found!!'
