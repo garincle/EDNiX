@@ -24,7 +24,7 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
                             dir_prepro_orig_postprocessed, dir_prepro_acpc_postprocessed, dir_prepro_template_postprocessed,
                              nb_run, RS, do_anat_to_func, list_atlases, info, dir_prepro_orig_process, species,
                              template_dir_labels, template_dir_masks ,anat_func_same_space, dir_prepro_acpc_process,
-                             dir_prepro_template_masks, IhaveanANAT, overwrite,sing_afni,diary_file):
+                             dir_prepro_template_masks, IhaveanANAT, use_erode_WM_func_masks, overwrite,sing_afni,diary_file):
 
     nl = '##  Working on step ' + str(9) + '(function: _9_coregistration_to_template_space).  ##'
     run_cmd.msg(nl, diary_file, 'HEADER')
@@ -177,12 +177,16 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
     else:
         nl = 'WARNING: list_atlases is empty!'
         run_cmd.msg(nl, diary_file, 'WARNING')
+    if use_erode_WM_func_masks == True:
+        descmask = '_desc-erod-'
+    else:
+        descmask = '_desc-'
 
     ## MASKS in func space:
-    for input1, output2 in zip([opj(template_dir_masks, 'mask_ref.nii.gz'),
-                                opj(template_dir_masks, 'Vmask.nii.gz'),
-                                opj(template_dir_masks, 'Wmask.nii.gz'),
-                                opj(template_dir_masks, 'Gmask.nii.gz')],
+    for input1, output2 in zip([opj(template_dir_masks, species + '_mask.nii.gz'),
+                                opj(template_dir_masks, species + descmask + 'Vent_mask.nii.gz'),
+                                opj(template_dir_masks, species + descmask + 'White_mask.nii.gz'),
+                                opj(template_dir_masks, species + '_desc-Gray_mask.nii.gz')],
                                [opj(dir_prepro_template_masks, 'mask_ref.nii.gz'),
                                 opj(dir_prepro_template_masks, 'Vmask.nii.gz'),
                                 opj(dir_prepro_template_masks, 'Wmask.nii.gz'),

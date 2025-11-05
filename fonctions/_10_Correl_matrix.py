@@ -30,10 +30,13 @@ def correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_ma
     nl = '##  Working on step ' + str(10) + '(function: _10_Correl_matrix).  ##'
     run_cmd.msg(nl, diary_file, 'HEADER')
 
-    for panda_file, atlas in zip(segmentation_name_list, selected_atlases_matrix):
+    for ndim, panda_file in enumerate(segmentation_name_list):
+
+        atlas = [selected_atlases_matrix[0][ndim],selected_atlases_matrix[1][ndim]]
+
         for i in range(int(nb_run)):
 
-            runname = '_'.join([atlas[0],atlas[1], 'run', str(i)])
+            runname = '_'.join([atlas[0],str(atlas[1]), 'run', str(i)])
 
             root_RS = extract_filename(RS[i])
             func_filename = opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')
@@ -103,6 +106,7 @@ def correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_ma
 
                 # Load your brain atlas data
                 atlas_img = nib.load(atlas_filename)
+
                 atlas_data = atlas_img.get_fdata()[:,:,:,atlas[1]]
 
                 # Flatten the atlas data for easy comparison
@@ -222,7 +226,7 @@ def correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_ma
 
                         # No need to change, we keep the previously applied erosion or original region.
                 # Save the final eroded atlas
-                nl = final_result
+                nl = str(final_result)
                 run_cmd.msg(nl, diary_file, 'ENDC')
 
                 final_atlas = ants.from_numpy(final_result, spacing=atlas_img.spacing, origin=atlas_img.origin,
