@@ -193,7 +193,6 @@ specific_roi_tresh = 0.2
 delta_thresh = 0.1
 ############ Right in a list format the steps that you want to skip
 
-function_is_rest = False
 doWARPonfunc = False
 reference = 'EDNiX'
 resting_or_task = 'resting'  # 'resting' or 'task'
@@ -213,14 +212,15 @@ selected_atlases_matrix = list_atlas.copy()
 segmentation_name_list = []
 deoblique = ''
 post_treatment_method = 'Grandjean'
-Skip_step = [1,2,3,4,6,7,8,9,10,12,13,14,15,16,100,200]
+
+Skip_step = [4,100,200]
 fonctions._0_Pipeline_launcher.preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max,
                     BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
-                    correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
-                    TfMRI, GM_mask_studyT, GM, creat_study_template, type_norm, coregistration_longitudinal,
+                    correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, orientation,
+                    TfMRI, creat_study_template, type_norm, coregistration_longitudinal,
                     dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
                     n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlas, selected_atlases, panda_files,
-                    endfmri, endjson, endmap, oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val,
+                    endfmri, endjson, endmap, oversample_map, use_cortical_mask_func, cut_coordsY, threshold_val,
                     Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
                     folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list,
                     band, animalPosition, humanPosition, doWARPonfunc, resting_or_task,

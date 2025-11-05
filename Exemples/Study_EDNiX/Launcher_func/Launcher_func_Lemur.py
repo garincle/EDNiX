@@ -1,6 +1,5 @@
 import pandas as pd
 import os
-import sys
 from bids import BIDSLayout
 from bids.reports import BIDSReport
 opn = os.path.normpath
@@ -11,6 +10,7 @@ import Tools.Read_atlas
 import fonctions._0_Pipeline_launcher
 from anatomical import set_launcher
 from Tools import Load_subject_with_BIDS
+from atlases import atlas4func
 
 bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/Mouse_lemur/BIDS_Garin/'))
 
@@ -137,12 +137,13 @@ cut_coordsX = [-6, -5, -4, -2, -1, 1, 3, 4, 5, 6] #list of int
 cut_coordsY = [-7, -6, -5, -3, -2, 0, 1, 3, 4, 5] #list of int
 cut_coordsZ = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8] #list of int
 
-SBAspace = ['func'] #list containing at least on of the string 'func', 'anat', 'atlas'
+SBAspace = ['func', 'anat', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
 erod_seed  = True
-smoothSBA = 0.5
+smoothSBA = None
 
 atlas_followers =  [[], [], [], []]
 path_ATLAS = "/home/cgarin/PycharmProjects/Atlases_library/"
+
 (FS_refs, template_dir, reference,balsa_folder, BALSAname, balsa_brainT1,BASE_atlas_folder, BASE_template, BASE_SS,
  BASE_mask, BASE_Gmask, BASE_Wmask, BASE_Vmask,CSF, GM, WM, Aseg_ref,list_atlas, path_label_code,all_ID,
  all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max,
@@ -151,12 +152,23 @@ path_ATLAS = "/home/cgarin/PycharmProjects/Atlases_library/"
 
 #######for matrix analysis (step 10)
 #### name of the atlases  you want to use for the matrix analysis
-selected_atlases_matrix = list_atlas.copy()
-segmentation_name_list = []
+selected_atlases_matrix = 'all'
+wanted_level            = 'all'
 
 #######for seed analysis (step 11)
 # threshold_val is the percentage of the correlation image that will be removed
 threshold_val = 10 # int
+##use high quality anat image as background for figures
+oversample_map = False # True or False
+# for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
+selected_atlases = 'default'
+panda_files      = 'default'
+
+#######for matrix analysis (step 10)
+#### name of the atlases  you want to use for the matrix analysis
+Lut_dir,selected_atlases_matrix,wanted_level,segmentation_name_list,selected_atlases,panda_files = (
+    atlas4func.setup(MAIN_PATH,species,reference,selected_atlases_matrix,wanted_level,selected_atlases,panda_files, template_dir))
+
 ##use high quality anat image as background for figures
 oversample_map = False # True or False
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
@@ -168,15 +180,15 @@ resting_or_task = 'resting'  # 'resting' or 'task'
 #For QC value to define specific and non-spe correlation
 specific_roi_tresh = 0.2
 delta_thresh = 0.1
-post_treatment_method = 'AFNI'
-Skip_step = [1,2,3,4,5,6,7,8,12,13,14,15,16,100,200]
+post_treatment_method = 'Grandjean'
+Skip_step = [4,100,200]
 fonctions._0_Pipeline_launcher.preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max,
                     BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
-                    correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
-                    TfMRI, GM_mask_studyT, GM, creat_study_template, type_norm, coregistration_longitudinal,
+                    correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, orientation,
+                    TfMRI, creat_study_template, type_norm, coregistration_longitudinal,
                     dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
                     n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlas, selected_atlases, panda_files,
-                    endfmri, endjson, endmap, oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val,
+                    endfmri, endjson, endmap, oversample_map, use_cortical_mask_func, cut_coordsY, threshold_val,
                     Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
                     folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list,
                     band, animalPosition, humanPosition, doWARPonfunc, resting_or_task,

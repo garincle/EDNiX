@@ -50,6 +50,9 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
     maskDilatfunc = opj(orig_mask, ID + '_space-acpc_mask_dilated_res_func.nii.gz')
     anat_res_func = opj(dir_prepro_acpc_process, ('_').join(['anat_space-acpc_res-func', TfMRI + '.nii.gz']))
 
+    ####################################################################################
+    ########################## skullstrip func images  #################################
+    ####################################################################################
     # Load the image directly
     meanImg = nib.load(Mean_Image)
     # Skull strip
@@ -184,6 +187,10 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                 mvt_shft_INV_ANTs.append(elem1)
                 w2inv_inv.append(elem2)
 
+    meanImg = nib.load(Mean_Image_acpc)
+    # Get voxel sizes
+    delta_x, delta_y, delta_z = [str(round(abs(x), 10)) for x in meanImg.header.get_zooms()[:3]]
+
     if do_anat_to_func == True:
         ## ANATOMICAL IMAGE in acpc-func space:
         BRAIN = ants.image_read(anat_subject)
@@ -198,10 +205,20 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
         json_object = json.dumps(dictionary, indent=2)
         with open(anat_in_acpc_func.replace('.nii.gz', '.json'), "w") as outfile:
             outfile.write(json_object)
-
-    meanImg = nib.load(Mean_Image_acpc)
-    # Get voxel sizes
-    delta_x, delta_y, delta_z = [str(round(abs(x), 10)) for x in meanImg.header.get_zooms()[:3]]
+    else:
+        # resample to func
+        command = (sing_afni + '3dresample' + overwrite +
+                   ' -prefix ' + anat_in_acpc_func +
+                   ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
+                   ' -input ' + anat_subject)
+        print(command)
+        dictionary = {"Sources": [anat_subject,
+                                  Mean_Image_acpc],
+                      "Description": 'Resampling (3dresample, AFNI)', "Command": command, }
+        json_object = json.dumps(dictionary, indent=3)
+        with open(anat_in_acpc_func.replace('.nii.gz', '.json'), "w") as outfile:
+            outfile.write(json_object)
+        run_cmd.run(command, diary_file)
 
     ## MASKS in func space:
     for input1, output2 in zip([opj(orig_mask,'mask_ref.nii.gz'),
@@ -209,7 +226,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                                 opj(orig_mask,'Vmask.nii.gz'),
                                 opj(orig_mask,'Wmask.nii.gz'),
                                 opj(orig_mask,'Gmask.nii.gz')],
-                               [opj(orig_mask,'mask_ref.nii.gz'),
+                               [opj(dir_prepro_orig_masks,'mask_ref.nii.gz'),
                                 maskDilat_funcspace,
                                 opj(dir_prepro_orig_masks,'Vmask.nii.gz'),
                                 opj(dir_prepro_orig_masks,'Wmask.nii.gz'),
@@ -367,13 +384,14 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
         root_RS = extract_filename(RS[r])
 
         fMRI_BASE = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-fMRI_BASE.nii.gz')
-        fMRI_run_motion_corrected_orientMEAN = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-motion_corrected_orientMEAN.nii.gz')
+        fMRI_BASE_Mean = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-fMRI_BASE_Mean.nii.gz')
 
         fMRI_runMean_inRef_acpc = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_runMean_inRef.nii.gz')
         fMRI_run_inRef_acpc = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef.nii.gz')
+        fMRI_run_inRef_acpc_SS = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef_SS.nii.gz')
 
         imagetype = [3, 2]
-        for image_to_send_acpc, image_to_creat_acpc, imagetype in zip([fMRI_BASE, fMRI_run_motion_corrected_orientMEAN], [fMRI_run_inRef_acpc, fMRI_runMean_inRef_acpc], imagetype):
+        for image_to_send_acpc, image_to_creat_acpc, imagetype in zip([fMRI_BASE, fMRI_BASE_Mean], [fMRI_run_inRef_acpc, fMRI_runMean_inRef_acpc], imagetype):
             additional_transformations = []
             if root_RS == root_RS_ref and recordings == 'very_old' and doWARPonfunc == True:  # do not process ref not corrected...
                 # pas de transfo run to MEAN
@@ -406,6 +424,18 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                     interpolator='bSpline',
                     metadata_sources=[image_to_send_acpc, Mean_Image_acpc],
                     description='Individual motion correction + ACPC normalization')
+
+                nl = f"Applied skull stripping: {fMRI_run_inRef_acpc} masked by {maskDilat_funcspace}"
+                command = (sing_afni + '3dcalc -overwrite -a ' + fMRI_run_inRef_acpc + ' -b ' + maskDilat_funcspace +
+                           ' -expr "a*b" -prefix ' + fMRI_run_inRef_acpc_SS)
+                run_cmd.do(command, diary_file)
+
+                dictionary = {
+                    "ADD_Sources": [fMRI_run_inRef_acpc_SS, Prepro_fMRI_mask],
+                    "ADD_Description": "Skull stripping (Nilearn/Nibabel equivalent of AFNI 3dcalc)."}
+                json_object = json.dumps(dictionary, indent=2)
+                with open(fMRI_run_inRef_acpc_SS.replace('.nii.gz', '.json'), "w") as outfile:
+                    outfile.write(json_object)
 
             elif imagetype == 2:
                 FUNCACPC = ants.image_read(Mean_Image_acpc)

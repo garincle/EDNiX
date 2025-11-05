@@ -28,9 +28,9 @@ def Melodic_correct(dir_RS_ICA_native_PreTT, dir_RS_ICA_native, dir_prepro_orig_
         for i in range(0, int(nb_run)):
             root_RS = extract_filename(RS[i])
 
-            fMRI_run_inRef_acpc = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef.nii.gz')
+            fMRI_run_inRef_acpc_SS = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef_SS.nii.gz')
 
-            command = (sing_fsl + 'melodic -i ' + fMRI_run_inRef_acpc +
+            command = (sing_fsl + 'melodic -i ' + fMRI_run_inRef_acpc_SS +
                        ' -o ' + opj(dir_RS_ICA_native, root_RS + '_residual.ica') +
                        ' --tr=' + str(TR) +
                        ' --bgimage=' + Mean_Image_acpc +
@@ -74,7 +74,7 @@ def Melodic_correct(dir_RS_ICA_native_PreTT, dir_RS_ICA_native, dir_prepro_orig_
             run_cmd.msg(nl, diary_file, 'OKBLUE')
 
             #-a switch on aggressive filtering (full instead of partial regression)
-            command = (sing_fsl + 'fsl_regfilt -a -i ' + fMRI_run_inRef_acpc +
+            command = (sing_fsl + 'fsl_regfilt -a -i ' + fMRI_run_inRef_acpc_SS +
                        ' -d ' + opj(dir_RS_ICA_native, root_RS + '_residual.ica','melodic_mix') +
                        ' -o ' + opj(dir_RS_ICA_native, root_RS + '_norm_final_clean.nii.gz') + ' -f ' + str(readtxt_f))
             run_cmd.run(command, diary_file)

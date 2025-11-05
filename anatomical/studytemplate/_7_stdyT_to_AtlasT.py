@@ -12,6 +12,7 @@ opi = os.path.isfile
 from Tools import run_cmd
 from Tools import getpath
 from anatomical import norm2template
+from anatomical.freesurfer import preFS
 
 def stdyT_to_AtlasT(aff_metric_ants_Transl_template, list_atlases, BASE_SS, BASE_atlas_folder,BASE_mask,species,
                     n_for_ANTS, aff_metric_ants, study_template_atlas_folder, stdy_template, type_of_transform_stdyT,path_label_code,
@@ -118,3 +119,8 @@ def stdyT_to_AtlasT(aff_metric_ants_Transl_template, list_atlases, BASE_SS, BASE
     else:
         nl = 'WARNING: ' + BASE_mask + ' not found in list_atlases, we can continue but it might restrict several outcome of the script'
         run_cmd.msg(nl, diary_file, 'WARNING')
+
+    ID = 'studyTemplate'
+
+    preFS.msk_RS(ID, opj(masks_dir, ID + '_mask.nii.gz'), opj(labels_dir, ID + '_seg-4FS_dseg.nii.gz'), diary_file, 'aseg')
+

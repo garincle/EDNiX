@@ -25,7 +25,7 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
         root_RS = extract_filename(RS[i])
 
         if ICA_cleaning == 'Skip':
-            input = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef.nii.gz')
+            input = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef_SS.nii.gz')
         else:
             input = opj(dir_RS_ICA_native, root_RS + '_norm_final_clean.nii.gz')
 
@@ -100,10 +100,10 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
 
         if ope(dir_RS_ICA_native) == False:
             os.makedirs(dir_RS_ICA_native)
-    fail=True
+
     if do_not_correct_signal == False:
         for i in range(int(nb_run)):
-            if fail==True:
+            try:
                 root_RS = extract_filename(RS[i])
                 original_dir = os.getcwd()
                 os.chdir(dir_prepro_orig_process)
@@ -242,7 +242,8 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
                     run_cmd.run(cmd, diary_file)
                 else:
                     print("post treatement method name: " + str(post_treatment_method) + " do not exists")
-            else:
+            except Exception as e:
+                print('3dDeconvolve failed for run: ' + str(RS[i]) + ' with error: ' + str(e))
                 root_RS = extract_filename(RS[i])
                 Deconvolve_failed = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-3dDeconvolve_failed.nii.gz')
                 command = (sing_afni + '3dcalc' + overwrite +

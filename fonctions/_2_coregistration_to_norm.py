@@ -124,8 +124,10 @@ def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_
         fMRI_runMean_inRef = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-fMRI_runMean_inRef.nii.gz')
         fMRI_run_inRef_mat = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-fMRI_run_inRef')
 
+        fMRI_run_inRef = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-fMRI_run_inRef.nii.gz')
+
         if root_RS == root_RS_ref and recordings == 'very_old' and doWARPonfunc==True:  # do not process ref not corrected...
-            '''
+
             command = (sing_afni + '3dcopy ' + fMRI_reoriented +
                        ' ' + fMRI_run_inRef + overwrite)
             run_cmd.run(command, diary_file)
@@ -135,7 +137,7 @@ def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_
             json_object = json.dumps(dictionary, indent=3)
             with open(fMRI_run_inRef.replace('.nii.gz', '.json'), "w") as outfile:
                 outfile.write(json_object)
-            '''
+
             command = (sing_afni + '3dcopy ' + fMRI_runMean_reoriented +
                        ' ' + fMRI_runMean_inRef + overwrite)
             run_cmd.run(command, diary_file)
@@ -167,7 +169,6 @@ def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_
             with open(fMRI_runMean_inRef.replace('.nii.gz', '.json'), "w") as outfile:
                 outfile.write(json_object)
 
-            '''
             # 2.0 apply to all the volume in the func (_xdtr_deob)
             FUNC = ants.image_read(fMRI_reoriented)
             moved = ants.apply_transforms(fixed=REF, moving=FUNC,
@@ -181,7 +182,7 @@ def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_
             json_object = json.dumps(dictionary, indent=3)
             with open(fMRI_run_inRef.replace('.nii.gz', '.json'), "w") as outfile:
                 outfile.write(json_object)
-            '''
+
             if not ope(opj(bids_dir, 'QC')):
                 os.mkdir(opj(bids_dir, 'QC'))
             if not ope(opj(bids_dir, 'QC', 'fMRI_runMean_in_REF')):

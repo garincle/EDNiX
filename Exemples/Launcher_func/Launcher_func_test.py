@@ -181,8 +181,6 @@ panda_files      = 'default'
 specific_roi_tresh = 0.2
 delta_thresh = 0.1
 
-
-
 Lut_dir,selected_atlases_matrix,wanted_level,segmentation_name_list,selected_atlases,panda_files = (
     atlas4func.setup(MAIN_PATH,species,reference,selected_atlases_matrix,wanted_level,selected_atlases,panda_files))
 

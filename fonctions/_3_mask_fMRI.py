@@ -19,6 +19,7 @@ from fonctions.extract_filename import extract_filename
 from fonctions import Skullstrip_func
 from fonctions import plot_QC_func
 
+
 def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_acpc_masks, dir_prepro_acpc_process,
                        dir_prepro_template_process, RS, nb_run, REF_int, ID, dir_transfo, brainmask, V_mask, W_mask, G_mask, dilate_mask, n_for_ANTS, bids_dir,
                        costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
