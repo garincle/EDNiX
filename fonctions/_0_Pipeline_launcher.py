@@ -6,6 +6,8 @@ import json
 import nibabel as nib
 import numpy as np
 import pandas as pd
+from anatomical import set_launcher
+from atlases import atlas4func
 
 opj = os.path.join
 opb = os.path.basename
@@ -25,22 +27,46 @@ from fonctions import _9_coregistration_to_template_space, _10_Correl_matrix, _1
     _12_fMRI_QC, _14_fMRI_QC_matrix, _100_Data_Clean, _200_Data_QC
 from fonctions.extract_filename import extract_filename
 
-def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max,
-                    BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space,
-                    correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, orientation,
-                    TfMRI, creat_study_template, type_norm, coregistration_longitudinal,
-                    dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
-                    n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlas, selected_atlases, panda_files,
-                    endfmri, endjson, endmap, oversample_map, use_cortical_mask_func, cut_coordsY, threshold_val,
-                    Skip_step, bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
-                    folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list,
-                    band, animalPosition, humanPosition, doWARPonfunc, resting_or_task,
-                    extract_Vc, selected_atlases_matrix, specific_roi_tresh, delta_thresh, extract_GS, MAIN_PATH,
-                    DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, normalize,
-                    reftemplate_path, reference, BASE_atlas_folder, post_treatment_method, **kwargs):
+def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
+                    species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
+                    animalPosition, humanPosition, orientation,
+                    Slice_timing_info,
+                    TfMRI, type_norm, creat_study_template,
+                    anat_func_same_space, coregistration_longitudinal,
+                    Method_mask_func, do_anat_to_func=True, folderforTemplate_Anat='', IhaveanANAT=True,
+                    ntimepoint_treshold=100, REF_int=0, T1_eq=5, correction_direction='Auto', overwrite_option=True,
+                    DwellT='Auto', SED='Auto', TR='Auto', TRT='Auto',
+                    nb_ICA_run=20, ICA_cleaning='Skip',
+                    costAllin='lpa',
+                    doWARPonfunc=False, registration_fast=False, type_of_transform='BOLDAffine', n_for_ANTS='Lanczos', aff_metric_ants='meansquares', aff_metric_ants_Transl='mattes', dilate_mask=0,
+                    list_to_keep=[], list_to_remove=[], atlas_followers=[[], [], [], []],
+                    reference='EDNiX', post_treatment_method='Grandjean',
+                    band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
+                    use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
+                    selected_atlases_matrix='all', wanted_level_matrix='all',
+                    selected_atlases_SBA='default', panda_files_SBA='default',
+                    SBAspace=['func', 'anat', 'atlas'], erod_seed=True, smoothSBA=False,
+                    specific_roi_tresh=0.2, delta_thresh=0.1,
+                    oversample_map=False, use_cortical_mask_func=False, n_cut=10, threshold_val=10, **kwargs):
+
+
+
+    (FS_refs, template_dir, reference, balsa_folder, BALSAname, balsa_brainT1, BASE_atlas_folder, BASE_template, BASE_SS,
+    BASE_mask, BASE_Gmask, BASE_Wmask, BASE_Vmask, CSF, GM, WM, Aseg_ref, list_atlas, path_label_code, all_ID,
+    all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max,
+    fs_tools, reftemplate_path, MNIBcorrect_indiv, masking_img) = set_launcher.get(MAIN_PATH, bids_dir, allinfo_study_c,
+                                                                                   species, list_to_keep,
+                                                                                   list_to_remove, reference, type_norm,
+                                                                                   '', '', atlas_followers)
 
     sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _, sing_synstrip, Unetpath = Load_EDNiX_requirement.load_requirement(
         MAIN_PATH, reftemplate_path, bids_dir, 'yes')
+
+    #######for matrix analysis (step 10)
+    #### name of the atlases  you want to use for the matrix analysis
+    Lut_dir, selected_atlases_matrix, wanted_level, segmentation_name_list, selected_atlases, panda_files = (
+        atlas4func.setup(MAIN_PATH, species, reference, selected_atlases_matrix, wanted_level_matrix,
+                         selected_atlases_SBA, panda_files_SBA, template_dir))
 
     if species in ['Human', 'Chimpanzee']:
         config_f = opj(MAIN_PATH, 'Tool_library', 'config', 'b02b0Human.cnf')
@@ -86,9 +112,12 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
         dir_RS_ICA_native = opj(dir_prepro_orig_process, 'Melodic')
         # link with the individual anatomical template ################################################################
         if IhaveanANAT == False:
-            (anat_subject, brainmask, G_mask, V_mask, W_mask, dir_transfo, FS_dir,
-             dir_prepro, volumes_dir, labels_dir, masks_dir) = chooseanat.create(folderforTemplate_Anat, diary_file)
-
+            if folderforTemplate_Anat == '':
+                nl = 'ERROR: You need to provide either an anatomical image or a folder with template images to perform the registration'
+                raise ValueError(run_cmd.error(nl, diary_file))
+            else:
+                (anat_subject, brainmask, G_mask, V_mask, W_mask, dir_transfo, FS_dir,
+                 dir_prepro, volumes_dir, labels_dir, masks_dir) = chooseanat.create(folderforTemplate_Anat, diary_file)
         else:
             (anat_subject, brainmask, G_mask, V_mask, W_mask, dir_transfo, FS_dir,
              dir_prepro, volumes_dir, labels_dir, masks_dir) = chooseanat.retrieve(ID, data_path,
@@ -483,7 +512,7 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
-                _1_fMRI_preTTT_in_fMRIspace.preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR_val, Slice_timing_info, dir_prepro_raw_matrices,
+                _1_fMRI_preTTT_in_fMRIspace.preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR_val, Slice_timing_info, dir_prepro_raw_matrices, n_for_ANTS,
                     overwrite, sing_afni, diary_file,animalPosition, humanPosition, orientation, doWARPonfunc, diary_WARNING)
 
             if 2 in Skip_step:
@@ -555,7 +584,7 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
-                _9_coregistration_to_template_space.to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prepro_template_labels,
+                _9_coregistration_to_template_space.to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prepro_template_labels, n_for_ANTS,
                             dir_prepro_orig_postprocessed, dir_prepro_acpc_postprocessed, dir_prepro_template_postprocessed,
                              nb_run, RS, do_anat_to_func, list_atlas, info, dir_prepro_orig_process, species,
                              BASE_atlas_folder, opd(BASE_mask),anat_func_same_space, dir_prepro_acpc_process,
@@ -579,7 +608,7 @@ def preprocess_data(species, all_ID, all_Session, all_data_path, all_Session_max
     dir_prepro_acpc_labels,dir_prepro_acpc, dir_prepro_acpc_postprocessed, anat_subject, dir_prepro_acpc_process,
     RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func, dir_prepro_acpc_masks, TfMRI, ID,
     dir_prepro_template_postprocessed, dir_prepro_template_labels, dir_prepro_template_masks, dir_prepro_orig_postprocessed,
-    cut_coordsY, threshold_val, sing_afni, diary_file, smoothSBA, TR_val, dir_prepro_template, dir_prepro_template_process)
+    n_cut, threshold_val, sing_afni, diary_file, smoothSBA, TR_val, dir_prepro_template, dir_prepro_template_process)
 
             if 12 in Skip_step:
                 nl = 'skip step ' + str(12)

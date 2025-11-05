@@ -29,7 +29,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prep
     dir_prepro_acpc_labels,dir_prepro_acpc, dir_prepro_acpc_postprocessed, anat_subject, dir_prepro_acpc_process,
     RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func, dir_prepro_acpc_masks, TfMRI, ID,
     dir_prepro_template_postprocessed, dir_prepro_template_labels, dir_prepro_template_masks, dir_prepro_orig_postprocessed,
-    cut_coordsY, threshold_val, sing_afni, diary_file, smoothSBA, TR_val, dir_prepro_template, dir_prepro_template_process):
+    n_cut, threshold_val, sing_afni, diary_file, smoothSBA, TR_val, dir_prepro_template, dir_prepro_template_process):
 
 
     nl = '##  Working on step ' + str(11) + '(function: _11_Seed_base_many_regionsatlas).  ##'
@@ -342,21 +342,21 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prep
                                 # PLot the results
                                 if direction_results == direction_results:
                                     display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
-                                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
+                                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(n_cut, n_cut, n_cut))
                                     display.savefig(opj(direction_results, root_RS + '_.jpg'))
                                     display.close()
                                     plt.close('all')
 
                                 elif direction_results == direction_results:
                                     display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
-                                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
+                                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(n_cut, n_cut, n_cut))
                                     display.savefig(opj(direction_results, root_RS + '_.jpg'))
                                     display.close()
                                     plt.close('all')
 
                                 elif direction_results == direction_results:
                                     display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
-                                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(len(cut_coordsY), len(cut_coordsY), len(cut_coordsY)))
+                                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(n_cut, n_cut, n_cut))
                                     display.savefig(opj(direction_results, root_RS + '_.jpg'))
                                     display.close()
                                     plt.close('all')

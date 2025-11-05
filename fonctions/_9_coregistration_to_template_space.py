@@ -20,7 +20,7 @@ from fonctions.extract_filename import extract_filename
 ########################## Step 3 normalisation to template atlas space ############
 ####################################################################################
 
-def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prepro_template_labels,
+def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prepro_template_labels, n_for_ANTS,
                             dir_prepro_orig_postprocessed, dir_prepro_acpc_postprocessed, dir_prepro_template_postprocessed,
                              nb_run, RS, do_anat_to_func, list_atlases, info, dir_prepro_orig_process, species,
                              template_dir_labels, template_dir_masks ,anat_func_same_space, dir_prepro_acpc_process,
@@ -84,7 +84,7 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
 
     TRANS = ants.apply_transforms(fixed=REF, moving=MEAN,
                                   transformlist=info[0][9] + mvt_shft_ANTs,
-                                  interpolator='bSpline',
+                                  interpolator=n_for_ANTS,
                                   whichtoinvert=info[0][10] + w2inv_fwd)
     ants.image_write(TRANS, Mean_Image_template, ri=False)
 
@@ -131,7 +131,7 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
 
             TRANS = ants.apply_transforms(fixed=REF, moving=FUNC,
                                           transformlist=info[0][9] + mvt_shft_ANTs,
-                                          interpolator='bSpline',
+                                          interpolator=n_for_ANTS,
                                           whichtoinvert=info[0][10] + w2inv_fwd,
                                           imagetype=3)
             ants.image_write(TRANS, residual_template, ri=False)

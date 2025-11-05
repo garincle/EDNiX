@@ -87,7 +87,7 @@ def to_anat_space(dir_prepro_acpc_process, dir_prepro_orig_process, bids_dir, ID
 
         TRANS = ants.apply_transforms(fixed=BRAIN, moving=FUNC,
                                       transformlist=mvt_shft_ANTs,
-                                      interpolator='bSpline',
+                                      interpolator=n_for_ANTS,
                                       whichtoinvert=w2inv_fwd,
                                       imagetype=3)
         ants.image_write(TRANS, residual_anat, ri=False)
