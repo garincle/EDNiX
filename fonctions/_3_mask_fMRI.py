@@ -41,7 +41,7 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepr
     anat_res_func = opj(dir_prepro_acpc_process, ('_').join(['anat_space-acpc_res-func', TfMRI + '.nii.gz']))
 
     ### ref of the manual mask
-    final_mask = opj(dir_prepro_raw_masks, ID + '_final_mask_orig.nii.gz')
+    final_mask = opj(dir_prepro_raw_masks, ID + '_final_mask.nii.gz')
     Prepro_fMRI_mask = opj(dir_prepro_raw_masks, ID + '_fMRI_mask.nii.gz')
 
     for r in range(int(nb_run)):

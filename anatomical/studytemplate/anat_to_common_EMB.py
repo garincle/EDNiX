@@ -1,7 +1,7 @@
 import os
 import tempfile
 import subprocess
-
+import re
 from nipype.interfaces import afni
 from nipype.utils.filemanip import fname_presuffix
 from nipype.caching import Memory
@@ -494,7 +494,6 @@ def anats_to_common(sing_afni,diary_file, anat_filenames, write_dir,
                                            (out_allineate.outputs.out_matrix,
                                             'ONELINE')],
                                   out_file=catmatvec_out_file)
-        import re
 
         def extract_and_save_matrix(input_file_path, output_file_path):
             with open(input_file_path, 'r') as f:
@@ -534,9 +533,6 @@ def anats_to_common(sing_afni,diary_file, anat_filenames, write_dir,
         input_file = out_catmatvec.outputs.out_file  # Replace with the actual input file path
         output_file = out_catmatvec.outputs.out_file  # Replace with the desired output file path
         extract_and_save_matrix(input_file, output_file)
-
-        affine_transform_files.append(out_catmatvec.outputs.out_file)
-
         affine_transform_files.append(out_catmatvec.outputs.out_file)
 
     # application to brains

@@ -204,21 +204,53 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
                     wm_mask = opj(dir_prepro_orig_masks, 'Wmask.nii.gz')
                     csf_mask = opj(dir_prepro_orig_masks, 'Vmask.nii.gz')
 
-                    # --- Extraction des signaux de référence (WM et CSF) ---
-                    run_cmd.msg("Extracting WM signal", diary_file, 'OKCYAN')
-                    cmd = f"{sing_fsl}fslmeants -i {input} -o {wm_signal} -m {wm_mask}"
-                    run_cmd.run(cmd, diary_file)
+                    if ope(wm_mask) == True and ope(csf_mask) == True:
+                        run_cmd.msg("WM and CSF masks found", diary_file, 'OKCYAN')
+                        # --- Extraction des signaux de référence (WM et CSF) ---
+                        run_cmd.msg("Extracting WM signal", diary_file, 'OKCYAN')
+                        cmd = f"{sing_fsl}fslmeants -i {input} -o {wm_signal} -m {wm_mask}"
+                        run_cmd.run(cmd, diary_file)
 
-                    run_cmd.msg("Extracting CSF signal", diary_file, 'OKCYAN')
-                    cmd = f"{sing_fsl}fslmeants -i {input} -o {csf_signal} -m {csf_mask}"
-                    run_cmd.run(cmd, diary_file)
+                        run_cmd.msg("Extracting CSF signal", diary_file, 'OKCYAN')
+                        cmd = f"{sing_fsl}fslmeants -i {input} -o {csf_signal} -m {csf_mask}"
+                        run_cmd.run(cmd, diary_file)
 
-                    # --- Combinaison des régressors (motion + WM + CSF) ---
-                    run_cmd.msg("Combining regressors (motion + WM + CSF)", diary_file, 'OKCYAN')
+                        # --- Combinaison des régressors (motion + WM + CSF) ---
+                        run_cmd.msg("Combining regressors (motion + WM + CSF)", diary_file, 'OKCYAN')
 
-                    subprocess.run(f"{sing_afni}1dcat {matrix_motion_correction} {wm_signal} {csf_signal} > {regressors_file}",
-                        shell=True, check=True)
+                        subprocess.run(f"{sing_afni}1dcat {matrix_motion_correction} {wm_signal} {csf_signal} > {regressors_file}",
+                            shell=True, check=True)
 
+                    elif ope(wm_mask) == True and ope(csf_mask) == False:
+                        run_cmd.msg("Only WM mask found", diary_file, 'OKCYAN')
+                        # --- Extraction des signaux de référence (WM) ---
+                        run_cmd.msg("Extracting WM signal", diary_file, 'OKCYAN')
+                        cmd = f"{sing_fsl}fslmeants -i {input} -o {wm_signal} -m {wm_mask}"
+                        run_cmd.run(cmd, diary_file)
+
+                        # --- Combinaison des régressors (motion + WM) ---
+                        run_cmd.msg("Combining regressors (motion + WM)", diary_file, 'OKCYAN')
+
+                        subprocess.run(f"{sing_afni}1dcat {matrix_motion_correction} {wm_signal} > {regressors_file}",
+                            shell=True, check=True)
+
+                    elif ope(wm_mask) == False and ope(csf_mask) == True:
+                        run_cmd.msg("Only CSF mask found", diary_file, 'OKCYAN')
+                        # --- Extraction des signaux de référence (CSF) ---
+                        run_cmd.msg("Extracting CSF signal", diary_file, 'OKCYAN')
+                        cmd = f"{sing_fsl}fslmeants -i {input} -o {csf_signal} -m {csf_mask}"
+                        run_cmd.run(cmd, diary_file)
+
+                        # --- Combinaison des régressors (motion + CSF) ---
+                        run_cmd.msg("Combining regressors (motion + CSF)", diary_file, 'OKCYAN')
+
+                        subprocess.run(f"{sing_afni}1dcat {matrix_motion_correction} {csf_signal} > {regressors_file}",
+                            shell=True, check=True)
+                    else:
+                        run_cmd.msg("No WM or CSF masks found, using only motion regressors", diary_file, 'OKCYAN')
+                        # --- Utilisation uniquement des régressors de mouvement ---
+                        subprocess.run(f"{sing_afni}1dcat {matrix_motion_correction} > {regressors_file}",
+                            shell=True, check=True)
                     # --- Application du bandpass + régression des confounds ---
                     fwhm_str = str(blur) if blur > 0 else "0"
                     prefiltered = opj(dir_prepro_orig_postprocessed, root_RS + '_prefiltered_func_data_tempfilt.nii.gz')

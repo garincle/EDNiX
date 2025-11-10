@@ -1,54 +1,66 @@
-#coef dice??
-##see fMRI prep²
 import os
-import subprocess
-import datetime
+import json
+import pathlib
 
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-#Path to the excels files and data structure
 opj = os.path.join
-opb = os.path.basename
-opn = os.path.normpath
-opd = os.path.dirname
-ope = os.path.exists
-spco = subprocess.check_output
-spgo = subprocess.getoutput
+opi = os.path.isfile
 
+from Tools import run_cmd
 
-def _itk_check_coregistr(dir_fMRI_Refth_RS_prepro3, BASE_SS_coregistr,s_bind,itk_sif,diary_file):
+def _itk_check_func_in_template(dir_prepro_template_postprocessed, dir_prepro_template_masks, dir_prepro_template_process, sing_itk,diary_file, sing_afni, overwrite):
 
-    ct = datetime.datetime.now()
-    diary = open(diary_file, "a")
-    diary.write(f'\n{ct}')
-    nl = '##  Working on step ' + str(200) + '(function: 200_Data_QC).  ##'
-    print(bcolors.OKGREEN + nl + bcolors.ENDC)
-    diary.write(f'\n{nl}')
+    nl = '##  Working on step ' + str(100) + '(function: _itk_check_func_in_template).  ##'
+    run_cmd.msg(nl, diary_file, 'HEADER')
 
+    final_mask = opj(dir_prepro_template_postprocessed, 'all_runs_space-template-func_desc-fMRI_Mean_Image_SS.nii.gz')
+    Prepro_fMRI_mask = opj(dir_prepro_template_masks, 'mask_ref.nii.gz')
+    Mean_Image = opj(dir_prepro_template_process, 'BASE_SS_fMRI.nii.gz')
 
-    def run_command_and_wait(command):
-        print(bcolors.OKGREEN + "INFO: Running command:" + bcolors.ENDC, command)
-        result = subprocess.run(command, shell=True)
-        if result.returncode == 0:
-            nl = "INFO: Command completed successfully."
-            print(bcolors.OKGREEN + nl + bcolors.ENDC)
-            diary.write(f'\n{nl}')
-        else:
-            nl = "INFO: Command failed with return code: "  + result.returncode
-            print(bcolors.WARNING + nl + bcolors.ENDC)
+    File1 = pathlib.Path(Prepro_fMRI_mask)
+    Orig = File1.stat().st_ctime
 
-    # Example usage
-    command = ('singularity run' + s_bind + itk_sif + 'itksnap -g ' + opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz') + \
-              ' -o ' + opj(dir_fMRI_Refth_RS_prepro3, 'BASE_SS_fMRI.nii.gz'))
-    run_command_and_wait(command)
+    if not opi(final_mask):
+        COND = 0
+    else:
+        File2 = pathlib.Path(final_mask)
+        COND = 1
 
-    diary.write(f'\n')
-    diary.close()
+    nl = 'WARNING: if you modify the mask, please save it as ' + str(final_mask)
+    run_cmd.msg(nl, diary_file, 'WARNING')
+
+    command = (sing_itk + 'itksnap -g ' + Mean_Image +
+               ' -s ' + Prepro_fMRI_mask)
+    run_cmd.wait(command, diary_file)
+
+    if COND == 0:
+        if opi(final_mask):
+            dictionary = {"Sources": [Mean_Image,
+                                      Prepro_fMRI_mask],
+                          "Description": 'manual modification (itksnap).',
+                          "Command": command, }
+            json_object = json.dumps(dictionary, indent=3)
+            with open(final_mask.replace('.nii.gz', '.json'), "w") as outfile:
+                outfile.write(json_object)
+    else:
+        New = File2.stat().st_mtime
+
+        if New - Orig >0:
+            dictionary = {"Modif_f rom_Sources": [Mean_Image,
+                                                 Prepro_fMRI_mask],
+                          "Modif_Description": 'manual modification (itksnap).', "Command": command, }
+            json_object = json.dumps(dictionary, indent=3)
+            with open(final_mask.replace('.nii.gz', '.json'), "w") as outfile:
+                outfile.write(json_object)
+
+            nl = 'the file: ' + final_mask + 'has been manually modified'
+            run_cmd.msg(nl, diary_file, 'OKGREEN')
+
+            command = (sing_afni + '3dcalc' + overwrite + ' -a ' + final_mask +
+                       ' -prefix ' + Prepro_fMRI_mask + ' -expr "a"')
+            run_cmd.do(command, diary_file)
+
+            dictionary = {"Sources": final_mask,
+                          "Description": 'Copy.', "Command": command, }
+            json_object = json.dumps(dictionary, indent=3)
+            with open(Prepro_fMRI_mask.replace('.nii.gz', '.json'), "w") as outfile:
+                outfile.write(json_object)

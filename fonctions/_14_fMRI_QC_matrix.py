@@ -398,7 +398,6 @@ def generate_qc_plots(corr_matrix, roi_names, output_dir, prefix,
     plt.savefig(os.path.join(output_dir, f'{prefix}_qc_report.png'),
                 dpi=300, bbox_inches='tight')
     plt.close()
-
     return metrics, hemi_results
 
 
@@ -480,84 +479,69 @@ def load_and_validate_matrix(matrix_path):
         raise ValueError(f"Failed to load and validate matrix: {str(e)}")
 
 
-def fMRI_QC_matrix(dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3,
-                   specific_roi_tresh, delta_thresh, RS, nb_run, diary_file):
+def fMRI_QC_matrix(path_func, dir_prepro_orig, specific_roi_tresh, delta_thresh, RS, nb_run, diary_file):
     """Optimized QC analysis with updated output"""
 
     nl = '## Working on fMRI QC matrix analysis (optimized) ##'
     run_cmd.msg(nl, diary_file, 'HEADER')
 
-    for direction in [dir_fMRI_Refth_RS_prepro1, dir_fMRI_Refth_RS_prepro2, dir_fMRI_Refth_RS_prepro3]:
-        out_results = opj(direction, '10_Results')
-        os.makedirs(out_results, exist_ok=True)
+    out_results = opj(path_func, 'QC')
+    os.makedirs(out_results, exist_ok=True)
 
-        out_results_V = opj(out_results, 'fMRI_QC_matrix')
-        # Try to remove directory if it exists
-        if ope(out_results_V):
-            shutil.rmtree(out_results_V, ignore_errors=True)
-            # Wait a bit to avoid race condition (especially on network filesystems)
-            time.sleep(0.1)
+    for i in range(int(nb_run)):
+        root_RS = extract_filename(RS[i])
+        matrix_file = opj(dir_prepro_orig, 'Stats', 'Correl_matrix', f'EDNIxCSCLR_2_run_{i}_matrix.csv')
 
-        # Ensure it's gone before recreating
-        if not ope(out_results_V):
-            os.makedirs(out_results_V)
+        if not ope(matrix_file):
+            nl = f'WARNING: Missing matrix file {matrix_file}'
+            run_cmd.msg(nl, diary_file, 'WARNING')
+            continue
 
-        for i in range(int(nb_run)):
-            root_RS = extract_filename(RS[i])
-            matrix_file = opj(direction, '10_Results', 'correl_matrix',
-                              f'atlaslvl3_LR_run_{i}_matrix.csv')
+        try:
+            # Load and validate matrix with new robust function
+            full_corr, roi_names = load_and_validate_matrix(matrix_file)
 
-            if not ope(matrix_file):
-                nl = f'WARNING: Missing matrix file {matrix_file}'
-                run_cmd.msg(nl, diary_file, 'WARNING')
-                continue
+            # Filter to keep only bilateral ROIs
+            full_corr, roi_names = filter_bilateral_rois(full_corr, roi_names)
 
-            try:
-                # Load and validate matrix with new robust function
-                full_corr, roi_names = load_and_validate_matrix(matrix_file)
+            # Generate QC plots and get metrics
+            metrics, hemi_results = generate_qc_plots(
+                full_corr, roi_names, out_results, root_RS,
+                specific_roi_tresh, delta_thresh)
 
-                # Filter to keep only bilateral ROIs
-                full_corr, roi_names = filter_bilateral_rois(full_corr, roi_names)
+            # Save results
+            results = {
+                'network_metrics': metrics,
+                'hemisphere_results': hemi_results,
+                'specificity_results': analyze_specificity(
+                    full_corr, roi_names, specific_roi_tresh, delta_thresh),
+                'timestamp': str(datetime.datetime.now())
+            }
 
-                # Generate QC plots and get metrics
-                metrics, hemi_results = generate_qc_plots(
-                    full_corr, roi_names, out_results_V, root_RS,
-                    specific_roi_tresh, delta_thresh)
+            # Helper to convert ndarrays to lists recursively
+            def convert_ndarrays(obj):
+                if isinstance(obj, dict):
+                    return {k: convert_ndarrays(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_ndarrays(v) for v in obj]
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                else:
+                    return obj
 
-                # Save results
-                results = {
-                    'network_metrics': metrics,
-                    'hemisphere_results': hemi_results,
-                    'specificity_results': analyze_specificity(
-                        full_corr, roi_names, specific_roi_tresh, delta_thresh),
-                    'timestamp': str(datetime.datetime.now())
-                }
+            # Save to JSON
+            with open(opj(out_results, f'{root_RS}_full_results.json'), 'w') as f:
+                json.dump(convert_ndarrays(results), f, indent=2)
 
-                # Helper to convert ndarrays to lists recursively
-                def convert_ndarrays(obj):
-                    if isinstance(obj, dict):
-                        return {k: convert_ndarrays(v) for k, v in obj.items()}
-                    elif isinstance(obj, list):
-                        return [convert_ndarrays(v) for v in obj]
-                    elif isinstance(obj, np.ndarray):
-                        return obj.tolist()
-                    else:
-                        return obj
+            # Save CSV versions
+            pd.DataFrame(full_corr, index=roi_names, columns=roi_names).to_csv(
+                opj(out_results, f'{root_RS}_corr_matrix.csv'))
 
-                # Save to JSON
-                with open(opj(out_results_V, f'{root_RS}_full_results.json'), 'w') as f:
-                    json.dump(convert_ndarrays(results), f, indent=2)
+            run_cmd.msg(f'\n{root_RS} analysis complete\n', diary_file, 'OKGREEN')
 
-                # Save CSV versions
-                pd.DataFrame(full_corr, index=roi_names, columns=roi_names).to_csv(
-                    opj(out_results_V, f'{root_RS}_corr_matrix.csv'))
-
-                run_cmd.msg(f'\n{root_RS} analysis complete\n', diary_file, 'OKGREEN')
-
-
-            except Exception as e:
-                nl = f'Error processing {matrix_file}: {str(e)}'
-                run_cmd.msg(nl, diary_file, 'FAIL')
-                continue
+        except Exception as e:
+            nl = f'Error processing {matrix_file}: {str(e)}'
+            run_cmd.msg(nl, diary_file, 'FAIL')
+            continue
 
     run_cmd.msg('QC analysis completed successfully', diary_file, 'OKGREEN')

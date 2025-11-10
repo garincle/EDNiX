@@ -96,8 +96,8 @@ def preprocess_anat(BIDStype, BASE_mask, coregistration_longitudinal, creat_stud
         # break (contains steps 3 and 4: make study template and skull stripping of that template)
 
         studytemplate.create(study_template_atlas_folder,Skip_step,which_on, all_ID_max, all_Session_max,
-                             all_data_path_max, all_ID,all_Session, all_data_path,type_norm,BASE_SS_coregistr,BASE_SS_mask,
-                             list_transfo,template_skullstrip,preftool,check_visualy_final_mask,
+                             all_data_path_max, all_ID,all_Session, all_data_path,type_norm,BASE_SS_coregistr, BASE_SS_mask,
+                             list_transfo, template_skullstrip,preftool,check_visualy_final_mask,
                              sing_afni, sing_fsl, sing_fs, sing_itk, sing_synstrip,reference, Unetpath, BALSAname)
 
 
@@ -121,7 +121,7 @@ def preprocess_anat(BIDStype, BASE_mask, coregistration_longitudinal, creat_stud
          BASE_SS, BASE_mask, Aseg_ref = studytemplate.use(study_template_atlas_folder, Skip_step,
                                                                        list_transfo, list_atlases,
                                                                        BASE_SS, BASE_mask,BASE_atlas_folder, species,
-                                                                       stdy_template, type_norm, reference, BALSAname,
+                                                                       stdy_template, fMRImasks, reference, BALSAname,
                                                                        path_label_code, sing_afni, sing_wb, which_on,
                                                                        all_data_path_max,all_data_path, listTimage,
                                                                        creat_study_template,

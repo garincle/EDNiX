@@ -346,6 +346,33 @@ def apply(ID,volumes_dir,masks_dir,labels_dir,bids_dir,info,listTimage,targetsuf
                             diary_file, sing_wb)
         check_nii.resamp(opj(labels_dir, ID + '_space-acpc_seg-4FS_dseg.nii.gz'), img_ref, 'label',
                          path_label_code, 'FreeSurfer', diary_file, sing_wb)
+    else:
+        import glob
+        masks = glob.glob(opd(info[0][2]) + '/*desc-*_mask.nii.gz')
+        print(info[0][2])
+        print(masks)
+        print(masks_dir)
+        # Extract the * part using split()
+        descriptors = []
+        for mask_path in masks:
+            filename = os.path.basename(mask_path)  # Get just the filename
+            # Split on 'desc-' and '_mask' to get the middle part
+            desc_part = filename.split('desc-')[1].split('_mask')[0]
+            descriptors.append(desc_part)
+            norm2template.apply('acpc', img_ref, masks_dir, ID, mask_path,
+                                info[i][7], info[i][8], desc_part, '', '', Timage, n_for_ANTS,
+                                diary_file, sing_wb)
+            filename = opj(masks_dir, ID + '_space-acpc' + desc_part + '_mask.nii.gz')
+            new_filename = filename.replace("space-acpc", "desc-")
+            # This actually renames the file on disk:
+            os.rename(filename, new_filename)
+            filename = opj(masks_dir, ID + '_space-acpc' + desc_part + '_mask.json')
+            new_filename = filename.replace("space-acpc", "desc-")
+            # This actually renames the file on disk:
+            os.rename(filename, new_filename)
+            #check_nii.resamp(new_filename, img_ref, 'msk', '', '', diary_file,
+            #                 sing_wb)
+
     # the atlas images
     for i in range(len(list_atlas[0])):
         # backward
