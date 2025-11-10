@@ -8,13 +8,13 @@ opj = os.path.join
 opb = os.path.basename
 ope = os.path.exists
 opi = os.path.isfile
-
+opd = os.path.dirname
 from Tools import run_cmd
 from Tools import getpath
 from anatomical import norm2template
 from anatomical.freesurfer import preFS
 
-def stdyT_to_AtlasT(aff_metric_ants_Transl_template, list_atlases, BASE_SS, BASE_atlas_folder,BASE_mask,species,
+def stdyT_to_AtlasT(aff_metric_ants_Transl_template, list_atlases, BASE_SS, BASE_atlas_folder,BASE_mask,species, fMRImasks,
                     n_for_ANTS, aff_metric_ants, study_template_atlas_folder, stdy_template, type_of_transform_stdyT,path_label_code,
                     diary_file,reference,sing_wb):
 
@@ -106,21 +106,34 @@ def stdyT_to_AtlasT(aff_metric_ants_Transl_template, list_atlases, BASE_SS, BASE
                             mTx['invtransforms'], w2i,'','', '', '','',
                             diary_file, sing_wb)
     else:
-        nl = 'WARNING: ' + BASE_mask + ' not found in list_atlases, we can continue but it might restrict several outcome of the script'
+        nl = 'WARNING: ' + BASE_mask + ' not found in BASE_mask, we can continue but it might restrict several outcome of the script'
         run_cmd.msg(nl, diary_file, 'WARNING')
 
-    if opi(BASE_mask):
-        nl = 'INFO: Working in sending ' + BASE_mask + ' in ' + targetname + ' space'
-        run_cmd.msg(nl, diary_file, 'OKGREEN')
+    if fMRImasks=='custom':
+        import glob
+        masks = glob.glob(opd(BASE_mask) + '/*desc-*_mask.nii.gz')
+        # Extract the * part using split()
+        descriptors = []
+        for mask_path in masks:
+            filename = os.path.basename(mask_path)  # Get just the filename
+            # Split on 'desc-' and '_mask' to get the middle part
+            desc_part = filename.split('desc-')[1].split('_mask')[0]
+            descriptors.append(desc_part)
+            nl = 'INFO: Working in sending ' + mask_path + ' in ' + targetname + ' space'
+            run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-        norm2template.apply(sourcename, stdy_template, masks_dir, targetname, BASE_mask,
-                            mTx['invtransforms'], w2i,'','', '', '','',
-                            diary_file, sing_wb)
-    else:
-        nl = 'WARNING: ' + BASE_mask + ' not found in list_atlases, we can continue but it might restrict several outcome of the script'
-        run_cmd.msg(nl, diary_file, 'WARNING')
+            norm2template.apply(sourcename, stdy_template, masks_dir, targetname, mask_path,
+                                mTx['invtransforms'], w2i, desc_part,'', '', '','',
+                                diary_file, sing_wb)
+            filename = opj(masks_dir,'studyTemplate_space-acpc' + desc_part + '_mask.nii.gz')
+            new_filename = filename.replace("space-acpc", "desc-")
+            # This actually renames the file on disk:
+            os.rename(filename, new_filename)
+            filename = opj(masks_dir,'studyTemplate_space-acpc' + desc_part + '_mask.json')
+            new_filename = filename.replace("space-acpc", "desc-")
+            # This actually renames the file on disk:
+            os.rename(filename, new_filename)
 
     ID = 'studyTemplate'
-
-    preFS.msk_RS(ID, opj(masks_dir, ID + '_mask.nii.gz'), opj(labels_dir, ID + '_seg-4FS_dseg.nii.gz'), diary_file, 'aseg')
+    preFS.msk_RS(ID, opj(masks_dir, ID + '_space-acpc_mask.nii.gz'), opj(labels_dir, ID + '_seg-4FS_dseg.nii.gz'), diary_file, fMRImasks)
 

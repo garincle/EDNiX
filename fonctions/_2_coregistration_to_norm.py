@@ -88,7 +88,7 @@ def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_
     ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ###
 
     # 1.0 first you need to fix the header problems and potentially fit anat images
-    for i in range(0, int(nb_run)):
+    for r in range(0, int(nb_run)):
         nl = 'work on ' + str(dir_prepro_raw_process) + ' run ' + str(i +1)
         run_cmd.msg(nl, diary_file, 'OKGREEN')
         root_RS = extract_filename(RS[r])

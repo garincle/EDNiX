@@ -121,10 +121,7 @@ def load_data(bids_dir, df, ntimepoint_treshold, list_to_keep, list_to_remove, e
     for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, max_sessionlist):
 
         dir_fMRI_Refth_RS = opj(data_path, 'func')
-        dir_fMRI_Refth_RS_prepro = opj(dir_fMRI_Refth_RS, '01_prepro')
-        dir_fMRI_Refth_RS_prepro1 = opj(dir_fMRI_Refth_RS_prepro, '01_funcspace')
-        dir_fMRI_Refth_RS_prepro2 = opj(dir_fMRI_Refth_RS_prepro, '02_anatspace')
-        dir_fMRI_Refth_RS_prepro3 = opj(dir_fMRI_Refth_RS_prepro, '03_atlas_space')
+        dir_fMRI_Refth_RS_prepro3 = opj(dir_fMRI_Refth_RS, 'templates/EDNiX/postprocessed_rs/')
 
         # Check the func runs
         list_RS = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endfmri)))
@@ -154,16 +151,16 @@ def load_data(bids_dir, df, ntimepoint_treshold, list_to_keep, list_to_remove, e
         nb_run = len(list_RS)
         # Setup for distortion correction using Fieldmaps
 
-        if ope(opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz')):
-            mean_imgs.append(opj(dir_fMRI_Refth_RS_prepro3, 'Mean_Image_RcT_SS_in_template.nii.gz'))
+        if ope(opj(dir_fMRI_Refth_RS_prepro3, 'all_runs_space-template-func_desc-fMRI_Mean_Image_SS.nii.gz')):
+            mean_imgs.append(opj(dir_fMRI_Refth_RS_prepro3, 'all_runs_space-template-func_desc-fMRI_Mean_Image_SS.nii.gz'))
 
         for i in range(0, int(nb_run)):
             root_RS = extract_filename(RS[i])
             ### here we want to select all the image preTTT in a common space
-            if ope(opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz')):
-                images_dir.append(opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_residual_in_template.nii.gz'))
+            if ope(opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_task-rest_run-04_bold_space-acpc-anat_desc-fMRI_residual.nii.gz')):
+                images_dir.append(opj(dir_fMRI_Refth_RS_prepro3, root_RS + '_task-rest_run-04_bold_space-acpc-anat_desc-fMRI_residual.nii.gz'))
 
-        templatelow = opj(dir_fMRI_Refth_RS_prepro3, 'BASE_SS_fMRI.nii.gz')
+        templatelow = opj(dir_fMRI_Refth_RS, 'templates/EDNiX/preprocessing/', 'BASE_SS_fMRI.nii.gz')
 
     print("Remaining all_data_path:", all_data_path)
     return(images_dir, all_ID, all_Session, all_data_path, max_sessionlist, mean_imgs, templatelow)
@@ -173,7 +170,7 @@ from pathlib import Path
 import re
 from collections import defaultdict
 
-def reverse_load_data_bids(bids_dir, network_quality, file_pattern="residual_in_template.nii.gz"):
+def reverse_load_data_bids(bids_dir, network_quality="all", file_pattern="-template_desc-fMRI_residual.nii.gz"):
     all_ID = []
     all_Session = []
     all_data_path = []
@@ -230,7 +227,7 @@ def reverse_load_data_bids(bids_dir, network_quality, file_pattern="residual_in_
                     images_dir.append(str(full_path))
 
             # Also check for corresponding mean image
-        mean_image_path = parent_dir / 'Mean_Image_RcT_SS_in_template.nii.gz'
+        mean_image_path = parent_dir / 'all_runs_space-template-func_desc-fMRI_Mean_Image_SS.nii.gz'
         if mean_image_path.exists():
             mean_imgs.append(str(mean_image_path))
 

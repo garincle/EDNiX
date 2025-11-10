@@ -260,10 +260,8 @@ def msk_RS(Subname,brain_msk,aseg_img,diary_name,mskversion):
     with open(opj(dir_msk, Subname + '_desc-dilat_mask.json'), "w") as outfile:
         outfile.write(json_object)
 
-    aseg = ants.image_read(aseg_img)
-
-
     if mskversion == 'aseg':
+        aseg = ants.image_read(aseg_img)
         img = ants.mask_image(aseg, aseg, GM_edit)
         img[img > 0] = 1
         dilate = ants.morphology(img, operation='dilate', radius=1, mtype='binary', shape='ball')
@@ -282,35 +280,38 @@ def msk_RS(Subname,brain_msk,aseg_img,diary_name,mskversion):
         if mskversion == 'aseg':
             img = ants.mask_image(aseg, aseg, select)
             img[img > 0] = 1
-
             ants.image_write(img, opj(dir_msk, Subname + '_desc-' + name + '_mask.nii.gz'), ri=False)
-
             dictionary = {"Sources": aseg_img,
                           "Description": desc + ' mask.', }
             json_object = json.dumps(dictionary, indent=2)
             with open(opj(dir_msk, Subname + '_desc-' + name + '_mask.json'), "w") as outfile:
                 outfile.write(json_object)
+            eroded = ants.morphology(img, operation='erode', radius=1, mtype='binary', shape='ball')
+            ants.image_write(eroded, opj(dir_msk, Subname + '_desc-erod-' + name + '_mask.nii.gz'), ri=False)
+
+            dictionary = {"Sources": opj(dir_msk, Subname + '_desc-' + name + '_mask.nii.gz'),
+                          "Description": 'Eroded version of the ' + desc + ' mask.', }
+            json_object = json.dumps(dictionary, indent=2)
+            with open(opj(dir_msk, Subname + '_desc-erod-' + name + '_mask.json'), "w") as outfile:
+                outfile.write(json_object)
 
         elif mskversion == 'custom':
             if opi(opj(dir_msk, Subname + '_desc-' + name + '_mask.nii.gz')):
                 img = ants.image_read(opj(dir_msk, Subname + '_desc-' + name + '_mask.nii.gz'))
+                eroded = ants.morphology(img, operation='erode', radius=1, mtype='binary', shape='ball')
+                ants.image_write(eroded, opj(dir_msk, Subname + '_desc-erod-' + name + '_mask.nii.gz'), ri=False)
+
+                dictionary = {"Sources": opj(dir_msk, Subname + '_desc-' + name + '_mask.nii.gz'),
+                              "Description": 'Eroded version of the ' + desc + ' mask.', }
+                json_object = json.dumps(dictionary, indent=2)
+                with open(opj(dir_msk, Subname + '_desc-erod-' + name + '_mask.json'), "w") as outfile:
+                    outfile.write(json_object)
             else:
                 nl = 'We have not found the desc mask, it might cause problem if you want to extract/regress the desc signal'
-                raise Exception(run_cmd.error(nl, diary_name))
+                run_cmd.msg(nl, diary_name, 'WARNING')
         else:
             nl = 'fMRImasks must be custom or aseg'
             raise Exception(run_cmd.error(nl, diary_name))
-
-        eroded = ants.morphology(img, operation='erode', radius=1, mtype='binary', shape='ball')
-        ants.image_write(eroded, opj(dir_msk, Subname + '_desc-erod-' + name + '_mask.nii.gz'), ri=False)
-
-        dictionary = {"Sources": opj(dir_msk, Subname + '_desc-' + name + '_mask.nii.gz'),
-                      "Description": 'Eroded version of the ' + desc + ' mask.', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_msk, Subname + '_desc-erod-' + name + '_mask.json'), "w") as outfile:
-            outfile.write(json_object)
-
-
     nl = 'Done'
     run_cmd.msg(nl, diary_name,'OKGREEN')
 

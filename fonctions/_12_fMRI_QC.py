@@ -601,8 +601,8 @@ def save_qc_values(output_results, root_RS, qc_values):
             print(f"ERROR saving simplified QC values: {str(e2)}")
 
 
-def fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_process, dir_prepro_template_labels,
-            dir_prepro_template_postprocessed, species, dir_prepro_orig_labels, template_dir, MAIN_PATH, RS, nb_run, sing_afni, diary_file):
+def fMRI_QC(correction_direction, path_func, ID, dir_prepro_template_process, dir_prepro_template_labels, dir_prepro_orig_masks, dir_prepro_orig_process, dir_prepro_orig_postprocessed, dir_prepro_raw_matrices,
+            dir_prepro_template_postprocessed, dir_prepro_raw_process, dir_prepro_orig_labels, RS, nb_run, sing_afni, diary_file):
 
     """
     Main function for fMRI quality control analysis with enhanced coverage analysis and image type detection.
@@ -610,33 +610,23 @@ def fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_proce
 
     nl = '##  Working on step ' + str(12) + '(function: _12_fMRI_QC).  ##'
     run_cmd.msg(nl, diary_file, 'HEADER')
-
-    output_results = opj(dir_prepro_orig, 'fMRI_QC')
+    output_results = opj(path_func, 'QC')
 
     if not ope(output_results):
         os.mkdir(output_results)
-
-    # Try to remove directory if it exists
-    if ope(output_results):
-        shutil.rmtree(output_results, ignore_errors=True)
-        # Wait a bit to avoid race condition (especially on network filesystems)
-        time.sleep(0.1)
-
-    # Ensure it's gone before recreating
-    if not ope(output_results):
-        os.makedirs(output_results)
 
     for i in range(0, int(nb_run)):
         qc_values = {}  # Dictionary to store all QC metrics
         root_RS = extract_filename(RS[i])
 
         ######### QC in func space #######
-        func_filename = opj(dir_prepro_orig, root_RS + '_xdtrf_2ref.nii.gz')
-        func_filename = opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')
-
-        selected_atlases_matrix = ['EDNIxCSCLR', 1]
-        atlas = [selected_atlases_matrix[0][0],selected_atlases_matrix[1][0]]
-        atlas_filename = opj(dir_prepro_orig_labels, ID + '_seg-' + atlas[0] + '_dseg.nii.gz')
+        func_filename = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef.nii.gz')
+        atlas_seg = opj(dir_prepro_orig_labels, ID + '_seg-EDNIxCSCLR_dseg.nii.gz')
+        atlas_filename = opj(dir_prepro_orig_labels, ID + '_seg-EDNIxCSCLR_dseg_lvl1_forQC.nii.gz')
+        command = (sing_afni + '3dcalc -overwrite -a ' + atlas_seg + '[' + str(0) + ']' +
+                   ' -expr "a" -prefix '
+                   + atlas_filename)
+        run_cmd.do(command, diary_file)
 
         if not ope(func_filename):
             nl = 'WARNING: ' + str(func_filename) + ' not found!!'
@@ -691,8 +681,7 @@ def fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_proce
             5: 'Cerebellum White', 6: 'Cortical White matter', 1: 'CSF',
             4: 'Lateral ventricles', 8: 'Isocortex', 9: 'Allocortex',
             10: 'Periallocortex', 11: 'Subcortical areas',
-            12: 'Diencephalon', 13: 'Brain stem'
-        }
+            12: 'Diencephalon', 13: 'Brain stem'}
 
         # Load data
         try:
@@ -823,9 +812,9 @@ def fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_proce
         qc_values['cortical_contrast'] = cortical_contrast
 
         for imageQC, QCexplain in zip(
-                [opj(dir_prepro_orig, root_RS + '_xdtrfwS_stdev.nii.gz'),
-                 opj(dir_prepro_orig, root_RS + '_xdtrfwS_tsnr1.nii.gz'),
-                 opj(dir_prepro_orig, root_RS + '_xdtrfwS_tsnr2.nii.gz')],
+                [opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_run_inRef_stdev.nii.gz'),
+                opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_run_inRef_tsnr1.nii.gz'),
+                opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_run_inRef_tsnr2.nii.gz')],
                 ['stdev', 'TSNRcvarinv', 'TSNR']):
 
             try:
@@ -855,8 +844,8 @@ def fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_proce
         # Motion analysis
         try:
             fd_jenkinson_array = fd_jenkinson(
-                opj(dir_prepro_orig, root_RS + '.aff12.1D'), rmax=80.,
-                out_file=opj(dir_prepro_orig, root_RS + '.aff12_fdfile.1D'),
+                opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-volreg_matrix.1D'), rmax=80.,
+                out_file=opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-volreg_matrix_aff12_fdfile.1D'),
                 out_array=True)
 
             qc_values['mean_fd'] = np.nanmean(fd_jenkinson_array) if len(fd_jenkinson_array) > 0 else np.nan
@@ -869,8 +858,8 @@ def fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_proce
         # DVARS calculation
         try:
             calc_dvars_array = calc_dvars(
-                opj(dir_prepro_orig, root_RS + '_xdtr_deob.nii.gz'),
-                opj(dir_prepro_orig, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
+                opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef.nii.gz'),
+                opj(dir_prepro_orig_masks,'mask_ref.nii.gz'))
 
             qc_values['mean_dvars'] = np.nanmean(calc_dvars_array) if len(calc_dvars_array) > 0 else np.nan
         except Exception as e:
@@ -881,7 +870,7 @@ def fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_proce
 
         # Motion parameters
         try:
-            motion_params = np.genfromtxt(opj(dir_prepro_orig, root_RS + '_dfile.1D'))
+            motion_params = np.genfromtxt(opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction.1D'))
             if motion_params.size == 0:
                 raise ValueError("Empty motion parameters file")
         except Exception as e:
@@ -892,8 +881,8 @@ def fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_proce
         # Global correlation
         try:
             gcor_val = global_correlation(
-                opj(dir_prepro_orig, root_RS + '_xdtr_deob.nii.gz'),
-                opj(dir_prepro_orig, root_RS + '_mask_final_in_fMRI_orig.nii.gz'))
+                opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef.nii.gz'),
+                opj(dir_prepro_orig_masks,'mask_ref.nii.gz'))
 
             qc_values['gcor'] = gcor_val
         except Exception as e:
@@ -908,10 +897,10 @@ def fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_proce
                     'z' if correction_direction in ['z', 'z-'] else 'x')
 
                 ghost_ratio = ghost_direction(
-                    opj(dir_prepro_orig, root_RS + '_xdtr_deob.nii.gz'),
-                    opj(dir_prepro_orig, root_RS + '_mask_final_in_fMRI_orig.nii.gz'),
+                    opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef.nii.gz'),
+                    opj(dir_prepro_orig_masks,'mask_ref.nii.gz'),
                     direction=direct_aqc,
-                    ref_file=opj(dir_prepro_orig, root_RS + '_xdtr_deob.nii.gz'),
+                    ref_file=opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef.nii.gz'),
                     out_file=opj(output_results, root_RS + '_ghost_mask.nii.gz'))
 
                 qc_values['ghost_ratio'] = float(ghost_ratio)
@@ -924,12 +913,12 @@ def fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_proce
 
         # FWHM estimation
         try:
-            anat_file = opj(dir_prepro_orig, root_RS + '_residual.nii.gz')
-            mask_file = opj(dir_prepro_orig, 'maskDilat.nii.gz')
+            anat_file = opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')
+            mask_file = opj(dir_prepro_orig_masks,'mask_ref.nii.gz')
 
             if ope(anat_file) and ope(mask_file):
                 original_dir = os.getcwd()
-                os.chdir(dir_prepro_orig)
+                os.chdir(dir_prepro_orig_postprocessed)
 
                 command = (sing_afni + '3dFWHMx -overwrite -combined -mask ' + mask_file +
                            ' -input ' + anat_file + ' -acf ' + anat_file[:-7] + '.acf.txt > ' +
@@ -970,14 +959,13 @@ def fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_proce
         atlasfile = ID + '_seg-EDNIxCSC_dseg.nii.gz'
         atlas_filename = opj(dir_prepro_template_labels, atlasfile)
         atlas_img_4d = ants.image_read(atlas_filename)
-        atlas_filename_template = ants.slice_image(atlas_img_4d, axis=3, idx=3)  # idx=3 → 4ème volume
+        atlas_img = ants.slice_image(atlas_img_4d, axis=3, idx=3)  # idx=3 → 4ème volume
 
         if ope(anat_img_path) and ope(fmri_img_path):
             try:
                 # Load images with ANTs
                 anat_img = ants.image_read(anat_img_path)
                 fmri_img = ants.image_read(fmri_img_path)
-                atlas_img = ants.image_read(atlas_filename_template)
 
                 # Compute coverage statistics
                 coverage_stats = compute_coverage_stats(anat_img, fmri_img)
@@ -987,8 +975,8 @@ def fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_proce
                 })
 
                 # Detect image type
-                anat_type_stats = detect_image_type(anat_img, atlas_img,diary_file)
-                image_type_stats = detect_image_type(fmri_img, atlas_img,diary_file)
+                anat_type_stats = detect_image_type(anat_img, atlas_img, diary_file)
+                image_type_stats = detect_image_type(fmri_img, atlas_img, diary_file)
 
                 if image_type_stats['image_type'] == anat_type_stats['image_type']:
                     modality = 'Same (' + str(image_type_stats['image_type']) + '/' + str(anat_type_stats['image_type']) + ')'
@@ -1092,10 +1080,11 @@ def fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_proce
 
         # Motion metrics
         try:
-            motion_enorm = np.loadtxt(opj(dir_prepro_orig, root_RS + 'motion_enorm.1D'))
-            derivatives = np.loadtxt(opj(dir_prepro_orig, root_RS + '_xdtr_deriv.1D'))
-            censor_1d = np.loadtxt(opj(dir_prepro_orig, root_RS + '_xdtr_censor.1D'))
-            outcount = np.loadtxt(opj(dir_prepro_orig, root_RS + '_xdt_outcount.r.1D'),
+
+            motion_enorm = np.loadtxt(opj(dir_prepro_raw_process, root_RS + '_space-func_desc-motion_enorm.1D'))
+            derivatives = np.loadtxt(opj(dir_prepro_raw_process, root_RS + '_space-func_desc-deriv.1D'))
+            censor_1d = np.loadtxt(opj(dir_prepro_raw_process, root_RS + '_space-func_desc-censor.1D'))
+            outcount = np.loadtxt(opj(dir_prepro_raw_process, root_RS + '_space-func_desc-outcount_run' + str(i) + '.1D'),
                                   skiprows=2)
 
             qc_values['avg_enorm'] = np.nanmean(motion_enorm) if motion_enorm.size > 0 else np.nan

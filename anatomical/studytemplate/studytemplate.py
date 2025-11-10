@@ -60,7 +60,7 @@ def create(study_template_atlas_folder,Skip_step,which_on, all_ID_max, all_Sessi
 
 
 def use(study_template_atlas_folder,Skip_step,list_transfo, list_atlases,
-        BASE_SS,BASE_mask, BASE_atlas_folder,species,stdy_template,type_norm,reference,BALSAname,path_label_code,
+        BASE_SS,BASE_mask, BASE_atlas_folder,species,stdy_template,fMRImasks,reference,BALSAname,path_label_code,
         sing_afni,sing_wb,which_on,all_data_path_max,
         all_data_path,listTimage,creat_study_template,coregistration_longitudinal,refimagename):
 
@@ -136,7 +136,7 @@ def use(study_template_atlas_folder,Skip_step,list_transfo, list_atlases,
             if list_transfo[i]["name"] == 'stdyT':
                 refnb = i
 
-        _7_stdyT_to_AtlasT.stdyT_to_AtlasT(list_transfo[refnb]["affmetricT"], list_atlases, BASE_SS, BASE_atlas_folder,BASE_mask, species,
+        _7_stdyT_to_AtlasT.stdyT_to_AtlasT(list_transfo[refnb]["affmetricT"], list_atlases, BASE_SS, BASE_atlas_folder,BASE_mask, species, fMRImasks,
                         list_transfo[refnb]["interpol"], list_transfo[refnb]["affmetric"], study_template_atlas_folder, stdy_template,
                         list_transfo[refnb]["type_of_transform"], path_label_code,
                         diary_file, reference, sing_wb)

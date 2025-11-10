@@ -27,39 +27,39 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
     for i in range(0, int(nb_run)):
         nl = 'work on ' + str(dir_prepro_raw_process) + ' run ' + str(i +1)
         run_cmd.msg(nl, diary_file, 'OKGREEN')
-        root = extract_filename(RS[i])
+        root_RS = extract_filename(RS[i])
         raw_func = list_RS[i]
-        base_fMRI_targeted = opj(dir_prepro_raw_process, root + '_space-func_desc-vol_rmv_from_txt.nii.gz')
-        base_fMRI = opj(dir_prepro_raw_process, root + '_space-func_desc-vol_rmv.nii.gz')
-        fMRI_despike = opj(dir_prepro_raw_process, root + '_space-func_desc-despiked.nii.gz')
-        fMRI_SliceT = opj(dir_prepro_raw_process, root + '_space-func_desc-SliceTfixed.nii.gz')
-        fMRI_runMean = opj(dir_prepro_raw_process, root + '_space-func_desc-runMean.nii.gz')
+        base_fMRI_targeted = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-vol_rmv_from_txt.nii.gz')
+        base_fMRI = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-vol_rmv.nii.gz')
+        fMRI_despike = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-despiked.nii.gz')
+        fMRI_SliceT = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-SliceTfixed.nii.gz')
+        fMRI_runMean = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-runMean.nii.gz')
         fMRI_stc = opj(dir_prepro_raw_process, 'stc.txt')
-        fMRI_outcount = opj(dir_prepro_raw_process, root + '_space-func_desc-outcount.r$run.1D')
+        fMRI_outcount = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-outcount_run' + str(i) + '.1D')
 
-        outpuprefix_motion = opj(dir_prepro_raw_matrices, root + '_space-func_desc-motion_correction')
-        mat_files_pattern = opj(dir_prepro_raw_matrices, root + '_space-func_desc-motion_correction_*.mat')
-        fMRI_run_motion_corrected = opj(dir_prepro_raw_process, root + '_space-func_desc-motion_corrected.nii.gz')
+        outpuprefix_motion = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction')
+        mat_files_pattern = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction_*.mat')
+        fMRI_run_motion_corrected = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-motion_corrected.nii.gz')
 
-        file_motion_correction = opj(dir_prepro_raw_matrices, root + '_space-func_desc-motion_correction.1D')
-        matrix_volreg = opj(dir_prepro_raw_matrices, root + '_space-func_desc-volreg_matrix.1D')
+        file_motion_correction = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction.1D')
+        matrix_volreg = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-volreg_matrix.1D')
 
-        censore1D = opj(dir_prepro_raw_process, root + '_space-func_desc-censor.1D')
-        censoretxt = opj(dir_prepro_raw_process, root + '_space-func_desc-censor.txt')
-        demean = opj(dir_prepro_raw_process, root + '_space-func_desc-demean.1D')
-        deriv = opj(dir_prepro_raw_process, root + '_space-func_desc-deriv.1D')
-        motion_enorm = opj(dir_prepro_raw_process, root + '_space-func_desc-motion_enorm.1D')
+        censore1D = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-censor.1D')
+        censoretxt = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-censor.txt')
+        demean = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-demean.1D')
+        deriv = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-deriv.1D')
+        motion_enorm = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-motion_enorm.1D')
 
-        fMRI_runMean_align = opj(dir_prepro_raw_process, root + '_space-func_desc-runMean_align.nii.gz')
-        fMRI_runMean_n4Bias = opj(dir_prepro_raw_process, root + '_space-func_desc-runMean_n4Bias.nii.gz')
+        fMRI_runMean_align = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-runMean_align.nii.gz')
+        fMRI_runMean_n4Bias = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-runMean_n4Bias.nii.gz')
 
-        fMRI_BASE = opj(dir_prepro_raw_process, root + '_space-func_desc-fMRI_BASE.nii.gz')
-        fMRI_BASE_Mean = opj(dir_prepro_raw_process, root + '_space-func_desc-fMRI_BASE_Mean.nii.gz')
+        fMRI_BASE = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-fMRI_BASE.nii.gz')
+        fMRI_BASE_Mean = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-fMRI_BASE_Mean.nii.gz')
 
         # Clean bad volumes
-        if ope(opj(opd(list_RS[i]), root, '.txt')) == True:
+        if ope(opj(opd(list_RS[i]), root_RS, '.txt')) == True:
             # Open the file in read mode
-            with open(opj(opd(list_RS[i]), root, '.txt'), 'r') as file:
+            with open(opj(opd(list_RS[i]), root_RS, '.txt'), 'r') as file:
                 # Read the first line and convert it to an integer
                 cut_low = int(file.readline().strip())
 
@@ -69,7 +69,7 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
             command = (sing_afni + '3dTcat -prefix ' + base_fMRI_targeted +
                        ' ' + raw_func + '[' + str(cut_low) + '-' + str(cut_high - 1) + ']' + overwrite)
             dictionary = {"Sources": [base_fMRI_targeted,
-                                      opj(opd(raw_func), root, '.txt')],
+                                      opj(opd(raw_func), root_RS, '.txt')],
                           "Description": 'Remove volumes.',
                           "Command": command,}
             json_object = json.dumps(dictionary, indent=3)
@@ -199,9 +199,8 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
 
         # outlier fraction for each volume
         command = (sing_afni +  '3dToutcount' + overwrite + ' -automask -fraction -polort 4 -legendre ' +
-                   fMRI_SliceT + ' > ' +
-                   fMRI_outcount)
-        run_cmd.run(command, diary_file)
+                   fMRI_SliceT + ' > ' + fMRI_outcount)
+        subprocess.run(command, shell=True, check=True)
 
         ### 2.0 Start fix_orient
         _2b_fix_orient.fix_orient(fMRI_BASE, fMRI_SliceT, list_RS,
@@ -365,7 +364,7 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
                                            convergence={'iters': [50, 50, 50, 50], 'tol': 1e-07},
                                            spline_param=200)
         ants.image_write(N4, fMRI_runMean_n4Bias, ri=False)
-        dictionary = {"Sources": opj(dir_prepro_raw_process, root + '_xdtr_mean_preWARP.nii.gz'),
+        dictionary = {"Sources": opj(dir_prepro_raw_process, root_RS + '_xdtr_mean_preWARP.nii.gz'),
                       "Description": 'Bias field correction (N4).',}
         json_object = json.dumps(dictionary, indent=3)
         with open(fMRI_runMean_n4Bias.replace('.nii.gz','.json'), "w") as outfile:

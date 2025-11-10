@@ -79,7 +79,7 @@ def correct_orient(BIDStype,
             else:
                 nl = 'check the parameters: ther must be a position set for each type of images. If you do not know, leave it empty'
                 run_cmd.msg(nl, diary_file, 'WARNING')
-
+    print(listTimage_orig)
     for Im in range(len(listTimage_orig)):
         # get variables from json
         if BIDStype == 1:
@@ -220,11 +220,11 @@ def correct_orient(BIDStype,
             nl = 'HELP: anat is detected with BIDStype=' + str(BIDStype) + ' but the command: '
             run_cmd.msg(nl, diary_file, 'FAIL')
             if BIDStype == 1:
-                list_anat = "glob.glob(" + str(opj(path_rawanat, 'sub-' + ID + '_ses-' + str(Session) + '_*' + listTimage[Im] + '.nii*'))
+                list_anat = "glob.glob(" + str(opj(path_rawanat, 'sub-' + ID + '_ses-' + str(Session) + '_*' + listTimage_orig[Im] + '.nii*'))
             elif BIDStype == 2:
-                list_anat = '"glob.glob(' + str(opj(path_rawanat,'sub-' + ID + '_' + listTimage[Im] + '.nii*'))
+                list_anat = '"glob.glob(' + str(opj(path_rawanat,'sub-' + ID + '_' + listTimage_orig[Im] + '.nii*'))
             else:
-                list_anat = "glob.glob(" + str(opj(path_rawanat, BIDStype.format(ID=ID, Session=Session, Timage=listTimage[Im])))
+                list_anat = "glob.glob(" + str(opj(path_rawanat, BIDStype.format(ID=ID, Session=Session, Timage=listTimage_orig[Im])))
             nl = str(list_anat) + ' failed'
             raise Exception(run_cmd.error(nl, diary_file))
 

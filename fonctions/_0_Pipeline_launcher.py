@@ -615,28 +615,26 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
-                _12_fMRI_QC.fMRI_QC(correction_direction, dir_prepro_orig, ID, dir_prepro_template_process, dir_prepro_template_labels,
-            dir_prepro_template_postprocessed, RS, nb_run, sing_afni, diary_file)
+                _12_fMRI_QC.fMRI_QC(correction_direction, path_func, ID, dir_prepro_template_process, dir_prepro_template_labels, dir_prepro_orig_masks, dir_prepro_orig_process, dir_prepro_orig_postprocessed, dir_prepro_raw_matrices,
+            dir_prepro_template_postprocessed, dir_prepro_raw_process, dir_prepro_orig_labels, RS, nb_run, sing_afni,diary_file)
+
+            if 13 in Skip_step:
+                nl = 'skip step ' + str(13)
+                run_cmd.msg(nl, diary_file, 'OKGREEN')
+
+            else:
+                _14_fMRI_QC_matrix.fMRI_QC_matrix(path_func, dir_prepro_orig, specific_roi_tresh, delta_thresh, RS, nb_run, diary_file)
 
             if 14 in Skip_step:
-                nl = 'skip step ' + str(14)
-                run_cmd.msg(nl, diary_file, 'OKGREEN')
-
-            else:
-                _14_fMRI_QC_matrix.fMRI_QC_matrix(dir_prepro_orig, dir_prepro_acpc, dir_prepro_template,
-                                                  specific_roi_tresh, delta_thresh, RS, nb_run, diary_file)
-
-            if 100 in Skip_step:
-                nl = 'skip step ' + str(100)
-                run_cmd.msg(nl, diary_file, 'OKGREEN')
-
-            else:
-                _100_Data_Clean.clean(dir_prepro_orig, dir_prepro_acpc,
-                                      dir_prepro_template, RS, nb_run, diary_file)
-
-            if 200 in Skip_step:
                 nl = 'skip step ' + str(200)
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
-
             else:
-                _200_Data_QC._itk_check_coregistr(dir_prepro_template, BASE_SS, sing_itk, diary_file)
+                _200_Data_QC._itk_check_func_in_template(dir_prepro_template_postprocessed, dir_prepro_template_masks,
+                                                dir_prepro_template_process, sing_itk,diary_file, sing_afni, overwrite)
+
+            if 'Clean' in Skip_step:
+                nl = 'skip step ' + str(100)
+                run_cmd.msg(nl, diary_file, 'OKGREEN')
+            else:
+                _100_Data_Clean.clean(dir_prepro_raw_process, dir_prepro_fmap, dir_prepro_acpc_process, dir_prepro_orig_process, nb_run,
+                dir_prepro_template_process, diary_file)

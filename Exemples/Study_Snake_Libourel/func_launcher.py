@@ -10,56 +10,58 @@ opn = os.path.normpath
 opj = os.path.join
 
 MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/Mouse_lemur/BIDS_Garin/'))
-# which format ?
-BIDStype = 1
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/home/cgarin/Documents/Snake/'))
+
 ########### Subject loader with BIDS  ##############
 layout = BIDSLayout(bids_dir, validate=False)
 report = BIDSReport(layout)
 df = layout.to_df()
 df.head()
+
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
+allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
 ### select the subject, session to process
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 
-species    = 'Mouselemur'
+# choose if you want to select or remove ID from you analysis:
+list_to_keep   = []
+list_to_remove = []
+species    = 'Snake'
 reference  = 'EDNiX'
 addatlas   = ''
-# choose if you want to select or remove ID from you analysis
-list_to_keep = []
-list_to_remove = []
+
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
 #### functional images paramters definition
-Slice_timing_info = '-tpattern alt+z'
+Slice_timing_info = 'Auto'
 ntimepoint_treshold = 100
 endfmri = '*_task-rest_*.nii.gz' # string
 endjson = '*_task-rest_*.json' # string
 endmap = '*_map.nii.gz' # string
+# "AHF" stands for "Animal Head First",  "AFF" stands for "Animal Feet First", "humanlike" means no change to be done.
 humanPosition     = ['']
+orientation       = 'LIP' # "LPI" or ''
 animalPosition    = [''] # valid only for species smaller than humans
-orientation = 'LSP' # string
 ## prior anatomical processing
 coregistration_longitudinal = False #True or False
 type_norm = 'T2w' # T1 or T2
 TfMRI = 'T2w' # string
 
 ## masking
-Method_mask_func = '3dSkullStrip_marmoset' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = 'Vol_sammba_400' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 creat_study_template = True # True or False
 
 doWARPonfunc = True
 resting_or_task = 'resting'  # 'resting' or 'task'
-anat_func_same_space = False # True or False
+anat_func_same_space = True # True or False
 type_of_transform = 'BOLDAffine'
 aff_metric_ants_Transl = 'mattes' # string
-aff_metric_ants = 'meansquares'
-do_anat_to_func = True # True or False
+aff_metric_ants = 'mattes'
+do_anat_to_func = False # True or False
 dilate_mask=0
-selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
+selected_atlases = []  # Using NEW VERSION format (single atlas)
 
-Skip_step = [1,2,3,4,5,6,7,8,9,10,11,14,15,16,100,200]
+Skip_step = [1,2,3,4,5,6,7,8,10,11,12,13,14,'Clean']
 fonctions._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
