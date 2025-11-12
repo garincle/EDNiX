@@ -54,35 +54,40 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
                                 connected=True, opening=1,
                                 exclude_zeros=True, ensure_finite=True)
     mask_img.to_filename(opj(output_results1, 'mask_mean_func.nii.gz'))
+    command = sing_afni + '3dmask_tool -overwrite -prefix ' + opj(output_results1, 'mask_mean_func.nii.gz') + \
+              ' -input ' + opj(output_results1, 'mask_mean_func.nii.gz') + ' -fill_holes '
+    nl = spgo(command)
+    print(nl)
+
+    # Resample to match the mask function
+    command = f"{sing_afni} 3dresample -master {opj(output_results1, 'mask_mean_func.nii.gz')} -prefix {opj(output_results1, 'mask_mean_func_orig.nii.gz')} " \
+              f"-input {mask_func} -overwrite -bound_type SLAB"
+    nl = spgo(command)
+    print(nl)
+
+    command = sing_afni + '3dcalc -a ' + opj(output_results1, 'mask_mean_func.nii.gz') + \
+              ' -b ' + opj(output_results1, 'mask_mean_func_orig.nii.gz') + \
+              ' -expr "a*b" -prefix ' + opj(output_results1, 'mask_mean_func_overlapp.nii.gz') + ' -overwrite'
+    nl = spgo(command)
+    print(nl)
+
+    command = sing_afni + '3dmask_tool -overwrite -prefix ' + opj(output_results1, 'mask_mean_func_overlapp.nii.gz') + \
+              ' -input ' + opj(output_results1, 'mask_mean_func_overlapp.nii.gz') + ' -fill_holes'
+    nl = spgo(command)
+    print(nl)
+
+    if oversample_dictionary == True:
+        command = f"{sing_afni} 3dresample -master {studytemplatebrain} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
+                  f"-input {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite -bound_type SLAB"
+        nl = spgo(command)
+        print(nl)
+    else:
+        command = f"{sing_afni} 3dresample -master {images_dir[0]} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
+                  f"-input {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite -bound_type SLAB"
+        nl = spgo(command)
+        print(nl)
+
     if redo==True:
-        command = sing_afni + '3dmask_tool -overwrite -prefix ' + opj(output_results1, 'mask_mean_func.nii.gz') + \
-        ' -input ' + opj(output_results1, 'mask_mean_func.nii.gz') + ' -fill_holes'
-        nl = spgo(command)
-        print(nl)
-
-        # Resample to match the mask function
-        command = f"{sing_afni} 3dresample -master {opj(output_results1, 'mask_mean_func.nii.gz')} -prefix {opj(output_results1, 'mask_mean_func_orig.nii.gz')} " \
-                  f"-input {mask_func} -overwrite -bound_type SLAB"
-        nl = spgo(command)
-        print(nl)
-
-        command = sing_afni + '3dcalc -a ' + opj(output_results1, 'mask_mean_func.nii.gz') + \
-                    ' -b ' + opj(output_results1, 'mask_mean_func_orig.nii.gz') + \
-                  ' -expr "a*b" -prefix ' + opj(output_results1, 'mask_mean_func_overlapp.nii.gz') + ' -overwrite'
-        nl = spgo(command)
-        print(nl)
-
-        if oversample_dictionary == True:
-            command = f"{sing_afni} 3dresample -master {studytemplatebrain} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
-                      f"-input {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite -bound_type SLAB"
-            nl = spgo(command)
-            print(nl)
-        else:
-            command = f"{sing_afni} 3dresample -master {images_dir[0]} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
-                      f"-input {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite -bound_type SLAB"
-            nl = spgo(command)
-            print(nl)
-
         lowresanat = ants.image_read(templatelow)  # Low-resolution atlas
         anat = ants.image_read(templatehigh)  # High-resolution anatomical image
         # Perform affine + SyN nonlinear registration
@@ -105,20 +110,13 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
     from nilearn.image import new_img_like
     # --- resample le mask_func (nearest pour préserver binaire) ---
     ref_img = load_img(images_dir[6])  # ou mean_imgs_rs si c'est ce que tu veux comme grille
-    mask = load_img('/home/cgarin/Documents/Snake/sub-NOBEL/ses-1/func/templates/EDNiX/masks/Gmask.nii.gz')  # ton mask produit avant
+    mask = load_img(opj(output_results1, 'mask_mean_func_overlapp.nii.gz'))  # ton mask produit avant
     mask_rs = resample_to_img(mask, ref_img, interpolation='nearest')
     mask_rs_path = opj(output_results1, 'mask_mean_func_overlapp_resampled.nii.gz')
     mask_rs.to_filename(mask_rs_path)
     extracted_data = nib.load(mask_rs_path).get_fdata()
     labeled_img2 = new_img_like(images_dir[0], extracted_data, copy_header=True)
     labeled_img2.to_filename(mask_rs_path)
-
-    '''
-    for img in images_dir:
-        extracted_data = nib.load(img).get_fdata()
-        labeled_img2 = new_img_like(images_dir[0], extracted_data, copy_header=True)
-        labeled_img2.to_filename(img)
-    '''
 
     for component in component_list:
         result_dir = opj(output_results1, 'dicL'+ str(component))
@@ -202,7 +200,7 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
         labeled_img = nilearn.image.new_img_like(netw6_img, labeled_data, copy_header=True)
         if not os.path.exists(result_dir + 'atlas/'): os.mkdir(result_dir + 'atlas/')
         labeled_img.to_filename(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat.nii.gz')
-
+'''
         ######## Method, clean statimage first ######
         def process_4d_image(input_path, result_dir, ratio_n_voxel):
             # Load the 4D image
@@ -407,3 +405,4 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
                 ' -b ' + templatehigh  + \
                 ' -expr "a*step(b)" -prefix ' + atlas_img[:-7] + 'anat_res.nii.gz' + ' -overwrite'
         spgo(command)
+'''

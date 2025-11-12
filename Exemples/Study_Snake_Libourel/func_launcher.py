@@ -61,7 +61,7 @@ do_anat_to_func = False # True or False
 dilate_mask=0
 selected_atlases = []  # Using NEW VERSION format (single atlas)
 
-Skip_step = [1,2,3,4,5,6,7,8,10,11,12,13,14,'Clean']
+Skip_step = [1,2,3,4,5,6,10,11,12,13,14,'Clean']
 fonctions._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
@@ -76,9 +76,9 @@ fonctions._0_Pipeline_launcher.preprocess_data(
                     costAllin='lpa',
                     doWARPonfunc=doWARPonfunc, registration_fast=False, type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
                     list_to_keep=list_to_keep, list_to_remove=list_to_remove, atlas_followers=[[], [], [], []],
-                    reference='EDNiX', post_treatment_method='Grandjean',
-                    band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
-                    use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
+                    reference='EDNiX', post_treatment_method='AFNI',
+                    band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=False, extract_Vc = False, extract_GS = True,
+                    use_erode_WM_func_masks = False, use_erode_V_func_masks=False, normalize='Skip',
                     selected_atlases_matrix='all', wanted_level_matrix='all',
                     selected_atlases_SBA='default', panda_files_SBA='default',
                     SBAspace=['func', 'anat', 'atlas'], erod_seed=True, smoothSBA=0.7,
