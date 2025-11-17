@@ -152,11 +152,11 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prep
                         Seed_name = format_seed_name(Seed_name)
                         Seed_label = row['label']
 
-                        direction_results = opj(direction_results, Seed_name)
-                        if not ope(direction_results):
-                            os.mkdir(direction_results)
+                        direction_result_seed = opj(direction_results, Seed_name)
+                        if not ope(direction_result_seed):
+                            os.mkdir(direction_result_seed)
 
-                        atlas_path = opj(direction_results, Seed_name + '.nii.gz')
+                        atlas_path = opj(direction_result_seed, Seed_name + '.nii.gz')
 
                         command = (sing_afni + '3dcalc -overwrite -a ' + atlas_filename + '[' + str(atlas[1]) +']' +
                                    ' -expr "ispositive(a)*(iszero(ispositive((a-' + str(Seed_label) + ')^2)))" -prefix '
@@ -230,7 +230,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prep
                                     final_result[region_mask > 0] = label  # Keep the original mask
 
                             # Save the final eroded atlas
-                            output_path = opj(direction_results, Seed_name + 'eroded.nii.gz')
+                            output_path = opj(direction_result_seed, Seed_name + 'eroded.nii.gz')
 
                             final_atlas = ants.from_numpy(final_result, spacing=atlas_img.spacing,
                                                           origin=atlas_img.origin, direction=atlas_img.direction)
@@ -247,20 +247,20 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prep
 
                             # Get the global signal within each seed
                             labels_img = resample_to_img(output_path, func_filename, interpolation='nearest')
-                            labels_img.to_filename(opj(direction_results, Seed_name + 'rsp.nii.gz'))
+                            labels_img.to_filename(opj(direction_result_seed, Seed_name + 'rsp.nii.gz'))
 
-                            extracted_data2 = nib.load(opj(direction_results,Seed_name + 'rsp.nii.gz')).get_fdata()
+                            extracted_data2 = nib.load(opj(direction_result_seed, Seed_name + 'rsp.nii.gz')).get_fdata()
                             labeled_img2    = image.new_img_like(func_filename,
                                 extracted_data2, copy_header=True)
-                            labeled_img2.to_filename(opj(direction_results,Seed_name + 'rsp.nii.gz'))
+                            labeled_img2.to_filename(opj(direction_result_seed, Seed_name + 'rsp.nii.gz'))
                             dictionary = {"Sources": [output_path,
                                                       func_filename],
                                           "Description": ' resampling (nilearn)',},
                             json_object = json.dumps(dictionary, indent=2)
-                            with open(opj(direction_results,Seed_name + 'rsp.json'), "w") as outfile:
+                            with open(opj(direction_result_seed, Seed_name + 'rsp.json'), "w") as outfile:
                                 outfile.write(json_object)
 
-                            seed_masker = NiftiLabelsMasker(labels_img=opj(direction_results,Seed_name + 'rsp.nii.gz'),
+                            seed_masker = NiftiLabelsMasker(labels_img=opj(direction_result_seed, Seed_name + 'rsp.nii.gz'),
                                                             standardize='zscore_sample', resampling_target= 'data', smoothing_fwhm=smoothSBA,
                                                             memory_level=0, verbose=1, t_r=TR_val)
                             seed_time_serie = seed_masker.fit_transform(func_filename)
@@ -273,16 +273,16 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prep
                                                           seed_time_serie.shape[0])
                             seed_to_voxel_correlations_img = brain_masker.inverse_transform(
                                 seed_to_voxel_correlations.T)
-                            seed_to_voxel_correlations_img.to_filename(opj(direction_results, root_RS + '_correlations.nii.gz'))
-                            seed_to_voxel_correlations_img = nib.load(opj(direction_results, root_RS + '_correlations.nii.gz')).get_fdata()
+                            seed_to_voxel_correlations_img.to_filename(opj(direction_result_seed, root_RS + '_correlations.nii.gz'))
+                            seed_to_voxel_correlations_img = nib.load(opj(direction_result_seed, root_RS + '_correlations.nii.gz')).get_fdata()
                             seed_to_voxel_correlations_img = image.new_img_like(func_filename,seed_to_voxel_correlations_img, copy_header=True)
-                            seed_to_voxel_correlations_img.to_filename(opj(direction_results, root_RS + '_correlations.nii.gz'))
+                            seed_to_voxel_correlations_img.to_filename(opj(direction_result_seed, root_RS + '_correlations.nii.gz'))
 
-                            dictionary = {"Sources": [opj(direction_results,Seed_name + 'rsp.nii.gz'),
-                                                      opj(direction_results, Seed_name + 'cortical_mask_funcrsp.nii.gz')],
+                            dictionary = {"Sources": [opj(direction_result_seed,Seed_name + 'rsp.nii.gz'),
+                                                      opj(direction_result_seed, Seed_name + 'cortical_mask_funcrsp.nii.gz')],
                                           "Description": ' Signal Correlation (nilearn)', },
                             json_object = json.dumps(dictionary, indent=2)
-                            with open(opj(direction_results, root_RS + '_correlations.json'), "w") as outfile:
+                            with open(opj(direction_result_seed, root_RS + '_correlations.json'), "w") as outfile:
                                 outfile.write(json_object)
 
 
@@ -295,18 +295,18 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prep
 
                             seed_to_voxel_correlations_img_fish = brain_masker.inverse_transform(
                                 seed_to_voxel_correlations_fisher_z.T)
-                            seed_to_voxel_correlations_img_fish.to_filename(opj(direction_results, root_RS + '_correlations_fish.nii.gz'))
-                            seed_to_voxel_correlations_img_fish = nib.load(opj(direction_results, root_RS + '_correlations_fish.nii.gz')).get_fdata()
-                            seed_to_voxel_correlations_img_fish = image.new_img_like(opj(direction_results, root_RS + '_correlations.nii.gz'),seed_to_voxel_correlations_img_fish, copy_header=True)
-                            seed_to_voxel_correlations_img_fish.to_filename(opj(direction_results, root_RS + '_correlations_fish.nii.gz'))
+                            seed_to_voxel_correlations_img_fish.to_filename(opj(direction_result_seed, root_RS + '_correlations_fish.nii.gz'))
+                            seed_to_voxel_correlations_img_fish = nib.load(opj(direction_result_seed, root_RS + '_correlations_fish.nii.gz')).get_fdata()
+                            seed_to_voxel_correlations_img_fish = image.new_img_like(opj(direction_result_seed, root_RS + '_correlations.nii.gz'),seed_to_voxel_correlations_img_fish, copy_header=True)
+                            seed_to_voxel_correlations_img_fish.to_filename(opj(direction_result_seed, root_RS + '_correlations_fish.nii.gz'))
 
-                            dictionary = {"Sources": opj(direction_results, root_RS + '_correlations.nii.gz'),
+                            dictionary = {"Sources": opj(direction_result_seed, root_RS + '_correlations.nii.gz'),
                                           "Description": ' Fisher transformation (numpy)', },
                             json_object = json.dumps(dictionary, indent=2)
-                            with open(opj(direction_results, root_RS + '_correlations_fish.json'), "w") as outfile:
+                            with open(opj(direction_result_seed, root_RS + '_correlations_fish.json'), "w") as outfile:
                                 outfile.write(json_object)
 
-                            correlation_img = ants.image_read(opj(direction_results, root_RS + '_correlations_fish.nii.gz'))
+                            correlation_img = ants.image_read(opj(direction_result_seed, root_RS + '_correlations_fish.nii.gz'))
                             correlation_val = np.unique(correlation_img.numpy())  # Assumes label 0 is background
 
                             # Check if all the values in the image are zero
@@ -315,16 +315,15 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prep
                                 run_cmd.msg(nl, diary_file, 'WARNING')
 
                             else:
-
                                 #### Remove an arbitrary percentage of the Zscore map
-                                thresholded_map = opj(direction_results, 'higher_threshold.nii.gz')
+                                thresholded_map = opj(direction_result_seed, 'higher_threshold.nii.gz')
                                 threshold_val99 = 99
-                                loadimg         = nib.load(opj(direction_results, root_RS + '_correlations_fish.nii.gz')).get_fdata()
+                                loadimg         = nib.load(opj(direction_result_seed, root_RS + '_correlations_fish.nii.gz')).get_fdata()
 
                                 loadimgsort99 =  np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val99)
                                 custom_thresh =  np.percentile(np.abs(loadimg)[np.abs(loadimg)>0], threshold_val)
 
-                                mask_imag = nilearn.image.threshold_img(opj(direction_results, root_RS + '_correlations_fish.nii.gz'), custom_thresh)
+                                mask_imag = nilearn.image.threshold_img(opj(direction_result_seed, root_RS + '_correlations_fish.nii.gz'), custom_thresh)
                                 mask_imag.to_filename(thresholded_map)
 
 
@@ -334,33 +333,19 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prep
                                 labeled_img2    = image.new_img_like(studytemplatebrain,extracted_data2, copy_header=True)
                                 labeled_img2.to_filename(thresholded_map)
 
-                                dictionary = {"Sources": opj(direction_results, root_RS + '_correlations_fish_custom_thresh.nii.gz'),
+                                dictionary = {"Sources": opj(direction_result_seed, root_RS + '_correlations_fish_custom_thresh.nii.gz'),
                                               "Description": ' remove the ' + str(custom_thresh) + ' percent', },
                                 json_object = json.dumps(dictionary, indent=2)
                                 with open(thresholded_map[:-7] + '.json', "w") as outfile:
                                     outfile.write(json_object)
 
                                 # PLot the results
-                                if direction_results == direction_results:
-                                    display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
-                                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(n_cut, n_cut, n_cut))
-                                    display.savefig(opj(direction_results, root_RS + '_.jpg'))
-                                    display.close()
-                                    plt.close('all')
+                                display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
+                                    colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(n_cut, n_cut, n_cut))
+                                display.savefig(opj(direction_result_seed, root_RS + '_.jpg'))
+                                display.close()
+                                plt.close('all')
 
-                                elif direction_results == direction_results:
-                                    display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
-                                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(n_cut, n_cut, n_cut))
-                                    display.savefig(opj(direction_results, root_RS + '_.jpg'))
-                                    display.close()
-                                    plt.close('all')
-
-                                elif direction_results == direction_results:
-                                    display = plotting.plot_stat_map(thresholded_map, threshold=custom_thresh, vmax=loadimgsort99,
-                                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=(n_cut, n_cut, n_cut))
-                                    display.savefig(opj(direction_results, root_RS + '_.jpg'))
-                                    display.close()
-                                    plt.close('all')
             else:
                 nl = 'WARNING: ' + str(func_filename) + ' not found!!'
                 run_cmd.msg(nl, diary_file, 'WARNING')

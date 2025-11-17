@@ -5,14 +5,13 @@ opj = os.path.join
 opd = os.path.dirname
 opb = os.path.basename
 
-def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_norm,kind, atlas_followers):
+def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_norm,kind, list_atlas):
 
     # by default variables
     FS_refs       = opj(FS_tools, 'standard_mesh_atlases_macaque')
     BALSAname     = ''  # to get a surface to surface co-registration
     balsa_folder  = ''
     balsa_brainT1 = ''
-    list_atlas = [['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]]
 
     # search for the relevant folder
     for dirpath, dirnames, filenames in os.walk(opj(path_ATLAS, 'atlas')):
@@ -55,7 +54,6 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
 
         if reference == '':
             reference = BALSAname
-            # list_atlas = list_atlas2
             BASE_folder        = opj(balsa_folder, 'volumes')
             BASE_atlas_folder  = opj(BASE_folder, 'labels')
             BASE_masks_folder  = opj(BASE_folder, 'masks')
@@ -83,7 +81,6 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
 
         if reference == '':
             reference = BALSAname
-            #list_atlas = list_atlas2
             BASE_folder = opj(balsa_folder, 'volumes')
             BASE_atlas_folder = opj(BASE_folder, 'labels')
             BASE_masks_folder = opj(BASE_folder, 'masks')
@@ -109,20 +106,8 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
         balsa_gray       = opj(balsa_folder, 'volumes', 'masks', 'MY19_desc-dilat-Gray_mask.nii.gz')
         balsa_label      = opj(balsa_folder, 'volumes', 'labels')
 
-        # Expected number of elements in atlas_followers
-        expected_len = len(list_atlas)
-
-        # Check 1: atlas_followers is a list of lists with correct outer length
-        if not isinstance(atlas_followers, list) or len(atlas_followers) != expected_len:
-            raise ValueError(f"atlas_followers should be a list of {expected_len} lists.")
-
-        # If all checks pass, append elements
-        for i in range(expected_len):
-            list_atlas[i] = list_atlas[i] + atlas_followers[i]
-
         if reference == '':
             reference = BALSAname
-            #list_atlas = list_atlas2
             BASE_folder = opj(balsa_folder, 'volumes')
             BASE_atlas_folder = opj(BASE_folder, 'labels')
             BASE_masks_folder = opj(BASE_folder, 'masks')
