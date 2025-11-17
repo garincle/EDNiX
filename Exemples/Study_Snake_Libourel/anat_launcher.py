@@ -44,7 +44,7 @@ list_to_remove = []
 species    = 'Snake'
 reference  = 'EDNiX'
 addatlas   = ''
-atlas_followers =  [[], [], [], []]
+atlas_followers =  [['Seedsrandom'], ['ctab'], [1], [0]]
 # is it a longitudinal study ?
 coregistration_longitudinal = False
 #do you want to use all the data or only the last one of each subject
@@ -174,7 +174,7 @@ preftool                    = 'ITK'                 # 'freeview' or 'ITK'
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = [1,2,3,5,6,7,10,11,12,13,14,15,16,100,200]
+Skip_step = [1,2,3,4,5,6,7,9,10,11,12,13,14,15,16,100,200]
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #

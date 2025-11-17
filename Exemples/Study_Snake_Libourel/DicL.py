@@ -25,8 +25,8 @@ allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 
 # choose if you want to select or remove ID from you analysis:
-list_to_keep   = []
-list_to_remove = [('JACQUELINE', '1')]
+list_to_keep   = [('JACQUELINE', '1')]
+list_to_remove = []
 species    = 'Snake'
 reference  = 'EDNiX'
 addatlas   = ''
@@ -75,7 +75,7 @@ templatelow = opj('/home/cgarin/Documents/Snake/sub-SILAS/ses-1/func/templates/E
 #templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 's648*tudy_template.nii.gz') # sting
 templatehigh = opj('/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/reptiles/Snake/EDNiX/volumes/Snake_space-acpc_desc-template_T2w.nii.gz')
 TR = '1'  # 'value du calculate in s', 'Auto', 'None'
-smoothing = None
+smoothing = 1
 mask_func     = opj('/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/reptiles/Snake/EDNiX/volumes/masks/Snake_desc-Gray_mask.nii.gz') #
 redo = False
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max, mean_imgs, images_dir =  Load_BIDS_data_for_analysis.reverse_load_data_bids(bids_dir, 'all', file_pattern="-acpc-template_desc-fMRI_residual.nii.gz")
