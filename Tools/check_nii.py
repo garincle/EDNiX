@@ -171,7 +171,6 @@ def normalize_anat_type(name: str) -> str:
         f"Cannot infer T1/T2 suffix from filename '{name}'. "
         "Expected a chunk containing 'T1' or 'T2'.")
 
-
 def keep_header(input_file, reference_image):
     """
     Ensures header conservation when transforming extracted data to NIfTI format.

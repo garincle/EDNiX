@@ -86,12 +86,9 @@ type_norm = 'T2w' # T1 or T2
 TfMRI = 'T2w' # string
 ### if you don't have any anatomical image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
 Method_mask_func = 'nilearn' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
-costAllin = 'ls' # string
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = True # True or False
-n_for_ANTS = 'hammingWindowedSinc' # string
-registration_fast = False
 type_of_transform = 'BOLDAffine'
 aff_metric_ants_Transl = 'mattes' # string
 aff_metric_ants = 'mattes'

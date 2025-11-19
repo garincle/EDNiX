@@ -347,7 +347,6 @@ def apply(ID,volumes_dir,masks_dir,labels_dir,bids_dir,info,listTimage,targetsuf
         check_nii.resamp(opj(labels_dir, ID + '_space-acpc_seg-4FS_dseg.nii.gz'), img_ref, 'label',
                          path_label_code, 'FreeSurfer', diary_file, sing_wb)
     else:
-        import glob
         masks = glob.glob(opd(info[0][2]) + '/*desc-*_mask.nii.gz')
         print(info[0][2])
         print(masks)

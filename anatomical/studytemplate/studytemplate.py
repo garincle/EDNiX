@@ -47,8 +47,8 @@ def create(study_template_atlas_folder,Skip_step,which_on, all_ID_max, all_Sessi
                                                         all_Session, all_data_path, type_norm, study_template_atlas_folder,
                                                         sing_afni, diary_file)
 
-    if 4 in Skip_step:
-        run_cmd.msg('INFO: skip step ' + str(4), diary_file, 'OKGREEN')
+    if 'itk_1' in Skip_step:
+        run_cmd.msg('INFO: skip step ' + str('itk_1'), diary_file, 'OKGREEN')
     else:
         refnb = 0
         for i, j in enumerate(list_transfo):
