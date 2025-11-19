@@ -24,7 +24,7 @@ opd = os.path.dirname
 ope = os.path.exists
 
 
-def _itk_check_masks(dir_prepro, masks_dir, ID, type_norm,s_bind,itk_sif,diary_file):
+def _itk_check_masks(volumes_dir, masks_dir, ID, type_norm, itk_sif,diary_file):
     ct = datetime.datetime.now()
     nl = 'Run anatomical._200_Data_QC.clean._itk_check_masks'
     diary = open(diary_file, "a")
@@ -39,10 +39,14 @@ def _itk_check_masks(dir_prepro, masks_dir, ID, type_norm,s_bind,itk_sif,diary_f
         else:
             print(bcolors.OKGREEN + "INFO: Command failed with return code:" + bcolors.ENDC, result.returncode)
 
-    # Example usage
-    command = ('singularity run' + s_bind + itk_sif + 'itksnap -g ' + opj(dir_prepro, ID + '_acpc_cropped' + type_norm + '.nii.gz') + \
-              ' -s ' + opj(masks_dir, 'brain_mask_in_anat_DC.nii.gz'))
-    run_command_and_wait(command)
+    if ope(opj(volumes_dir, ID + '_space-acpc_desc-SS_res-iso_' + type_norm + '.nii.gz')) is True:
+        command = (itk_sif + 'itksnap -g ' + opj(volumes_dir, ID + '_space-acpc_desc-SS_res-iso_' + type_norm + '.nii.gz') +
+                   ' -s ' + opj(masks_dir, ID + '_desc-Gray_mask.nii.gz'))
+        run_command_and_wait(command)
+    else:
+        command = (itk_sif + 'itksnap -g ' + opj(volumes_dir, ID + '_space-acpc_desc-template_' + type_norm + '.nii.gz') +
+                   ' -s ' + opj(masks_dir, ID + '_desc-Gray_mask.nii.gz'))
+        run_command_and_wait(command)
 
     diary.write(f'\n')
     diary.close()

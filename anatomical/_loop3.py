@@ -192,8 +192,8 @@ def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat
 
     #...................................................................................................................
 
-    if 13 in Skip_step:
-        run_cmd.msg('INFO: skip step ' + str(13), diary_file, 'OKGREEN')
+    if 'flat_map' in Skip_step:
+        run_cmd.msg('INFO: skip step ' + str('flat_map'), diary_file, 'OKGREEN')
     else:
         # Flat maps
         #### 4.4.1 Left hemisphere
@@ -251,18 +251,16 @@ def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat
         print(info)
         _16_anat_QC_SNR.anat_QC(info,type_norm, ID,volumes_dir, masks_dir, labels_dir, targetsuffix, listTimage,
                                 sing_afni, diary_file)
+    # ...................................................................................................................
 
+    if 'itk_2' in Skip_step:
+        run_cmd.msg('INFO: skip step ' + str('itk_2'), diary_file, 'OKGREEN')
+    else:
+        _200_Data_QC._itk_check_masks(volumes_dir, masks_dir, ID, type_norm,sing_itk,diary_file)
 
     # ...................................................................................................................
 
-    if 100 in Skip_step:
-        run_cmd.msg('INFO: skip step ' + str(100), diary_file, 'OKGREEN')
+    if 'Clean' in Skip_step:
+        run_cmd.msg('INFO: skip step ' + str('Clean'), diary_file, 'OKGREEN')
     else:
-        _100_Data_Clean.clean(all_ID, all_Session, all_data_path, diary_file)
-
-    # ...................................................................................................................
-
-    if 200 in Skip_step:
-        run_cmd.msg('INFO: skip step ' + str(200), diary_file, 'OKGREEN')
-    else:
-        _200_Data_QC._itk_check_masks(dir_prepro, masks_dir, ID, type_norm, sing_itk, diary_file)
+        _100_Data_Clean.clean(dir_prepro, volumes_dir, masks_dir, ID, diary_file)

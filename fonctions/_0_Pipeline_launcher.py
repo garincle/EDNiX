@@ -49,7 +49,148 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
                     specific_roi_tresh=0.2, delta_thresh=0.1,
                     oversample_map=False, use_cortical_mask_func=False, n_cut=10, threshold_val=10, **kwargs):
 
+    """
+    Preprocess functional MRI data within a BIDS-compliant study, integrating anatomical
+    preprocessing, motion and ICA-based denoising, temporal and spatial correction, and
+    optional surface-based analyses (SBA). Supports both resting-state and task fMRI, human
+    and non-human species, and longitudinal designs.
 
+    The pipeline is modular: steps can be skipped or selectively executed, with full control
+    over registration, masking, smoothing, temporal filtering, and atlas transformations.
+
+    Parameters
+    ----------
+    Skip_step : list
+        Steps to skip in the pipeline (integers or descriptive labels).
+    MAIN_PATH : str
+        Base path for output and intermediate results.
+    bids_dir : str
+        Path to BIDS-formatted dataset.
+    species : str
+        Species label ('Human', 'Rat', 'Mouse', etc.).
+    allinfo_study_c : pandas.DataFrame
+        DataFrame containing BIDS subject/session information.
+    endfmri, endjson, endmap : str
+        File suffixes for fMRI, JSON, and derived maps.
+    resting_or_task : str
+        Type of fMRI acquisition ('resting' or 'task').
+    animalPosition, humanPosition : list
+        Orientation information for animals or humans during acquisition.
+    orientation : str
+        Target orientation for preprocessing (e.g., 'LPI').
+    Slice_timing_info : dict or DataFrame
+        Slice acquisition timing information.
+    TfMRI : str
+        Suffix of the anat use to register functional MRI data ('T2w', etc.).
+    type_norm : str
+        Anatomical type_norm contrast used originally for normalization ('T1w' or 'T2w', should be the same as in type_norm anat).
+    creat_study_template : bool
+        Whether  study-specific anatomical template has been generated in the anatomical regitration (should be the same as in creat_study_template anat)
+    anat_func_same_space : bool
+        Flag to indicate if anatomical and functional images share EXACTLY the same space.
+    coregistration_longitudinal : bool
+        Whether to apply longitudinal coregistration across sessions. (should be the same as in coregistration_longitudinal anat)
+    Method_mask_func : str
+        Method for generating functional masks.
+    do_anat_to_func : bool, optional
+        Perform anatomical-to-functional registration (default: True).
+    folderforTemplate_Anat : str, optional
+        Path to anatomical templates.
+    IhaveanANAT : bool, optional
+        Whether anatomical images are available (default: True).
+    ntimepoint_treshold : int, optional
+        Minimum number of timepoints required to include a run.
+    REF_int : int, optional
+        Reference volume index for registration.
+    T1_eq : int, optional
+        Number of T1-equilibration volumes to remove.
+    correction_direction : str, optional
+        Slice timing correction direction ('Auto', 'AP', 'PA', etc.).
+    overwrite_option : bool, optional
+        Overwrite existing files (default: True).
+    DwellT, SED, TR, TRT : str, optional
+        Acquisition parameters for slice timing and physiological correction.(CAN BE 'Auto')
+    nb_ICA_run : int, optional
+        Number of ICA components for denoising.
+    ICA_cleaning : str, optional
+        ICA cleaning method ('Skip', 'MELODIC', etc.).
+    costAllin : str, optional
+        Registration cost function for 3dAllineate alignment ('lpa', etc.). ## will be removed
+    doWARPonfunc : bool, optional
+        Apply non-linear warping to functional images.
+    registration_fast : bool, optional
+        Use accelerated registration routines.
+    type_of_transform : str, optional
+        Type of transformation for alignment ('BOLDAffine', 'Rigid', 'SyN', etc.).
+    n_for_ANTS : str, optional
+        Interpolation method for ANTs registration ('Lanczos', 'Linear', etc.).
+    aff_metric_ants, aff_metric_ants_Transl : str, optional
+        Affine registration metrics for ANTs.
+    dilate_mask : int, optional
+        Number of voxels to dilate functional masks.
+    list_to_keep, list_to_remove : list, optional
+        Subject/session tuples to include or exclude.
+    atlas_followers : list of lists, optional
+        Multi-level atlas selection for processing.
+    reference : str, optional
+        Reference dataset/session ('EDNiX' by default).
+    post_treatment_method : str, optional
+        Method for post-processing (default: 'Grandjean').
+    band : str, optional
+        Temporal filter band (default: '0.01 0.1').
+    blur : float, optional
+        Gaussian smoothing kernel in mm.
+    do_not_correct_signal : bool, optional
+        Skip temporal or spatial signal corrections.
+    extract_exterior_CSF, extract_WM, extract_Vc, extract_GS : bool, optional
+        Specify additional nuisance regressors or masks to extract.
+    use_erode_WM_func_masks, use_erode_V_func_masks : bool, optional
+        Apply erosion to WM and ventricle masks.
+    normalize : str, optional
+        Normalization method or 'Skip'.
+    selected_atlases_matrix, wanted_level_matrix : str, optional
+        Atlas selection for matrix-based analyses ('all', 'default', etc.).
+    selected_atlases_SBA, panda_files_SBA : str, optional
+        Atlas and file settings for seed-based analyses.
+    SBAspace : list, optional
+        Space(s) for SBA outputs ('func', 'anat', 'atlas').
+    erod_seed : bool, optional
+        Erode seed masks for SBA.
+    smoothSBA : bool, optional
+        Smooth SBA results.
+    specific_roi_tresh, delta_thresh : float, optional
+        Thresholding parameters for ROI extraction.
+    oversample_map : bool, optional
+        Oversample maps to higher resolution.
+    use_cortical_mask_func : bool, optional
+        Restrict analyses to cortical regions.
+    n_cut : int, optional
+        Number of voxels to exclude at edges.
+    threshold_val : float, optional
+        Intensity threshold for masking.
+    **kwargs : dict
+        Additional parameters to pass to custom functions or overrides.
+
+    Workflow
+    --------
+    1. Load BIDS dataset and extract fMRI sessions.
+    2. Filter subjects and sessions according to include/exclude lists.
+    3. Apply slice timing correction, motion correction, and temporal filtering.
+    4. Register functional images to anatomical and template space.
+    5. Generate functional masks (WM, CSF, ventricles, brain).
+    6. Optional ICA-based denoising and post-processing.
+    7. Surface-based analyses if enabled (SBA).
+    8. Spatial smoothing and normalization.
+    9. Apply atlas transformations and compute derived metrics.
+    10. Optional QC checks and overwriting of existing outputs.
+
+    Notes
+    -----
+    - Supports both task and resting-state fMRI.
+    - Modular: steps can be skipped with Skip_step.
+    - Compatible with multi-species studies and longitudinal designs.
+    - Integrates fully with anatomical preprocessing to ensure accurate coregistration.
+    """
 
     (FS_refs, template_dir, reference, balsa_folder, BALSAname, balsa_brainT1, BASE_atlas_folder, BASE_template, BASE_SS,
     BASE_mask, BASE_Gmask, BASE_Wmask, BASE_Vmask, CSF, GM, WM, Aseg_ref, list_atlas, path_label_code, all_ID,
@@ -636,5 +777,5 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
                 nl = 'skip step ' + str(100)
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
             else:
-                _100_Data_Clean.clean(dir_prepro_raw_process, dir_prepro_fmap, dir_prepro_acpc_process, dir_prepro_orig_process, nb_run,
-                dir_prepro_template_process, diary_file)
+                _100_Data_Clean.clean(dir_prepro_raw_process, dir_prepro_fmap, dir_prepro_acpc_process, dir_prepro_orig_process,
+          dir_prepro_template_process, diary_file)

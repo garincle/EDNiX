@@ -10,8 +10,7 @@ def cleanBIDS(BIDS_folder):
         '/**/**/**/sub-*',
         '/**/**/anat/native/volumes/masks/*final_mask.nii.gz',
         '/**/**/anat/native/volumes/masks/*final_mask_2.nii.gz',
-        '/**/**/anat/native/volumes/masks/*final_mask_orig.nii.gz',
-        '**/ses-**/func/preprocessing/space-func/masks/*_final_mask.nii.gz',
+        '**/ses-**/func/raw/masks/*_final_mask.nii.gz',
         '/sty_template/derivatives/acpc/volumes/masks/studyTemplate_final_mask.nii.gz'
         '/code/*',
         '/**/code/*',

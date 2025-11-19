@@ -26,7 +26,7 @@ ope = os.path.exists
 #################################################################################################
 #### Clean preprocessing directories
 #################################################################################################
-def clean(dir_prepro_raw_process, dir_prepro_fmap, dir_prepro_acpc_process, dir_prepro_orig_process, nb_run,
+def clean(dir_prepro_raw_process, dir_prepro_fmap, dir_prepro_acpc_process, dir_prepro_orig_process,
           dir_prepro_template_process, diary_file):
     """
     Clean preprocessing directories and their contents
