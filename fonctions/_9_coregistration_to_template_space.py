@@ -4,7 +4,7 @@ import json
 import nibabel as nib
 import re
 import numpy as np
-
+from Tools.check_nii import resamp_no_check
 opj = os.path.join
 opb = os.path.basename
 opn = os.path.normpath
@@ -144,6 +144,7 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
             del FUNC
             del REF
 
+    resamp_no_check(Template_res_func, Mean_Image_template, 'msk', '', '', '')
     # Load the image directly
     img = nib.load(residual_template)
     # Get voxel sizes
@@ -162,7 +163,7 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
                        ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
                        ' -input ' + opj(template_dir_labels, species + '_seg-' + atlas + '_dseg.nii.gz'))
             run_cmd.run(command, diary_file)
-
+            resamp_no_check(opj(dir_prepro_template_labels, atlasfile), residual_template, 'msk', '', '', '')
             dictionary = {"Sources": [opj(template_dir_labels, species + '_seg-' + atlas + '_dseg.nii.gz'),
                                       residual_template],
                           "Description": ' Resampling (3dresample, AFNI).'},
@@ -191,7 +192,7 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
                    ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
                    ' -input ' + input1)
         run_cmd.run(command, diary_file)
-
+        resamp_no_check(output2, residual_template, 'msk', '', '', '')
         dictionary = {"Sources": [input1,
                                   residual_template],
                       "Description": ' Resampling (3dresample, AFNI).'},

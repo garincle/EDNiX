@@ -10,8 +10,9 @@ from Tools.extract_filename import extract_filename
 def do(input_for_msk,output_for_mask,sing_synstrip,diary_file):
     process_dir = opd(output_for_mask)
 
-    command = (sing_synstrip + ' -o ' + opj(process_dir, extract_filename(input_for_msk) + 'skullstriped.nii.gz') +
+    command = (sing_synstrip + '-o ' + opj(process_dir, extract_filename(input_for_msk) + 'skullstriped.nii.gz') +
                ' -m ' + output_for_mask + ' -i ' + input_for_msk)
+    print(command)
     run_cmd.run(command, diary_file)
 
     dictionary = {"Sources": input_for_msk,

@@ -1,9 +1,8 @@
 ##############################################################################
 ####### Co-register your study template to the atlas template ################
 ##############################################################################
-
 import os
-
+import json
 opj = os.path.join
 opb = os.path.basename
 ope = os.path.exists
@@ -16,7 +15,7 @@ from anatomical.freesurfer import preFS
 
 def stdyT_to_AtlasT(aff_metric_ants_Transl_template, list_atlases, BASE_SS, BASE_atlas_folder,BASE_mask,species, fMRImasks,
                     n_for_ANTS, aff_metric_ants, study_template_atlas_folder, stdy_template, type_of_transform_stdyT,path_label_code,
-                    diary_file,reference,sing_wb):
+                    diary_file,reference,sing_wb, sing_afni):
 
     nl = 'Run anatomical._7_stdyT_to_AtlasT.stdyT_to_AtlasT'
     run_cmd.msg(nl, diary_file,'HEADER')
@@ -105,6 +104,19 @@ def stdyT_to_AtlasT(aff_metric_ants_Transl_template, list_atlases, BASE_SS, BASE
         norm2template.apply(sourcename, stdy_template, masks_dir, targetname, BASE_mask,
                             mTx['invtransforms'], w2i,'','', '', '','',
                             diary_file, sing_wb)
+
+        ## extract brain
+        command = (sing_afni + '3dcalc -overwrite -a ' + opj(masks_dir, targetname + '_space-' + sourcename + '_mask.nii.gz') + ' -b ' + stdy_template +
+                   ' -expr "(a*b)" -prefix ' + stdy_template)
+        run_cmd.do(command, diary_file)
+
+        dictionary = {"Sources": [opj(masks_dir, targetname + '_space-' + sourcename + '_mask.nii.gz'),
+                                  stdy_template],
+                      "Description": 'Skull stripping.', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(stdy_template.replace('.nii.gz', '.json'), "w") as outfile:
+            outfile.write(json_object)
+
     else:
         nl = 'WARNING: ' + BASE_mask + ' not found in BASE_mask, we can continue but it might restrict several outcome of the script'
         run_cmd.msg(nl, diary_file, 'WARNING')
@@ -125,15 +137,21 @@ def stdyT_to_AtlasT(aff_metric_ants_Transl_template, list_atlases, BASE_SS, BASE
             norm2template.apply(sourcename, stdy_template, masks_dir, targetname, mask_path,
                                 mTx['invtransforms'], w2i, desc_part,'', '', '','',
                                 diary_file, sing_wb)
-            filename = opj(masks_dir,'studyTemplate_space-acpc' + desc_part + '_mask.nii.gz')
-            new_filename = filename.replace("space-acpc", "desc-")
-            # This actually renames the file on disk:
-            os.rename(filename, new_filename)
-            filename = opj(masks_dir,'studyTemplate_space-acpc' + desc_part + '_mask.json')
-            new_filename = filename.replace("space-acpc", "desc-")
-            # This actually renames the file on disk:
-            os.rename(filename, new_filename)
+
+            if ope(opj(masks_dir, targetname + '_space-' + sourcename + '_mask.nii.gz')):
+                ## extract brain
+                command = (sing_afni + '3dcalc -overwrite -a ' + opj(masks_dir,
+                                                                     targetname + '_space-' + sourcename + '_mask.nii.gz') + ' -b ' + stdy_template +
+                           ' -expr "(a*b)" -prefix ' + stdy_template)
+                run_cmd.do(command, diary_file)
+
+                dictionary = {"Sources": [opj(masks_dir, targetname + '_space-' + sourcename + '_mask.nii.gz'),
+                                          stdy_template],
+                              "Description": 'Skull stripping.', }
+                json_object = json.dumps(dictionary, indent=2)
+                with open(stdy_template.replace('.nii.gz', '.json'), "w") as outfile:
+                    outfile.write(json_object)
 
     ID = 'studyTemplate'
-    preFS.msk_RS(ID, opj(masks_dir, ID + '_space-acpc_mask.nii.gz'), opj(labels_dir, ID + '_seg-4FS_dseg.nii.gz'), diary_file, fMRImasks)
+    preFS.msk_RS(ID, opj(masks_dir, ID + '_space-acpc_mask.nii.gz'), opj(labels_dir, ID + '_space-acpc_seg-4FS_dseg.nii.gz'), diary_file, fMRImasks)
 

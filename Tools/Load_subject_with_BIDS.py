@@ -44,10 +44,15 @@ def load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove):
         list_session = allinfo_study_c.loc[allinfo_study_c['subject'] == ID].session.dropna()
 
         # Step 1: Extract and reverse the sessions while keeping leading zeros
-        listereverse = sorted(list_session.astype(str), key=lambda x: int(x), reverse=True)
-
-        # Compute max session (as string, keeping leading zeros)
-        max_ses = max(listereverse, key=lambda x: int(x))  # Returns '06' (string)
+        try:
+            # Essayer de traiter comme des nombres
+            listereverse = sorted(list_session.astype(str), key=lambda x: int(x), reverse=True)
+            # Calculer la session max (comme string, en gardant les zéros initiaux)
+            max_ses = max(listereverse, key=lambda x: int(x))
+        except (ValueError, TypeError):
+            # Si échec (valeurs non numériques), trier par ordre alphabétique
+            listereverse = sorted(list_session.astype(str), reverse=True)
+            max_ses = max(listereverse)
         max_session.append(max_ses)
 
         for session in set(listereverse):

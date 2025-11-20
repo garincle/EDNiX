@@ -54,7 +54,7 @@ def get(animal,dir,file,brain_mask,diary_name,sing_fs):
         resamp = 0
         pos = [0, 0, 0]
 
-        if img_size > 200000:
+        if img_size > 2000:
             resamp = 1
             new_size = int(new_voxsize * 20) / 10
             if orient_raw[0] == 'R':
