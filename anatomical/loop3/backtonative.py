@@ -198,7 +198,7 @@ def get(ID,datapath,bids_dir,Session,max_ses,suffix,type_norm,BASE_SS, BASE_mask
             transfoinv4 = [opj(studytransfo_dir, '_'.join(transforname4 + ['0GenericAffine.mat']))]
             w2inv4      = [True]
             transfofwd4 = transfoinv4
-            w2fwd2      = [False]
+            w2fwd4      = [False]
 
 
     ####################################################################################################################
@@ -237,10 +237,11 @@ def get(ID,datapath,bids_dir,Session,max_ses,suffix,type_norm,BASE_SS, BASE_mask
 
     else:
         if coregistration_longitudinal == False:
-
             transfoinv = transfoinv3 + transfoinv4
             w2inv      = w2inv3 + w2inv4
             transfofwd = transfofwd4 + transfofwd3
+            print(w2fwd4)
+            print(w2fwd3)
             w2fwd      =  w2fwd4 + w2fwd3
             package1.extend([transfoinv, w2inv, transfofwd, w2fwd])
             package3.extend([transfoinv3, w2inv3, transfofwd3, w2fwd3])
@@ -348,9 +349,6 @@ def apply(ID,volumes_dir,masks_dir,labels_dir,bids_dir,info,listTimage,targetsuf
                          path_label_code, 'FreeSurfer', diary_file, sing_wb)
     else:
         masks = glob.glob(opd(info[0][2]) + '/*desc-*_mask.nii.gz')
-        print(info[0][2])
-        print(masks)
-        print(masks_dir)
         # Extract the * part using split()
         descriptors = []
         for mask_path in masks:

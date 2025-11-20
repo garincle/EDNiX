@@ -47,8 +47,8 @@ def create(study_template_atlas_folder,Skip_step,which_on, all_ID_max, all_Sessi
                                                         all_Session, all_data_path, type_norm, study_template_atlas_folder,
                                                         sing_afni, diary_file)
 
-    if 'itk_1' in Skip_step:
-        run_cmd.msg('INFO: skip step ' + str('itk_1'), diary_file, 'OKGREEN')
+    if '4' in Skip_step:
+        run_cmd.msg('INFO: skip step ' + str('4'), diary_file, 'OKGREEN')
     else:
         refnb = 0
         for i, j in enumerate(list_transfo):
@@ -139,7 +139,7 @@ def use(study_template_atlas_folder,Skip_step,list_transfo, list_atlases,
         _7_stdyT_to_AtlasT.stdyT_to_AtlasT(list_transfo[refnb]["affmetricT"], list_atlases, BASE_SS, BASE_atlas_folder,BASE_mask, species, fMRImasks,
                         list_transfo[refnb]["interpol"], list_transfo[refnb]["affmetric"], study_template_atlas_folder, stdy_template,
                         list_transfo[refnb]["type_of_transform"], path_label_code,
-                        diary_file, reference, sing_wb)
+                        diary_file, reference, sing_wb, sing_afni)
 
         # Handle the atlas files
         listatlas = sorted(glob.glob(opj(studylabels_dir, 'studyTemplate_space-acpc_*_dseg.**')))

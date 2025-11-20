@@ -1,13 +1,8 @@
-import pandas as pd
 import os
 import sys
-from bids import BIDSLayout
-from bids.reports import BIDSReport
-import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
 import fonctions._0_Pipeline_launcher
-from anatomical import set_launcher
-from Tools import Load_subject_with_BIDS
+from Tools import Load_subject_with_BIDS, load_bids
 opn = os.path.normpath
 opj = os.path.join
 
@@ -16,57 +11,14 @@ sys.path.insert(1, opj(MAIN_PATH))
 
 species    = 'Rat'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/Rat/BIDS_Gd/'))
-########### Subject loader with BIDS  ##############
-layout = BIDSLayout(bids_dir, validate=False)
-report = BIDSReport(layout)
-df = layout.to_df()
-df.head()
-
-########### Subject loader with BIDS##############
-layout= BIDSLayout(bids_dir,  validate=False)
-df = layout.to_df()
-df.head()
-
-#### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'bold') & (df['extension'] == '.nii.gz')]
-list_of_ones = [1] * len(allinfo_study_c)
-allinfo_study_c['session'] = list_of_ones
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Rat/BIDS_Gd/'))
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
-list_to_remove = [
-        ('300301', '1'),
-        ('300302', '1'),
-        ('300303', '1'),
-        ('300304', '1'),
-        ('300305', '1'),
-        ('300306', '1'),
-        ('300307', '1'),
-        ('300308', '1'),
-        ('300309', '1'),
-        ('300600', '1'),
-        ('300601', '1'),
-        ('300602', '1'),
-        ('300603', '1'),
-        ('300604', '1'),
-        ('300605', '1'),
-        ('300606', '1'),
-        ('300607', '1'),
-        ('300608', '1'),
-        ('300609', '1'),
-        ('300800', '1'),
-        ('300801', '1'),
-        ('300802', '1'),
-        ('300803', '1'),
-        ('300804', '1'),
-        ('300805', '1'),
-        ('300806', '1'),
-        ('300807', '1'),
-        ('300808', '1'),
-        ('300809', '1')]
+list_to_remove = []
 
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 #### fMRI pre-treatment
@@ -122,7 +74,7 @@ fonctions._0_Pipeline_launcher.preprocess_data(
                     nb_ICA_run=20, ICA_cleaning='Skip',
                     costAllin='lpa',
                     doWARPonfunc=doWARPonfunc, registration_fast=False, type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
-                    list_to_keep=[], list_to_remove=[], atlas_followers=[[], [], [], []],
+                    list_to_keep=[], list_to_remove=[], atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
                     reference='EDNiX', post_treatment_method='Grandjean',
                     band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
                     use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',

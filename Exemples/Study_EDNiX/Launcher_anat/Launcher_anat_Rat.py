@@ -32,36 +32,7 @@ Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 
 # choose if you want to select or remove ID from you analysis:
 list_to_keep   = []
-list_to_remove = [
-        ('300301', '1'),
-        ('300302', '1'),
-        ('300303', '1'),
-        ('300304', '1'),
-        ('300305', '1'),
-        ('300306', '1'),
-        ('300307', '1'),
-        ('300308', '1'),
-        ('300309', '1'),
-        ('300600', '1'),
-        ('300601', '1'),
-        ('300602', '1'),
-        ('300603', '1'),
-        ('300604', '1'),
-        ('300605', '1'),
-        ('300606', '1'),
-        ('300607', '1'),
-        ('300608', '1'),
-        ('300609', '1'),
-        ('300800', '1'),
-        ('300801', '1'),
-        ('300802', '1'),
-        ('300803', '1'),
-        ('300804', '1'),
-        ('300805', '1'),
-        ('300806', '1'),
-        ('300807', '1'),
-        ('300808', '1'),
-        ('300809', '1')]
+list_to_remove = []
 
 species    = 'Rat'
 # is it a longitudinal study ?
@@ -105,8 +76,8 @@ fMRImasks     = 'aseg' # must be aseg or custom
 Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
-    align={'type_of_transform': 'Rigid', 'affmetric': 'mattes', 'affmetricT': 'mattes'},
-    coreg={'type_of_transform': 'SyNCC', 'affmetric': 'MI', 'affmetricT': 'MI'})
+    align={'type_of_transform': 'Translation', 'affmetric': 'MI', 'affmetricT': 'MI'},
+    coreg={'type_of_transform': 'BOLDAffine', 'affmetric': '', 'affmetricT': ''})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 
@@ -128,7 +99,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = [1,2,3,4,5,6,7,8,9, 'itk_1', 'itk_2', 'flat_map', 'Clean']
+Skip_step = ['itk_2', 'flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
@@ -142,7 +113,7 @@ _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      coregistration_longitudinal, creat_study_template, which_on,
                      brain_skullstrip_1, brain_skullstrip_2, template_skullstrip,
                      list_transfo, Align_img_to_template, MNIBcorrect_indiv,
-                     fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[[], [], [], []], addatlas='',
+                     fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
                      transfo_message='do_as_I_said', force_myelin_same_space=False,
                      check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
 

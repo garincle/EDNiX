@@ -42,7 +42,7 @@ def clean_anat(Align_img_to_template, bids_dir, listTimage, list_transfo, ID, Se
     anat_input7 = opj(volumes_dir, ID + '_space-acpc_desc-template_')
     anat_input8 = opj(volumes_dir, ID + '_space-acpc_desc-SS-step1_')
 
-    end_maskname = '_'.join([ID, 'final', 'mask.nii.gz'])
+    end_maskname = '_'.join([ID, 'final', 'mask_orig.nii.gz'])
     output4mask  = opj(masks_dir, ID + '_desc-step1_mask.nii.gz')
     msk_img      = opj(masks_dir, ID + '_space-acpc_desc-step1_mask.nii.gz')
 
@@ -73,12 +73,19 @@ def clean_anat(Align_img_to_template, bids_dir, listTimage, list_transfo, ID, Se
             nl = " BASE_SS_anat_res:"+ str(res_base)
             run_cmd.msg(nl, diary_file, 'WARNING')
 
-    command = (sing_afni + '3dresample' + overwrite +
-               ' -orient ' + orient_meanimg +
-               ' -prefix ' + BASE_SS_anat_res +
-               ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
-               ' -rmode Cu -input ' + BASE_SS)
-    run_cmd.run(command, diary_file)
+            command = (sing_afni + '3dresample' + overwrite +
+                       ' -orient ' + orient_meanimg +
+                       ' -prefix ' + BASE_SS_anat_res +
+                       ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
+                       ' -rmode Cu -input ' + BASE_SS)
+            run_cmd.run(command, diary_file)
+    else:
+        command = (sing_afni + '3dresample' + overwrite +
+                   ' -orient ' + orient_meanimg +
+                   ' -prefix ' + BASE_SS_anat_res +
+                   ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
+                   ' -rmode Cu -input ' + BASE_SS)
+        run_cmd.run(command, diary_file)
 
     refnb1 = 0
     for i, j in enumerate(list_transfo):

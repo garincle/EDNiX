@@ -675,8 +675,8 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
                        costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
                        sing_afni, sing_fs, sing_fsl, sing_itk, diary_file)
 
-            if 4 in Skip_step:
-                nl = 'skip step ' + str(4)
+            if 'itk_1' in Skip_step:
+                nl = 'skip step ' + str('itk_1')
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
@@ -766,8 +766,8 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
             else:
                 _14_fMRI_QC_matrix.fMRI_QC_matrix(path_func, dir_prepro_orig, specific_roi_tresh, delta_thresh, RS, nb_run, diary_file)
 
-            if 14 in Skip_step:
-                nl = 'skip step ' + str(200)
+            if 'itk_2' in Skip_step:
+                nl = 'skip step ' + str('itk_2')
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
             else:
                 _200_Data_QC._itk_check_func_in_template(dir_prepro_template_postprocessed, dir_prepro_template_masks,
