@@ -303,7 +303,6 @@ def apply(ID,volumes_dir,masks_dir,labels_dir,bids_dir,info,listTimage,targetsuf
                                ' -prefix ' + opj(volumes_dir, '_'.join([ID, 'space-acpc', 'desc-SS', Timage]) + '.nii.gz') + ' -expr "a*b"')
                         run_cmd.do(cmd, diary_file)
 
-
                 # forward
                 norm2template.apply(info[i][0], info[i][1], info[i][4], ID, img_ref,
                                     info[i][9], info[i][10], 'SS', '', '', Timage, n_for_ANTS,
@@ -357,7 +356,7 @@ def apply(ID,volumes_dir,masks_dir,labels_dir,bids_dir,info,listTimage,targetsuf
             desc_part = filename.split('desc-')[1].split('_mask')[0]
             descriptors.append(desc_part)
             norm2template.apply('acpc', img_ref, masks_dir, ID, mask_path,
-                                info[i][7], info[i][8], desc_part, '', '', Timage, n_for_ANTS,
+                                info[0][7], info[0][8], desc_part, '', '', Timage, n_for_ANTS,
                                 diary_file, sing_wb)
             filename = opj(masks_dir, ID + '_space-acpc' + desc_part + '_mask.nii.gz')
             new_filename = filename.replace("space-acpc", "desc-")

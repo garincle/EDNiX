@@ -116,7 +116,6 @@ def stdyT_to_AtlasT(aff_metric_ants_Transl_template, list_atlases, BASE_SS, BASE
         json_object = json.dumps(dictionary, indent=2)
         with open(stdy_template.replace('.nii.gz', '.json'), "w") as outfile:
             outfile.write(json_object)
-
     else:
         nl = 'WARNING: ' + BASE_mask + ' not found in BASE_mask, we can continue but it might restrict several outcome of the script'
         run_cmd.msg(nl, diary_file, 'WARNING')
@@ -134,7 +133,7 @@ def stdyT_to_AtlasT(aff_metric_ants_Transl_template, list_atlases, BASE_SS, BASE
             nl = 'INFO: Working in sending ' + mask_path + ' in ' + targetname + ' space'
             run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-            norm2template.apply(sourcename, stdy_template, masks_dir, targetname, mask_path,
+            norm2template.apply(str(sourcename) + '-', stdy_template, masks_dir, targetname, mask_path,
                                 mTx['invtransforms'], w2i, desc_part,'', '', '','',
                                 diary_file, sing_wb)
 

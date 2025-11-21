@@ -21,9 +21,9 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Marmoset/BIDS_NIH_MBM/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Macaque/BIDS_BenHamed/'))
 # which format ?
-BIDStype = 'sub-{ID}_ses-{Session}_{Timage}.nii*'
+BIDStype = 1
 
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
 
@@ -34,33 +34,31 @@ Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 list_to_keep   = []
 list_to_remove = []
 
-species    = 'Marmoset'
+species    = 'Macaque'
 # is it a longitudinal study ?
 coregistration_longitudinal = False
 #do you want to use all the data or only the last one of each subject
-which_on  = 'all'                       # "all" or "max"
+which_on  = 'max'                       # "all" or "max"
 
 # create  a study template
 creat_study_template  = False
 
 #### Choose to normalize using T1 or T2
 
-type_norm = 'T2w'                      # T1w or T2w
+type_norm = 'T1w'                      # T1w or T2w
 otheranat = ''                         # '' if none otherwise T1w or T2w
-masking_img = 'T2w' # could be T1w or T2w (if left empty it will be set to "type_norm")
+masking_img = 'T1w' # could be T1w or T2w (if left empty it will be set to "type_norm")
 # to get the correct header orientation (valid only with non-human studies) --------------------------------------------
 
 # if you don't know anything about it : leave it empty
 # "AHF" stands for "Animal Head First",  "AFF" stands for "Animal Feet First", "humanlike" means no change to be done.
 humanPosition     = ['']
-orientation       = 'LPI' # "LPI" or ''
-animalPosition    = [''] # valid only for species smaller than humans
+orientation       = 'RAP' # "LPI" or ''
+animalPosition    = ['AFF','AFF'] # valid only for species smaller than humans
 
 ### masking and skull stripping ----------------------------------------------------------------------------------------
-
-
 # step 1 : coarse method (use for cropping and acpc setting)
-brain_skullstrip_1  = '3dSkullStrip_marmoset'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
+brain_skullstrip_1  = 'NoSkullStrip'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
 # step 2 : precise method
 brain_skullstrip_2  = 'NoSkullStrip'            # bet2_ANTS or MachinL
 # step 3 : valid only for study or session template :
@@ -77,7 +75,7 @@ Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
     align={'type_of_transform': 'Translation', 'affmetric': 'mattes', 'affmetricT': 'mattes'},
-    coreg={'type_of_transform': 'SyNCC', 'affmetric': 'MI', 'affmetricT': 'MI'})
+    coreg={'type_of_transform': 'SyN', 'affmetric': '', 'affmetricT': ''})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 
