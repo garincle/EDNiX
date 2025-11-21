@@ -227,7 +227,7 @@ def preprocess_anat(Skip_step,
 
     if creat_study_template==True:
         # second break : adapt the atlases
-         BASE_SS, BASE_mask, Aseg_ref = studytemplate.use(study_template_atlas_folder, Skip_step,
+         _, _, _ = studytemplate.use(study_template_atlas_folder, Skip_step,
                                                                        list_transfo, list_atlases,
                                                                        BASE_SS, BASE_mask,BASE_atlas_folder, species,
                                                                        stdy_template, fMRImasks, reference, BALSAname,

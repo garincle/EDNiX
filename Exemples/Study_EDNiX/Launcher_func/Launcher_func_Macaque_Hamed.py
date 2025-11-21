@@ -1,25 +1,18 @@
-import pandas as pd
 import os
-from bids import BIDSLayout
-opn = os.path.normpath
-opj = os.path.join
-MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
-import Tools.Load_subject_with_BIDS
+import sys
 import Tools.Read_atlas
 import fonctions._0_Pipeline_launcher
-from Tools import Load_subject_with_BIDS
-species = 'Mouse'
-## linux ##FS_dir
+from Tools import Load_subject_with_BIDS, load_bids
+opn = os.path.normpath
+opj = os.path.join
+
+MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+sys.path.insert(1, opj(MAIN_PATH))
+
+species    = 'Dog'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Mouse/BIDS_Gd/'))
-
-########### Subject loader with BIDS##############
-layout= BIDSLayout(bids_dir,  validate=False)
-df = layout.to_df()
-df.head()
-
-#### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Macaque/BIDS_BenHamed/'))
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T1w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -27,38 +20,40 @@ Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 list_to_keep = []
 list_to_remove = []
 
+all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 #### fMRI pre-treatment
 T1_eq = 5 # int
 REF_int = 0 # int
 ntimepoint_treshold = 100
-endfmri = '*_task-rest_*.nii.gz' # string
-endjson = '*_task-rest_*.json' # string
-endmap = '*_map.nii.gz' # string
+endfmri     = '*_task-rest_*.nii.gz' # string
+endjson     = '*_task-rest_*.json' # string
+endmap      = '*_map.nii.gz' # string
 humanPosition     = ['']
-orientation       = 'LSP' # "LPI" or ''
+orientation       = 'LPI' # "LPI" or ''
 animalPosition    = [''] # valid only for species smaller than humans
 ## prior anatomical processing
 coregistration_longitudinal = False #True or False
-type_norm = 'acq-RARE_T2w' # T1 or T2
+type_norm = 'T1w' # T1 or T2
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
-TfMRI = 'acq-RARE_T2w' # string
+TfMRI = 'T1w' # string
 ### if you don't have any anatomical image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
-Method_mask_func = 'Vol_sammba_400' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 #### ANTs function of the co-registration HammingWindowedSinc is advised
-anat_func_same_space = True # True or False
-type_of_transform = 'BOLDAffine'
+IhaveanANAT = True # True or False
+anat_func_same_space = False # True or False
+type_of_transform = 'SyNOnly'
 aff_metric_ants_Transl = 'mattes' # string
-aff_metric_ants = 'mattes'
-do_anat_to_func = False # True or False
-Slice_timing_info = '-tpattern alt+z'
+aff_metric_ants = 'CC'
+do_anat_to_func = True # True or False
+Slice_timing_info = '-tpattern seq-z'
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
 creat_study_template = False # True or Fals
-blur = 0.5 # float
+blur = 0# float
 #Dilate the functional brain mask by n layers
-dilate_mask = 2 # int
-SBAspace = ['func'] #list containing at least on of the string 'func', 'anat', 'atlas'
-smoothSBA = 0.5
+dilate_mask = 0 # int
+SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
+smoothSBA = 3
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 ############ Right in a list format the steps that you want to skip

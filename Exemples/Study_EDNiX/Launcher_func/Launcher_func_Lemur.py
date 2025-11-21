@@ -59,7 +59,7 @@ do_anat_to_func = True # True or False
 dilate_mask=0
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 
-Skip_step = [1,2,3,4,5,6,7,8,9,10,11,14,15,16,100,200]
+Skip_step = ['itk_1', 'itk_2', 'Clean']
 fonctions._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,

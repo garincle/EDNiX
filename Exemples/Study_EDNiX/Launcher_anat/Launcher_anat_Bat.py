@@ -50,7 +50,7 @@ coregistration_longitudinal = False
 which_on  = 'all'                       # "all" or "max"
 
 # create  a study template
-creat_study_template  = False
+creat_study_template  = True
 
 #### Choose to normalize using T1 or T2
 
@@ -103,7 +103,7 @@ list_transfo = build_transfos(
 #   Block3: step 200 (QC itksnap)                                                                                      #
 ########################################################################################################################
 
-Skip_step = [10,11,12,13,14,15,16,'itk_2', 'flat_map', 'Clean']
+Skip_step = [1,2,3,4,5,6,10,11,12,13,14,15,16,'itk_2', 'flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
