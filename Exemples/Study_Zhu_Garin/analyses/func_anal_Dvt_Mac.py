@@ -21,7 +21,7 @@ spgo = subprocess.getoutput
 MAIN_PATH = opj('/','srv','projects','easymribrain')
 sys.path.append(opj('/home/cgarin/PycharmProjects/EasyMRIbrain_sing/'))
 
-from fonctions import extract_filename
+from fMRI import extract_filename
 import analyses.Group_fMRI._Group_anal__func_DicLearn
 import analyses.Group_fMRI._Group_anal_3dLMEr_SBA
 ##############################################################  TO DO !! ##############################################################
@@ -293,7 +293,7 @@ panda_files = [pd.DataFrame({'region':[
 
 treshold_or_stat = 'stat'
 templatelow = "/srv/projects/easymribrain/data/MRI/Macaque/BIDS_Cdt_Garin/sub-Trinity/ses-11/func/01_prepro/03_atlas_space/BASE_SS_fMRI.nii.gz"  # Low-resolution atlas
-templatehigh = mask_func   # High-resolution anatomical image
+templatehigh = mask_func   # High-resolution anat image
 interaction_sessrun =  False
 gltCode = "-gltCode groupeffect 'run : 1*run_0'"
 #model = '"Sess*run+(1|Subj)+(1|Sess:Subj)+(1|run:Subj)" '

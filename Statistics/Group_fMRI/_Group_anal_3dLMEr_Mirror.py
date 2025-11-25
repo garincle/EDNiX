@@ -11,7 +11,7 @@ from nilearn.masking import compute_epi_mask
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 import Tools.Load_EDNiX_requirement
-from fonctions.extract_filename import extract_filename
+from fMRI.extract_filename import extract_filename
 # Path utilities
 opj = os.path.join
 opb = os.path.basename

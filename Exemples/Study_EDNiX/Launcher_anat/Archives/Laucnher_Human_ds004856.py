@@ -6,7 +6,7 @@ opj = os.path.join
 MAIN_PATH = opj('/srv/projects/easymribrain/code/EDNiX/')
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
-import anatomical._0_Pipeline_launcher
+import anat._0_Pipeline_launcher
 
 species = 'Human'
 # Override os.path.join to always return Linux-style paths
@@ -130,11 +130,11 @@ do_surfacewith = 'T1'
 ### Block3: step 200 (QC itksnap)
 Skip_step = [1,2,3,10,11,12,13,14,15,100,200]
 
-anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
-    orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step,
-    check_visualy_each_img, do_fMRImasks, BASE_SS, which_on, all_ID_max, all_data_path_max, all_ID,
-    all_Session, all_data_path, template_skullstrip, list_atlases, Aseg_ref, Aseg_refLR, FS_dir,
-    do_surfacewith, Atemplate_to_Stemplate, FS_buckner40_TIF,FS_buckner40_GCS, Lut_file, otheranat,
-    type_norm, all_Session_max, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list,
-    list_atlases_2, cost3dAllineate, Align_img_to_template, species, type_of_transform,
-    type_of_transform_stdyT, fMRImasks, overwrite_option, MAIN_PATH, aff_metric_ants_Transl, aff_metric_ants_Transl_template)
+anat._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
+                                          orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step,
+                                          check_visualy_each_img, do_fMRImasks, BASE_SS, which_on, all_ID_max, all_data_path_max, all_ID,
+                                          all_Session, all_data_path, template_skullstrip, list_atlases, Aseg_ref, Aseg_refLR, FS_dir,
+                                          do_surfacewith, Atemplate_to_Stemplate, FS_buckner40_TIF, FS_buckner40_GCS, Lut_file, otheranat,
+                                          type_norm, all_Session_max, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list,
+                                          list_atlases_2, cost3dAllineate, Align_img_to_template, species, type_of_transform,
+                                          type_of_transform_stdyT, fMRImasks, overwrite_option, MAIN_PATH, aff_metric_ants_Transl, aff_metric_ants_Transl_template)

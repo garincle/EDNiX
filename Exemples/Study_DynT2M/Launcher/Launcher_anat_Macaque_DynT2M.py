@@ -10,8 +10,8 @@ MAIN_PATH = opj('/','srv','projects','easymribrain','code','EDNiX_Pilote','EDNiX
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS
-from anatomical import _0_Pipeline_launcher
-from anatomical import set_launcher
+from anat import _0_Pipeline_launcher
+from anat import set_launcher
 
 
 ########################################################################################################################

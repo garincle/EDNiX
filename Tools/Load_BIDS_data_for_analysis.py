@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import glob
 import nibabel as nib
-from fonctions.extract_filename import extract_filename
+from fMRI.extract_filename import extract_filename
 #Path to the excels files and data structure
 opj = os.path.join
 opb = os.path.basename

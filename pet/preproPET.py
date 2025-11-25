@@ -44,7 +44,7 @@ FT,do_cut,steps,frame_stop,duration,ratio,diary_name,sing_afni,sing_wb):
         run_cmd.msg(nl,diary_name)
         roi_signal.read(file,dseg,option1,[0],[0],diary_name,sing_afni)
 
-        nl =  'normalize the image to the anatomical and to the reference template and skull-strip it'
+        nl =  'normalize the image to the anat and to the reference template and skull-strip it'
         run_cmd.msg(nl,diary_name)
         norm2template.pet(file,template,T1wacpcmask,T1wacpc,templateT1w,templatemask,maxval,dir_transfo,diary_name,sing_wb)
         
@@ -57,7 +57,7 @@ FT,do_cut,steps,frame_stop,duration,ratio,diary_name,sing_afni,sing_wb):
         nl =  'get the mean amplitude signal per each Roi'
         run_cmd.msg(nl,diary_name)
         roi_signal.read(file,dseg,option1,[do_cut[0],steps[0]],diary_name,sing_afni)
-        nl =  'normalize the image to the anatomical and to the reference template and skull-strip it'
+        nl =  'normalize the image to the anat and to the reference template and skull-strip it'
         run_cmd.msg(nl,diary_name)
         norm2template.pet(file,template,T1wacpcmask,T1wacpc,templateT1w,templatemask,maxval,dir_transfo,diary_name,sing_wb)
     
@@ -79,7 +79,7 @@ FT,do_cut,steps,frame_stop,duration,ratio,diary_name,sing_afni,sing_wb):
             run_cmd.msg(nl,diary_name)
             roi_signal.read(img,dseg,[0],[0],diary_name,sing_afni)
             
-            nl =  'normalize the image to the anatomical and to the reference template and skull-strip it'
+            nl =  'normalize the image to the anat and to the reference template and skull-strip it'
             run_cmd.msg(nl,diary_name)
             norm2template.pet(img,template,T1wacpcmask,T1wacpc,templateT1w,templatemask,maxval,dir_transfo,diary_name,sing_wb)
         
@@ -119,7 +119,7 @@ atlas_label,REF,REF_name,pet_raw_dir,isotope,FT,FD,DV_time,diary_name,sing_afni,
     for i in range(len(IMGs)):
         img = opj(dir,Name + '_desc-' + IMGs[i] + '_pet.nii.gz')
         if opi(img):
-            nl =  'normalize the image to the anatomical and to the reference template and skull-strip it'
+            nl =  'normalize the image to the anat and to the reference template and skull-strip it'
             run_cmd.msg(nl,diary_name)
             norm2template.pet(img,template,T1wacpcmask,T1wacpc,templateT1w,templatemask,maxval,dir_transfo,diary_name,sing_wb)
     
@@ -138,7 +138,7 @@ def suv(ratio,file,dseg,template,T1wacpcmask,T1wacpc,templateT1w,templatemask,ma
     nl =  'get the mean amplitude signal per each Roi'
     run_cmd.msg(nl,diary_name)
     roi_signal.read(file,dseg,[0],[0],diary_name,sing_afni)
-    nl =  'normalize the image to the anatomical and to the reference template and skull-strip it'
+    nl =  'normalize the image to the anat and to the reference template and skull-strip it'
     run_cmd.msg(nl,diary_name)
     norm2template.pet(file,template,T1wacpcmask,T1wacpc,templateT1w,templatemask,maxval,dir_transfo,diary_name,sing_wb)
     

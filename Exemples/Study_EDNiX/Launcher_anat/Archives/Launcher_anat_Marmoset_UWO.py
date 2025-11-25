@@ -9,7 +9,7 @@ opj = os.path.join
 MAIN_PATH = r'/mnt/c/Users/cgarin/Documents/EDNiX'
 sys.path.append('/mnt/c/Users/cgarin/PycharmProjects/EDNiX')
 
-import anatomical._0_Pipeline_launcher
+import anat._0_Pipeline_launcher
 import Tools.Load_subject_with_BIDS
 
 species = 'Marmoset'  # From OLD
@@ -166,11 +166,11 @@ Lut_file = opj(Lut_dir,'Multispecies_LUT_Dual.txt')
 ### Block3: step 200 (QC itksnap)
 Skip_step = [1,2,3,4,5,6,9,10,11,12,13,14,15,16,17,100,200]  # From OLD (was [100,200])
 
-anatomical._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
-    orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step,
-    check_visualy_each_img, do_fMRImasks, BASE_SS, which_on, all_ID_max, all_data_path_max, all_ID,
-    all_Session, all_data_path, template_skullstrip, list_atlases, Aseg_ref, Aseg_refLR, FS_dir,
-    do_surfacewith, Atemplate_to_Stemplate, FS_buckner40_TIF,FS_buckner40_GCS, Lut_file, otheranat,
-    type_norm, all_Session_max, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list,
-    list_atlases_2, cost3dAllineate, Align_img_to_template, species, type_of_transform,
-    type_of_transform_stdyT, fMRImasks, overwrite_option, MAIN_PATH)
+anat._0_Pipeline_launcher.preprocess_anat(BIDStype, deoblique, BASE_mask, coregistration_longitudinal, creat_study_template,
+                                          orientation, masking_img, brain_skullstrip_1, brain_skullstrip_2, n_for_ANTS, aff_metric_ants, Skip_step,
+                                          check_visualy_each_img, do_fMRImasks, BASE_SS, which_on, all_ID_max, all_data_path_max, all_ID,
+                                          all_Session, all_data_path, template_skullstrip, list_atlases, Aseg_ref, Aseg_refLR, FS_dir,
+                                          do_surfacewith, Atemplate_to_Stemplate, FS_buckner40_TIF, FS_buckner40_GCS, Lut_file, otheranat,
+                                          type_norm, all_Session_max, bids_dir, check_visualy_final_mask, FreeSlabel_ctab_list,
+                                          list_atlases_2, cost3dAllineate, Align_img_to_template, species, type_of_transform,
+                                          type_of_transform_stdyT, fMRImasks, overwrite_option, MAIN_PATH)

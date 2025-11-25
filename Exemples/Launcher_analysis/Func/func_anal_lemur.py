@@ -19,7 +19,7 @@ spgo = subprocess.getoutput
 
 MAIN_PATH = opj('/','srv','projects','easymribrain')
 sys.path.append(os.path.join(MAIN_PATH,'code','EasyMRI_brain-master'))
-from fonctions import extract_filename
+from fMRI import extract_filename
 
 ##############################################################  TO DO !! ##############################################################
 
@@ -221,7 +221,7 @@ panda_files = [pd.DataFrame({'region':[
 
 treshold_or_stat = 'stat'
 templatelow = "/srv/projects/easymribrain/data/MRI/Dog/BIDS_k9/sub-28/ses-1/func/01_prepro/03_atlas_space/BASE_SS_fMRI.nii.gz"  # Low-resolution atlas
-templatehigh = mask_func   # High-resolution anatomical image
+templatehigh = mask_func   # High-resolution anat image
 
 interaction_sessrun = False
 gltCode = "-gltCode groupeffect 'Sess : 0.5*01 +0.5*02'"

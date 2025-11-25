@@ -1,7 +1,7 @@
 import os
 import sys
 import Tools.Read_atlas
-import fonctions._0_Pipeline_launcher
+import fMRI._0_Pipeline_launcher
 from Tools import Load_subject_with_BIDS, load_bids
 opn = os.path.normpath
 opj = os.path.join
@@ -31,12 +31,12 @@ endmap = '*fMRI_epi.nii.gz' # string
 humanPosition     = ['']
 orientation       = 'LSP' # "LPI" or ''
 animalPosition    = [''] # valid only for species smaller than humans
-## prior anatomical processing
+## prior anat processing
 coregistration_longitudinal = False #True or False
 type_norm = 'T2w' # T1 or T2
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
 TfMRI = 'T2w' # string
-### if you don't have any anatomical image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
+### if you don't have any anat image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
 Method_mask_func = 'nilearn' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
@@ -61,7 +61,7 @@ doWARPonfunc = False
 resting_or_task = 'resting'  # 'resting' or 'task'
 
 Skip_step = ['itk_1', 'itk_2', 'Clean']
-fonctions._0_Pipeline_launcher.preprocess_data(
+fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
                     animalPosition, humanPosition, orientation,

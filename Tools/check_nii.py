@@ -156,7 +156,7 @@ def resamp_no_check(source,target,imgtype,path_code,labelname,diary_file,sing_wb
         run_cmd.run(cmd, diary_file)
 
 def normalize_anat_type(name: str) -> str:
-    """Normalize anatomical type to 'T1w' or 'T2w'."""
+    """Normalize anat type to 'T1w' or 'T2w'."""
     if not name:  # empty string or None
         return ''
     if 'T1w' in name:

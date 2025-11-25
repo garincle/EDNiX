@@ -89,10 +89,10 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
 
     if redo==True:
         lowresanat = ants.image_read(templatelow)  # Low-resolution atlas
-        anat = ants.image_read(templatehigh)  # High-resolution anatomical image
+        anat = ants.image_read(templatehigh)  # High-resolution anat image
         # Perform affine + SyN nonlinear registration
         reg = ants.registration(
-            fixed=anat,  # High-resolution anatomical image (target)
+            fixed=anat,  # High-resolution anat image (target)
             moving=lowresanat,  # Low-resolution atlas (source)
             type_of_transform="SyN")  # Symmetric normalization (nonlinear)
 

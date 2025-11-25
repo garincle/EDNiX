@@ -15,8 +15,8 @@ sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS,getpath
 from atlases import atlas4func
-from anatomical import set_launcher
-from fonctions import _0_Pipeline_launcher
+from anat import set_launcher
+from fMRI import _0_Pipeline_launcher
 
 
 species   = 'Macaque'
@@ -75,12 +75,12 @@ endmap      = '*_map.nii.gz' # string
 orientation = 'LPI' # string
 deoblique   ='header' #header or WARP_without_3drefit
 
-## prior anatomical processing
+## prior anat processing
 coregistration_longitudinal = False #True or False
 type_norm = 'T1w' # T1 or T2
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
 TfMRI = 'T1w' # string
-### if you don't have any anatomical image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
+### if you don't have any anat image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
 folderforTemplate_Anat = ''
 
 ## masking
