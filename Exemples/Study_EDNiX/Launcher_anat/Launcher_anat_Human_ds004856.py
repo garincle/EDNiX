@@ -10,8 +10,8 @@ MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS, load_bids
-from anatomical import _0_Pipeline_launcher
-from anatomical.load_transfo_parameters import build_transfos
+from anat import _0_Pipeline_launcher
+from anat.load_transfo_parameters import build_transfos
 from Tools import Load_EDNiX_requirement
 from Plotting import Plot_BIDS_surface_for_QC
 ########################################################################################################################
@@ -25,7 +25,7 @@ bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scr
 # which format ?
 BIDStype = 'sub-{ID}_ses-{Session}_{Timage}.nii*'
 
-allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T1'], extensions=['.nii.gz'])
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T1w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -41,7 +41,7 @@ coregistration_longitudinal = True
 which_on  = 'max'                       # "all" or "max"
 
 # create  a study template
-creat_study_template  = True
+creat_study_template  = False
 
 #### Choose to normalize using T1 or T2
 
@@ -75,7 +75,7 @@ Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
     align={'type_of_transform': 'Translation', 'affmetric': 'mattes', 'affmetricT': 'mattes'},
-    coreg={'type_of_transform': 'SyN', 'affmetric': 'mattes', 'affmetricT': 'mattes'})
+    coreg={'type_of_transform': 'SyNCC', 'affmetric': '', 'affmetricT': ''})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 

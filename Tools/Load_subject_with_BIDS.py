@@ -55,7 +55,7 @@ def load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove):
             max_ses = max(listereverse)
         max_session.append(max_ses)
 
-        for session in set(listereverse):
+        for session in listereverse:
             data_path = os.path.join(bids_dir, 'sub-' + ID, 'ses-' + str(session))
             all_data_path.append(data_path)
             all_Session.append(session)

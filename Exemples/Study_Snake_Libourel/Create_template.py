@@ -1,4 +1,4 @@
-from anatomical.studytemplate import anat_to_common_EMB
+from anat.studytemplate import anat_to_common_EMB
 import glob
 import os
 opj = os.path.join

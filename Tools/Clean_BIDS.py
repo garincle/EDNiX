@@ -27,8 +27,8 @@ def cleanBIDS(BIDS_folder):
         # Specific mask files you want to keep
         '/sub-*/ses-*/anat/native/volumes/masks/*final_mask_orig.nii.gz',
         '/sub-*/ses-*/anat/native/volumes/masks/*final_mask.nii.gz',
-        '/sub-*/ses-*/anat/native/volumes/masks/*final_mask_2.nii.gz',
-        '/sub-*/ses-*/func/raw/masks/*_final_mask.nii.gz',
+        '/sub-*/ses-*/func/preprocessing/space-func/masks/*_final_mask.nii.gz',
+        '/sub-*/ses-*/func/preprocessing/space-func/masks/*_final_mask_orig.nii.gz',
 
         # Study template files
         '/sty_template/derivatives/acpc/volumes/masks/studyTemplate_final_mask.nii.gz',
@@ -109,7 +109,7 @@ def cleanBIDS(BIDS_folder):
 
 
 list_paths = [
-    '/srv/projects/easymribrain/scratch/EDNiX/Bat/BIDS_bat/'
+    '/srv/projects/easymribrain/data/MRI/Macaque/BIDS_Cdt_Garin'
 ]
 
 for path in list_paths:

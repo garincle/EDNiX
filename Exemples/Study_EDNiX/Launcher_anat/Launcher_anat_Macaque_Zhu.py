@@ -10,8 +10,8 @@ MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS, load_bids
-from anatomical import _0_Pipeline_launcher
-from anatomical.load_transfo_parameters import build_transfos
+from anat import _0_Pipeline_launcher
+from anat.load_transfo_parameters import build_transfos
 from Tools import Load_EDNiX_requirement
 from Plotting import Plot_BIDS_surface_for_QC
 ########################################################################################################################
@@ -23,7 +23,7 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Override os.path.join to always return Linux-style paths
 bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Macaque/BIDS_Cdt_Garin/'))
 # which format ?
-BIDStype = 2
+BIDStype = 1
 
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T1'], extensions=['.nii.gz'])
 
@@ -52,15 +52,15 @@ masking_img = 'T1' # could be T1w or T2w (if left empty it will be set to "type_
 
 # if you don't know anything about it : leave it empty
 # "AHF" stands for "Animal Head First",  "AFF" stands for "Animal Feet First", "humanlike" means no change to be done.
-humanPosition     = ['']
-orientation       = 'RAP' # "LPI" or ''
-animalPosition    = [''] # valid only for species smaller than humans
+humanPosition     = ['humanlike']
+orientation       = '' # "LPI" or ''
+animalPosition    = ['humanlike'] # valid only for species smaller than humans
 
 ### masking and skull stripping ----------------------------------------------------------------------------------------
 # step 1 : coarse method (use for cropping and acpc setting)
 brain_skullstrip_1  = 'Custum_Macaque2'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
 # step 2 : precise method
-brain_skullstrip_2  = 'Custum_QWARP'            # bet2_ANTS or MachinL
+brain_skullstrip_2  = ''            # bet2_ANTS or MachinL
 # step 3 : valid only for study or session template :
 template_skullstrip = 'Manual'
 
@@ -74,7 +74,7 @@ fMRImasks     = 'aseg' # must be aseg or custom
 Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
-    align={'type_of_transform': 'Translation', 'affmetric': 'mattes', 'affmetricT': 'mattes'},
+    align={'type_of_transform': 'Translation', 'affmetric': 'MI', 'affmetricT': 'MI'},
     coreg={'type_of_transform': 'SyN', 'affmetric': 'MI', 'affmetricT': 'MI'})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'

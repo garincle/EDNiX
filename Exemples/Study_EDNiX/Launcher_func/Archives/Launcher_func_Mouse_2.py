@@ -8,7 +8,7 @@ opj = os.path.join
 MAIN_PATH = opj('/srv/projects/easymribrain/code/EDNiX/')
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
-import fonctions._0_Pipeline_launcher
+import fMRI._0_Pipeline_launcher
 
 
 species = 'Mouse'
@@ -105,12 +105,12 @@ endmap = '*_map.nii.gz' # string
 orientation = 'LSP' # string
 deoblique='WARP' #header or WARP
 
-## prior anatomical processing
+## prior anat processing
 coregistration_longitudinal = False #True or False
 type_norm = 'acq-RARE_T2w' # T1 or T2
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
 TfMRI = 'acq-RARE_T2w' # string
-### if you don't have any anatomical image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
+### if you don't have any anat image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
 folderforTemplate_Anat = ''
 
 ## masking
@@ -199,14 +199,14 @@ delta_thresh = 0.1
 ############ Right in a list format the steps that you want to skip
 Skip_step = [4,100,200]
 
-fonctions._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
-                                               BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space, use_master_for_Allineate,
-                                               correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
-                                               TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
-                                               dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
-                                               n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,
-                                               oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step,
-                                               bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
-                                               folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list, band,
-                                               extract_Vc, selected_atlases_matrix, specific_roi_tresh, delta_thresh, extract_GS, MAIN_PATH,
-                                               DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, FS_dir, normalize)
+fMRI._0_Pipeline_launcher.preprocess_data(all_ID, all_Session, all_data_path, all_Session_max, stdy_template, stdy_template_mask,
+                                          BASE_SS, BASE_mask, T1_eq, Slice_timing_info, anat_func_same_space, use_master_for_Allineate,
+                                          correction_direction, REF_int, SBAspace, erod_seed, smoothSBA, deoblique, orientation,
+                                          TfMRI, GM_mask_studyT, GM_mask, creat_study_template, type_norm, coregistration_longitudinal,
+                                          dilate_mask, overwrite_option, nb_ICA_run, blur, ICA_cleaning, extract_exterior_CSF, extract_WM,
+                                          n_for_ANTS, aff_metric_ants, aff_metric_ants_Transl, list_atlases, selected_atlases, panda_files, endfmri, endjson, endmap,
+                                          oversample_map, use_cortical_mask_func, cut_coordsX, cut_coordsY, cut_coordsZ, threshold_val, Skip_step,
+                                          bids_dir, costAllin, use_erode_WM_func_masks, do_not_correct_signal, use_erode_V_func_masks,
+                                          folderforTemplate_Anat, IhaveanANAT, do_anat_to_func, Method_mask_func, segmentation_name_list, band,
+                                          extract_Vc, selected_atlases_matrix, specific_roi_tresh, delta_thresh, extract_GS, MAIN_PATH,
+                                          DwellT, SED, TR, TRT, type_of_transform, ntimepoint_treshold, registration_fast, FS_dir, normalize)

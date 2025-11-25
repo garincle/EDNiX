@@ -43,7 +43,7 @@ endmap = '*_map.nii.gz' # string
 humanPosition     = ['']
 orientation       = 'LIP' # "LPI" or ''
 animalPosition    = [''] # valid only for species smaller than humans
-## prior anatomical processing
+## prior anat processing
 coregistration_longitudinal = False #True or False
 type_norm = 'T2w' # T1 or T2
 TfMRI = 'T2w' # string

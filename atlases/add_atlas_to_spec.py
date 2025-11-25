@@ -11,8 +11,8 @@ opi = os.path.isfile
 
 from Tools import run_cmd
 from Tools import getpath
-from anatomical import transfo_T2toT1w
-from anatomical.connectomeWB import WB_label
+from anat import transfo_T2toT1w
+from anat.connectomeWB import WB_label
 
 
 def add(cmd_mris,atlas,template,doT,label,name,LR,diary_name):

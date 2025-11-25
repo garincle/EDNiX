@@ -126,12 +126,12 @@ endmap = '*_map.nii.gz' # string
 orientation = 'RIP' # string
 deoblique='WARP_without_3drefit' #header or WARP
 
-## prior anatomical processing
+## prior anat processing
 coregistration_longitudinal = False #True or False
 type_norm = 'T2w' # T1 or T2
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
 TfMRI = 'T2w' # string
-### if you don't have any anatomical image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
+### if you don't have any anat image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
 folderforTemplate_Anat = ''
 
 ## masking

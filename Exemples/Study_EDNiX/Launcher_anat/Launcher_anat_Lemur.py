@@ -10,8 +10,8 @@ MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS
-from anatomical import _0_Pipeline_launcher
-from anatomical.load_transfo_parameters import build_transfos
+from anat import _0_Pipeline_launcher
+from anat.load_transfo_parameters import build_transfos
 from Tools import Load_EDNiX_requirement
 from Plotting import Plot_BIDS_surface_for_QC
 

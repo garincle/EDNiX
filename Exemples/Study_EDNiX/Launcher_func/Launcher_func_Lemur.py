@@ -4,7 +4,7 @@ from bids import BIDSLayout
 from bids.reports import BIDSReport
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
-import fonctions._0_Pipeline_launcher
+import fMRI._0_Pipeline_launcher
 from Tools import Load_subject_with_BIDS
 opn = os.path.normpath
 opj = os.path.join
@@ -40,7 +40,7 @@ endmap = '*_map.nii.gz' # string
 humanPosition     = ['']
 animalPosition    = [''] # valid only for species smaller than humans
 orientation = 'LSP' # string
-## prior anatomical processing
+## prior anat processing
 coregistration_longitudinal = False #True or False
 type_norm = 'T2w' # T1 or T2
 TfMRI = 'T2w' # string
@@ -60,7 +60,7 @@ dilate_mask=0
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 
 Skip_step = ['itk_1', 'itk_2', 'Clean']
-fonctions._0_Pipeline_launcher.preprocess_data(
+fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
                     animalPosition, humanPosition, orientation,
