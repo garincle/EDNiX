@@ -90,7 +90,7 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prep
                 if not ope(direction_results):
                     os.mkdir(direction_results)
                 atlas_dir = dir_prepro_template_labels
-                func_filename     = opj(dir_prepro_template_postprocessed, root_RS + '_space-acpc-anat_desc-fMRI_residual.nii.gz')
+                func_filename     = opj(dir_prepro_template_postprocessed, root_RS + '_space-template_desc-fMRI_residual.nii.gz')
 
                 if oversample_map == True:
                     studytemplatebrain = BASE_SS_coregistr

@@ -21,7 +21,7 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Macaque/BIDS_Cdt_Garin/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/data/MRI/Macaque/BIDS_Cdt_Garin'))
 # which format ?
 BIDStype = 1
 
@@ -60,7 +60,7 @@ animalPosition    = ['humanlike'] # valid only for species smaller than humans
 # step 1 : coarse method (use for cropping and acpc setting)
 brain_skullstrip_1  = 'Custum_Macaque2'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
 # step 2 : precise method
-brain_skullstrip_2  = ''            # bet2_ANTS or MachinL
+brain_skullstrip_2  = 'NoSkullStrip'            # bet2_ANTS or MachinL
 # step 3 : valid only for study or session template :
 template_skullstrip = 'Manual'
 
@@ -97,7 +97,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = ['itk_2', 'flat_map', 'Clean']
+Skip_step = [1,2,3,4,5,6,7,'itk_2', 'flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #

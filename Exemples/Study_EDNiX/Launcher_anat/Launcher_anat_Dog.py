@@ -25,7 +25,7 @@ bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scr
 # which format ?
 BIDStype = 2
 
-allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T1w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -53,9 +53,9 @@ masking_img = 'T1w' # could be T1w or T2w (if left empty it will be set to "type
 
 # if you don't know anything about it : leave it empty
 # "AHF" stands for "Animal Head First",  "AFF" stands for "Animal Feet First", "humanlike" means no change to be done.
-humanPosition     = ['']
-orientation       = 'IPL' # "LPI" or ''
-animalPosition    = [''] # valid only for species smaller than humans
+humanPosition     = ['humanlike']
+orientation       = '' # "LPI" or ''
+animalPosition    = ['humanlike'] # valid only for species smaller than humans
 
 ### masking and skull stripping ----------------------------------------------------------------------------------------
 
@@ -100,7 +100,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = ['itk_2', 'flat_map', 'Clean']
+Skip_step = [1,2,3,4,5,6,7,8,9,'itk_2', 'flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #

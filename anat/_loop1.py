@@ -43,7 +43,7 @@ def run(ID, Session, data_path, path_rawanat,BIDStype, listTimage,otheranat, lis
     if 2 in Skip_step:
         run_cmd.msg('INFO: skip step ' + str(2), diary_file, 'OKGREEN')
     else:
-        _2_clean_anatv2.clean_anat(Align_img_to_template, bids_dir, listTimage,
+        _2_clean_anat.clean_anat(Align_img_to_template, bids_dir, listTimage,
                                                   list_transfo, ID, Session,
                                                   type_norm, data_path, masking_img, brain_skullstrip_1,
                                                   BASE_SS_coregistr,BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img,

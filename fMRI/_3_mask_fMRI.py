@@ -201,6 +201,10 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepr
         nl = 'INFO: please delete' + final_mask + ' if you want retry to create a skulstripp images'
         run_cmd.msg(nl, diary_file, 'OKGREEN')
 
+        command = (sing_afni + '3dresample' + overwrite + ' -input ' + final_mask + ' -master ' + Mean_Image +
+                   ' -prefix ' + final_mask + ' -overwrite')
+        run_cmd.do(command, diary_file)
+
         command = (sing_afni + '3dcalc' + overwrite + ' -a ' + final_mask +
                    ' -prefix ' + Prepro_fMRI_mask + ' -expr "a"')
         run_cmd.do(command, diary_file)
