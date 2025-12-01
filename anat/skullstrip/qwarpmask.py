@@ -29,10 +29,10 @@ def run(input_for_msk,output_for_mask,process_dir,masks_dir,masking_img,BASE_SS_
 
     #Ex_Mask = opj(masks_dir, extract_filename(input_for_msk) + 'mask_tmp' + masking_img + '.nii.gz')
     if option2== '':
-        command = (sing_afni + '3dmask_tool -overwrite  -fill_holes -prefix ' + output_for_mask +
+        command = (sing_afni + '3dmask_tool -overwrite -fill_holes -prefix ' + output_for_mask +
                    ' -input ' + opj(masks_dir, extract_filename(input_for_msk) + 'template_brainmask.nii.gz'))
     else:
-        command = (sing_afni + '3dmask_tool -overwrite  -fill_holes -prefix ' + output_for_mask +
+        command = (sing_afni + '3dmask_tool -overwrite -fill_holes -prefix ' + output_for_mask +
                    ' -input ' + opj(masks_dir, extract_filename(input_for_msk) + 'template_brainmask.nii.gz') +
                    option2)
     run_cmd.run(command, diary_file)

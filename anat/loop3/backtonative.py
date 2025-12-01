@@ -293,7 +293,7 @@ def apply(ID,volumes_dir,masks_dir,labels_dir,bids_dir,info,listTimage,targetsuf
                     if opi(info[0][2]):
                         # backward
                         norm2template.apply('acpc', img_ref, masks_dir, ID, info[0][2],
-                                            info[i][7], info[i][8], '', '', '', Timage, n_for_ANTS,
+                                            info[0][7], info[0][8], '', '', '', Timage, n_for_ANTS,
                                             diary_file, sing_wb)
 
                         check_nii.resamp(opj(masks_dir, ID + '_space-acpc_mask.nii.gz'), img_ref, 'msk', '', '', diary_file,
@@ -315,19 +315,25 @@ def apply(ID,volumes_dir,masks_dir,labels_dir,bids_dir,info,listTimage,targetsuf
                 newname = opj(opd(info[i][1]), '_'.join(oldname[0:-1] + [Timage]) + '.nii.gz')
                 print('newname=' + str(newname))
                 print('ope newname = ' + str(ope(newname)))
-                norm2template.apply('acpc', img_ref, info[i][4], info[i][0], newname,
-                                    info[i][7], info[i][8], 'SS', '', '', Timage, n_for_ANTS,
-                                    diary_file, sing_wb)
+                if ope(newname):
+                    norm2template.apply('acpc', img_ref, info[i][4], info[i][0], newname,
+                                        info[i][7], info[i][8], 'SS', '', '', Timage, n_for_ANTS,
+                                        diary_file, sing_wb)
 
-                QC_plot.mosaic(info[i][1],
-                               opj(info[i][4], '_'.join([ID, 'space-' + info[i][0], 'desc-SS', Timage]) + '.nii.gz'),
-                               opj(bids_dir, 'QC', '_'.join(['backtonative_native_in_space-' + info[i][0], Timage]),
-                               '_'.join([ID, 'space-' + info[i][0], Timage]) + '.png'))
+                    QC_plot.mosaic(info[i][1],
+                                   opj(info[i][4], '_'.join([ID, 'space-' + info[i][0], 'desc-SS', Timage]) + '.nii.gz'),
+                                   opj(bids_dir, 'QC', '_'.join(['backtonative_native_in_space-' + info[i][0], Timage]),
+                                   '_'.join([ID, 'space-' + info[i][0], Timage]) + '.png'))
 
-                QC_plot.mosaic(img_ref,
-                               opj(info[i][4], '_'.join([info[i][0], 'space-acpc', 'desc-SS', Timage]) + '.nii.gz'),
-                               opj(bids_dir, 'QC', '_'.join([info[i][0], 'space-acpc', Timage]),
-                               '_'.join([info[i][0], 'space-acpc', Timage]) + '.png'))
+                    QC_plot.mosaic(img_ref,
+                                   opj(info[i][4], '_'.join([info[i][0], 'space-acpc', 'desc-SS', Timage]) + '.nii.gz'),
+                                   opj(bids_dir, 'QC', '_'.join([info[i][0], 'space-acpc', Timage]),
+                                   '_'.join([info[i][0], 'space-acpc', Timage]) + '.png'))
+                elif opi(img_ref)== False and Timage==type_norm==True:
+                    ValueError("Can't find the template name in the library, check naming and path!")
+                else:
+                    print("no " + str(Timage) + " template found, not a big deal")
+
 
         # myelin image
         if opi(opj(volumes_dir, ID + targetsuffix + '_T1wdividedbyT2w.nii.gz')):

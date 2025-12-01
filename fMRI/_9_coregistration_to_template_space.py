@@ -60,7 +60,7 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
             w2inv_fwd = []
             for elem1, elem2 in zip([Mean_Image_unwarped.replace('.nii.gz', '_1Warp.nii.gz'),
                                      Mean_Image_unwarped.replace('.nii.gz', '_0GenericAffine.mat')],
-                                    [True, False]):
+                                    [False, False]):
                 if opi(elem1):
                     mvt_shft_ANTs.append(elem1)
                     w2inv_fwd.append(elem2)
@@ -163,7 +163,7 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
                        ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
                        ' -input ' + opj(template_dir_labels, species + '_seg-' + atlas + '_dseg.nii.gz'))
             run_cmd.run(command, diary_file)
-            resamp_no_check(opj(dir_prepro_template_labels, atlasfile), residual_template, 'msk', '', '', '')
+            resamp_no_check(opj(dir_prepro_template_labels, atlasfile), residual_template, 'msk', '', '', '', '')
             dictionary = {"Sources": [opj(template_dir_labels, species + '_seg-' + atlas + '_dseg.nii.gz'),
                                       residual_template],
                           "Description": ' Resampling (3dresample, AFNI).'},
@@ -187,17 +187,21 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
                                 opj(dir_prepro_template_masks, 'Vmask.nii.gz'),
                                 opj(dir_prepro_template_masks, 'Wmask.nii.gz'),
                                 opj(dir_prepro_template_masks, 'Gmask.nii.gz')]):
-        command = (sing_afni + '3dresample' + overwrite +
-                   ' -prefix ' + output2 +
-                   ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
-                   ' -input ' + input1)
-        run_cmd.run(command, diary_file)
-        resamp_no_check(output2, residual_template, 'msk', '', '', '')
-        dictionary = {"Sources": [input1,
-                                  residual_template],
-                      "Description": ' Resampling (3dresample, AFNI).'},
-        json_object = json.dumps(dictionary, indent=2)
-        with open(output2.replace('.nii.gz', '.json'), "w") as outfile:
-            outfile.write(json_object)
+        if ope (input1):
+            command = (sing_afni + '3dresample' + overwrite +
+                       ' -prefix ' + output2 +
+                       ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
+                       ' -input ' + input1)
+            run_cmd.run(command, diary_file)
+            resamp_no_check(output2, residual_template, 'msk', '', '', '', '')
+            dictionary = {"Sources": [input1,
+                                      residual_template],
+                          "Description": ' Resampling (3dresample, AFNI).'},
+            json_object = json.dumps(dictionary, indent=2)
+            with open(output2.replace('.nii.gz', '.json'), "w") as outfile:
+                outfile.write(json_object)
+        else:
+            nl = 'WARNING: ' +  str(input1) + ' do not exists!'
+            run_cmd.msg(nl, diary_file, 'WARNING')
 
 
