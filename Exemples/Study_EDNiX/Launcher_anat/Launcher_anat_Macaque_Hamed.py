@@ -52,9 +52,9 @@ masking_img = 'T1w' # could be T1w or T2w (if left empty it will be set to "type
 
 # if you don't know anything about it : leave it empty
 # "AHF" stands for "Animal Head First",  "AFF" stands for "Animal Feet First", "humanlike" means no change to be done.
-humanPosition     = ['']
-orientation       = 'RAP' # "LPI" or ''
-animalPosition    = ['AFF','AFF'] # valid only for species smaller than humans
+humanPosition     = ['humanlike']
+orientation       = '' # "LPI" or ''
+animalPosition    = ['humanlike'] # valid only for species smaller than humans
 
 ### masking and skull stripping ----------------------------------------------------------------------------------------
 # step 1 : coarse method (use for cropping and acpc setting)

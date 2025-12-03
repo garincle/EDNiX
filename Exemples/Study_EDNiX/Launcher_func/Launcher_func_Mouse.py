@@ -7,19 +7,14 @@ MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
 import fMRI._0_Pipeline_launcher
-from Tools import Load_subject_with_BIDS
+from Tools import Load_subject_with_BIDS, load_bids
 species = 'Mouse'
 ## linux ##FS_dir
 # Override os.path.join to always return Linux-style paths
 bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Mouse/BIDS_Gd/'))
 
-########### Subject loader with BIDS##############
-layout= BIDSLayout(bids_dir,  validate=False)
-df = layout.to_df()
-df.head()
-
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -53,7 +48,7 @@ do_anat_to_func = False # True or False
 Slice_timing_info = '-tpattern alt+z'
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
-creat_study_template = False # True or Fals
+creat_study_template = True # True or Fals
 blur = 0.5 # float
 #Dilate the functional brain mask by n layers
 dilate_mask = 2 # int

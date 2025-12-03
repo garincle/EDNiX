@@ -25,9 +25,9 @@ all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_m
 T1_eq = 5 # int
 REF_int = 0 # int
 ntimepoint_treshold = 100
-endfmri = '*_task-rest_run-LR*.nii.gz' # string
-endjson = '*_task-rest_run-LR*.json' # string
-endmap =  '*_task-rest_run-RL*.nii.gz' # string
+endfmri = '*_task-rest_run-RL*.nii.gz' # string
+endjson = '*_task-rest_run-RL*.json' # string
+endmap =  '*_task-rest_run-LR*.nii.gz' # string
 humanPosition     = ['']
 orientation       = 'LPI' # "LPI" or ''
 animalPosition    = [''] # valid only for species smaller than humans
