@@ -4,29 +4,42 @@ import re
 import nibabel as nib
 
 spgo = subprocess.getoutput
-
+'''
 # purpose for FS : LIA
 orient_FS =  ['RAS','LAS','RSA','LSA',
               'RIA','LIA','RSP','LSP',
               'RPS','LPS','RPI','LPI',
-              'RIP','LIP','RAI','LAI']
+              'RIP','LIP','RAI','LAI',
+              'IAR','IAL','IPL']
 
+# because ITK, Antspy,Afni use the reverse notation as Freesurfer
 orient_itk = ['LPI','RPI','LIP','RIP',
               'LSP','RSP','LIA','RIA',
               'LAI','RAI','LAS','RAS',
-              'LSA','RSA','LPS','RPS']
+              'LSA','RSA','LPS','RPS',
+              'SPL','SPR','SAR']
+'''
+def fromITK_to_newFS(orig,desired):
+    transfo = []
+    opposite ={'R':'L','L':'R',
+               'A':'P','P':'A',
+               'S':'I','I':'A'}
+    for index,item in enumerate(orig):
+        if opposite[item] in desired:
+            for i, j in enumerate(desired):
+                if opposite[item]==j:
+                    transfo.append(i+1)
+        else:
+            for i, j in enumerate(desired):
+                if item==j:
+                    transfo.append((i+1)*-1)
+    transfo = ' '.join(str(x) for x in transfo)
+    return transfo
 
-orient_ants = [[-1,-2,3], [1,-2,3], [-1,3,-2], [1,3,-2],
-               [-1,-3,-2],[1,-3,-2],[-1,3,2],  [1,3,2],
-               [-1,2,3],  [1,2,3],  [-1,2,-3], [1,2,-3],
-               [-1,-3,2], [1,-3,2], [-1,-2,-3],[1,-2,-3]]
 
-reorient_img = ['-1 3 -2',  '1 3 -2',  '-1 -2 3',  '1 -2 3',
-                '-1 2 3',   '1 2 3',   '-1 -2 -3', '1 -2 -3',
-                '-1 -3 -2', '1 -3 -2', '-1 -3 2',  '1 -3 2',
-                '-1 2 -3',  '1 2 -3',  '-1 3 2',   '1 3 2']
-
-def use_FS(img,sing_fs):
+#reorient_img = fromITK_to_newFS(orient_itk,'LIA')
+'''
+def use_FS(img: object, sing_fs: object) -> object:
 
     cmd = (sing_fs + 'mri_info --orientation ' + img)
     orient_img = spgo(cmd).split('\n')[-1]
@@ -43,52 +56,28 @@ def use_FS(img,sing_fs):
     bckFS_cmd = ' --in_orientation LIA' + reorient
 
     return [orient_raw,reorient,fwdFS_cmd,bckFS_cmd]
+'''
+def use_ants(img):
+    img_hd = ants.image_read(img)
+    orient_img = img_hd.orientation
+    reorient = fromITK_to_newFS(orient_img, 'LIA')
 
-def use_ants(img,sing_fs):
-    img_hd = ants.image_header_info(img)
-    matrix= img_hd['direction']
-    orient_img = [0,0,0]
-    
-    orient_raw = ''
-    reorient   = ''
-
-    for i in range(len(matrix)):
-        for index, item in enumerate(matrix[i]):
-            if item != 0:
-                if item < 0:
-                    orient_img[i]=(index+1)*-1
-                else:
-                    orient_img[i]=index+1
-    
-    for index, orient in enumerate(orient_ants):
-        if orient_img == orient:
-            orient_raw = orient_FS[index]
-            reorient = ' -r ' + reorient_img[index] + ' '
-            deobl=0
-            break
-        else :
-            orient_raw,reorient,_,_ = use_FS(img,sing_fs)
-            deobl=1
-
-    fwdFS_cmd = ' --in_orientation ' + orient_raw + reorient
+    fwdFS_cmd = ' --in_orientation ' + orient_img + ' -r ' +  reorient + ' '
     bckFS_cmd = ' --in_orientation LIA' + reorient
 
-    return [orient_raw,reorient,fwdFS_cmd,bckFS_cmd,deobl]
+    return [orient_img,reorient,fwdFS_cmd,bckFS_cmd]
 
 
 def use_afni(img,sing_afni):
     cmd = sing_afni + '3dinfo -orient ' + img
     orient_img = spgo(cmd).split('\n')[-1]
+    reorient = fromITK_to_newFS(orient_img, 'LIA')
 
-    for index, orient in enumerate(orient_itk):
-        if orient_img == orient:
-            orient_raw = orient_FS[index]
-            reorient = ' -r ' + reorient_img[index] + ' '
-
-    fwdFS_cmd = ' --in_orientation ' + orient_raw + reorient
+    fwdFS_cmd = ' --in_orientation ' + orient_img + ' -r ' + reorient + ' '
     bckFS_cmd = ' --in_orientation LIA' + reorient
 
-    return [orient_raw, reorient, fwdFS_cmd, bckFS_cmd]
+    return [orient_img, reorient, fwdFS_cmd, bckFS_cmd]
+
 
 def get_orientation_nibabel(nifti_path):
     """Get 3-letter orientation code using NiBabel."""

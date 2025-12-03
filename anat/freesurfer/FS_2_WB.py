@@ -58,7 +58,7 @@ def WB_prep(cmd_mris_convert,FS_dir,FS_refs,dir_path,animal,species,spacing,resa
     print(iso)
     print(Ref_file)
     print(ope(Ref_file))
-    _, _, _, bckFS_cmd, _ = get_orientation.use_ants(Ref_file, sing_fs)
+    _, _, _, bckFS_cmd = get_orientation.use_ants(Ref_file)
 
     conv_voxmm = 0.8
     towarp     = 0

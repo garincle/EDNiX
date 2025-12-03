@@ -226,7 +226,7 @@ def toFS(list1, Subname,change_hd,scaling,data_path,reference,BALSAname,diary_na
     for i in range(2,5):
         list1[i] = opj(labels_dir,list1[i] + Ref + '.nii.gz')
     
-    [_, _, fwdFS_cmd, _,_] = get_orientation.use_ants(list1[0], sing_fs)
+    [_, _, fwdFS_cmd, _] = get_orientation.use_ants(list1[0])
 
     list2 = ['orig.mgz',
              'brain.mgz',
@@ -382,7 +382,7 @@ def toannot(file,ref, change_hd,scaling,new_size,FS_dir, diary_name,sing_fs):
     nl = 'Convert the volume for FS to get a annot surface file'
     run_cmd.msg(nl, diary_name,'HEADER')
 
-    [_, _, fwdFS_cmd, _, _] = get_orientation.use_ants(ref, sing_fs)
+    [_, _, fwdFS_cmd, _] = get_orientation.use_ants(ref)
 
     name   = opb(file).split('.')[0]
     animal = name.split('_')[0]

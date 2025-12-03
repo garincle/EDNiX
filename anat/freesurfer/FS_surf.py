@@ -201,7 +201,7 @@ def PcreateT2(T2_img,dir_path,aseg,LR,change_hd,diary_name,sing_fs,export_fs):
 
     animal  = opb(T2_img).split('_')[0]
 
-    _, _, fwdFS_cmd, _, _ = get_orientation.use_ants(T2_img, sing_fs)
+    _, _, fwdFS_cmd, _ = get_orientation.use_ants(T2_img)
 
     preFS.prepa_T2img(animal, T2_img, dir_prepro, aseg, diary_name)
 

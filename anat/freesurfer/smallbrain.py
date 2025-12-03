@@ -19,7 +19,7 @@ def get(animal,dir,file,brain_mask,diary_name,sing_fs):
 
     datfile = ''
 
-    orient_raw, _, _, _ ,_= get_orientation.use_ants(file, sing_fs)
+    orient_raw, _, _, _ = get_orientation.use_ants(file)
     
     img_hd     = ants.image_header_info(file)
     voxX = img_hd['spacing'][0]
