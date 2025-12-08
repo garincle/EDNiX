@@ -126,7 +126,7 @@ def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_
 
         fMRI_run_inRef = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-fMRI_run_inRef.nii.gz')
 
-        if root_RS == root_RS_ref and recordings == 'very_old' and doWARPonfunc==True:  # do not process ref not corrected...
+        if root_RS == root_RS_ref and recordings == 'very_old' and doWARPonfunc in ['WARP', 'header']:  # do not process ref not corrected...
 
             command = (sing_afni + '3dcopy ' + fMRI_reoriented +
                        ' ' + fMRI_run_inRef + overwrite)

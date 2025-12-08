@@ -393,7 +393,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
         imagetype = [3, 2]
         for image_to_send_acpc, image_to_creat_acpc, imagetype in zip([fMRI_BASE, fMRI_BASE_Mean], [fMRI_run_inRef_acpc, fMRI_runMean_inRef_acpc], imagetype):
             additional_transformations = []
-            if root_RS == root_RS_ref and recordings == 'very_old' and doWARPonfunc == True:  # do not process ref not corrected...
+            if root_RS == root_RS_ref and recordings == 'very_old' and doWARPonfunc in ['WARP', 'header']:  # do not process ref not corrected...
                 # pas de transfo run to MEAN
                 print('No transformation for the reference run')
             else:

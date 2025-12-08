@@ -12,7 +12,7 @@ sys.path.insert(1, opj(MAIN_PATH))
 from Tools import Load_subject_with_BIDS
 from anat import _0_Pipeline_launcher
 from anat.load_transfo_parameters import build_transfos
-from Tools import Load_EDNiX_requirement
+from Tools import Load_EDNiX_requirement, load_bids
 from Plotting import Plot_BIDS_surface_for_QC
 
 ########################################################################################################################
@@ -25,14 +25,7 @@ bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scr
 # which format ?
 BIDStype = 1
 
-########### Subject loader with BIDS  ##############
-layout = BIDSLayout(bids_dir, validate=False)
-report = BIDSReport(layout)
-df = layout.to_df()
-df.head()
-
-#### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -82,7 +75,7 @@ fMRImasks     = 'aseg' # must be aseg or custom
 #
 Align_img_to_template = 'Ants'
 list_transfo = build_transfos(
-    align={'type_of_transform': 'Translation', 'affmetric': 'MI', 'affmetricT': 'MI'},
+    align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
     coreg={'type_of_transform': 'BOLDAffine', 'affmetric': '', 'affmetricT': ''})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
