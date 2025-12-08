@@ -74,7 +74,7 @@ fMRImasks     = 'aseg' # must be aseg or custom
 Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
-    align={'type_of_transform': 'Translation', 'affmetric': 'mattes', 'affmetricT': 'mattes'},
+    align={'type_of_transform': 'Rigid', 'affmetric': 'mattes', 'affmetricT': 'mattes'},
     coreg={'type_of_transform': 'SyNCC', 'affmetric': '', 'affmetricT': ''})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'

@@ -11,14 +11,14 @@ sys.path.insert(1, opj(MAIN_PATH))
 
 species    = 'Marmoset'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Marmoset/BIDS_NIH_MBM/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Marmoset/BIDS_NIH_MBM/'))
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
-list_to_remove = []
+list_to_remove = [('NIHm14', '03'), ('NIHm14', '02'), ('NIHm14', '01'), ('NIHm15', '01'), ('NIHm16', '01'), ('NIHm17', '02'), ('NIHm17', '01'), ('NIHm18', '01'), ('NIHm19', '01'), ('NIHm20', '01'), ('NIHm21', '01'), ('NIHm22', '01'), ('NIHm23', '01'), ('NIHm24', '04')]
 
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 #### fMRI pre-treatment
@@ -27,7 +27,7 @@ REF_int = 0 # int
 ntimepoint_treshold = 100
 endfmri = '*_task-rest_run-RL*.nii.gz' # string
 endjson = '*_task-rest_run-RL*.json' # string
-endmap =  '*_task-rest_run-LR*.nii.gz' # string
+endmap =  ' ' # string
 humanPosition     = ['']
 orientation       = 'LPI' # "LPI" or ''
 animalPosition    = [''] # valid only for species smaller than humans

@@ -21,7 +21,7 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/data/MRI/Macaque/BIDS_Cdt_Garin'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/BIDS_Cdt_Garin'))
 # which format ?
 BIDStype = 1
 
@@ -33,7 +33,6 @@ Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis:
 list_to_keep   = []
 list_to_remove = []
-
 species    = 'Macaque'
 # is it a longitudinal study ?
 coregistration_longitudinal = True
@@ -74,7 +73,7 @@ fMRImasks     = 'aseg' # must be aseg or custom
 Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
-    align={'type_of_transform': 'Translation', 'affmetric': 'MI', 'affmetricT': 'MI'},
+    align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
     coreg={'type_of_transform': 'SyN', 'affmetric': 'MI', 'affmetricT': 'MI'})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
@@ -97,7 +96,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = [1,2,3,4,5,6,7,'itk_2', 'flat_map', 'Clean']
+Skip_step = ['itk_2', 'flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #

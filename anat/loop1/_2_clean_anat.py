@@ -152,7 +152,7 @@ def clean_anat(Align_img_to_template, bids_dir, listTimage, list_transfo, ID, Se
 
 
     command = (sing_afni + '3dAutobox -input ' + anat_input4 + type_norm + '.nii.gz' +
-               ' -prefix ' + anat_input6 + type_norm + '.nii.gz' + ' -noclust -overwrite')
+               ' -npad 2 -prefix ' + anat_input6 + type_norm + '.nii.gz' + ' -noclust -overwrite')
     run_cmd.run(command, diary_file)
 
     dictionary = {"Sources": anat_input4 + type_norm + '.nii.gz',

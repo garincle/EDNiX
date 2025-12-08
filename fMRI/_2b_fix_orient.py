@@ -54,13 +54,20 @@ def fix_orient(runMean_reorient, fMRI_runMean_unwarpped, list_RS, animalP, human
     msg, _ = run_cmd.get(cmd, diary_file)
     obli = msg.decode("utf-8").split('\n')[-2]
 
-    if obli == '1' and doWARPonfunc==True:
+    if obli == '1' and doWARPonfunc=='WARP':
         cmd = sing_afni + '3dWarp -overwrite -deoblique -prefix ' + runMean_reorient + ' ' + fMRI_runMean_unwarpped
         run_cmd.run(cmd, diary_file)
         desc = 'Correction of the obliquity.'
 
         cmd = sing_afni + '3dinfo -orient ' + runMean_reorient
         msg, _ = run_cmd.get(cmd, diary_file)
+
+        orient = msg.decode("utf-8").split('\n')[-2]
+
+    if obli == '1' and doWARPonfunc=='header':
+        cmd = sing_afni + '3drefit -overwrite -deoblique -orient ' + orientation + ' ' +  runMean_reorient
+        run_cmd.run(cmd, diary_file)
+        desc = 'Correction of the obliquity.'
 
         orient = msg.decode("utf-8").split('\n')[-2]
 

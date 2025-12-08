@@ -109,7 +109,7 @@ def cleanBIDS(BIDS_folder):
 
 
 list_paths = [
-    '/srv/projects/easymribrain/data/MRI/Macaque/BIDS_Cdt_Garin'
+    '/scratch2/EDNiX/Dog/BIDS_k9/'
 ]
 
 for path in list_paths:

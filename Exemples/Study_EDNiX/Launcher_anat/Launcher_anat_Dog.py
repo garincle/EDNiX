@@ -21,7 +21,7 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Dog/BIDS_k9/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Dog/BIDS_k9/'))
 # which format ?
 BIDStype = 2
 
@@ -63,7 +63,7 @@ animalPosition    = ['humanlike'] # valid only for species smaller than humans
 # step 1 : coarse method (use for cropping and acpc setting)
 brain_skullstrip_1  = '3dSkullStrip_dog_macaque'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
 # step 2 : precise method
-brain_skullstrip_2  = 'Custum_QWARPT2'            # bet2_ANTS or MachinL
+brain_skullstrip_2  = 'NoSkullStrip'            # bet2_ANTS or MachinL
 # step 3 : valid only for study or session template :
 template_skullstrip = 'NoSkullStrip'
 
@@ -77,8 +77,8 @@ fMRImasks     = 'aseg' # must be aseg or custom
 Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
-    align={'type_of_transform': 'Translation', 'affmetric': 'mattes', 'affmetricT': 'mattes'},
-    coreg={'type_of_transform': 'SyN', 'affmetric': 'MI', 'affmetricT': 'MI'})
+    align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
+    coreg={'type_of_transform': 'SyN', 'affmetric': 'meansquares', 'affmetricT': 'meansquares'})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 
@@ -100,7 +100,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = [1,2,3,4,5,6,7,'itk_2', 'flat_map', 'Clean']
+Skip_step = ['itk_2', 'flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
@@ -116,7 +116,7 @@ _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      list_transfo, Align_img_to_template, MNIBcorrect_indiv,
                      fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
                      transfo_message='do_as_I_said', force_myelin_same_space=False,
-                     check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
+                     check_visualy_final_mask=True, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
 '''
 ### Surface QC summary creation --------------------------------------------------------------------------------
 # Function 1: Load EDNiX requirements
