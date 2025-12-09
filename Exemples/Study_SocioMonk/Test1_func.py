@@ -11,7 +11,7 @@ sys.path.insert(1, opj(MAIN_PATH))
 
 species    = 'Macaque'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/BIDS_BenHamed/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/Test1_Litchy/Bids/'))
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T1w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
@@ -24,13 +24,13 @@ all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_m
 #### fMRI pre-treatment
 T1_eq = 5 # int
 REF_int = 0 # int
-ntimepoint_treshold = 100
-endfmri     = '*_task-rest_*.nii.gz' # string
-endjson     = '*_task-rest_*.json' # string
-endmap      = '*_map.nii.gz' # string
-humanPosition     = ['']
-orientation       = 'LPI' # "LPI" or ''
-animalPosition    = [''] # valid only for species smaller than humans
+ntimepoint_treshold = 20
+endfmri     = '*_task-Visuel*.nii.gz' # string
+endjson     = '*_task-Visuel*.json' # string
+endmap      = '*_epi.nii.gz' # string
+humanPosition     = ['humanlike']
+orientation       = '' # "LPI" or ''
+animalPosition    = ['humanlike'] # valid only for species smaller than humans
 ## prior anat processing
 coregistration_longitudinal = False #True or False
 type_norm = 'T1w' # T1 or T2
@@ -45,7 +45,7 @@ type_of_transform = 'SyNOnly'
 aff_metric_ants_Transl = 'mattes' # string
 aff_metric_ants = 'CC'
 do_anat_to_func = True # True or False
-Slice_timing_info = '-tpattern seq-z'
+Slice_timing_info = 'Auto'
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
 creat_study_template = False # True or Fals
@@ -58,9 +58,9 @@ smoothSBA = 3
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 ############ Right in a list format the steps that you want to skip
 doWARPonfunc = False
-resting_or_task = 'resting'  # 'resting' or 'task'
+resting_or_task = 'task'  # 'resting' or 'task'
 
-Skip_step = [1,2,3,4,5,6,'itk_1', 'itk_2', 'Clean']
+Skip_step = ['itk_1', 'itk_2', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
@@ -76,7 +76,7 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     doWARPonfunc=doWARPonfunc, registration_fast=False, type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
                     list_to_keep=list_to_keep, list_to_remove=list_to_remove, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
                     reference='EDNiX', post_treatment_method='AFNI',
-                    band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
+                    band='0.01 0.1', blur=0, do_not_correct_signal = True, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
                     use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
                     selected_atlases_matrix='all', wanted_level_matrix='all',
                     selected_atlases_SBA='default', panda_files_SBA='default',

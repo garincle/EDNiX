@@ -41,7 +41,7 @@ def create_indiv_template_brain(dir_prepro, list_transfo, ID, Session, listTimag
     nl = list_transfo[refnb]["type_of_transform"]
     run_cmd.msg(nl, diary_file, 'ENDC')
 
-    end_maskname   = '_'.join([ID, masking_img, 'final', 'mask', '2.nii.gz'])
+    end_maskname   = '_'.join([ID, 'final', 'mask', '2.nii.gz'])
     output4mask    = opj(masks_dir, ID + '_desc-step2_mask.nii.gz')
 
     input4msk      = opj(volumes_dir, ID + '_space-acpc_desc-SS-step1_' + masking_img + '.nii.gz')

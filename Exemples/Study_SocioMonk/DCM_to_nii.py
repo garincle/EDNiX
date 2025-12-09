@@ -13,7 +13,7 @@ spco = subprocess.check_output
 opd = os.path.dirname
 
 ############# variables
-out_analysis = '/home/cgarin/Documents/macaque/'
+out_analysis = '/scratch2/EDNiX/Macaque/Test1_Litchy'
 DICOMdir = '/home/common/benhalab/CASCAD/Macaque/MRI/Sociomonk/Test1_Litchy/sub-Litchi_ses-02/dicom'
 
 in_DICOM = DICOMdir
@@ -27,6 +27,16 @@ spco(['dcm2bids_scaffold', '-o', out_analysis, '--force'])
 
 ##creat configuration file
 spco(['dcm2bids_helper', '-d', in_DICOM, '-o', out_analysis + '/sourcedata/', '--force'])
+
+path = '/home/common/benhalab/CASCAD/Macaque/MRI/Sociomonk/Test1_Litchy/sub-Litchi_ses-02/dicom/'
+sub_id = 'Litchi'
+ses_id = '1'
+out_analysis = '/scratch2/EDNiX/Macaque/Test1_Litchy/Bids'
+subprocess.check_output([
+    'dcm2bids', '-d', path, '-p', sub_id, '-s', ses_id,
+    '-c', config_file, '-o', out_analysis,
+    '--auto_extract_entities', '--bids_validate', '--force_dcm2bids'
+])
 
 def extract_sub_and_session_id(text):
     # Define the regex pattern to match the subject and session IDs
