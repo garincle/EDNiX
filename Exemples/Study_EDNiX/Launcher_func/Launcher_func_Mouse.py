@@ -19,7 +19,7 @@ allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], s
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
-list_to_keep = [('jgrAesAWc21R1L', '2')]
+list_to_keep = []
 list_to_remove = []
 #problem sub-jgrAesAWc21R1L_ses-2 loading image -jgrAesMEDISOc21R1L
 #### fMRI pre-treatment
@@ -60,7 +60,7 @@ selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = False
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = ['itk_1', 'itk_2', 'Clean']
+Skip_step = [1,2,'itk_1', 'itk_2', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,

@@ -13,7 +13,7 @@ from fMRI.extract_filename import extract_filename
 from fMRI import _2b_fix_orient, _2a_correct_img
 from fMRI import plot_QC_func
 
-def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_raw_process, RS, RS_map, nb_run, recordings, bids_dir,
+def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_raw_process, dir_prepro_orig_process, RS, RS_map, nb_run, recordings, bids_dir,
                      REF_int, list_map, animalPosition, humanPosition, doWARPonfunc, dir_prepro_raw_matrices, orientation, DwellT, n_for_ANTS,
                      overwrite, sing_afni, sing_fsl, dmap, dbold, config_f, diary_file):
     nl = '##  Working on step ' + str(2) + '(function: _2_coregistration_to_norm).  ##'
@@ -59,9 +59,8 @@ def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_
         else:
             # Standard processing for other types
             # Correct image
-            _2a_correct_img.correct_img(dir_prepro_raw_process, RS, list_map, RS_map, i, r,
-                                        recordings, overwrite, sing_afni, sing_fsl,
-                                        topup_file, diary_file)
+            _2a_correct_img.correct_img(dir_prepro_orig_process, dir_prepro_fmap, fMRI_runMean_n4Bias, RS, list_map, RS_map, i, r, recordings,
+				overwrite,sing_afni,sing_fsl,topup_file,diary_file)
 
             # Apply FUGUE correction
             command = (sing_fsl + 'fugue -i ' + fMRI_runMean_n4Bias +

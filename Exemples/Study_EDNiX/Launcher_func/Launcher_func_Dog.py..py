@@ -11,14 +11,14 @@ sys.path.insert(1, opj(MAIN_PATH))
 
 species    = 'Dog'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Dog/BIDS_k9/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Dog/BIDS_k9/'))
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['func'], suffixes= ['bold'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
-list_to_remove = [('01', '1'), ('02', '1')]
+list_to_remove = []
 
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 #### fMRI pre-treatment
@@ -29,7 +29,7 @@ endfmri = '*_task-rest_*.nii.gz' # string
 endjson = '*_task-rest_*.json' # string
 endmap = '*_map.nii.gz' # string
 humanPosition     = ['']
-orientation       = 'RIP' # "LPI" or ''
+orientation       = 'RPI' # "LPI" or  RIP, 'RPI, RAI,'
 animalPosition    = [''] # valid only for species smaller than humans
 ## prior anat processing
 coregistration_longitudinal = False #True or False
@@ -41,26 +41,26 @@ Method_mask_func = '3dSkullStrip_dog' # string 3dAllineate or nilearn or creat a
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = False # True or False
-type_of_transform = 'SyNBold'
-aff_metric_ants_Transl = 'mattes' # string
+type_of_transform = 'SyN'
+aff_metric_ants_Transl = 'MI' # string
 aff_metric_ants = 'MI'
 do_anat_to_func = True # True or False
 Slice_timing_info = 'Auto'
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
-creat_study_template = False # True or Fals
+creat_study_template = True # True or Fals
 blur = 0# float
 #Dilate the functional brain mask by n layers
 dilate_mask = 0 # int
 SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
-smoothSBA =3
+smoothSBA = 3
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 ############ Right in a list format the steps that you want to skip
 doWARPonfunc = 'header'
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = [1,2,3,4,'itk_1', 'itk_2', 'Clean']
+Skip_step = ['itk_1', 'itk_2', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,

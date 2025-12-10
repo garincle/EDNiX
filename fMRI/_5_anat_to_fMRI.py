@@ -95,11 +95,12 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                                         transformlist=matrix, interpolator='nearestNeighbor')
     else:
         matrix = Mean_Image_acpc.replace('.nii.gz', '_0GenericAffine.mat')
-        ants.registration(fixed=ANAT, moving=MEAN, type_of_transform='Translation',
+        ants.registration(fixed=ANAT, moving=MEAN, type_of_transform='Rigid', #Translation ou Rigid avant!!
                           aff_metric=aff_metric_ants_Transl,
                           outprefix=Mean_Image_acpc.replace('.nii.gz', '_'))
         MEAN_tr = ants.apply_transforms(fixed=ANAT, moving=MEAN,
                                         transformlist=matrix, interpolator='nearestNeighbor')
+    print("moving func image to acpc anat space")
     ants.image_write(MEAN_tr, Mean_Image_acpc, ri=False)
     dictionary = {"Sources": [Mean_Image_SS,
                               anat_res_func],
@@ -131,8 +132,6 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                                      reg_smoothing_sigmas=(3, 2, 1, 0),
                                      reg_shrink_factors=(8, 4, 2, 1),
                                      verbose=True,
-                                     mask=mask,
-                                     moving_mask=moving_mask,
                                      aff_metric=aff_metric_ants,
                                      restrict_transformation=restrict)
     
@@ -153,8 +152,6 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                                      aff_metric_params=(ANAT, MEAN, 1, 32, 'Regular', 0.25),  # Metric parameters
                                      convergence=(1e-6, 10),  # Convergence criteria
                                      verbose=True,
-                                     mask=mask,
-                                     moving_mask=moving_mask,
                                      aff_metric=aff_metric_ants,
                                      restrict_transformation=restrict)
 
