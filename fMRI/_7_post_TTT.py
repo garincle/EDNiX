@@ -312,7 +312,7 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
                 input = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef.nii.gz')
             else:
                 input = opj(dir_RS_ICA_native, root_RS + '_norm_final_clean.nii.gz')
-            residual = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')
+            residual = opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')
 
             command = (sing_afni + '3dcalc' + overwrite +
                        ' -a ' + input +

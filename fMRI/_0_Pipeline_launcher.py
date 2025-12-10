@@ -661,7 +661,7 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
-                _2_coregistration_to_norm.coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_raw_process, RS, RS_map, nb_run, recordings, bids_dir,
+                _2_coregistration_to_norm.coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_raw_process, dir_prepro_orig_process, RS, RS_map, nb_run, recordings, bids_dir,
                      REF_int, list_map, animalPosition, humanPosition, doWARPonfunc, dir_prepro_raw_matrices, orientation, DwellT, n_for_ANTS,
                      overwrite, sing_afni, sing_fsl, dmap, dbold, config_f, diary_file)
 

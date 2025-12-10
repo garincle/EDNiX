@@ -78,7 +78,8 @@ Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
     align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
-    coreg={'type_of_transform': 'SyN', 'affmetric': 'MI', 'affmetricT': 'MI'})
+    coreg={'type_of_transform': 'SyN', 'affmetric': 'MI', 'affmetricT': 'MI'},
+    stdyT={'type_of_transform': 'SyN', 'affmetric': 'MI', 'affmetricT': 'MI'})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 
@@ -100,7 +101,25 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = ['itk_2', 'flat_map', 'Clean']
+Skip_step = [1,2,3,5,6,10,11,12,13,14,15,16,'itk_2', 'flat_map', 'Clean']
+
+########################################################################################################################
+#                                       Run the preprocessing steps                                                    #
+########################################################################################################################
+
+_0_Pipeline_launcher.preprocess_anat(Skip_step,
+                     MAIN_PATH, bids_dir, BIDStype, species,
+                     allinfo_study_c, list_to_keep, list_to_remove,
+                     type_norm, otheranat, masking_img,
+                     orientation, animalPosition, humanPosition,
+                     coregistration_longitudinal, creat_study_template, which_on,
+                     brain_skullstrip_1, brain_skullstrip_2, template_skullstrip,
+                     list_transfo, Align_img_to_template, MNIBcorrect_indiv,
+                     fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
+                     transfo_message='do_as_I_said', force_myelin_same_space=False,
+                     check_visualy_final_mask=True, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
+
+Skip_step = [1,2,3,5,6,7,8,9,'itk_2', 'flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #

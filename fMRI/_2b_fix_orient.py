@@ -11,7 +11,7 @@ from Tools import run_cmd
 from Tools import get_orientation
 def fix_orient(runMean_reorient, fMRI_runMean_unwarpped, list_RS, animalP, humanP, orientation, doWARPonfunc, sing_afni, diary_file):
 
-    nl = '##  Working on step ' + str(2) + '(function: _2a_fix_orient).  ##'
+    nl = '##  Working on step ' + str(2) + '(function: _2b_fix_orient).  ##'
     run_cmd.msg(nl, diary_file, 'HEADER')
 
     if len(list_RS)>1:
@@ -65,6 +65,10 @@ def fix_orient(runMean_reorient, fMRI_runMean_unwarpped, list_RS, animalP, human
         orient = msg.decode("utf-8").split('\n')[-2]
 
     if obli == '1' and doWARPonfunc=='header':
+        cmd = sing_afni + '3dcalc -overwrite -a ' + fMRI_runMean_unwarpped + ' -prefix ' + runMean_reorient + ' -expr "a"'
+        run_cmd.do(cmd, diary_file)
+        desc = 'Copy .'
+
         cmd = sing_afni + '3drefit -overwrite -deoblique -orient ' + orientation + ' ' +  runMean_reorient
         run_cmd.run(cmd, diary_file)
         desc = 'Correction of the obliquity.'
@@ -79,6 +83,7 @@ def fix_orient(runMean_reorient, fMRI_runMean_unwarpped, list_RS, animalP, human
     if not orientation == '':
         cmd = sing_afni + '3drefit -overwrite -orient ' + orientation + ' ' + runMean_reorient
         run_cmd.run(cmd, diary_file)
+
     else:
         if not animalP == 'humanlike':
             neworient = get_orientation.getreal(humanP, animalP, orient)

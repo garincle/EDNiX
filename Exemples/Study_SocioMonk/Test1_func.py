@@ -27,7 +27,7 @@ REF_int = 0 # int
 ntimepoint_treshold = 20
 endfmri     = '*_task-Visuel*.nii.gz' # string
 endjson     = '*_task-Visuel*.json' # string
-endmap      = '*_epi.nii.gz' # string
+endmap      = '*_xx.nii.gz' # string
 humanPosition     = ['humanlike']
 orientation       = '' # "LPI" or ''
 animalPosition    = ['humanlike'] # valid only for species smaller than humans
@@ -41,26 +41,26 @@ Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = False # True or False
-type_of_transform = 'SyNOnly'
-aff_metric_ants_Transl = 'mattes' # string
-aff_metric_ants = 'CC'
+type_of_transform = 'SyN'
+aff_metric_ants_Transl = 'MI' # string
+aff_metric_ants = 'MI'
 do_anat_to_func = True # True or False
-Slice_timing_info = 'Auto'
+Slice_timing_info = '-tpattern seq-z'
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
 creat_study_template = False # True or Fals
 blur = 0# float
 #Dilate the functional brain mask by n layers
-dilate_mask = 0 # int
+dilate_mask = 3 # int
 SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
 smoothSBA = 3
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 ############ Right in a list format the steps that you want to skip
 doWARPonfunc = False
-resting_or_task = 'task'  # 'resting' or 'task'
+resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = ['itk_1', 'itk_2', 'Clean']
+Skip_step = [ 1,2,'itk_1', 'itk_2', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,

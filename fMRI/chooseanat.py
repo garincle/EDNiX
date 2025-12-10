@@ -68,7 +68,7 @@ def retrieve(ID,data_path, Session,anat_func_same_space,use_erode_V_func_masks,u
             nl = 'INFO: We found this image as template: ' + str(template_anat_for_fmri)
             run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-    anat_subject = opj(volumes_dir, ID + '_space-acpc_desc-SS_' + TfMRI + '.nii.gz')
+    anat_subject = opj(volumes_dir, ID + '_space-acpc_desc-template_' + TfMRI + '.nii.gz')
     brainmask    = opj(masks_dir,   ID + '_space-acpc_mask.nii.gz')
     G_mask       = opj(masks_dir,   ID + '_desc-Gray_mask.nii.gz')
     if use_erode_V_func_masks == True:

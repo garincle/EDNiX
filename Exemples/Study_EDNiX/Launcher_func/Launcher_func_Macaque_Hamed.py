@@ -41,9 +41,9 @@ Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = False # True or False
-type_of_transform = 'SyNOnly'
-aff_metric_ants_Transl = 'mattes' # string
-aff_metric_ants = 'CC'
+type_of_transform = 'SyN'
+aff_metric_ants_Transl = 'MI' # string
+aff_metric_ants = 'MI'
 do_anat_to_func = True # True or False
 Slice_timing_info = '-tpattern seq-z'
 ##### if you don't have an anat then template will be the same as anat...
@@ -60,7 +60,7 @@ selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = False
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = [1,2,3,4,5,6,'itk_1', 'itk_2', 'Clean']
+Skip_step = [1,2,'itk_1', 'itk_2', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
@@ -75,7 +75,7 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     costAllin='lpa',
                     doWARPonfunc=doWARPonfunc, registration_fast=False, type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
                     list_to_keep=list_to_keep, list_to_remove=list_to_remove, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
-                    reference='EDNiX', post_treatment_method='AFNI',
+                    reference='EDNiX', post_treatment_method='Grandjean',
                     band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
                     use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
                     selected_atlases_matrix='all', wanted_level_matrix='all',

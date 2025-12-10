@@ -227,10 +227,11 @@ def preprocess_anat(Skip_step,
 
     if creat_study_template==True:
         # second break : adapt the atlases
+         stdy_template_SS = opj(studyprepro_dir, 'studyTemplate_SS_' + type_norm + '.nii.gz')
          _, _, _ = studytemplate.use(study_template_atlas_folder, Skip_step,
                                                                        list_transfo, list_atlases,
                                                                        BASE_SS, BASE_mask,BASE_atlas_folder, species,
-                                                                       stdy_template, fMRImasks, reference, BALSAname,
+                                                                       stdy_template_SS, fMRImasks, reference, BALSAname,
                                                                        path_label_code, sing_afni, sing_wb, which_on,
                                                                        all_data_path_max,all_data_path, listTimage,
                                                                        creat_study_template,

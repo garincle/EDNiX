@@ -32,6 +32,7 @@ def create(study_template_atlas_folder,Skip_step,which_on, all_ID_max, all_Sessi
 
     anat_img           = opj(studyprepro_dir, 'warped_3_adjusted_mean.nii.gz')
     stdy_template      = opj(studyprepro_dir, 'studyTemplate_' + type_norm + '.nii.gz')
+    stdy_template_SS = opj(studyprepro_dir, 'studyTemplate_SS_' + type_norm + '.nii.gz')
     stdy_template_mask = opj(studyprepro_dir, 'studyTemplate_mask.nii.gz')
     endname            = '_'.join(['studyTemplate', 'final', 'mask.nii.gz'])
 
@@ -54,7 +55,7 @@ def create(study_template_atlas_folder,Skip_step,which_on, all_ID_max, all_Sessi
         for i, j in enumerate(list_transfo):
             if list_transfo[i]["name"] == 'SS3':
                 refnb = i
-        _4_skullstrip_template.skullstrip_T(stdy_template, anat_img, stdy_template_mask,endname,type_norm, BASE_SS_coregistr, BASE_SS_mask, list_transfo[refnb]["type_of_transform"],  list_transfo[refnb]["affmetric"],
+        _4_skullstrip_template.skullstrip_T(stdy_template_SS, anat_img, stdy_template_mask,endname,type_norm, BASE_SS_coregistr, BASE_SS_mask, list_transfo[refnb]["type_of_transform"],  list_transfo[refnb]["affmetric"],
                                                              study_template_atlas_folder, template_skullstrip, preftool,
                                                              check_visualy_final_mask, sing_afni, sing_fsl, sing_fs, sing_itk, sing_synstrip, Unetpath, diary_file)
 
