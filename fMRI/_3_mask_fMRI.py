@@ -46,15 +46,12 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepr
 
     for r in range(int(nb_run)):
         root_RS = extract_filename(RS[r])
-        if not RS[r] == RS[REF_int]: # do not process ref...
-            # add the co-registered mean image to the list
-            fMRI_run_inRef = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-fMRI_run_inRef.nii.gz')
-            ffMRI_runMean_inRef_list = ffMRI_runMean_inRef_list + ' ' + fMRI_run_inRef #add images in the same space
-            ffMRI_runMean_inRef_list1.append(fMRI_run_inRef)
+        fMRI_run_inRef = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-fMRI_run_inRef.nii.gz')
+        ffMRI_runMean_inRef_list1.append(fMRI_run_inRef)
 
     ################################################################# create a mean image to use for the anat to func and recenter
     ###### average all func data and clean the image #####
-
+    '''
     command = (sing_afni + '3dTcat' + overwrite + ' -prefix ' + residual_motion + ffMRI_runMean_inRef_list)
     dictionary = {"Sources": ffMRI_runMean_inRef_list,
                   "Description": '4D concatenation (3dTcat,AFNI).',
@@ -63,7 +60,7 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepr
     with open(residual_motion.replace('.nii.gz', '.json'), "w") as outfile:
         outfile.write(json_object)
     run_cmd.run(command, diary_file)
-
+    '''
     #################################### production of Mean image ####################################
 
     mean_haxby = mean_img(ffMRI_runMean_inRef_list1)

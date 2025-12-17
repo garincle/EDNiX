@@ -11,7 +11,7 @@ from Tools import run_cmd
 
 def comphd(img1,img2):
     # check quality
-    hd1 = ants.image_headevr_info(img1)
+    hd1 = ants.image_header_info(img1)
     hd2 = ants.image_header_info(img2)
     test = []
     test.append(hd1['dimensions'][0:3] == hd2['dimensions'][0:3])
@@ -113,7 +113,7 @@ def resamp(source,target,imgtype,path_code,labelname,diary_file,sing_wb):
     else:
         interp = 'continuous'
 
-    differences = compare_headers(source, target, fields_to_compare=None, tolerance=1e-6, check_obliquity=True)
+    differences = compare_headers(source, target, fields_to_compare=fields_to_compare, tolerance=1e-6, check_obliquity=True)
 
     if differences:
         # Print differences

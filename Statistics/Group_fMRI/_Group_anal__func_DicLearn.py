@@ -118,14 +118,19 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
     labeled_img2 = new_img_like(images_dir[0], extracted_data, copy_header=True)
     labeled_img2.to_filename(mask_rs_path)
 
+
     for component in component_list:
         result_dir = opj(output_results1, 'dicL'+ str(component))
         if not os.path.exists(result_dir): os.mkdir(result_dir)
 
-        dict_learning = DictLearning(mask=opj(output_results1, 'mask_mean_func_overlapp_resampled.nii.gz'),
-                                     n_components=component, alpha=alpha_dic, batch_size=20, standardize="zscore_sample", n_epochs=1,
-                                     verbose=10, random_state=0, n_jobs=1, smoothing_fwhm=smoothing, detrend=False,
-                                     t_r=TR)
+        if oversample_dictionary == True:
+            dict_learning = DictLearning(mask= opj(output_results1, 'mask_mean_func_overlapp.nii.gz'),n_components=component, alpha=alpha_dic, n_epochs=1,
+                                         verbose=10, standardize="zscore_sample", random_state=0, n_jobs=1, smoothing_fwhm=smoothing, detrend=False, t_r=TR)
+        else:
+            dict_learning = DictLearning(mask=opj(output_results1, 'mask_mean_func_overlapp.nii.gz'),
+                                         n_components=component, alpha=alpha_dic, batch_size=5, standardize="zscore_sample", n_epochs=1,
+                                         verbose=10, random_state=0, n_jobs=1, smoothing_fwhm=smoothing, detrend=False,
+                                         t_r=TR)
         dict_learning.fit(images_dir)
         print('[Example] Saving results')
         # Decomposition dict_learning embeds their own masker
@@ -185,6 +190,8 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
         networks_concate.to_filename(result_dir + '/concate_network_clean.nii.gz')
         netw6_img = nib.load(result_dir + '/concate_network_clean.nii.gz')
         netw6_extracted_network = netw6_img.get_fdata()
+        #choose components to remove
+
         extracted_datacorect = []
         for n in list(range(0, component)):
             thresh_indexmask = ma.masked_not_equal(netw6_extracted_network[:, :, :, n], 0)
@@ -200,120 +207,9 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
         labeled_img = nilearn.image.new_img_like(netw6_img, labeled_data, copy_header=True)
         if not os.path.exists(result_dir + 'atlas/'): os.mkdir(result_dir + 'atlas/')
         labeled_img.to_filename(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat.nii.gz')
-'''
-        ######## Method, clean statimage first ######
-        def process_4d_image(input_path, result_dir, ratio_n_voxel):
-            # Load the 4D image
-            img = nib.load(input_path)
-            data = img.get_fdata()
-            affine = img.affine
-            n_components = data.shape[3]
-            # Step 1: Threshold each map using masked arrays
-            masks = []
-            thresholded_components = []
-            for i in range(n_components):
-                component_data = data[..., i]
-                # Create masked array (ignore zeros)
-                masked_data = ma.masked_equal(component_data, 0)
-                if masked_data.count() == 0:  # All zeros
-                    masks.append(np.zeros_like(component_data, dtype=np.int8))
-                    thresholded_components.append(np.zeros_like(component_data))
-                    continue
-                # Get non-zero values and calculate threshold
-                non_zero_values = masked_data.compressed()
-                threshold = np.percentile(non_zero_values, 100 * (1 - ratio_n_voxel))
-                # Create thresholded version (original values where above threshold, else 0)
-                thresholded = np.where(component_data >= threshold, component_data, 0)
-                thresholded_components.append(thresholded)
-                # Create binary mask
-                mask = (component_data >= threshold).astype(np.int8)
-                masks.append(mask)
 
-            # Convert to arrays
-            masks_4d = np.stack(masks, axis=-1)
-            thresholded_4d = np.stack(thresholded_components, axis=-1)
-            # Step 2: Create functional atlas (winner takes all based on max value)
-            atlas = np.zeros(data.shape[:3], dtype=np.int16)
-            max_values = np.zeros(data.shape[:3])
+        from scipy.ndimage import label, generic_filter
 
-            for i in range(n_components):
-                # Only consider voxels where:
-                # 1. The component is above threshold (mask is 1)
-                # 2. The value is greater than current max
-                update_mask = (masks[i] == 1) & (thresholded_components[i] > max_values)
-                atlas[update_mask] = i + 1  # Component indices start at 1
-                max_values[update_mask] = thresholded_components[i][update_mask]
-
-
-            # Save functional atlas
-            atlas_img = nib.Nifti1Image(atlas, affine)
-            atlas_img.to_filename(opj(result_dir, 'dicL_' + str(component) + 'atlas', 'functional_atlas_' + str(component) + '.nii.gz'))
-
-            # Step 3: Save the final 4D image with masks and overlap
-            output_path = opj(result_dir, 'thresholded_networks_mask_' + str(component) + '.nii.gz')
-            final_img = nib.Nifti1Image(masks_4d, affine)
-            final_img.to_filename(output_path)
-
-            # Step 4: Create folder for pairwise overlaps
-            overlap_dir = os.path.join(result_dir, 'pairwise_overlaps')
-            os.makedirs(overlap_dir, exist_ok=True)
-
-            overlap_counts = np.zeros((n_components, n_components), dtype=int)
-
-            for i, j in combinations(range(n_components), 2):
-                overlap = masks[i] & masks[j]
-
-                # Number of overlapping voxels
-                n_overlap = np.sum(overlap)
-                overlap_counts[i, j] = n_overlap
-                overlap_counts[j, i] = n_overlap  # symmetric matrix
-
-                # Save overlap mask if any overlap
-                if n_overlap > 0:
-                    overlap_img = nib.Nifti1Image(overlap.astype(np.int8), affine)
-                    overlap_path = os.path.join(overlap_dir, f'overlap_cpt{i}_cpt{j}.nii.gz')
-                    overlap_img.to_filename(overlap_path)
-
-            # Also fill diagonal with size of each mask (optional)
-            for i in range(n_components):
-                overlap_counts[i, i] = np.sum(masks[i])
-
-            # Save to CSV
-            df_overlap = pd.DataFrame(overlap_counts,
-                                      columns=[f'Component_{i}' for i in range(n_components)],
-                                      index=[f'Component_{i}' for i in range(n_components)])
-            df_overlap.to_csv(os.path.join(overlap_dir, 'overlap_matrix.csv'))
-
-            # Plot overlap matrix
-            plt.figure(figsize=(8, 6))
-            plt.imshow(overlap_counts, interpolation='nearest', cmap='viridis')
-            plt.colorbar(label='Number of overlapping voxels')
-            plt.title('Pairwise Overlap Between Components')
-            plt.xlabel('Component')
-            plt.ylabel('Component')
-            plt.xticks(ticks=range(n_components), labels=range(n_components))
-            plt.yticks(ticks=range(n_components), labels=range(n_components))
-            plt.tight_layout()
-            plt.savefig(opj(overlap_dir, 'overlap_matrix.png'))
-            plt.close('all')
-
-            component_overlap_sums = overlap_counts.sum(axis=1) - np.diag(overlap_counts)
-            # Bar plot
-            plt.figure(figsize=(10, 4))
-            plt.bar(range(n_components), component_overlap_sums, color='steelblue')
-            plt.xlabel('Component')
-            plt.ylabel('Total Overlapping Voxels (w/ others)')
-            plt.title('Total Overlap per Component')
-            plt.xticks(ticks=range(n_components), labels=range(n_components))
-            plt.tight_layout()
-            plt.savefig(opj(overlap_dir, 'overlap_per_component.png'))
-            plt.close('all')
-
-            print(f"Processing complete. Results saved in {result_dir}")
-
-        process_4d_image(result_dir + '/concate_network_clean.nii.gz', result_dir, ratio_n_voxel)
-
-        ###### method winner take all ###
         def mode_filter(values):
             """ Returns the most frequent nonzero value in the neighborhood """
             unique, counts = np.unique(values[values > 0], return_counts=True)
@@ -387,22 +283,37 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
         labeled_img2 = nilearn.image.new_img_like(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat.nii.gz', extracted_data2, copy_header=True)
         labeled_img2.to_filename(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat_break.nii.gz')
 
-        atlas_list = [opj(result_dir, 'atlas', 'dict_learning_' + str(component) + 'compos_concat.nii.gz'), opj(result_dir, 'atlas', 'dict_learning_' + str(component) + 'compos_concat_smoothed.nii.gz'),
-                          opj(result_dir, 'atlas', 'functional_atlas_' + str(component) + '.nii.gz')]
-        for atlas_img in atlas_list:
-            atlas = ants.image_read(atlas_img)
-            # Apply transformation with nearest-neighbor interpolation to preserve labels
-            registered_atlas = ants.apply_transforms(
-                fixed=anat,
-                moving=atlas,
-                transformlist=reg["fwdtransforms"],
-                invert_transform_flags=[False],  # Apply inverse transformation
-                interpolator="nearestNeighbor" ) # Critical for label preservation
-            # Save output
-            registered_atlas.to_filename(atlas_img[:-7] + 'anat_res.nii.gz')
+        atlas = ants.image_read(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat.nii.gz')
+        # Apply transformation with nearest-neighbor interpolation to preserve labels
+        registered_atlas = ants.apply_transforms(
+            fixed=anat,
+            moving=atlas,
+            transformlist=reg["fwdtransforms"],
+            invert_transform_flags=[False],  # Apply inverse transformation
+            interpolator="nearestNeighbor" ) # Critical for label preservation
+        # Save output
+        registered_atlas.to_filename(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat_anatR.nii.gz')
 
-        command = sing_afni + '3dcalc -a ' + atlas_img[:-7] + 'anat_res.nii.gz' + \
+        command = sing_afni + '3dcalc -a ' + result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat_anatR.nii.gz' + \
                 ' -b ' + templatehigh  + \
-                ' -expr "a*step(b)" -prefix ' + atlas_img[:-7] + 'anat_res.nii.gz' + ' -overwrite'
-        spgo(command)
-'''
+                ' -expr "a*step(b)" -prefix ' + result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat_anatR.nii.gz' + ' -overwrite'
+        nl = spgo(command)
+        print(nl)
+
+
+        atlas = ants.image_read(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat_smoothed.nii.gz')
+        # Apply transformation with nearest-neighbor interpolation to preserve labels
+        registered_atlas = ants.apply_transforms(
+            fixed=anat,
+            moving=atlas,
+            transformlist=reg["fwdtransforms"],
+            invert_transform_flags=[False],  # Apply inverse transformation
+            interpolator="nearestNeighbor" ) # Critical for label preservation
+        # Save output
+        registered_atlas.to_filename(result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat_smoothed_anatR.nii.gz')
+
+        command = sing_afni + '3dcalc -a ' + result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat_smoothed_anatR.nii.gz' + \
+                ' -b ' + templatehigh  + \
+                ' -expr "a*step(b)" -prefix ' + result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat_smoothed_anatR.nii.gz' + ' -overwrite'
+        nl = spgo(command)
+        print(nl)

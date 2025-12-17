@@ -62,8 +62,6 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
     masked_img = nib.Nifti1Image(meanImg.get_fdata() * mask_img.get_fdata(), meanImg.affine, meanImg.header)
     nib.save(masked_img, Mean_Image_SS)
 
-    # modify the json file
-    json_file = Mean_Image_SS.replace('.nii.gz', '.json')
     dictionary = {
         "ADD_Sources": [Mean_Image_SS, Prepro_fMRI_mask],
         "ADD_Description": "Skull stripping (Nilearn/Nibabel equivalent of AFNI 3dcalc)."}
@@ -95,7 +93,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                                         transformlist=matrix, interpolator='nearestNeighbor')
     else:
         matrix = Mean_Image_acpc.replace('.nii.gz', '_0GenericAffine.mat')
-        ants.registration(fixed=ANAT, moving=MEAN, type_of_transform='Rigid', #Translation ou Rigid avant!!
+        ants.registration(fixed=ANAT, moving=MEAN, type_of_transform='Rigid', #Translation avant!!
                           aff_metric=aff_metric_ants_Transl,
                           outprefix=Mean_Image_acpc.replace('.nii.gz', '_'))
         MEAN_tr = ants.apply_transforms(fixed=ANAT, moving=MEAN,
@@ -247,6 +245,9 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                            ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
                            ' -input ' + input1)
                 run_cmd.run(command, diary_file)
+                check_nii.resamp(output2, Mean_Image_acpc, 'msk', '', '',
+                                 diary_file,
+                                 '')
             else:
                 nl = 'ERROR: If Anat and Func are not in the same space you need to perform that transformation (do_anat_to_func = True)'
                 run_cmd.msg(nl, diary_file, 'FAIL')
@@ -296,6 +297,10 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                     outfile.write(json_object)
                 run_cmd.run(command, diary_file)
 
+                check_nii.resamp_no_check(opj(dir_prepro_acpc_labels, atlasfile), Mean_Image_acpc, 'msk', '', '',
+                                 diary_file,
+                                 '')
+
                 if do_anat_to_func == True:
                     ## in func space
                     ATLAS = ants.image_read(opj(dir_prepro_acpc_labels, atlasfile))
@@ -333,6 +338,9 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                     with open(opj(dir_prepro_orig_labels, atlasfile.replace('.nii.gz', '.json')), "w") as outfile:
                         outfile.write(json_object)
                     run_cmd.run(command, diary_file)
+                    check_nii.resamp_no_check(opj(dir_prepro_acpc_labels, atlasfile), Mean_Image_acpc, 'msk', '', '',
+                                              diary_file,
+                                              '')
     else:
         nl = 'WARNING: list_atlases is empty!'
         run_cmd.msg(nl, diary_file, 'WARNING')
@@ -356,6 +364,10 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
     with open(Mean_Image_res_anat.replace('.nii.gz','.json'), "w") as outfile:
         outfile.write(json_object)
     run_cmd.run(command, diary_file)
+
+    check_nii.resamp(Mean_Image_res_anat, Mean_Image_acpc, 'anat', '', '',
+                     diary_file,
+                     '')
 
     ### finally mask the func with mask
     for i in range(int(nb_run)):

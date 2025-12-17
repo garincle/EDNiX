@@ -41,7 +41,7 @@ Method_mask_func = '3dSkullStrip_dog' # string 3dAllineate or nilearn or creat a
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = False # True or False
-type_of_transform = 'SyN'
+type_of_transform = 'BOLDRigid'
 aff_metric_ants_Transl = 'MI' # string
 aff_metric_ants = 'MI'
 do_anat_to_func = True # True or False
