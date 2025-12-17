@@ -40,9 +40,9 @@ Method_mask_func = 'Custum_ANTS_Garin' # string 3dAllineate or nilearn or creat 
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = True # True or False
-type_of_transform = 'BOLDAffine'
+type_of_transform = 'SyNOnly'
 aff_metric_ants_Transl = 'mattes' # string
-aff_metric_ants = 'mattes'
+aff_metric_ants = 'CC'
 do_anat_to_func = False # True or False
 Slice_timing_info = '-tpattern altplus'
 ##### if you don't have an anat then template will be the same as anat...

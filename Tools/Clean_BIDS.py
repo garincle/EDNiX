@@ -109,7 +109,7 @@ def cleanBIDS(BIDS_folder):
 
 
 list_paths = [
-    '/scratch2/EDNiX/Dog/BIDS_k9/'
+    '/scratch2/EDNiX/Mouse_lemur/BIDS_Garin/'
 ]
 
 for path in list_paths:

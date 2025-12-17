@@ -40,7 +40,7 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
         outpuprefix_motion = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction')
         mat_files_pattern = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction_*.mat')
         fMRI_run_motion_corrected = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-motion_corrected.nii.gz')
-
+        fMRI_run_motion_corrected_ants = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-motion_corrected_ants.nii.gz')
         file_motion_correction = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction.1D')
         matrix_volreg = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-volreg_matrix.1D')
 
@@ -238,7 +238,7 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
             outprefix=outpuprefix_motion)
 
         # Sauvegarder l'image realignée
-        motion_result['motion_corrected'].to_filename(fMRI_run_motion_corrected)
+        motion_result['motion_corrected'].to_filename(fMRI_run_motion_corrected_ants)
         '''
         def extract_motion_params_antspy(matrices_dir, output_1D):
             """
@@ -353,10 +353,6 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
             outfile.write(json_object)
         run_cmd.run(command, diary_file)
 
-        ### 2.0 Start fix_orient
-        _2b_fix_orient.fix_orient(fMRI_BASE_Mean, fMRI_runMean_align, list_RS,
-                                  animalPosition, humanPosition, orientation, doWARPonfunc, sing_afni, diary_file)
-
         # BiasFieldCorrection
         IMG = ants.image_read(fMRI_runMean_align)
         N4 = ants.n4_bias_field_correction(IMG,
@@ -364,8 +360,12 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
                                            convergence={'iters': [50, 50, 50, 50], 'tol': 1e-07},
                                            spline_param=200)
         ants.image_write(N4, fMRI_runMean_n4Bias, ri=False)
-        dictionary = {"Sources": opj(dir_prepro_raw_process, root_RS + '_xdtr_mean_preWARP.nii.gz'),
+        dictionary = {"Sources": fMRI_runMean_align,
                       "Description": 'Bias field correction (N4).',}
         json_object = json.dumps(dictionary, indent=3)
         with open(fMRI_runMean_n4Bias.replace('.nii.gz','.json'), "w") as outfile:
             outfile.write(json_object)
+
+        ### 2.0 Start fix_orient
+        _2b_fix_orient.fix_orient(fMRI_BASE_Mean, fMRI_runMean_n4Bias, list_RS,
+                                  animalPosition, humanPosition, orientation, doWARPonfunc, sing_afni, diary_file)

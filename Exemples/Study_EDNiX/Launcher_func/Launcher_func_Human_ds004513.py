@@ -9,9 +9,9 @@ opj = os.path.join
 MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
 
-species    = 'Marmoset'
+species    = 'Human'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Human/BIDS_ds004513-raw-data/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Human/BIDS_ds004513-raw-data/'))
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T1w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
@@ -27,7 +27,7 @@ REF_int = 0 # int
 ntimepoint_treshold = 100
 endfmri = '*_task-rest_bold.nii.gz' # string
 endjson = '*_task-rest_bold.json' # string
-endmap =  '' # string
+endmap =  '*_xx' # string
 humanPosition     = ['humanlike']
 orientation       = '' # "LPI" or ''
 animalPosition    = ['humanlike'] # valid only for species smaller than humans
@@ -60,7 +60,7 @@ selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = False
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = ['itk_1', 'itk_2', 'Clean']
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,'itk_1', 'itk_2', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
@@ -74,7 +74,7 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     nb_ICA_run=20, ICA_cleaning='Skip',
                     costAllin='lpa',
                     doWARPonfunc=doWARPonfunc, registration_fast=False, type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
-                    list_to_keep=[], list_to_remove=[], atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
+                    list_to_keep=list_to_keep, list_to_remove=list_to_remove, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
                     reference='EDNiX', post_treatment_method='Grandjean',
                     band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
                     use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',

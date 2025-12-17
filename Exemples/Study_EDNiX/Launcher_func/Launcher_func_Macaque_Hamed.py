@@ -41,9 +41,9 @@ Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = False # True or False
-type_of_transform = 'SyN'
-aff_metric_ants_Transl = 'MI' # string
-aff_metric_ants = 'MI'
+type_of_transform = 'SyNOnly'
+aff_metric_ants_Transl = 'mattes' # string
+aff_metric_ants = 'CC'
 do_anat_to_func = True # True or False
 Slice_timing_info = '-tpattern seq-z'
 ##### if you don't have an anat then template will be the same as anat...
@@ -60,7 +60,7 @@ selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = False
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = [1,2,'itk_1', 'itk_2', 'Clean']
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,'itk_1',  'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,

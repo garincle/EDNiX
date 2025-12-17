@@ -19,7 +19,8 @@ allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['func'], s
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
-list_to_remove = []
+list_to_remove = [('10', '1')]
+#
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
 #### fMRI pre-treatment
@@ -42,9 +43,9 @@ Method_mask_func = 'NoSkullStrip' # string 3dAllineate or nilearn or creat a man
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = False # True or False
-type_of_transform = 'SyNBoldAff'
-aff_metric_ants_Transl = 'mattes' # string
-aff_metric_ants = 'MI'
+type_of_transform = 'SyNCC'
+aff_metric_ants_Transl = 'CC' # string
+aff_metric_ants = 'CC'
 do_anat_to_func = True # True or False
 Slice_timing_info = 'Auto'
 ##### if you don't have an anat then template will be the same as anat...
@@ -60,7 +61,7 @@ selected_atlases = [['pcc', 0]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = False
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = [1,2,10,16,'itk_1', 'itk_2', 'Clean']
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,'itk_1', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,

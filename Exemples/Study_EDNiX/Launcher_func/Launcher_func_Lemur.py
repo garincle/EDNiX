@@ -34,7 +34,7 @@ endjson = '*_task-rest_*.json' # string
 endmap = '*_map.nii.gz' # string
 humanPosition     = ['']
 animalPosition    = [''] # valid only for species smaller than humans
-orientation = 'LSP' # string
+orientation = 'LIA' # string
 ## prior anat processing
 coregistration_longitudinal = False #True or False
 type_norm = 'T2w' # T1 or T2
@@ -44,7 +44,7 @@ TfMRI = 'T2w' # string
 Method_mask_func = '3dSkullStrip_marmoset' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 creat_study_template = True # True or False
 
-doWARPonfunc = True
+doWARPonfunc = 'header'
 resting_or_task = 'resting'  # 'resting' or 'task'
 anat_func_same_space = False # True or False
 type_of_transform = 'BOLDAffine'
