@@ -63,7 +63,7 @@ def use_ants(img):
     reorient = fromITK_to_newFS(orient_img, 'LIA')
 
     fwdFS_cmd = ' --in_orientation ' + orient_img + ' -r ' +  reorient + ' '
-    bckFS_cmd = ' --in_orientation LIA' + reorient
+    bckFS_cmd = ' --in_orientation LIA ' + reorient
 
     return [orient_img,reorient,fwdFS_cmd,bckFS_cmd]
 
@@ -74,7 +74,7 @@ def use_afni(img,sing_afni):
     reorient = fromITK_to_newFS(orient_img, 'LIA')
 
     fwdFS_cmd = ' --in_orientation ' + orient_img + ' -r ' + reorient + ' '
-    bckFS_cmd = ' --in_orientation LIA' + reorient
+    bckFS_cmd = ' --in_orientation LIA ' + reorient
 
     return [orient_img, reorient, fwdFS_cmd, bckFS_cmd]
 
@@ -93,7 +93,9 @@ def get_orientation_nibabel(nifti_path):
     if not re.fullmatch(r'^[RLAPSI]{3}$', orient_code):
         raise ValueError(f"Invalid orientation: {orient_code}")
     return orient_code
+
 def getreal(humanPosition, animalPosition, orient):
+
     '''
     from https://dicom.innolitics.com/ciods/ct-image/general-series/00185100:
     patient position should be :
@@ -116,112 +118,52 @@ def getreal(humanPosition, animalPosition, orient):
 
     Hence following the same logic : "AHF" stands for "Animal Head First",  "AFF" stands for "Animal Feet First",
     "humanlike" means no change to be done.
-
     '''
 
     neworient = orient
-    pos    = ['A','P','S','I']
-    newpos = ['A','P','S','I']
 
     if animalPosition == 'AHF':
         if humanPosition == 'HFS':
-            if orient[0] == 'L': neworient[0] = 'R'
-            else: neworient[0] = 'L'
-            newpos = ['S','I','A','P']
-
+            opposite = {'R': 'L', 'L': 'R','A': 'S', 'P': 'I','S': 'A', 'I': 'P'}
         elif humanPosition == 'FFS':
-            neworient[0] = orient[0]
-            newpos = ['S', 'I', 'P', 'A']
-
+            opposite = {'R': 'R', 'L': 'L','A': 'S', 'P': 'I','S': 'P', 'I': 'A'}
         elif humanPosition == 'HFP':
-            neworient[0] = orient[0]
-            newpos = ['I', 'S', 'A', 'P']
-
+            opposite = {'R': 'R', 'L': 'L','A': 'I', 'P': 'S','S': 'A', 'I': 'P'}
         elif humanPosition == 'FFP':
-            if orient[0] == 'L': neworient[0] = 'R'
-            else: neworient[0] = 'L'
-            newpos = ['I', 'S', 'P', 'A']
-
-        for z in [1, 2]:
-            for i, j in enumerate(pos):
-                if orient[z] == j:
-                    neworient[z] = newpos[i]
+            opposite = {'R': 'L', 'L': 'R','A': 'I', 'P': 'S','S': 'P', 'I': 'A'}
 
     elif animalPosition == 'AFF':
         if humanPosition == 'HFS':
-            neworient[0] = orient[0]
-            newpos = ['S', 'I', 'P', 'A']
-
+            opposite = {'R': 'R', 'L': 'L', 'A': 'S', 'P': 'I', 'S': 'P', 'I': 'A'}
         elif humanPosition == 'FFS':
-            if orient[0] == 'L': neworient[0] = 'R'
-            else: neworient[0] = 'L'
-            newpos = ['S', 'I', 'A', 'P']
-
+            opposite = {'R': 'L', 'L': 'R', 'A': 'S', 'P': 'I', 'S': 'P', 'I': 'A'}
         elif humanPosition == 'HFP':
-            if orient[0] == 'L': neworient[0] = 'R'
-            else: neworient[0] = 'L'
-            newpos = ['I', 'S', 'P', 'A']
-
+            opposite = {'R': 'L', 'L': 'R', 'A': 'I', 'P': 'S', 'S': 'P', 'I': 'A'}
         elif humanPosition == 'FFP':
-            neworient[0] = orient[0]
-            newpos = ['I', 'S', 'A', 'P']
-
-        for z in [1, 2]:
-            for i, j in enumerate(pos):
-                if orient[z] == j:
-                    neworient[z] = newpos[i]
-
+            opposite = {'R': 'R', 'L': 'L', 'A': 'I', 'P': 'S', 'S': 'P', 'I': 'A'}
 
     elif animalPosition == 'AFS':
         if humanPosition == 'HFS':
-            neworient[0] = orient[0]
-            newpos = ['I', 'S', 'A', 'P']
-
+            opposite = {'R': 'R', 'L': 'L', 'A': 'I', 'P': 'S', 'S': 'A', 'I': 'P'}
         elif humanPosition == 'FFS':
-            if orient[0] == 'L':neworient[0] = 'R'
-            else:neworient[0] = 'L'
-            newpos = ['I', 'S', 'P', 'A']
-
+            opposite = {'R': 'L', 'L': 'R', 'A': 'I', 'P': 'S', 'S': 'A', 'I': 'P'}
         elif humanPosition == 'HFP':
-            if orient[0] == 'L':neworient[0] = 'R'
-            else:neworient[0] = 'L'
-            newpos = ['S', 'I', 'A', 'P']
-
+            opposite = {'R': 'L', 'L': 'R', 'A': 'S', 'P': 'I', 'S': 'A', 'I': 'P'}
         elif humanPosition == 'FFP':
-            neworient[0] = orient[0]
-            newpos = ['S', 'I', 'P', 'A']
-
-        for z in [1, 2]:
-            for i, j in enumerate(pos):
-                if orient[z] == j:
-                    neworient[z] = newpos[i]
+            opposite = {'R': 'R', 'L': 'L', 'A': 'S', 'P': 'I', 'S': 'A', 'I': 'P'}
 
     elif animalPosition == 'AHS':
         if humanPosition == 'HFS':
-            if orient[0] == 'L':neworient[0] = 'R'
-            else:neworient[0] = 'L'
-            newpos = ['I', 'S', 'P', 'A']
-
+            opposite = {'R': 'L', 'L': 'R', 'A': 'I', 'P': 'S', 'S': 'P', 'I': 'A'}
         elif humanPosition == 'FFS':
-            neworient[0] = orient[0]
-            newpos = ['I', 'S', 'A', 'P']
-
+            opposite = {'R': 'R', 'L': 'L', 'A': 'I', 'P': 'S', 'S': 'A', 'I': 'P'}
         elif humanPosition == 'HFP':
-            neworient[0] = orient[0]
-            newpos = ['S', 'I', 'P', 'A']
-
+            opposite = {'R': 'R', 'L': 'L', 'A': 'S', 'P': 'I', 'S': 'P', 'I': 'A'}
         elif humanPosition == 'FFP':
-            if orient[0] == 'L':neworient[0] = 'R'
-            else:neworient[0] = 'L'
-            newpos = ['S', 'I', 'A', 'P']
-
-        for z in [1, 2]:
-            for i, j in enumerate(pos):
-                if orient[z] == j:
-                    neworient[z] = newpos[i]
+            opposite = {'R': 'R', 'L': 'L', 'A': 'S', 'P': 'I', 'S': 'A', 'I': 'P'}
 
     elif animalPosition == 'humanlike':
-        neworient = orient
+        opposite = {'R': 'R', 'L': 'L','A': 'A', 'P': 'P','S': 'S', 'I': 'I'}
 
-
+    neworient = opposite[orient[0]] + opposite[orient[1]] + opposite[orient[2]]
     return neworient
