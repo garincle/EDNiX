@@ -17,7 +17,7 @@ allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], s
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
-list_to_keep = []
+list_to_keep = [('NIHm17', '02'), ('NIHm19', '01'), ('NIHm24', '03'), ('NIHm24', '02')]
 list_to_remove = []
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 #### fMRI pre-treatment
@@ -39,11 +39,14 @@ TfMRI = 'T2w' # string
 Method_mask_func = 'Custum_ANTS_Garin' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
-anat_func_same_space = True # True or False
-type_of_transform = 'SyNOnly'
+anat_func_same_space = False # True or False
+type_of_transform = 'BOLDRigid'
+aff_metric_ants_Transl = 'MI' # string
+aff_metric_ants = 'MI'
+"""type_of_transform = 'SyNOnly'
 aff_metric_ants_Transl = 'mattes' # string
-aff_metric_ants = 'CC'
-do_anat_to_func = False # True or False
+aff_metric_ants = 'CC'"""
+do_anat_to_func = True # True or False
 Slice_timing_info = '-tpattern altplus'
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
@@ -56,10 +59,10 @@ smoothSBA = 1.5
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 ############ Right in a list format the steps that you want to skip
-doWARPonfunc = False
+doWARPonfunc = 'No'
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = ['itk_1', 'itk_2', 'Clean']
+Skip_step = [1,2,3,4,10,11,12,13,14,15,16,'itk_1', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
@@ -73,7 +76,7 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     nb_ICA_run=20, ICA_cleaning='Skip',
                     costAllin='lpa',
                     doWARPonfunc=doWARPonfunc, registration_fast=False, type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
-                    list_to_keep=[], list_to_remove=[], atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
+                    list_to_keep=list_to_keep, list_to_remove=list_to_remove, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
                     reference='EDNiX', post_treatment_method='Grandjean',
                     band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
                     use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
