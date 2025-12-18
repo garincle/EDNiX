@@ -89,7 +89,7 @@ def fix_orient(runMean_reorient, fMRI_runMean_unwarpped, list_RS, animalP, human
         run_cmd.run(cmd, diary_file)
 
     else:
-        if not animalP == 'humanlike':
+        if not animalP[0] == 'humanlike':
             neworient = get_orientation.getreal(humanP, animalP, orient)
             run_cmd.msg('the new orientation will be : ' + neworient, diary_file, 'OKGREEN')
 

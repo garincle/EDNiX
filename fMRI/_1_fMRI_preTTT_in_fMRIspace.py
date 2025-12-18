@@ -203,6 +203,7 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
         subprocess.run(command, shell=True, check=True)
 
         ### 2.0 Start fix_orient
+        print(animalPosition)
         _2b_fix_orient.fix_orient(fMRI_BASE, fMRI_SliceT, list_RS,
                                   animalPosition, humanPosition, orientation, doWARPonfunc, sing_afni, diary_file)
 

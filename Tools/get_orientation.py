@@ -23,7 +23,7 @@ def fromITK_to_newFS(orig,desired):
     transfo = []
     opposite ={'R':'L','L':'R',
                'A':'P','P':'A',
-               'S':'I','I':'A'}
+               'S':'I','I':'S'}
     for index,item in enumerate(orig):
         if opposite[item] in desired:
             for i, j in enumerate(desired):
