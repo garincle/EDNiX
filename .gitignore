@@ -3,17 +3,17 @@
 # ===================================================
 
 # Absolute paths (only take effect if Git is run from this exact location)
-/home/cgarin/PycharmProjects/EDNiX/Atlases_library/
+#/home/cgarin/PycharmProjects/EDNiX/Atlases_library/
 /home/cgarin/PycharmProjects/EDNiX/Tool_library/
 /home/cgarin/PycharmProjects/EDNiX/venvEDNiX/
 
 # Relative patterns (work regardless of project location)
-Atlases_library/
+#Atlases_library/
 Tool_library/
 venvEDNiX/
 
 # Match all subdirectories recursively
-**/Atlases_library/**
+#**/Atlases_library/**
 **/Tool_library/**
 **/venvEDNiX/**
 
