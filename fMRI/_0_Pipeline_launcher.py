@@ -670,7 +670,7 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
-                _3_mask_fMRI.Refimg_to_meanfMRI(anat_func_same_space, BASE_SS,TfMRI , dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_acpc_masks, dir_prepro_acpc_process,
+                _3_mask_fMRI.Refimg_to_meanfMRI(MAIN_PATH, anat_func_same_space, BASE_SS,TfMRI , dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_acpc_masks, dir_prepro_acpc_process,
                        dir_prepro_template_process, RS, nb_run, REF_int, ID, dir_transfo, brainmask, V_mask, W_mask, G_mask, dilate_mask, n_for_ANTS, bids_dir,
                        costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
                        sing_afni, sing_fs, sing_fsl, sing_itk, diary_file)

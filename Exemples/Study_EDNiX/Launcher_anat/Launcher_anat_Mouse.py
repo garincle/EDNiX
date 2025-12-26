@@ -14,7 +14,7 @@ from anat import _0_Pipeline_launcher
 from anat.load_transfo_parameters import build_transfos
 from Tools import Load_EDNiX_requirement
 from Plotting import Plot_BIDS_surface_for_QC
-
+from Tools import Load_subject_with_BIDS, load_bids
 ########################################################################################################################
 #                                       Set the pipeline parameters (see manual.....)                                  #
 ########################################################################################################################
@@ -22,22 +22,15 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Mouse/BIDS_Gd/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouse/BIDS_Gd/'))
 
 # which format ?
 BIDStype = 1
 
-########### Subject loader with BIDS  ##############
-layout = BIDSLayout(bids_dir, validate=False)
-report = BIDSReport(layout)
-df = layout.to_df()
-df.head()
-
-#### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
-
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
 ### select the subject, session to process
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
+
 
 # choose if you want to select or remove ID from you analysis:
 list_to_keep   = []
@@ -121,7 +114,7 @@ Skip_step = [1,2,3,4,5,6,'itk_2', 'flat_map', 'Clean']
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################
-
+'''
 _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      MAIN_PATH, bids_dir, BIDStype, species,
                      allinfo_study_c, list_to_keep, list_to_remove,
@@ -135,6 +128,7 @@ _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
 
 
+'''
 ### Surface QC summary creation --------------------------------------------------------------------------------
 # Function 1: Load EDNiX requirements
 sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _, sing_synstrip, Unetpath = Load_EDNiX_requirement.load_requirement(
@@ -144,6 +138,6 @@ Plot_BIDS_surface_for_QC.create_surface_qc_summary(
     sing_wb=sing_wb,
     bids_root=bids_dir,
     output_dir=bids_dir + "/QC/Surface",
-    template_scene=bids_dir + "/sub-jgrAesMEDISOc22r/ses-2/anat/native/surfaces/Native_resol/Exemple1.scene",
-    scene_ID_name="jgrAesMEDISOc22r",
+    template_scene=bids_dir + "/sub-jgrAesAWc11L/ses-1/anat/native/surfaces/Native_resol/Exemple1.scene",
+    scene_ID_name="jgrAesAWc11L",
     scene_name="Exemple1")

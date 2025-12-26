@@ -41,20 +41,20 @@ type_norm = 'T2w' # T1 or T2
 TfMRI = 'T2w' # string
 
 ## masking
-Method_mask_func = '3dSkullStrip_marmoset' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = 'muSkullStrip_cross_species' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 creat_study_template = True # True or False
 
 doWARPonfunc = 'header'
 resting_or_task = 'resting'  # 'resting' or 'task'
 anat_func_same_space = False # True or False
-type_of_transform = 'BOLDAffine'
-aff_metric_ants_Transl = 'mattes' # string
-aff_metric_ants = 'meansquares'
+type_of_transform = 'SyNBoldAff'
+aff_metric_ants_Transl = 'MI' # string
+aff_metric_ants = 'MI'
 do_anat_to_func = True # True or False
 dilate_mask=0
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 
-Skip_step = ['itk_1', 'itk_2', 'Clean']
+Skip_step = [1,2,3,4,10,11,12,13,14,'itk_1', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,

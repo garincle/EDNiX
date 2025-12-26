@@ -1,14 +1,7 @@
-
 import os
-
 opj = os.path.join
-
-from Tools import run_cmd
-from Tools import diaryfile
-from Tools import getpath
-
-from anat.loop2 import _5_create_template_brain
-from anat.loop2 import _6_stdyTmax
+from Tools import diaryfile, getpath, run_cmd
+from anat.loop2 import _mask2_Data_QC, _5_create_template_brain, _6_stdyTmax
 
 
 def run(ID, Session, data_path, max_ses,type_norm,ref_suffix,coregistration_longitudinal,bids_dir, mask_suffix,
@@ -77,8 +70,15 @@ def run(ID, Session, data_path, max_ses,type_norm,ref_suffix,coregistration_long
                                                              brain_skullstrip_2, masks_dir, BASE_SS_coregistr,
                                                              BASE_SS_mask,check_visualy_final_mask,
                                                              bids_dir, MNIBcorrect_indiv,sing_afni, sing_fsl, sing_fs, sing_itk, sing_synstrip,Unetpath,
-                                                             diary_file, preftool)
+                                                             Skip_step, diary_file, preftool)
 
+    if 'itk_1' in Skip_step:
+        run_cmd.msg('INFO: skip step ' + str('itk_1'), diary_file, 'OKGREEN')
+    else:
+        output4mask = opj(masks_dir, ID + '_desc-step2_mask.nii.gz')
+        end_maskname = '_'.join([ID, 'final', 'mask', '2.nii.gz'])
+        input4msk = opj(volumes_dir, ID + '_space-acpc_desc-SS-step1_' + masking_img + '.nii.gz')
+        _mask2_Data_QC._itk_check_masks(output4mask, input4msk, end_maskname, masks_dir, sing_itk, diary_file)
 
     print(sourcename)
     ###### co-registration of each indiv template to the selected template (sty, atlas)

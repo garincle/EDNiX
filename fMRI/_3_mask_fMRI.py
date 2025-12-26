@@ -20,7 +20,7 @@ from fMRI import Skullstrip_func
 from fMRI import plot_QC_func
 
 
-def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_acpc_masks, dir_prepro_acpc_process,
+def Refimg_to_meanfMRI(MAIN_PATH, anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_acpc_masks, dir_prepro_acpc_process,
                        dir_prepro_template_process, RS, nb_run, REF_int, ID, dir_transfo, brainmask, V_mask, W_mask, G_mask, dilate_mask, n_for_ANTS, bids_dir,
                        costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
                        sing_afni, sing_fs, sing_fsl, sing_itk, diary_file):
@@ -30,9 +30,6 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepr
     ### create a list of the image to be corrected
 
     root_RS_ref = extract_filename(RS[REF_int])
-    ffMRI_runMean_inRef_list = ' ' + opj(dir_prepro_raw_process, root_RS_ref + '_space-func_desc-fMRI_run_inRef.nii.gz')
-    ffMRI_runMean_inRef_list1 = [opj(dir_prepro_raw_process, root_RS_ref + '_space-func_desc-fMRI_runMean_inRef.nii.gz')]
-    residual_motion = opj(dir_prepro_raw_process, 'all_runs_space-func_desc-fMRI_residual_motion.nii.gz')
     Mean_Image = opj(dir_prepro_raw_process, 'all_runs_space-func_desc-fMRI_Mean_Image.nii.gz')
     BASE_SS_fMRI = opj(dir_prepro_template_process, 'BASE_SS_fMRI.nii.gz')
     BASE_SS = opj(dir_prepro_template_process, 'BASE_SS.nii.gz')
@@ -44,9 +41,10 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepr
     final_mask = opj(dir_prepro_raw_masks, ID + '_final_mask.nii.gz')
     Prepro_fMRI_mask = opj(dir_prepro_raw_masks, ID + '_fMRI_mask.nii.gz')
 
+    ffMRI_runMean_inRef_list1 = []
     for r in range(int(nb_run)):
         root_RS = extract_filename(RS[r])
-        fMRI_run_inRef = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-fMRI_run_inRef.nii.gz')
+        fMRI_run_inRef = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-fMRI_runMean_inRef.nii.gz')
         ffMRI_runMean_inRef_list1.append(fMRI_run_inRef)
 
     ################################################################# create a mean image to use for the anat to func and recenter
@@ -230,7 +228,7 @@ def Refimg_to_meanfMRI(anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepr
             run_cmd.msg(nl, diary_file, 'OKGREEN')
 
         else:
-            Skullstrip_func.Skullstrip_func(Method_mask_func, Mean_Image, Prepro_fMRI_mask, anat_res_func, maskDilatfunc, dir_prepro_raw_process,
+            Skullstrip_func.Skullstrip_func(MAIN_PATH, Method_mask_func, Mean_Image, Prepro_fMRI_mask, anat_res_func, maskDilatfunc, dir_prepro_raw_process,
                                                       overwrite, costAllin, type_of_transform,
                                                       aff_metric_ants, sing_afni, sing_fsl, sing_fs, sing_itk, diary_file)
 
