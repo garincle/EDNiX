@@ -57,10 +57,10 @@ smoothSBA = 3
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 ############ Right in a list format the steps that you want to skip
-doWARPonfunc = 'WARP'
+doWARPonfunc = 'header'
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = ['itk_1', 'itk_2',  'Clean']
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,'itk_1', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,

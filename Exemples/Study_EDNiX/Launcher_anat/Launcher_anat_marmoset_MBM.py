@@ -21,7 +21,7 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Marmoset/BIDS_NIH_MBM/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Marmoset/BIDS_NIH_MBM/'))
 # which format ?
 BIDStype = 'sub-{ID}_ses-{Session}_{Timage}.nii*'
 
@@ -99,8 +99,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = ['itk_2', 'flat_map', 'Clean']
-
+Skip_step = [1,2,3,5,6,7,8,9,10,11,12,13,14,15,16,'itk_1', 'flat_map', 'Clean']
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################
@@ -126,6 +125,6 @@ Plot_BIDS_surface_for_QC.create_surface_qc_summary(
     sing_wb=sing_wb,
     bids_root=bids_dir,
     output_dir=bids_dir + "/QC/Surface",
-    template_scene=bids_dir + "/sub-301105/ses-1/anat/native/surfaces/Native_resol/Exemple1.scene",
-    scene_ID_name="301105",
+    template_scene=bids_dir + "/sub-NIHm14/ses-01/anat/native/surfaces/Native_resol/Exemple1.scene",
+    scene_ID_name="NIHm14",
     scene_name="Exemple1")

@@ -50,6 +50,7 @@ def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat
         print(info)
         backtonative.apply(ID,volumes_dir,masks_dir,labels_dir,bids_dir,info,listTimage,targetsuffix,n_for_ANTS,list_atlas,path_label_code,type_norm,diary_file,sing_afni,sing_wb)
 
+
     # ................................................................................................................
             ########################## Building fMRI masks for EPI analysis ##############################
 
@@ -58,6 +59,20 @@ def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat
     brain_mask_iso = opj(masks_dir, '_'.join([ID, 'space-acpc', 'res-iso', 'mask']) + '.nii.gz')
     aseg_img     = opj(labels_dir,'_'.join([ID,'seg-4FS','dseg']) + '.nii.gz')
     aseg_img_iso    = opj(labels_dir, '_'.join([ID, 'seg-4FS','res-iso', 'dseg']) + '.nii.gz')
+
+    # ...................................................................................................................
+
+    if 'itk_2' in Skip_step:
+        run_cmd.msg('INFO: skip step ' + str('itk_2'), diary_file, 'OKGREEN')
+    else:
+        end_maskname = '_'.join([ID, 'final', 'mask', '2.nii.gz'])
+        info = backtonative.get(ID,data_path,bids_dir,Session,max_ses,targetsuffix,type_norm,BASE_SS, BASE_mask,BASE_atlas_folder,study_template_atlas_folder,
+            creat_study_template,coregistration_longitudinal,reference,'Final',species,diary_file)
+        print(info)
+        _200_Data_QC._itk_check_masks(info, end_maskname, brain_mask, volumes_dir, masks_dir, ID, type_norm, sing_itk, diary_file)
+
+    # ...................................................................................................................
+
 
     Ref_file     = ''
     T2_img       = ''
@@ -102,13 +117,13 @@ def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat
         Ref_file   = Ref_file_iso
         T2_img     = T2_img_iso
 
+
     if 9 in Skip_step:
         run_cmd.msg('INFO: skip step ' + str(9), diary_file, 'OKGREEN')
     else:
         if do_fMRImasks == True:
             preFS.msk_RS(ID, brain_mask, aseg_img, diary_file,fMRImasks)
 
-            #_9_do_fMRImasks.do_fMRImasks(masks_dir, labels_dir, type_norm, fMRImasks, overwrite,sing_afni, diary_file)
 
     # ...................................................................................................................
                     ########################## White Surface construction ##############################
@@ -251,12 +266,6 @@ def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat
         print(info)
         _16_anat_QC_SNR.anat_QC(info,type_norm, ID,volumes_dir, masks_dir, labels_dir, targetsuffix, listTimage,
                                 sing_afni, diary_file)
-    # ...................................................................................................................
-
-    if 'itk_2' in Skip_step:
-        run_cmd.msg('INFO: skip step ' + str('itk_2'), diary_file, 'OKGREEN')
-    else:
-        _200_Data_QC._itk_check_masks(volumes_dir, masks_dir, ID, type_norm,sing_itk,diary_file)
 
     # ...................................................................................................................
 

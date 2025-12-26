@@ -78,9 +78,13 @@ def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_
         with open(fMRI_runMean_unwarped.replace('.nii.gz', '.json'), "w") as outfile:
             outfile.write(json_object)
 
+        if doWARPonfunc in ['WARP', 'header']:
+            doWARPonfunc_spe = str(doWARPonfunc)
+        else:
+            doWARPonfunc_spe = 'WARP'
         # Fix orientation
         _2b_fix_orient.fix_orient(runMean_unwarped_reoriented, fMRI_runMean_unwarped, list_RS,
-                                  animalPosition, humanPosition, orientation, True, sing_afni, diary_file)
+                                  animalPosition, humanPosition, orientation, doWARPonfunc_spe, sing_afni, diary_file)
 
     ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ###
     ###                                              fix header problems                                                                ###

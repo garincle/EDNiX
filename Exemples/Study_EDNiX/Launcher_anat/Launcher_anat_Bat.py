@@ -2,7 +2,7 @@ import os
 import sys
 from bids import BIDSLayout
 from bids.reports import BIDSReport
-
+from Tools import Load_subject_with_BIDS, load_bids
 opj = os.path.join
 opb = os.path.basename
 
@@ -21,19 +21,12 @@ from Plotting import Plot_BIDS_surface_for_QC
 
 # Where are the data
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Bat/BIDS_bat/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Bat/BIDS_bat/'))
 
 # which format ?
 BIDStype = 1
 
-########### Subject loader with BIDS  ##############
-layout = BIDSLayout(bids_dir, validate=False)
-report = BIDSReport(layout)
-df = layout.to_df()
-df.head()
-
-#### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -103,7 +96,7 @@ list_transfo = build_transfos(
 #   Block3: step 200 (QC itksnap)                                                                                      #
 ########################################################################################################################
 
-Skip_step = [1,2,3,4,5,6,10,11,12,13,14,15,16,'itk_2', 'flat_map', 'Clean']
+Skip_step = [1,2,3,4,5,6,10,11,12,13,14,15,16, 'flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
