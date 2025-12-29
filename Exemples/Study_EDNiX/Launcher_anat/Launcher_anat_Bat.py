@@ -26,7 +26,7 @@ bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Bat/BIDS_bat/'
 # which format ?
 BIDStype = 1
 
-allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['func'], suffixes= ['bold'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -96,7 +96,7 @@ list_transfo = build_transfos(
 #   Block3: step 200 (QC itksnap)                                                                                      #
 ########################################################################################################################
 
-Skip_step = [1,2,3,4,5,6,10,11,12,13,14,15,16, 'flat_map', 'Clean']
+Skip_step = ['itk_1', 'itk_2', 'flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #

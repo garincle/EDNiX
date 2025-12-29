@@ -86,7 +86,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 Align_img_to_template = 'Ants'
 list_transfo = build_transfos(
     align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
-    coreg={'type_of_transform': 'BOLDAffine', 'affmetric': '', 'affmetricT': ''},
+    coreg={'type_of_transform': 'BOLDAffine', 'affmetric': 'MI', 'affmetricT': 'MI'},
     stdyT={'type_of_transform': 'SyN', 'affmetric': '', 'affmetricT': ''})
 
 ########################################################################################################################
@@ -109,12 +109,11 @@ list_transfo = build_transfos(
 
 ########################################################################################################################
 
-Skip_step = [1,2,3,4,5,6,'itk_2', 'flat_map', 'Clean']
-
+Skip_step = ['itk_1', 'itk_2', 'flat_map', 'Clean']
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################
-'''
+
 _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      MAIN_PATH, bids_dir, BIDStype, species,
                      allinfo_study_c, list_to_keep, list_to_remove,
@@ -128,7 +127,7 @@ _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
 
 
-'''
+
 ### Surface QC summary creation --------------------------------------------------------------------------------
 # Function 1: Load EDNiX requirements
 sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _, sing_synstrip, Unetpath = Load_EDNiX_requirement.load_requirement(

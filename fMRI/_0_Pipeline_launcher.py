@@ -237,7 +237,7 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
             dir_prepro_template_process, dir_prepro_template_postprocessed, dir_prepro_acpc_matrices, dir_prepro_orig_matrices) \
             = getpath.func(data_path, reference, resting_or_task)
 
-        for path in [dir_prepro_raw, dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_raw_matrices, path_func, dir_fmap, dir_prepro_fmap,
+        for path in [dir_prepro_raw, dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_raw_matrices, path_func,
             dir_prepro_orig, dir_prepro_orig_labels, dir_prepro_orig_masks,
             dir_prepro_orig_process, dir_prepro_orig_postprocessed,
             dir_prepro_acpc, dir_prepro_acpc_labels, dir_prepro_acpc_masks,
@@ -375,6 +375,10 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
         else:
             nl = "We found " + str(list_map)
             run_cmd.msg(nl, diary_file, 'OKGREEN')
+
+            for path in [dir_fmap, dir_prepro_fmap]:
+                if not os.path.exists(path):
+                    os.makedirs(path)
 
         if len(list_RS) > 0:
             RS_map = [opb(i) for i in list_map]

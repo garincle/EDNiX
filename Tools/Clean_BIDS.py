@@ -27,6 +27,7 @@ def cleanBIDS(BIDS_folder):
         # Specific mask files you want to keep
         '/sub-*/ses-*/anat/native/volumes/masks/*final_mask_orig.nii.gz',
         '/sub-*/ses-*/anat/native/volumes/masks/*final_mask.nii.gz',
+        '/sub-*/ses-*/anat/native/volumes/masks/*final_mask2.nii.gz',
         '/sub-*/ses-*/func/preprocessing/space-func/masks/*_final_mask.nii.gz',
         '/sub-*/ses-*/func/preprocessing/space-func/masks/*_final_mask_orig.nii.gz',
 
@@ -37,6 +38,9 @@ def cleanBIDS(BIDS_folder):
         '/code/*',
         '/sourcedata/*',
         '/derivatives/*',
+
+        # Surface exemples
+        '/sub-*/ses-*/anat/native/surfaces/Native_resol/Exemple1.scene',
 
         # BIDS required files
         '/dataset_description.json',
@@ -107,10 +111,18 @@ def cleanBIDS(BIDS_folder):
     print(f"Deleted {len(to_delete)} files and {deleted_dirs} empty directories")
     print(f"Kept {len(keep_files)} files")
 
+list_paths = ['/scratch2/EDNiX/Rat/BIDS_Gd/',
+              '/scratch2/EDNiX/Dog/BIDS_k9/',
+              '/scratch2/EDNiX/Marmoset/BIDS_NIH_MBM/',
+              '/scratch2/EDNiX/Human/BIDS_ds004513-raw-data/',
+              '/scratch2/EDNiX/Human/ds004856/',
+              '/scratch2/EDNiX/Macaque/BIDS_Cdt_Garin/',
+              '/scratch2/EDNiX/Macaque/BIDS_BenHamed/',
+              '/scratch2/EDNiX/Mouse_lemur/BIDS_Garin/',
+              '/scratch2/EDNiX/Bat/BIDS_bat/',
+              '/scratch2/EDNiX/Mouse/BIDS_Gd/']
 
-list_paths = [
-    '/scratch2/EDNiX/Mouse_lemur/BIDS_Garin/'
-]
+#list_paths = glob.glob('/scratch2/EDNiX/*/*/')
 
 for path in list_paths:
     print(f"\n{'=' * 80}")
