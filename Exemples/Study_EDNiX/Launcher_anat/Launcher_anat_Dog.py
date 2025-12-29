@@ -105,8 +105,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################
-Skip_step = [1,2,3,5,6,7,8,9,10,11,12,13,14,15,16,'itk_1', 'flat_map', 'Clean']
-
+Skip_step = ['itk_1', 'itk_2', 'flat_map', 'Clean']
 _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      MAIN_PATH, bids_dir, BIDStype, species,
                      allinfo_study_c, list_to_keep, list_to_remove,

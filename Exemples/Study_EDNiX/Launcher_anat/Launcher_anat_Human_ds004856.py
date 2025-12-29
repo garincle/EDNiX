@@ -21,7 +21,7 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Human/ds004856/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Human/ds004856/'))
 # which format ?
 BIDStype = 'sub-{ID}_ses-{Session}_{Timage}.nii*'
 
@@ -31,7 +31,7 @@ allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], s
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 
 # choose if you want to select or remove ID from you analysis:
-list_to_keep   = [('408', '1')]
+list_to_keep   = []
 list_to_remove = []
 
 species    = 'Human'
@@ -97,8 +97,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = [1,2,3,4,5,6,7,'itk_2', 'flat_map', 'Clean']
-
+Skip_step = ['itk_1', 'itk_2', 'flat_map', 'Clean']
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################
