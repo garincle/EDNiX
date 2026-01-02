@@ -117,7 +117,7 @@ _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
                      transfo_message='do_as_I_said', force_myelin_same_space=False,
                      check_visualy_final_mask=True, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
-'''
+
 
 ### Surface QC summary creation --------------------------------------------------------------------------------
 # Function 1: Load EDNiX requirements
@@ -131,4 +131,4 @@ Plot_BIDS_surface_for_QC.create_surface_qc_summary(
     template_scene=bids_dir + "/sub-01/ses-1/anat/native/surfaces/Native_resol/Exemple1.scene",
     scene_ID_name="01",
     scene_name="Exemple1")
-'''
+

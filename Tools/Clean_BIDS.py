@@ -63,7 +63,7 @@ def cleanBIDS(BIDS_folder):
         print(f"  {f}")
 
     # Ask for user confirmation before proceeding
-    confirm = input(f"\nDo you want to continue with deletion of all other files? (yes/no): ").strip().lower()
+    confirm = 'yes'
     if confirm not in ['yes', 'y']:
         print("Operation aborted. No files were deleted.")
         return
