@@ -23,8 +23,8 @@ venvEDNiX/
 # FICHIERS TYPIQUES DE DÉVELOPPEMENT PYTHON / NEURO
 
 # Large data files (e.g., MRI)
-*.nii
-*.nii.gz
+#*.nii
+#*.nii.gz
 *.img
 *.hdr
 *.mgz
