@@ -12,13 +12,9 @@ opd = os.path.dirname
 ope = os.path.exists
 opi = os.path.isfile
 
-
-
-from Tools import run_cmd,get_orientation
+from Tools import run_cmd,get_orientation, check_nii
 from fMRI.extract_filename import extract_filename
-from fMRI import Skullstrip_func
-from fMRI import plot_QC_func
-
+from fMRI import Skullstrip_func, plot_QC_func
 
 def Refimg_to_meanfMRI(MAIN_PATH, anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_acpc_masks, dir_prepro_acpc_process,
                        dir_prepro_template_process, RS, nb_run, REF_int, ID, dir_transfo, brainmask, V_mask, W_mask, G_mask, dilate_mask, n_for_ANTS, bids_dir,
@@ -192,19 +188,21 @@ def Refimg_to_meanfMRI(MAIN_PATH, anat_func_same_space, BASE_SS_coregistr,TfMRI 
     #### explore if manual_mask.nii.gz exists?
     if opi(final_mask):
         nl = 'WARNING: We found a final mask to skullstrip the functional image !!! no Skullstrip will be calculated!'
+        run_cmd.msg(nl, diary_file, 'OKGREEN')
 
         nl = 'INFO: please delete' + final_mask + ' if you want retry to create a skulstripp images'
         run_cmd.msg(nl, diary_file, 'OKGREEN')
 
         command = (sing_afni + '3dresample' + overwrite + ' -input ' + final_mask + ' -master ' + Mean_Image +
-                   ' -prefix ' + final_mask + ' -overwrite')
+                   ' -prefix ' + Prepro_fMRI_mask + ' -overwrite')
         run_cmd.do(command, diary_file)
+        check_nii.keep_header(Prepro_fMRI_mask, Mean_Image)
 
-        command = (sing_afni + '3dcalc' + overwrite + ' -a ' + final_mask +
+        command = (sing_afni + '3dcalc' + overwrite + ' -a ' + Prepro_fMRI_mask +
                    ' -prefix ' + Prepro_fMRI_mask + ' -expr "a"')
         run_cmd.do(command, diary_file)
 
-        dictionary = {"Sources": final_mask,
+        dictionary = {"Sources": Prepro_fMRI_mask,
                       "Description": 'Copy.',
                       "Command": command, }
         json_object = json.dumps(dictionary, indent=3)

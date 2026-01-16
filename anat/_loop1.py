@@ -1,13 +1,9 @@
 #import
 import os
-
 opj = os.path.join
 ope = os.path.exists
-
-from Tools import run_cmd
-from Tools import diaryfile
-from Tools import getpath
-
+from Tools import getpath, diaryfile, run_cmd
+import inspect
 from anat.loop1 import _1_correct_orient
 from anat.loop1 import _2_clean_anat
 
@@ -31,7 +27,22 @@ def run(ID, Session, data_path, path_rawanat,BIDStype, listTimage,otheranat, lis
     if ope(opj(bids_dir, 'QC')) == False: os.makedirs(opj(bids_dir, 'QC'))
 
     diary_file = diaryfile.create(opj(path_anat, str(ID) + ' session ' + str(Session)), NL1)
+    nl = 'INFO: Work on ' + str(ID) + ' session ' + str(Session)
+    launcher_parameters = diaryfile.create(opj(path_anat, str(ID) + 'launcher_parameters session ' + str(Session)),
+                                           nl)
+    frame = inspect.currentframe()
+    args_dict = inspect.getargvalues(frame).locals
 
+    with open(launcher_parameters, "w") as f:
+        f.write("Function: preprocess_data\n")
+        f.write("Effective parameters at runtime:\n\n")
+        for k, v in args_dict.items():
+            if k == "kwargs":
+                for kk, vv in v.items():
+                    f.write(f"- {kk} = {vv}\n")
+            else:
+                f.write(f"- {k} = {v}\n")
+    # ----------------------------------------
 
     if 1 in Skip_step:
         run_cmd.msg('INFO: skip step ' + str(1), diary_file, 'OKGREEN')

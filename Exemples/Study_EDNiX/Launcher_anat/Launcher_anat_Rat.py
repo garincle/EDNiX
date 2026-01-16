@@ -32,7 +32,8 @@ Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 
 # choose if you want to select or remove ID from you analysis:
 list_to_keep   = []
-list_to_remove = []
+list_to_remove = [('300101', '1'), ('300102', '1'), ('300103', '1'), ('300104', '1'), ('300105', '1'), ('300106', '1'), ('300107', '1'), ('300108', '1'), ('300109', '1'), ('300200', '1'), ('300201', '1'), ('300202', '1'), ('300203', '1'), ('300204', '1'), ('300205', '1'), ('300206', '1'), ('300207', '1'), ('300208', '1'), ('300209', '1')]
+
 species    = 'Rat'
 # is it a longitudinal study ?
 coregistration_longitudinal = False
@@ -98,7 +99,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = ['itk_1', 'itk_2', 'flat_map', 'Clean']
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,'itk_1', 'itk_2', 'flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
@@ -115,6 +116,7 @@ _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
                      transfo_message='do_as_I_said', force_myelin_same_space=False,
                      check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
+
 
 ### Surface QC summary creation --------------------------------------------------------------------------------
 # Function 1: Load EDNiX requirements

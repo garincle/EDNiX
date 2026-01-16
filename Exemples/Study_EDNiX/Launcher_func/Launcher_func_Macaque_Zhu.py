@@ -17,9 +17,8 @@ allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], s
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
-list_to_keep = []
+list_to_keep = [('Pickle', '2'), ('Pickle', '11'), ('Pickle', '10'), ('Pickle', '1'), ('Quantum', '7'), ('Quantum', '6'), ('Quantum', '5'), ('Quantum', '4'), ('Quantum', '3'), ('Quantum', '2'), ('Quantum', '1'), ('Roshan', '9'), ('Roshan', '8'), ('Roshan', '7'), ('Roshan', '6'), ('Roshan', '5'), ('Roshan', '4'), ('Roshan', '3'), ('Roshan', '2'), ('Roshan', '11'), ('Roshan', '10'), ('Roshan', '1'), ('Sonic', '9'), ('Sonic', '8'), ('Sonic', '7'), ('Sonic', '6'), ('Sonic', '5'), ('Sonic', '4'), ('Sonic', '3'), ('Sonic', '2'), ('Sonic', '11'), ('Sonic', '10'), ('Sonic', '1'), ('Trinity', '9'), ('Trinity', '8'), ('Trinity', '7'), ('Trinity', '6'), ('Trinity', '5'), ('Trinity', '4'), ('Trinity', '3'), ('Trinity', '2'), ('Trinity', '11'), ('Trinity', '10'), ('Trinity', '1'), ('Unity', '9'), ('Unity', '8'), ('Unity', '7'), ('Unity', '6'), ('Unity', '4'), ('Unity', '3'), ('Unity', '2'), ('Unity', '11'), ('Unity', '10'), ('Unity', '1'), ('Viking', '9'), ('Viking', '8'), ('Viking', '7'), ('Viking', '6'), ('Viking', '5'), ('Viking', '4'), ('Viking', '3'), ('Viking', '2'), ('Viking', '11'), ('Viking', '10'), ('Viking', '1')]
 list_to_remove = []
-
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 #### fMRI pre-treatment
 T1_eq = 5 # int
@@ -60,7 +59,7 @@ selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = 'header'
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,'itk_1', 'Clean']
+Skip_step = ['itk_1', 'itk_2', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,

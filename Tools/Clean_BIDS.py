@@ -28,8 +28,8 @@ def cleanBIDS(BIDS_folder):
         '/sub-*/ses-*/anat/native/volumes/masks/*final_mask_orig.nii.gz',
         '/sub-*/ses-*/anat/native/volumes/masks/*final_mask.nii.gz',
         '/sub-*/ses-*/anat/native/volumes/masks/*final_mask2.nii.gz',
-        '/sub-*/ses-*/func/preprocessing/space-func/masks/*_final_mask.nii.gz',
-        '/sub-*/ses-*/func/preprocessing/space-func/masks/*_final_mask_orig.nii.gz',
+        '/sub-*/ses-*/func/raw/acpc-func/masks/*_final_mask.nii.gz',
+
 
         # Study template files
         '/sty_template/derivatives/acpc/volumes/masks/studyTemplate_final_mask.nii.gz',
@@ -63,7 +63,7 @@ def cleanBIDS(BIDS_folder):
         print(f"  {f}")
 
     # Ask for user confirmation before proceeding
-    confirm = 'yes'
+    confirm = input("\nDo you want to continue with deletion of all other files? (yes/no): ").strip().lower()
     if confirm not in ['yes', 'y']:
         print("Operation aborted. No files were deleted.")
         return

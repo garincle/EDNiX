@@ -844,8 +844,8 @@ def fMRI_QC(correction_direction, path_func, ID, dir_prepro_template_process, di
         # Motion analysis
         try:
             fd_jenkinson_array = fd_jenkinson(
-                opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-volreg_matrix.1D'), rmax=80.,
-                out_file=opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-volreg_matrix_aff12_fdfile.1D'),
+                opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-matrix_motion_params.1D'), rmax=80.,
+                out_file=opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-matrix_motion_params_aff12_fdfile.1D'),
                 out_array=True)
 
             qc_values['mean_fd'] = np.nanmean(fd_jenkinson_array) if len(fd_jenkinson_array) > 0 else np.nan
