@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from anat import set_launcher
 from atlases import atlas4func
+import inspect
 
 opj = os.path.join
 opb = os.path.basename
@@ -192,6 +193,8 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
     - Integrates fully with anat preprocessing to ensure accurate coregistration.
     """
 
+
+
     (FS_refs, template_dir, reference, balsa_folder, BALSAname, balsa_brainT1, BASE_atlas_folder, BASE_template, BASE_SS,
     BASE_mask, BASE_Gmask, BASE_Wmask, BASE_Vmask, CSF, GM, WM, Aseg_ref, list_atlas, path_label_code, all_ID,
     all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max,
@@ -249,6 +252,22 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
                 os.makedirs(path)
 
         diary_file = diaryfile.create(opj(path_func, str(ID) + ' session ' + str(Session)), nl)
+        launcher_parameters = diaryfile.create(opj(path_func, str(ID) + 'launcher_parameters session ' + str(Session)), nl)
+
+        frame = inspect.currentframe()
+        args_dict = inspect.getargvalues(frame).locals
+
+        with open(launcher_parameters, "w") as f:
+            f.write("Function: preprocess_data\n")
+            f.write("Effective parameters at runtime:\n\n")
+            for k, v in args_dict.items():
+                if k == "kwargs":
+                    for kk, vv in v.items():
+                        f.write(f"- {kk} = {vv}\n")
+                else:
+                    f.write(f"- {k} = {v}\n")
+        # ----------------------------------------
+
         diary_WARNING = opj(path_func, 'MAJOR_WARNING.txt')
         dir_RS_ICA_native = opj(dir_prepro_orig_process, 'Melodic')
         # link with the individual anat template ################################################################

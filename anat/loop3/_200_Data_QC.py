@@ -44,7 +44,7 @@ def _itk_check_masks(info, end_maskname, brain_mask, volumes_dir, masks_dir, ID,
     run_cmd.msg(nl, diary_file,'OKGREEN')
 
     command = (itk_sif + 'itksnap -g ' + opj(volumes_dir, ID + '_space-acpc_desc-template_' + type_norm + '.nii.gz') +
-               ' -s ' + brain_mask + ' -o ' + opj(info[0][4], '_'.join([info[0][0], 'space-acpc_desc-SS', type_norm]) + '.nii.gz'))
+               ' -o ' + opj(info[0][4], '_'.join([info[0][0], 'space-acpc_desc-SS', type_norm]) + '.nii.gz'))
     run_command_and_wait(command)
 
     diary.write(f'\n')

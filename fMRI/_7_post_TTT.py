@@ -196,10 +196,10 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_ori
                         run_cmd.msg('no normalization',diary_file, 'OKCYAN')
                 elif post_treatment_method == 'Grandjean':
                     # --- Définition des chemins principaux ---
-                    regressors_file = opj(dir_prepro_orig_postprocessed, 'regressors.1D')
+                    regressors_file = opj(dir_prepro_orig_postprocessed, root_RS + '_regressors.1D')
                     matrix_motion_correction = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction.1D')
-                    wm_signal = opj(dir_prepro_orig_postprocessed, 'wm.1D')
-                    csf_signal = opj(dir_prepro_orig_postprocessed, 'csf.1D')
+                    wm_signal = opj(dir_prepro_orig_postprocessed, root_RS + '_wm.1D')
+                    csf_signal = opj(dir_prepro_orig_postprocessed, root_RS + '_csf.1D')
 
                     wm_mask = opj(dir_prepro_orig_masks, 'Wmask.nii.gz')
                     csf_mask = opj(dir_prepro_orig_masks, 'Vmask.nii.gz')

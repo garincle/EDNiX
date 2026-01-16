@@ -402,6 +402,12 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
         imagetype = [3, 2]
         for image_to_send_acpc, image_to_creat_acpc, imagetype in zip([fMRI_BASE, fMRI_BASE_Mean], [fMRI_run_inRef_acpc, fMRI_runMean_inRef_acpc], imagetype):
             additional_transformations = []
+            if anat_func_same_space == True:
+                matrix = opj(dir_transfo, 'acpc_0GenericAffine.mat')
+            else:
+                matrix = Mean_Image_acpc.replace('.nii.gz', '_0GenericAffine.mat')
+            additional_transformations.append(matrix)
+
             if root_RS == root_RS_ref and recordings == 'very_old' and doWARPonfunc in ['WARP', 'header']:  # do not process ref not corrected...
                 # pas de transfo run to MEAN
                 print('No transformation for the reference run')
@@ -413,15 +419,11 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                 additional_transformations.append(fMRI_run_inRef_WARP)  # 3. Warp (appliqué en premier)
                 additional_transformations.append(fMRI_run_inRef_mat)  # 2. Affine
 
-            if anat_func_same_space == True:
-                matrix = opj(dir_transfo, 'acpc_0GenericAffine.mat')
-            else:
-                matrix = Mean_Image_acpc.replace('.nii.gz', '_0GenericAffine.mat')
-
-            additional_transformations.append(matrix)
-
-            print(additional_transformations)
             if imagetype == 3:
+                print(image_to_send_acpc)
+                print(opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef'))
+                print(opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction_*.mat'))
+                print(additional_transformations)
                 transfo_for_func.apply_motion_correction_and_transforms(
                     input_4d=image_to_send_acpc,
                     reference_image=Mean_Image_acpc,
@@ -447,6 +449,10 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                     outfile.write(json_object)
 
             elif imagetype == 2:
+                print(Mean_Image_acpc)
+                print(image_to_send_acpc)
+                print(additional_transformations)
+                print(n_for_ANTS)
                 FUNCACPC = ants.image_read(Mean_Image_acpc)
                 FUNC = ants.image_read(image_to_send_acpc)
                 MEAN_tr = ants.apply_transforms(fixed=FUNCACPC, moving=FUNC,

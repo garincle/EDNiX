@@ -15,9 +15,6 @@ def _itk_check_func_in_template(dir_prepro_template_postprocessed, dir_prepro_te
     Prepro_fMRI_mask = opj(dir_prepro_template_masks, 'Gmask.nii.gz')
     Mean_Image = opj(dir_prepro_template_process, 'BASE_SS_fMRI.nii.gz')
     Mean_Image_template = opj(dir_prepro_template_postprocessed, 'all_runs_space-template-func_desc-fMRI_Mean_Image_SS.nii.gz')
-    File1 = pathlib.Path(Prepro_fMRI_mask)
-    Orig = File1.stat().st_ctime
-
 
     command = (sing_itk + 'itksnap -g ' + Mean_Image +
                ' -o ' + Mean_Image_template)

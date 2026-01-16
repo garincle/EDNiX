@@ -17,8 +17,8 @@ allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], s
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
-list_to_keep = []
 list_to_remove = []
+list_to_keep = []
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 #### fMRI pre-treatment
 T1_eq = 5 # int
@@ -36,7 +36,7 @@ type_norm = 'T2w' # T1 or T2
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
 TfMRI = 'T2w' # string
 ### if you don't have any anat image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
-Method_mask_func = 'Custum_ANTS_Garin' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = 'Custom_ANTS_Garin' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = False # True or False
@@ -62,7 +62,7 @@ selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = 'No'
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,'itk_1', 'Clean']
+Skip_step = ['itk_1', 'itk_2', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
