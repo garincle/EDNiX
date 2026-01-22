@@ -86,8 +86,8 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 Align_img_to_template = 'Ants'
 list_transfo = build_transfos(
     align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
-    coreg={'type_of_transform': 'BOLDAffine', 'affmetric': 'MI', 'affmetricT': 'MI'},
-    stdyT={'type_of_transform': 'SyN', 'affmetric': '', 'affmetricT': ''})
+    coreg={'type_of_transform': 'SyNCC', 'affmetric': 'MI', 'affmetricT': 'MI'},
+    stdyT={'type_of_transform': 'SyNCC', 'affmetric': '', 'affmetricT': ''})
 
 ########################################################################################################################
 #                                                                                                                      #
@@ -109,7 +109,7 @@ list_transfo = build_transfos(
 
 ########################################################################################################################
 
-Skip_step = ['itk_1', 'itk_2', 'flat_map', 'Clean']
+Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################

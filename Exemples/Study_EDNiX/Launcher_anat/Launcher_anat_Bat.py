@@ -60,7 +60,7 @@ animalPosition    = [''] # valid only for species smaller than humans
 
 ### masking and skull stripping ----------------------------------------------------------------------------------------
 # step 1 : coarse method (use for cropping and acpc setting)
-brain_skullstrip_1  = '_bet20.5'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
+brain_skullstrip_1  = 'muSkullStrip_cross_species'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
 # step 2 : precise method
 brain_skullstrip_2  = 'NoSkullStrip'            # bet2_ANTS or MachinL
 # step 3 : valid only for study or session template :
@@ -71,14 +71,14 @@ do_fMRImasks  = True
 fMRImasks     = 'custom' # must be aseg or custom, if custom  please add a ventricle and white matter mask in the template space, named such as Vmask and Wmask
 
 ### Coregistration parameters    ---------------------------------------------------------------------------------------
-Align_img_to_template = 'Ants'
+Align_img_to_template = 'No'
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 
 ### Coregistration parameters    ---------------------------------------------------------------------------------------
-Align_img_to_template = 'Ants'
+
 list_transfo = build_transfos(
-    align={'type_of_transform': 'Rigid', 'affmetric': 'mattes', 'affmetricT': 'mattes'},
-    coreg={'type_of_transform': 'SyNBold', 'affmetric': 'MI', 'affmetricT': 'MI'})
+    align={'type_of_transform': 'Translation', 'affmetric': 'mattes', 'affmetricT': 'mattes'},
+    coreg={'type_of_transform': 'SyNCC', 'affmetric': 'MI', 'affmetricT': 'MI'})
 
 ########################################################################################################################
 #                                       Select the preprocessing steps                                                 #
@@ -96,7 +96,7 @@ list_transfo = build_transfos(
 #   Block3: step 200 (QC itksnap)                                                                                      #
 ########################################################################################################################
 
-Skip_step = [10,11,12,13,14,15,16,'itk_1', 'itk_2', 'flat_map', 'Clean']
+Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #

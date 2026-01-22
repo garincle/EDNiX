@@ -60,7 +60,7 @@ def run(ID, Session, data_path, path_rawanat,BIDStype, listTimage,otheranat, lis
                                                   BASE_SS_coregistr,BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img,
                                                   check_visualy_final_mask,overwrite, anat_ref_path,
                                                   sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb,sing_synstrip,
-                                   Unetpath, diary_file,preftool)
+                                   Unetpath, Skip_step, diary_file,preftool)
 
 
 
