@@ -72,8 +72,8 @@ def run(ID, Session, data_path, max_ses,type_norm,ref_suffix,coregistration_long
                                                              bids_dir, MNIBcorrect_indiv,sing_afni, sing_fsl, sing_fs, sing_itk, sing_synstrip,Unetpath,
                                                              Skip_step, diary_file, preftool)
 
-    if 'itk_1' in Skip_step:
-        run_cmd.msg('INFO: skip step ' + str('itk_1'), diary_file, 'OKGREEN')
+    if 'itk_2' in Skip_step:
+        run_cmd.msg('INFO: skip step ' + str('itk_2'), diary_file, 'OKGREEN')
     else:
         output4mask = opj(masks_dir, ID + '_desc-step2_mask.nii.gz')
         end_maskname = '_'.join([ID, 'final', 'mask', '2.nii.gz'])

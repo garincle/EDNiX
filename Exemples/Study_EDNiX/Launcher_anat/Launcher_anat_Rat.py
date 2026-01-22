@@ -32,8 +32,7 @@ Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 
 # choose if you want to select or remove ID from you analysis:
 list_to_keep   = []
-list_to_remove = [('300101', '1'), ('300102', '1'), ('300103', '1'), ('300104', '1'), ('300105', '1'), ('300106', '1'), ('300107', '1'), ('300108', '1'), ('300109', '1'), ('300200', '1'), ('300201', '1'), ('300202', '1'), ('300203', '1'), ('300204', '1'), ('300205', '1'), ('300206', '1'), ('300207', '1'), ('300208', '1'), ('300209', '1')]
-
+list_to_remove = []
 species    = 'Rat'
 # is it a longitudinal study ?
 coregistration_longitudinal = False
@@ -77,7 +76,7 @@ Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
     align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
-    coreg={'type_of_transform': 'BOLDAffine', 'affmetric': '', 'affmetricT': ''})
+    coreg={'type_of_transform': 'SyNCC', 'affmetric': 'MI', 'affmetricT': 'MI'})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 
@@ -99,7 +98,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,'itk_1', 'itk_2', 'flat_map', 'Clean']
+Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #

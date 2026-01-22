@@ -10,9 +10,7 @@ opn = os.path.normpath
 opd = os.path.dirname
 ope = os.path.exists
 
-from Tools import run_cmd
-from Tools import getpath
-from Tools import create1Dmatrix
+from Tools import run_cmd, getpath, create1Dmatrix
 
 def allineate(data_path,anatinput,anatoutput,maskinput,BASE_SS,cost3dAllineate,sing_afni,overwrite,diary_file):
 
@@ -70,7 +68,7 @@ def none(anatinput,anatoutput,overwrite,diary_file,sing_afni):
         [0.0, 1.0, 0.0, 0.0],
         [0.0, 0.0, 1.0, 0.0]])
 
-    create1Dmatrix(filename, matrix,diary_file)
+    create1Dmatrix.create_1D_matrix(filename, matrix,diary_file)
     nl = f"INFO: .1D matrix file saved as {filename}"
     run_cmd.msg(nl, diary_file, 'OKGREEN')
 
@@ -80,6 +78,34 @@ def none(anatinput,anatoutput,overwrite,diary_file,sing_afni):
     with open(anatoutput.replace('.nii.gz', '.json'), "w") as outfile:
         outfile.write(json_object)
 
+
+def afni_empty(dir_transfo, diary_file):
+    # For ANTs, use .mat extension instead of .1D
+    filename = opj(dir_transfo, 'acpc_0GenericAffine.mat')
+
+    # Create an identity affine transform
+    identity_transform = ants.new_ants_transform(
+        precision='double',
+        transform_type='AffineTransform',
+        dimension=3)
+
+    # Set parameters correctly for identity transform
+    # ANTs affine parameters are: [9 matrix elements (row-major), 3 translation elements]
+    # For identity: rotation/scale = eye(3), translation = [0,0,0]
+    params = np.array([
+        1.0, 0.0, 0.0,  # first row of rotation matrix
+        0.0, 1.0, 0.0,  # second row of rotation matrix
+        0.0, 0.0, 1.0,  # third row of rotation matrix
+        0.0, 0.0, 0.0  # translation vector
+    ])
+
+    identity_transform.set_parameters(params)
+
+    # Save the transform
+    ants.write_transform(identity_transform, filename)
+
+    nl = f"INFO: ANTs .mat matrix file saved as {filename}"
+    run_cmd.msg(nl, diary_file, 'OKGREEN')
 
 
 

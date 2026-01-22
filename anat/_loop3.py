@@ -62,8 +62,8 @@ def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat
 
     # ...................................................................................................................
 
-    if 'itk_2' in Skip_step:
-        run_cmd.msg('INFO: skip step ' + str('itk_2'), diary_file, 'OKGREEN')
+    if 'itk_3' in Skip_step:
+        run_cmd.msg('INFO: skip step ' + str('itk_3'), diary_file, 'OKGREEN')
     else:
         end_maskname = '_'.join([ID, 'final', 'mask', '2.nii.gz'])
         info = backtonative.get(ID,data_path,bids_dir,Session,max_ses,targetsuffix,type_norm,BASE_SS, BASE_mask,BASE_atlas_folder,study_template_atlas_folder,
