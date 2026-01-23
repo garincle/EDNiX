@@ -142,6 +142,9 @@ def clean_anat(Align_img_to_template, bids_dir, listTimage, list_transfo, ID, Se
 
     if Align_img_to_template == 'No':
         acpcalign.afni_empty(dir_transfo,diary_file)
+        cmd = (sing_afni + '3dcalc -overwrite -a ' + anat_input2 + type_norm + '.nii.gz'
+               + ' -prefix ' + anat_input4 + type_norm + '.nii.gz' + ' -expr "a"')
+        run_cmd.do(cmd, diary_file)
 
     elif Align_img_to_template == 'Ants':
         nl = 'acpc alignement'
