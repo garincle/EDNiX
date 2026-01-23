@@ -37,8 +37,9 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
         fMRI_stc = opj(dir_prepro_raw_process, 'stc.txt')
         fMRI_outcount = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-outcount_run' + str(i) + '.1D')
 
-        outpuprefix_motion = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction')
-        mat_files_pattern = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction_*.mat')
+        outpuprefix_motion_folder = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction')
+        outpuprefix_motion = opj(outpuprefix_motion_folder, 'img')
+        mat_files_pattern = opj(outpuprefix_motion_folder, 'img*.mat')
         fMRI_run_motion_corrected = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-motion_corrected.nii.gz')
         file_motion_correction = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction.1D')
         matrix_motion_params = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-matrix_motion_params.1D')
@@ -227,6 +228,8 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
 
         check_nii.keep_header(fMRI_run_motion_corrected, fMRI_SliceT)
         '''
+        if not ope(outpuprefix_motion_folder):
+            os.makedirs(outpuprefix_motion_folder)
 
         # Realignment intra-run avec ANTs motion_correction
         motion_result = ants.motion_correction(
@@ -315,7 +318,7 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR, Slic
 
         # Extract motion parameters and transformation matrices from ANTs
         extract_motion_params_antspy(
-            matrices_dir=dir_prepro_raw_matrices,
+            matrices_dir=outpuprefix_motion_folder,
             output_1D=file_motion_correction,
             output_matrix=matrix_motion_params)
 
