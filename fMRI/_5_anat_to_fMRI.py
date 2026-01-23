@@ -399,6 +399,9 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
         fMRI_run_inRef_acpc = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef.nii.gz')
         fMRI_run_inRef_acpc_SS = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef_SS.nii.gz')
 
+        outpuprefix_motion_folder = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction')
+        mat_files_pattern = opj(outpuprefix_motion_folder, 'img*.mat')
+
         imagetype = [3, 2]
         for image_to_send_acpc, image_to_creat_acpc, imagetype in zip([fMRI_BASE, fMRI_BASE_Mean], [fMRI_run_inRef_acpc, fMRI_runMean_inRef_acpc], imagetype):
             additional_transformations = []
@@ -428,7 +431,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                     input_4d=image_to_send_acpc,
                     reference_image=Mean_Image_acpc,
                     output_4d=opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef'),
-                    mat_files_pattern=opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction_*.mat'),
+                    mat_files_pattern=mat_files_pattern,
                     additional_transformations=additional_transformations,
                     TR=TR_val,
                     sing_afni=sing_afni,
