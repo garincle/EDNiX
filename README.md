@@ -5,100 +5,111 @@ EDNiX is an integrated neuroimaging software pipeline designed for **multi-speci
 
 ## Visual Overview
 
+```mermaid
 flowchart LR
+    %% ================= TOP: INPUTS =================
+    subgraph TOP["Inputs"]
+        A0["BIDS Data Handling & Subject Selection"]
+        A5["Cross-Species Atlas Management"]
+    end
 
-%% ================= TOP: INPUTS =================
-subgraph TOP["Inputs"]
-    A0["BIDS Data Handling<br>& Subject Selection"]
-    A5["Cross-Species Atlas Management<br>EDNiX.atlas"]
-end
+    %% ================= LEFT: MODALITIES =================
+    subgraph LEFT["Modalities"]
+        direction TB
 
-%% ================= LEFT: MODALITIES =================
-subgraph LEFT["Modalities"]
-    direction TB
+        %% ---- ANAT ----
+        subgraph ANAT["EDNiX.anat"]
+            A1["EDNiX.anat Launcher"]
+            A1_sk1["Skull Strip Step 1"]
+            A1a["ANTs alignment to ACPC"]
+            A1_long["ANTs alignment to Longitudinal Space"]
+            A1_sk2["Skull Strip Step 2"]
+            A1b["ANTs alignment to study template space"]
+            A1c["ANTs alignment to EDNiX atlas templates"]
+            A1_surf["Surface Reconstruction"]
+            A1_vol["Atlas-Based Volume/Thickness/Surface Extraction"]
+            
+            A1 --> A1_sk1 --> A1a --> A1_long --> A1_sk2 --> A1b --> A1c --> A1_surf --> A1_vol
+        end
 
-    %% ---- ANAT ----
-    subgraph ANAT["EDNiX.anat"]
-        A1["Launcher"]
-        A1_sk1["Skull Strip (Step 1)"]
-        A1a["ANTs → ACPC"]
-        A1_sk2["Skull Strip (Step 2)"]
-        A1b["ANTs → Study Template"]
-        A1c["ANTs → EDNiX Atlas"]
+        %% ---- fMRI ----
+        subgraph FMRI["EDNiX.fMRI"]
+            A2["EDNiX.fMRI Launcher"]
+            A2a["ANTs alignment to session reference"]
+            A2_sk["Skull Strip"]
+            A2b["ANTs alignment to func ACPC"]
+            A2_sm["fMRI Signal Modeling"]
+            A2c["ANTs alignment to anat ACPC"]
+            A2d["ANTs alignment to EDNiX atlas templates"]
+            A2_seed["Atlas-Based Signal Extraction"]
+            A2_voxel["Voxel-wise Analysis (GLM, Dictionary Learning, ICA, SBA)"]
+
+            A2 --> A2a --> A2_sk --> A2b --> A2_sm --> A2c --> A2d --> A2_seed --> A2_voxel
+        end
+
+        %% ---- PET ----
+        subgraph PET["EDNiX.pet"]
+            A3["EDNiX.pet Launcher"]
+            A3a["ANTs alignment to session reference"]
+            A3_sk["Skull Strip"]
+            A3b["ANTs alignment to pet ACPC"]
+            A3_sm["PET Signal Modeling"]
+            A3c["ANTs alignment to anat ACPC"]
+            A3d["ANTs alignment to EDNiX atlas templates"]
+            A3_voxel["Atlas-Based Signal Extraction"]
+            A3_atlas["Voxel-Based Analysis (GLM)"]
+
+            A3 --> A3a --> A3_sk --> A3b --> A3_sm --> A3c --> A3d --> A3_voxel --> A3_atlas
+        end
+    end
+
+    %% ================= RIGHT: ANALYSIS =================
+    subgraph RIGHT["Analysis"]
+        A7["Quality check step<br>PDF & interactive viewer (ITK-SNAP)"]
+        A6["Group-Level Statistical Analysis"]
+        A8["Multimodal-multispecies-longitudinal analysis (fingerprint, PGLS)"]
         
-        A1 --> A1_sk1 --> A1a --> A1_sk2 --> A1b --> A1c
+        A7 --> A6 --> A8
     end
 
-    %% ---- fMRI ----
-    subgraph FMRI["EDNiX.fMRI"]
-        A2["Launcher"]
-        A2a["ANTs → Session Ref"]
-        A2_sk["Skull Strip"]
-        A2b["ANTs → Func ACPC"]
-        A2_sm["fMRI Signal Modeling"]
-        A2c["ANTs → Anat ACPC"]
-        A2d["ANTs → EDNiX Atlas"]
+    %% ================= CONNECTIONS =================
+    A0 --> A1
+    A0 --> A2
+    A0 --> A3
 
-        A2 --> A2a --> A2_sk --> A2b --> A2_sm --> A2c --> A2d
-    end
+    A5 -- "EDNiX.atlas" --> A1
+    A5 -- "EDNiX.atlas" --> A2
+    A5 -- "EDNiX.atlas" --> A3
 
-    %% ---- PET ----
-    subgraph PET["EDNiX.pet"]
-        A3["Launcher"]
-        A3a["ANTs → Session Ref"]
-        A3_sk["Skull Strip"]
-        A3b["ANTs → PET ACPC"]
-        A3_sm["PET Signal Modeling"]
-        A3c["ANTs → Anat ACPC"]
-        A3d["ANTs → EDNiX Atlas"]
+    %% Quality check (index, visual alignment)
+    A1b --> A7
+    A2c --> A7
+    A3c --> A7
 
-        A3 --> A3a --> A3_sk --> A3b --> A3_sm --> A3c --> A3d
-    end
-end
+    %% Links to group analysis from final processing steps
+    A1_vol -- "Volume/thickness data" --> A6
+    A2_voxel -- "Voxel-wise results" --> A6
+    A3_atlas -- "Atlas-based signals" --> A6
 
-%% ================= CENTER: TRANSFORMS =================
-subgraph CENTER["Transform Chain (Reverse Mapping)"]
-    direction TB
-    RT_atlas["Atlas Space"]
-    RT_template["Template Space"]
-    RT_long["Longitudinal Space"]
-    RT_acpc["ACPC Space"]
-    RT_native["Native Space"]
+    %% Cross-modal transforms
+    A2c -.->|"Uses EDNiX.anat transforms"| A2d
+    A3c -.->|"Uses EDNiX.anat transforms"| A3d
+```
+---
 
-    RT_atlas --> RT_template --> RT_long --> RT_acpc --> RT_native
-end
+# Core Preprocessing Modules
 
-%% ================= RIGHT: ANALYSIS =================
-subgraph RIGHT["Analysis"]
-    A6["Group-Level Statistics"]
-    A7["Quality Control<br>PDF & ITK-SNAP"]
-    A8["Multimodal · Multispecies · Longitudinal"]
+---
 
-    A6 --> A7 --> A8
-end
+## `set_launcher.py` — Study and Template Setup
 
-%% ================= CONNECTIONS =================
-A0 --> A1
-A0 --> A2
-A0 --> A3
+Handles initialization of folder paths and references for template spaces, BIDS data loading, and atlas configurations.
 
-A5 --> A1
-A5 --> A2
-A5 --> A3
+- Retrieves reference templates and atlas paths.
+- Loads BIDS-compliant subject/session lists.
+- Determines masking and bias correction methods.
 
-A1c --> RT_atlas
-A2d --> RT_atlas
-A3d --> RT_atlas
-
-RT_template --> A6
-
-RT_native -.-> A1
-RT_native -.-> A2a
-RT_native -.-> A3a
-
-A2c -.->|"Uses anat transforms"| A2d
-A3c -.->|"Uses anat transforms"| A3d
-
+**Returned Objects:** Paths to templates, masks, atlas labels, subject/session lists, and various configuration values.
 
 ---
 
