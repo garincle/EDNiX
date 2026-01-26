@@ -5,87 +5,100 @@ EDNiX is an integrated neuroimaging software pipeline designed for **multi-speci
 
 ## Visual Overview
 
-```mermaid
-10:57 AMflowchart TD
-    %% ========== MAIN PIPELINE NODES ==========
-    A0["BIDS Data Handling & Subject Selection"]
-    
-    %% Anatomical Preprocessing Branch
-    subgraph SG1 [Anatomical Preprocessing]
-        direction TB
-        A1["EDNiX.anat Launcher"]
-        A1_sk1["Skull Strip Step 1"]
-        A1a["ANTs alignment to ACPC"]
-        A1_sk2["Skull Strip Step 2"]
-        A1b["ANTs alignment to study template space<br>or subject n session"]
-        A1c["ANTs alignment to EDNiX atlas templates"]
+flowchart LR
+
+%% ================= TOP: INPUTS =================
+subgraph TOP["Inputs"]
+    A0["BIDS Data Handling<br>& Subject Selection"]
+    A5["Cross-Species Atlas Management<br>EDNiX.atlas"]
+end
+
+%% ================= LEFT: MODALITIES =================
+subgraph LEFT["Modalities"]
+    direction TB
+
+    %% ---- ANAT ----
+    subgraph ANAT["EDNiX.anat"]
+        A1["Launcher"]
+        A1_sk1["Skull Strip (Step 1)"]
+        A1a["ANTs → ACPC"]
+        A1_sk2["Skull Strip (Step 2)"]
+        A1b["ANTs → Study Template"]
+        A1c["ANTs → EDNiX Atlas"]
         
         A1 --> A1_sk1 --> A1a --> A1_sk2 --> A1b --> A1c
     end
-    
-    %% Functional Preprocessing Branch
-    subgraph SG2 [Functional Preprocessing]
-        direction TB
-        A2["EDNiX.fMRI Launcher"]
-        A2a["ANTs alignment to session reference<br>(raw)"]
+
+    %% ---- fMRI ----
+    subgraph FMRI["EDNiX.fMRI"]
+        A2["Launcher"]
+        A2a["ANTs → Session Ref"]
         A2_sk["Skull Strip"]
-        A2b["ANTs alignment to func ACPC<br>(acpc-func)"]
-        A2c["ANTs alignment to anat ACPC<br>(acpc-anat)"]
-        A2d["ANTs alignment to EDNiX atlas templates"]
-        
-        A2 --> A2a --> A2_sk --> A2b --> A2c --> A2d
+        A2b["ANTs → Func ACPC"]
+        A2_sm["fMRI Signal Modeling"]
+        A2c["ANTs → Anat ACPC"]
+        A2d["ANTs → EDNiX Atlas"]
+
+        A2 --> A2a --> A2_sk --> A2b --> A2_sm --> A2c --> A2d
     end
-    
-    A3["Image Registration and Normalization<br>Between Spaces"]
-    A5["Cross-Species Atlas Management"]
-    A6["Group-Level Statistical Analysis"]
-    A7["Quality check step<br>PDF & interactive viewer (ITK-SNAP)"]
-    A8["Multimodal-multispecies-longitudinal analysis (DIY)"]
-    
-    %% ========== MAIN CONNECTIONS ==========
-    A0 --> A1
-    A0 --> A2
-    
-    %% Registration between spaces
-    A1a -.->|"Transform between spaces"| A3
-    A1b -.->|"Transform between spaces"| A3
-    A1c -.->|"Transform between spaces"| A3
-    A2b -.->|"Transform between spaces"| A3
-    A2c -.->|"Transform between spaces"| A3
-    A2d -.->|"Transform between spaces"| A3
-    
-    %% Atlas connections - reverse transforms to all spaces
-    A5 -- "EDNiX.atlas" --> A1
-    A5 -- "EDNiX.atlas" --> A2
-    A5 -.->|"Reverse transform to raw space"| A1
-    A5 -.->|"Reverse transform to ACPC space"| A1a
-    A5 -.->|"Reverse transform to template space"| A1b
-    A5 -.->|"Reverse transform to raw space"| A2a
-    A5 -.->|"Reverse transform to func ACPC"| A2b
-    A5 -.->|"Reverse transform to anat ACPC"| A2c
-    A5 -- "Defines region seeds /<br>component number / models" --> A6
-    
-    %% Analysis pipeline
-    A6 -- "Runs AFNI statistical tools" --> A7
-    A7 -- "Validate preprocessing quality" --> A8
-    
-    %% Additional connections
-    A2d -.->|"Applies EDNiX.anat transforms"| A2c
----
 
-# Core Preprocessing Modules
+    %% ---- PET ----
+    subgraph PET["EDNiX.pet"]
+        A3["Launcher"]
+        A3a["ANTs → Session Ref"]
+        A3_sk["Skull Strip"]
+        A3b["ANTs → PET ACPC"]
+        A3_sm["PET Signal Modeling"]
+        A3c["ANTs → Anat ACPC"]
+        A3d["ANTs → EDNiX Atlas"]
 
----
+        A3 --> A3a --> A3_sk --> A3b --> A3_sm --> A3c --> A3d
+    end
+end
 
-## `set_launcher.py` — Study and Template Setup
+%% ================= CENTER: TRANSFORMS =================
+subgraph CENTER["Transform Chain (Reverse Mapping)"]
+    direction TB
+    RT_atlas["Atlas Space"]
+    RT_template["Template Space"]
+    RT_long["Longitudinal Space"]
+    RT_acpc["ACPC Space"]
+    RT_native["Native Space"]
 
-Handles initialization of folder paths and references for template spaces, BIDS data loading, and atlas configurations.
+    RT_atlas --> RT_template --> RT_long --> RT_acpc --> RT_native
+end
 
-- Retrieves reference templates and atlas paths.
-- Loads BIDS-compliant subject/session lists.
-- Determines masking and bias correction methods.
+%% ================= RIGHT: ANALYSIS =================
+subgraph RIGHT["Analysis"]
+    A6["Group-Level Statistics"]
+    A7["Quality Control<br>PDF & ITK-SNAP"]
+    A8["Multimodal · Multispecies · Longitudinal"]
 
-**Returned Objects:** Paths to templates, masks, atlas labels, subject/session lists, and various configuration values.
+    A6 --> A7 --> A8
+end
+
+%% ================= CONNECTIONS =================
+A0 --> A1
+A0 --> A2
+A0 --> A3
+
+A5 --> A1
+A5 --> A2
+A5 --> A3
+
+A1c --> RT_atlas
+A2d --> RT_atlas
+A3d --> RT_atlas
+
+RT_template --> A6
+
+RT_native -.-> A1
+RT_native -.-> A2a
+RT_native -.-> A3a
+
+A2c -.->|"Uses anat transforms"| A2d
+A3c -.->|"Uses anat transforms"| A3d
+
 
 ---
 
