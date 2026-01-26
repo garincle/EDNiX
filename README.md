@@ -36,7 +36,7 @@ flowchart TD
     A5 -- "EDNiX.atlas" --> A2
     A5 -- "Defines region seeds / component number / models" --> A6
     A6 -- "Runs AFNI statistical tools" --> A7
-    A4 -- "" --> A7
+    A7 -- "validate preprocessing quality" --> A8
 ```
 ---
 
