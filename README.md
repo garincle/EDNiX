@@ -6,38 +6,71 @@ EDNiX is an integrated neuroimaging software pipeline designed for **multi-speci
 ## Visual Overview
 
 ```mermaid
-flowchart TD
-    A0["BIDS Data Handling & Subject Selection
-"]
-    A1["Anatomical Preprocessing
-"]
-    A2["Functional Preprocessing
-"]
-    A3["Image Registration and Normalization
-"]
-    A4["Skull Stripping (Brain Masking)
-"]
-    A5["Cross-Species Atlas Management
-"]
-    A6["Group-Level Statistical Analysis
-"]
-    A7["Quality check step (pdf, interactive viewer (itksnap)
-"]
-    A8["multimodal-multispecies-longitudinal analyis (DIY)
-"]
-    A0 -- "EDNiX.anat" --> A1
-    A0 -- "EDNiX.fMRI" --> A2
-    A1 -- "masking step" --> A4
-    A1 -- "ANTs (antspy) alignment" --> A4
-    A2 -- "Applies EDNiX.anat transforms" --> A4
-    A1 -- "ANTs (antspy) alignment" --> A3
-    A2 -- "Applies EDNiX.anat transforms" --> A3
+10:57 AMflowchart TD
+    %% ========== MAIN PIPELINE NODES ==========
+    A0["BIDS Data Handling & Subject Selection"]
+    
+    %% Anatomical Preprocessing Branch
+    subgraph SG1 [Anatomical Preprocessing]
+        direction TB
+        A1["EDNiX.anat Launcher"]
+        A1_sk1["Skull Strip Step 1"]
+        A1a["ANTs alignment to ACPC"]
+        A1_sk2["Skull Strip Step 2"]
+        A1b["ANTs alignment to study template space<br>or subject n session"]
+        A1c["ANTs alignment to EDNiX atlas templates"]
+        
+        A1 --> A1_sk1 --> A1a --> A1_sk2 --> A1b --> A1c
+    end
+    
+    %% Functional Preprocessing Branch
+    subgraph SG2 [Functional Preprocessing]
+        direction TB
+        A2["EDNiX.fMRI Launcher"]
+        A2a["ANTs alignment to session reference<br>(raw)"]
+        A2_sk["Skull Strip"]
+        A2b["ANTs alignment to func ACPC<br>(acpc-func)"]
+        A2c["ANTs alignment to anat ACPC<br>(acpc-anat)"]
+        A2d["ANTs alignment to EDNiX atlas templates"]
+        
+        A2 --> A2a --> A2_sk --> A2b --> A2c --> A2d
+    end
+    
+    A3["Image Registration and Normalization<br>Between Spaces"]
+    A5["Cross-Species Atlas Management"]
+    A6["Group-Level Statistical Analysis"]
+    A7["Quality check step<br>PDF & interactive viewer (ITK-SNAP)"]
+    A8["Multimodal-multispecies-longitudinal analysis (DIY)"]
+    
+    %% ========== MAIN CONNECTIONS ==========
+    A0 --> A1
+    A0 --> A2
+    
+    %% Registration between spaces
+    A1a -.->|"Transform between spaces"| A3
+    A1b -.->|"Transform between spaces"| A3
+    A1c -.->|"Transform between spaces"| A3
+    A2b -.->|"Transform between spaces"| A3
+    A2c -.->|"Transform between spaces"| A3
+    A2d -.->|"Transform between spaces"| A3
+    
+    %% Atlas connections - reverse transforms to all spaces
     A5 -- "EDNiX.atlas" --> A1
     A5 -- "EDNiX.atlas" --> A2
-    A5 -- "Defines region seeds / component number / models" --> A6
+    A5 -.->|"Reverse transform to raw space"| A1
+    A5 -.->|"Reverse transform to ACPC space"| A1a
+    A5 -.->|"Reverse transform to template space"| A1b
+    A5 -.->|"Reverse transform to raw space"| A2a
+    A5 -.->|"Reverse transform to func ACPC"| A2b
+    A5 -.->|"Reverse transform to anat ACPC"| A2c
+    A5 -- "Defines region seeds /<br>component number / models" --> A6
+    
+    %% Analysis pipeline
     A6 -- "Runs AFNI statistical tools" --> A7
-    A7 -- "validate preprocessing quality" --> A8
-```
+    A7 -- "Validate preprocessing quality" --> A8
+    
+    %% Additional connections
+    A2d -.->|"Applies EDNiX.anat transforms"| A2c
 ---
 
 # Core Preprocessing Modules
