@@ -9,30 +9,34 @@ EDNiX is an integrated neuroimaging software pipeline designed for **multi-speci
 flowchart TD
     A0["BIDS Data Handling & Subject Selection
 "]
-    A1["Anatomical Preprocessing Pipeline
+    A1["Anatomical Preprocessing
 "]
-    A2["Functional Preprocessing Pipeline
+    A2["Functional Preprocessing
 "]
     A3["Image Registration and Normalization
 "]
-    A4["Dynamic Skull Stripping (Brain Masking)
+    A4["Skull Stripping (Brain Masking)
 "]
     A5["Cross-Species Atlas Management
 "]
-    A6["Group-Level Functional Analysis
+    A6["Group-Level Statistical Analysis
 "]
-    A7["Command Execution and Logging
+    A7["Quality check step (pdf, interactive viewer (itksnap)
 "]
-    A0 -- "Orchestrates preprocessing" --> A1
-    A0 -- "Orchestrates preprocessing" --> A2
-    A1 -- "Performs masking step" --> A4
-    A1 -- "Performs ANTs alignment" --> A3
-    A2 -- "Applies spatial transforms" --> A3
-    A5 -- "Loads atlas definitions" --> A1
-    A5 -- "Provides atlas config" --> A2
-    A5 -- "Defines region seeds" --> A6
+    A8["multimodal-multispecies-longitudinal analyis (DIY)
+"]
+    A0 -- "EDNiX.anat" --> A1
+    A0 -- "EDNiX.fMRI" --> A2
+    A1 -- "masking step" --> A4
+    A1 -- "ANTs (antspy) alignment" --> A4
+    A2 -- "Applies EDNiX.anat transforms" --> A4
+    A1 -- "ANTs (antspy) alignment" --> A3
+    A2 -- "Applies EDNiX.anat transforms" --> A3
+    A5 -- "EDNiX.atlas" --> A1
+    A5 -- "EDNiX.atlas" --> A2
+    A5 -- "Defines region seeds / component number / models" --> A6
     A6 -- "Runs AFNI statistical tools" --> A7
-    A4 -- "Executes external mask tools" --> A7
+    A4 -- "" --> A7
 ```
 ---
 
