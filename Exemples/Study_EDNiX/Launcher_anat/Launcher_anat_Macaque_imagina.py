@@ -23,9 +23,9 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Override os.path.join to always return Linux-style paths
 bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/imagina/BIDS/'))
 # which format ?
-BIDStype = 1
+BIDStype = 'sub-{ID}_run-*_{Timage}.nii*'
 
-allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T1'], extensions=['.nii.gz'])
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T1w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -35,25 +35,25 @@ list_to_keep   = []
 list_to_remove = []
 species    = 'Macaque'
 # is it a longitudinal study ?
-coregistration_longitudinal = True
+coregistration_longitudinal = False
 #do you want to use all the data or only the last one of each subject
 which_on  = 'max'                       # "all" or "max"
 
 # create  a study template
-creat_study_template  = True
+creat_study_template  = False
 
 #### Choose to normalize using T1 or T2
 
-type_norm = 'T1'                      # T1w or T2w
-otheranat = 'T2'                         # '' if none otherwise T1w or T2w
-masking_img = 'T1' # could be T1w or T2w (if left empty it will be set to "type_norm")
+type_norm = 'T1w'                      # T1w or T2w
+otheranat = ''                         # '' if none otherwise T1w or T2w
+masking_img = 'T1w' # could be T1w or T2w (if left empty it will be set to "type_norm")
 # to get the correct header orientation (valid only with non-human studies) --------------------------------------------
 
 # if you don't know anything about it : leave it empty
 # "AHF" stands for "Animal Head First",  "AFF" stands for "Animal Feet First", "humanlike" means no change to be done.
-humanPosition     = ['humanlike']
-orientation       = '' # "LPI" or ''
-animalPosition    = ['humanlike'] # valid only for species smaller than humans
+humanPosition     = ['']
+orientation       = 'LSP' # "LPI" or ''
+animalPosition    = [''] # valid only for species smaller than humans
 
 ### masking and skull stripping ----------------------------------------------------------------------------------------
 # step 1 : coarse method (use for cropping and acpc setting)
@@ -96,7 +96,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,'itk_1','itk_2','flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #

@@ -196,7 +196,7 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
 
 
     (FS_refs, template_dir, reference, balsa_folder, BALSAname, balsa_brainT1, BASE_atlas_folder, BASE_template, BASE_SS,
-    BASE_mask, BASE_Gmask, BASE_Wmask, BASE_Vmask, CSF, GM, WM, Aseg_ref, list_atlas, path_label_code, all_ID,
+    BASE_mask, BASE_Gmask, BASE_WBGmask, BASE_Wmask, BASE_Vmask, CSF, GM, WM, Aseg_ref, list_atlas, path_label_code, all_ID,
     all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max,
     fs_tools, reftemplate_path, MNIBcorrect_indiv, masking_img) = set_launcher.get(MAIN_PATH, bids_dir, allinfo_study_c,
                                                                                    species, list_to_keep,
@@ -279,7 +279,7 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
                 (anat_subject, brainmask, G_mask, V_mask, W_mask, dir_transfo, FS_dir,
                  dir_prepro, volumes_dir, labels_dir, masks_dir) = chooseanat.create(folderforTemplate_Anat, diary_file)
         else:
-            (anat_subject, brainmask, G_mask, V_mask, W_mask, dir_transfo, FS_dir,
+            (anat_subject, brainmask, G_mask, WBG_mask, V_mask, W_mask, dir_transfo, FS_dir,
              dir_prepro, volumes_dir, labels_dir, masks_dir) = chooseanat.retrieve(ID, data_path,
                                                                                    Session, anat_func_same_space,
                                                                                    use_erode_V_func_masks,
@@ -694,7 +694,7 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
 
             else:
                 _3_mask_fMRI.Refimg_to_meanfMRI(MAIN_PATH, anat_func_same_space, BASE_SS,TfMRI , dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_acpc_masks, dir_prepro_acpc_process,
-                       dir_prepro_template_process, RS, nb_run, REF_int, ID, dir_transfo, brainmask, V_mask, W_mask, G_mask, dilate_mask, n_for_ANTS, bids_dir,
+                       dir_prepro_template_process, RS, nb_run, REF_int, ID, dir_transfo, brainmask, V_mask, W_mask, G_mask, WBG_mask, dilate_mask, n_for_ANTS, bids_dir,
                        costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
                        sing_afni, sing_fs, sing_fsl, sing_itk, diary_file)
 

@@ -44,7 +44,7 @@ coregistration_longitudinal = False
 which_on  = 'all'                       # "all" or "max"
 
 # create  a study template
-creat_study_template  = True
+creat_study_template  = False
 
 #### Choose to normalize using T1 or T2
 
@@ -110,6 +110,7 @@ list_transfo = build_transfos(
 ########################################################################################################################
 
 Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
+
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################

@@ -24,8 +24,7 @@ def retrieve(ID,data_path, Session,anat_func_same_space,use_erode_V_func_masks,u
         _, _, _, _, _, volumesdir, _, _ = getpath.anat(data_path, '', '', '', '', 'native')
         branch_path = opr(volumesdir, start=data_path)
 
-        template_anat_for_fmri = glob.glob(opj(opd(data_path),
-                                               'ses-' + str(Session), branch_path, '*_desc-SS_' + TfMRI + '.nii*'))
+        template_anat_for_fmri = glob.glob(opj(opd(data_path), 'ses-' + str(Session), branch_path, '*_desc-SS_' + TfMRI + '.nii*'))
         if len(template_anat_for_fmri) > 1:
             nl = "WARNING: we found multiple anat template for this animal, THIS IS NOT NORMAL, please check what happened"
             run_cmd.msg(nl, diary_file, 'WARNING')
@@ -55,7 +54,6 @@ def retrieve(ID,data_path, Session,anat_func_same_space,use_erode_V_func_masks,u
                 path_anat, dir_transfo, FS_dir, dir_prepro, dir_native, volumes_dir, labels_dir, masks_dir = getpath.anat(
                     opj(opd(data_path), new_sess), '', '', '', '','native')
 
-
             else:
                 nl = ("ERROR: We haven't found any anat template for this animal! We can't continue ! please provide a valid link for at least one anat image! "
                          "current link is :") + str(template_anat_for_fmri)
@@ -70,7 +68,8 @@ def retrieve(ID,data_path, Session,anat_func_same_space,use_erode_V_func_masks,u
 
     anat_subject = opj(volumes_dir, ID + '_space-acpc_desc-template_' + TfMRI + '.nii.gz')
     brainmask    = opj(masks_dir,   ID + '_space-acpc_mask.nii.gz')
-    G_mask       = opj(masks_dir,   ID + '_desc-Gray_mask.nii.gz')
+    G_mask       = opj(masks_dir,   ID + '_desc-Cerebral_Gray_mask.nii.gz')
+    WBG_mask = opj(masks_dir, ID + '_desc-Whole_Brain_Gray_mask.nii.gz')
     if use_erode_V_func_masks == True:
         V_mask = opj(masks_dir, ID + '_desc-erod-Vent_mask.nii.gz')
     else:
@@ -80,7 +79,7 @@ def retrieve(ID,data_path, Session,anat_func_same_space,use_erode_V_func_masks,u
     else:
         W_mask = opj(masks_dir, ID + '_desc-White_mask.nii.gz')
 
-    return anat_subject,brainmask,G_mask,V_mask,W_mask,dir_transfo, FS_dir, dir_prepro, volumes_dir, labels_dir, masks_dir
+    return anat_subject,brainmask,G_mask, WBG_mask, V_mask,W_mask,dir_transfo, FS_dir, dir_prepro, volumes_dir, labels_dir, masks_dir
 
 
 def create(folderforTemplate_Anat,diary_file):

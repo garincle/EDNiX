@@ -127,23 +127,23 @@ def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat
 
     # ...................................................................................................................
                     ########################## White Surface construction ##############################
+    # modifications of the atlas to T1
+    if 'T2' in type_norm:
+        name = '_'.join(opb(Ref_file).split('_')[0:-1])
+        if T1_suffix_T == '':
+            print('creat fake T1 to build surfaces')
+            transfo_T2toT1w.prepa(Ref_file, brain_mask, diary_file)
+            new_Ref_file = opj(volumes_dir, name + '_T1w.nii.gz')
+        else:
+            new_Ref_file = opj(volumes_dir, name + '_' + T1_suffix_T + '.nii.gz')
+
+    else:
+        print('nothing to do, so far so good')
+        new_Ref_file = Ref_file
 
     if 10 in Skip_step:
         run_cmd.msg('INFO: skip step ' + str(10), diary_file, 'OKGREEN')
     else:
-        # modifications of the atlas to T1
-        if 'T2' in type_norm:
-            name = '_'.join(opb(Ref_file).split('_')[0:-1])
-            if T1_suffix_T == '':
-                print('creat fake T1 to build surfaces')
-                transfo_T2toT1w.prepa(Ref_file, brain_mask, diary_file)
-                new_Ref_file = opj(volumes_dir, name + '_T1w.nii.gz')
-            else:
-                new_Ref_file = opj(volumes_dir, name + '_' + T1_suffix_T + '.nii.gz')
-
-        else:
-            print('nothing to do, so far so good')
-            new_Ref_file = Ref_file
 
         # a little help for segmentation
         preFS.prepa_img(ID, new_Ref_file, dir_prepro, aseg_img,labels_dir, '', diary_file)

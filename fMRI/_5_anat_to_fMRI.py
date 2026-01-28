@@ -220,12 +220,14 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                                 maskDilatfunc,
                                 opj(orig_mask,'Vmask.nii.gz'),
                                 opj(orig_mask,'Wmask.nii.gz'),
-                                opj(orig_mask,'Gmask.nii.gz')],
+                                opj(orig_mask,'Gmask.nii.gz'),
+                                opj(orig_mask,'WBGmask.nii.gz')],
                                [opj(dir_prepro_orig_masks,'mask_ref.nii.gz'),
                                 maskDilat_funcspace,
                                 opj(dir_prepro_orig_masks,'Vmask.nii.gz'),
                                 opj(dir_prepro_orig_masks,'Wmask.nii.gz'),
-                                opj(dir_prepro_orig_masks,'Gmask.nii.gz')]):
+                                opj(dir_prepro_orig_masks,'Gmask.nii.gz'),
+                                opj(dir_prepro_orig_masks,'WBGmask.nii.gz')]):
         if ope(input1):
             if do_anat_to_func == True:
                 # mask

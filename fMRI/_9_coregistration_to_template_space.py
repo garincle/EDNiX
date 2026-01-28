@@ -182,11 +182,13 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
     for input1, output2 in zip([opj(template_dir_masks, species + '_mask.nii.gz'),
                                 opj(template_dir_masks, species + descmask + 'Vent_mask.nii.gz'),
                                 opj(template_dir_masks, species + descmask + 'White_mask.nii.gz'),
-                                opj(template_dir_masks, species + '_desc-Gray_mask.nii.gz')],
+                                opj(template_dir_masks, species + '_desc-Cerebral_Gray_mask.nii.gz'),
+                                opj(template_dir_masks, species + '_desc-Whole_Brain_Gray_mask.nii.gz')],
                                [opj(dir_prepro_template_masks, 'mask_ref.nii.gz'),
                                 opj(dir_prepro_template_masks, 'Vmask.nii.gz'),
                                 opj(dir_prepro_template_masks, 'Wmask.nii.gz'),
-                                opj(dir_prepro_template_masks, 'Gmask.nii.gz')]):
+                                opj(dir_prepro_template_masks, 'Gmask.nii.gz'),
+                                opj(dir_prepro_template_masks, 'WBGmask.nii.gz')]):
         if ope (input1):
             command = (sing_afni + '3dresample' + overwrite +
                        ' -prefix ' + output2 +
