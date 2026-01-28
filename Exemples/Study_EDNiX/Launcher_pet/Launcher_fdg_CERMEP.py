@@ -1,7 +1,7 @@
 import os
 import sys
 import Tools.Read_atlas
-import pet._0_Pipeline_launcher
+#import pet._0_Pipeline_launcher
 from Tools import Load_subject_with_BIDS, load_bids
 opn = os.path.normpath
 opj = os.path.join
@@ -11,7 +11,7 @@ sys.path.insert(1, opj(MAIN_PATH))
 
 species    = 'Macaque'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/imagina/BIDS/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Human/CERMEP_MXFDG/BIDS/'))
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['pet'], suffixes= ['pet'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
@@ -21,8 +21,8 @@ list_to_keep = []
 list_to_remove = []
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
-endpet = '*_trc-FDG_*.nii.gz' # string
-endjson = '*_trc-FDG_*.json' # string
+endpet = '*pet.nii.gz' # string
+endjson = '*pet.json' # string
 
 humanPosition     = ['']
 orientation       = 'RPS' # "LPI" or ''
