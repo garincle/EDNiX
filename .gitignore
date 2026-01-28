@@ -6,16 +6,19 @@
 #/home/cgarin/PycharmProjects/EDNiX/Atlases_library/
 /home/cgarin/PycharmProjects/EDNiX/Tool_library/
 /home/cgarin/PycharmProjects/EDNiX/venvEDNiX/
+/home/cgarin/PycharmProjects/EDNiX/Exemple_perso/
 
 # Relative patterns (work regardless of project location)
 #Atlases_library/
 Tool_library/
 venvEDNiX/
+Exemple_perso/
 
 # Match all subdirectories recursively
 #**/Atlases_library/**
 **/Tool_library/**
 **/venvEDNiX/**
+**/Exemple_perso/**
 
 # ===================================================
 # PYTHON / NEUROIMAGING DEVELOPMENT FILES
