@@ -6,6 +6,15 @@
       <excludeFolder url="file://$MODULE_DIR$/venv" />
       <excludeFolder url="file://$MODULE_DIR$/.venv1" />
       <excludeFolder url="file://$MODULE_DIR$/venvEDNiX" />
+      <excludeFolder url="file://$MODULE_DIR$/Exemples/Launcher_analysis" />
+      <excludeFolder url="file://$MODULE_DIR$/Exemples/Launcher_anat" />
+      <excludeFolder url="file://$MODULE_DIR$/Exemples/Launcher_func" />
+      <excludeFolder url="file://$MODULE_DIR$/Exemples/Study_DynT2M" />
+      <excludeFolder url="file://$MODULE_DIR$/Exemples/Study_Snake_Libourel" />
+      <excludeFolder url="file://$MODULE_DIR$/Exemples/Study_SocioMonk" />
+      <excludeFolder url="file://$MODULE_DIR$/Exemples/Study_dog_multimodal_atlas" />
+      <excludeFolder url="file://$MODULE_DIR$/Exemples/atlases_transo" />
+      <excludeFolder url="file://$MODULE_DIR$/docs" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.11 (EDNiX) (2)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

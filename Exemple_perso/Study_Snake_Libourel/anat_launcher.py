@@ -6,7 +6,7 @@ from bids.reports import BIDSReport
 opj = os.path.join
 opb = os.path.basename
 
-MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+MAIN_PATH = opj('//')
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS

@@ -10,7 +10,7 @@ from Tools import Load_subject_with_BIDS
 opn = os.path.normpath
 opj = os.path.join
 
-MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+MAIN_PATH = opj('//')
 bids_dir = Load_subject_with_BIDS.linux_path(opj('/home/cgarin/Documents/Snake/'))
 
 ########### Subject loader with BIDS  ##############
@@ -73,7 +73,7 @@ lower_cutoff = 0.1
 upper_cutoff = 0.95
 templatelow = opj('/home/cgarin/Documents/Snake/sub-SILAS/ses-1/func/templates/EDNiX/preprocessing/BASE_SS_fMRI.nii.gz')
 #templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 's648*tudy_template.nii.gz') # sting
-templatehigh = opj('/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/reptiles/Snake/EDNiX/volumes/Snake_space-acpc_desc-template_T2w.nii.gz')
+templatehigh = opj('/Atlases_library/atlas/reptiles/Snake/EDNiX/volumes/Snake_space-acpc_desc-template_T2w.nii.gz')
 TR = '1'  # 'value du calculate in s', 'Auto', 'None'
 smoothing = 1
 mask_func     = opj('/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/reptiles/Snake/EDNiX/volumes/masks/Snake_desc-Gray_mask.nii.gz') #

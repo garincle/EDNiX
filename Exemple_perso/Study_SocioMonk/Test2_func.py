@@ -6,13 +6,13 @@ from Tools import Load_subject_with_BIDS, load_bids
 opn = os.path.normpath
 opj = os.path.join
 
-MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+MAIN_PATH = opj('//')
 sys.path.insert(1, opj(MAIN_PATH))
 
 species    = 'Macaque'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/Test1_Litchy/Bids/'))
-allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T1w'], extensions=['.nii.gz'])
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/Test2_Litchy/Bids/'))
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -33,15 +33,15 @@ orientation       = '' # "LPI" or ''
 animalPosition    = ['humanlike'] # valid only for species smaller than humans
 ## prior anat processing
 coregistration_longitudinal = False #True or False
-type_norm = 'T1w' # T1 or T2
+type_norm = 'T2w' # T1 or T2
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
-TfMRI = 'T1w' # string
+TfMRI = 'T2w' # string
 ### if you don't have any anat image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
-Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = '3dSkullStrip_monkey' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = False # True or False
-type_of_transform = 'SyN'
+type_of_transform = 'SyNBoldAff'
 aff_metric_ants_Transl = 'MI' # string
 aff_metric_ants = 'MI'
 do_anat_to_func = True # True or False
@@ -51,7 +51,7 @@ Slice_timing_info = '-tpattern seq-z'
 creat_study_template = False # True or Fals
 blur = 0# float
 #Dilate the functional brain mask by n layers
-dilate_mask = 3 # int
+dilate_mask = 7 # int
 SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
 smoothSBA = 3
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
@@ -60,7 +60,7 @@ selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = False
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = [ 1,2,'itk_1', 'itk_2', 'Clean']
+Skip_step = ['itk_1', 'itk_2', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
@@ -75,8 +75,8 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     costAllin='lpa',
                     doWARPonfunc=doWARPonfunc, registration_fast=False, type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
                     list_to_keep=list_to_keep, list_to_remove=list_to_remove, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
-                    reference='EDNiX', post_treatment_method='AFNI',
-                    band='0.01 0.1', blur=0, do_not_correct_signal = True, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
+                    reference='EDNiX', post_treatment_method='Grandjean',
+                    band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
                     use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
                     selected_atlases_matrix='all', wanted_level_matrix='all',
                     selected_atlases_SBA='default', panda_files_SBA='default',

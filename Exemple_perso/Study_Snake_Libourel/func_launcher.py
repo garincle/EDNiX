@@ -9,7 +9,7 @@ from Tools import Load_subject_with_BIDS
 opn = os.path.normpath
 opj = os.path.join
 
-MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+MAIN_PATH = opj('//')
 bids_dir = Load_subject_with_BIDS.linux_path(opj('/home/cgarin/Documents/Snake/'))
 
 ########### Subject loader with BIDS  ##############

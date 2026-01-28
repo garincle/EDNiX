@@ -6,7 +6,7 @@ from bids.reports import BIDSReport
 opj = os.path.join
 opb = os.path.basename
 
-MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+MAIN_PATH = opj('//')
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS, load_bids
@@ -21,11 +21,11 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/Test2_Litchy/Bids/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/Test1_Litchy/Bids/'))
 # which format ?
 BIDStype = 1
 
-allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T1w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -45,9 +45,9 @@ creat_study_template  = False
 
 #### Choose to normalize using T1 or T2
 
-type_norm = 'T2w'                      # T1w or T2w
-otheranat = ''                         # '' if none otherwise T1w or T2w
-masking_img = 'T2w' # could be T1w or T2w (if left empty it will be set to "type_norm")
+type_norm = 'T1w'                      # T1w or T2w
+otheranat = 'T2w'                         # '' if none otherwise T1w or T2w
+masking_img = 'T1w' # could be T1w or T2w (if left empty it will be set to "type_norm")
 # to get the correct header orientation (valid only with non-human studies) --------------------------------------------
 
 # if you don't know anything about it : leave it empty

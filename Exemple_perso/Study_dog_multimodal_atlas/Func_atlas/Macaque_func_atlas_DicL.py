@@ -6,13 +6,13 @@ from Tools import Load_subject_with_BIDS, load_bids, Load_BIDS_data_for_analysis
 opn = os.path.normpath
 opj = os.path.join
 
-MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+MAIN_PATH = opj('//')
 sys.path.insert(1, opj(MAIN_PATH))
 
-species    = 'Dog'
+species    = 'Macaque'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Dog/BIDS_k9/'))
-allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['func'], suffixes= ['bold'], extensions=['.nii.gz'])
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/BIDS_BenHamed/'))
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T1w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -35,14 +35,14 @@ cut_coords = 10
 alpha = 0.0001
 alpha_dic = 10
 component_list = [7,12,16,20]
-lower_cutoff = 0.1
-upper_cutoff = 0.95
-templatelow = opj('/scratch2/EDNiX/Dog/BIDS_k9/sub-13/ses-1/func/templates/EDNiX/preprocessing/BASE_SS_fMRI.nii.gz')
+lower_cutoff = 0.2
+upper_cutoff = 0.85
+templatelow = opj('/scratch2/EDNiX/Macaque/BIDS_BenHamed/sub-Elak/ses-1/func/templates/EDNiX/preprocessing/BASE_SS_fMRI.nii.gz')
 #templatehigh = opj(study_template_atlas_forlder, 'studytemplate2_' + type_norm, 's648*tudy_template.nii.gz') # sting
-templatehigh = opj('/scratch2/EDNiX/Dog/BIDS_k9/sub-13/ses-1/func/templates/EDNiX/preprocessing/BASE_SS.nii.gz')
-TR = '1'  # 'value du calculate in s', 'Auto', 'None'
-smoothing = 3
-mask_func     = opj('//scratch2/EDNiX/Dog/BIDS_k9/sub-13/ses-1/func/templates/EDNiX/masks/Gmask.nii.gz') #
+templatehigh = opj('/scratch2/EDNiX/Macaque/BIDS_BenHamed/sub-Elak/ses-1/func/templates/EDNiX/preprocessing/BASE_SS.nii.gz')
+TR = '2'  # 'value du calculate in s', 'Auto', 'None'
+smoothing = 4
+mask_func     = opj('/scratch2/EDNiX/Macaque/BIDS_BenHamed/sub-Elak/ses-1/func/templates/EDNiX/masks/Gmask.nii.gz') #
 redo = True
 #'Spurious', 'Specific', 'No', 'Unspecific'
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max, mean_imgs, images_dir =  Load_BIDS_data_for_analysis.reverse_load_data_bids(bids_dir, 'all', file_pattern="_space-template_desc-fMRI_residual.nii.gz")
