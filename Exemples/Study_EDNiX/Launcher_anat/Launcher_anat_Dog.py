@@ -41,7 +41,7 @@ coregistration_longitudinal = False
 which_on  = 'all'                       # "all" or "max"
 
 # create  a study template
-creat_study_template  = True
+creat_study_template  = False
 
 #### Choose to normalize using T1 or T2
 
@@ -78,8 +78,7 @@ Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
     align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
-    coreg={'type_of_transform': 'SyNCC', 'affmetric': 'MI', 'affmetricT': 'MI'},
-    stdyT={'type_of_transform': 'SyNCC', 'affmetric': 'MI', 'affmetricT': 'MI'})
+    coreg={'type_of_transform': 'SyNCC', 'affmetric': 'MI', 'affmetricT': 'MI'})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 

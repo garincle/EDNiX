@@ -9,17 +9,16 @@ opj = os.path.join
 MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
 
-species    = 'Dog'
+species    = 'Macaque'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Dog/BIDS_k9/'))
-allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['func'], suffixes= ['bold'], extensions=['.nii.gz'])
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/imagina/BIDS/'))
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
 list_to_remove = []
-
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 #### fMRI pre-treatment
 T1_eq = 5 # int
@@ -27,9 +26,9 @@ REF_int = 0 # int
 ntimepoint_treshold = 100
 endfmri = '*_task-rest_*.nii.gz' # string
 endjson = '*_task-rest_*.json' # string
-endmap = '*_map.nii.gz' # string
+endmap = '*_mapff.nii.gz' # string
 humanPosition     = ['']
-orientation       = 'RPI' # "LPI" or  RIP, 'RPI, RAI,'
+orientation       = 'RPS' # "LPI" or ''
 animalPosition    = [''] # valid only for species smaller than humans
 ## prior anat processing
 coregistration_longitudinal = False #True or False
@@ -37,13 +36,13 @@ type_norm = 'T1w' # T1 or T2
 ### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
 TfMRI = 'T1w' # string
 ### if you don't have any anat image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
-Method_mask_func = '3dSkullStrip_dog' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = False # True or False
-type_of_transform = 'BOLDRigid'
-aff_metric_ants_Transl = 'MI' # string
-aff_metric_ants = 'MI'
+type_of_transform = 'BOLDAffine'
+aff_metric_ants_Transl = 'mattes' # string
+aff_metric_ants = 'mattes'
 do_anat_to_func = True # True or False
 Slice_timing_info = 'Auto'
 ##### if you don't have an anat then template will be the same as anat...
@@ -51,7 +50,7 @@ Slice_timing_info = 'Auto'
 creat_study_template = False # True or Fals
 blur = 0# float
 #Dilate the functional brain mask by n layers
-dilate_mask = 0 # int
+dilate_mask = 5 # int
 SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
 smoothSBA = 3
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"

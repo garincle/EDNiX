@@ -120,7 +120,7 @@ def preprocess_anat(Skip_step,
 
     print(masking_img)
     (FS_refs, template_dir, reference,balsa_folder, BALSAname, balsa_brainT1,BASE_atlas_folder, BASE_template, BASE_SS,
-     BASE_mask, BASE_Gmask, BASE_Wmask, BASE_Vmask,CSF, GM, WM, Aseg_ref,list_atlases, path_label_code,all_ID,
+     BASE_mask, BASE_Gmask, BASE_WBGmask, BASE_Wmask, BASE_Vmask,CSF, GM, WM, Aseg_ref,list_atlases, path_label_code,all_ID,
      all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max,
      fs_tools,reftemplate_path,MNIBcorrect_indiv, masking_img) = set_launcher.get(MAIN_PATH,bids_dir,allinfo_study_c,species,list_to_keep,
                                                                    list_to_remove,reference,type_norm,MNIBcorrect_indiv, masking_img, atlas_followers)

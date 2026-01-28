@@ -17,7 +17,7 @@ from fMRI.extract_filename import extract_filename
 from fMRI import Skullstrip_func, plot_QC_func
 
 def Refimg_to_meanfMRI(MAIN_PATH, anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_acpc_masks, dir_prepro_acpc_process,
-                       dir_prepro_template_process, RS, nb_run, REF_int, ID, dir_transfo, brainmask, V_mask, W_mask, G_mask, dilate_mask, n_for_ANTS, bids_dir,
+                       dir_prepro_template_process, RS, nb_run, REF_int, ID, dir_transfo, brainmask, V_mask, W_mask, G_mask, WBG_mask, dilate_mask, n_for_ANTS, bids_dir,
                        costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
                        sing_afni, sing_fs, sing_fsl, sing_itk, diary_file):
 
@@ -124,13 +124,14 @@ def Refimg_to_meanfMRI(MAIN_PATH, anat_func_same_space, BASE_SS_coregistr,TfMRI 
     run_cmd.run(command, diary_file)
 
     for input1, output2 in zip([anat_subject, brainmask, maskDilatanat,
-                                V_mask, W_mask, G_mask],
+                                V_mask, W_mask, G_mask, WBG_mask],
                                [anat_res_func,
                                 opj(dir_prepro_acpc_masks,'mask_ref.nii.gz'),
                                 maskDilatfunc,
                                 opj(dir_prepro_acpc_masks,'Vmask.nii.gz'),
                                 opj(dir_prepro_acpc_masks,'Wmask.nii.gz'),
-                                opj(dir_prepro_acpc_masks,'Gmask.nii.gz')]):
+                                opj(dir_prepro_acpc_masks,'Gmask.nii.gz'),
+                                opj(dir_prepro_acpc_masks,'WBGmask.nii.gz')]):
         if ope(input1):
             if input1 == anat_subject:
                 command = (sing_afni + '3dresample' + overwrite +

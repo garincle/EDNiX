@@ -31,7 +31,7 @@ allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], s
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 
 # choose if you want to select or remove ID from you analysis:
-list_to_keep   = []
+list_to_keep   = [('300405', '1')]
 list_to_remove = []
 species    = 'Rat'
 # is it a longitudinal study ?
@@ -76,7 +76,7 @@ Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
     align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
-    coreg={'type_of_transform': 'SyNCC', 'affmetric': 'MI', 'affmetricT': 'MI'})
+    coreg={'type_of_transform': 'BOLDAffine', 'affmetric': '', 'affmetricT': ''})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 
