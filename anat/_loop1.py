@@ -4,9 +4,7 @@ opj = os.path.join
 ope = os.path.exists
 from Tools import getpath, diaryfile, run_cmd
 import inspect
-from anat.loop1 import _1_correct_orient
-from anat.loop1 import _2_clean_anat
-
+from anat.loop1 import _1_correct_orient, _itk1_QC, _2_clean_anat
 def run(ID, Session, data_path, path_rawanat,BIDStype, listTimage,otheranat, listTimage_orig, type_norm, orientation,IgotbothT1T2, force_myelin_same_space, Align_img_to_template,list_transfo,masking_img,
         brain_skullstrip_1, anat_ref_path, BASE_SS_coregistr, BASE_SS_mask, BASE_SS,check_visualy_each_img,check_visualy_final_mask, overwrite,bids_dir,Skip_step,
         MNIBcorrect_indiv,animalPosition,humanPosition,sing_afni, sing_fsl, sing_fs, sing_itk,sing_wb, sing_synstrip, Unetpath,preftool):
@@ -63,4 +61,7 @@ def run(ID, Session, data_path, path_rawanat,BIDStype, listTimage,otheranat, lis
                                    Unetpath, Skip_step, diary_file,preftool)
 
 
-
+    if 'itk_1' in Skip_step:
+        run_cmd.msg('INFO: skip step ' + str('itk_1'), diary_file, 'OKGREEN')
+    else:
+        _itk1_QC._itk_check_masks(data_path, ID, type_norm, sing_itk, diary_file)

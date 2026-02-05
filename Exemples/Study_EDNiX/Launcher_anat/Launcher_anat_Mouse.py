@@ -35,7 +35,6 @@ Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis:
 list_to_keep   = []
 list_to_remove = []
-
 species    = 'Mouse'
 
 # is it a longitudinal study ?
@@ -109,7 +108,7 @@ list_transfo = build_transfos(
 
 ########################################################################################################################
 
-Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
+Skip_step = [1,2,3,4,5,6,7,'itk_1','itk_2','itk_3','flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #

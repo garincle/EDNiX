@@ -62,7 +62,7 @@ animalPosition    = ['humanlike'] # valid only for species smaller than humans
 # step 1 : coarse method (use for cropping and acpc setting)
 brain_skullstrip_1  = 'synthstrip'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
 # step 2 : precise method
-brain_skullstrip_2  = 'NoSkullStrip'            # bet2_ANTS or MachinL
+brain_skullstrip_2  = 'synthstrip'            # bet2_ANTS or MachinL
 # step 3 : valid only for study or session template :
 template_skullstrip = 'NoSkullStrip'
 
@@ -99,7 +99,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = ['itk_1', 'itk_2', 'flat_map', 'Clean']
+Skip_step = [1,2,'itk_1','itk_2','itk_3','flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #

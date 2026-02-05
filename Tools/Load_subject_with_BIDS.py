@@ -19,16 +19,27 @@ def linux_path(path_input):
         linux_path = f"/mnt/{drive_letter}" + linux_path[2:].replace("\\", "/")  # Replace backslashes with forward slashes
     return linux_path
 
+
 def print_included_tuples(allinfo_study_c):
-    included_tuples = allinfo_study_c[['subject', 'session']].dropna().drop_duplicates()
-    included_tuples.sort_values(
-        by=['subject', 'session'],
-        ascending=[True, False],
-        inplace=True)
-    included_tuples.reset_index(drop=True, inplace=True)
+    included_tuples = []
+
+    for ID in pd.unique(allinfo_study_c.subject.dropna()):
+        # Get sessions for this ID
+        sessions = allinfo_study_c.loc[allinfo_study_c['subject'] == ID, 'session'].dropna().astype(str)
+
+        # Sort the same way as load_data_bids
+        try:
+            sorted_sessions = sorted(sessions, key=lambda x: int(x), reverse=True)
+        except (ValueError, TypeError):
+            sorted_sessions = sorted(sessions, reverse=True)
+
+        # Add to list
+        for session in sorted_sessions:
+            included_tuples.append((ID, session))
+
     print("Included tuples (ID, session):")
-    for _, row in included_tuples.iterrows():
-        print((row['subject'], row['session']), end=', ')
+    for i, tup in enumerate(included_tuples):
+        print(tup, end=', ' if i < len(included_tuples) - 1 else '')
 
 def load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove):
     all_data_path = []
