@@ -8,14 +8,12 @@ opi = os.path.isfile
 opd = os.path.dirname
 ope = os.path.exists
 
-from Tools import run_cmd
 from Tools import QC_plot
 from Tools import getpath
 from Tools import check_nii
 from Tools import run_cmd, get_orientation
 
 from anat.loop1 import acpcalign
-from anat.loop2 import _mask2_Data_QC
 from anat import norm2template
 import anat.skullstrip.Skullstrip_method
 
@@ -117,13 +115,6 @@ def clean_anat(Align_img_to_template, bids_dir, listTimage, list_transfo, ID, Se
     with open(anat_input2 + type_norm + '.json', "w") as outfile:
         outfile.write(json_object)
 
-    if 'itk_1' in Skip_step:
-        run_cmd.msg('INFO: skip step ' + str('itk_1'), diary_file, 'OKGREEN')
-    else:
-        output4mask = output4mask
-        end_maskname = '_'.join([ID, 'final', 'mask', '.nii.gz'])
-        input4msk = anat_input1 + type_norm + '.nii.gz'
-        _mask2_Data_QC._itk_check_masks(output4mask, input4msk, end_maskname, masks_dir, sing_itk, diary_file)
 
     #  QC
     QC_plot.mosaic(anat_input1 + type_norm + '.nii.gz',
@@ -272,7 +263,6 @@ def clean_anat(Align_img_to_template, bids_dir, listTimage, list_transfo, ID, Se
                        BASE_SS_coregistr,
                        opj(bids_dir, 'QC','align_rigid_to_template',
                            ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png'))
-
 
         ####### check visually indiv template #######
         if check_visualy_each_img == True:

@@ -1,10 +1,9 @@
-#coef dice??
-##see fMRI prep²
 import os
+from Tools import getpath
 import subprocess
 import datetime
 from Tools import run_cmd
-
+import shutil
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -24,12 +23,20 @@ opd = os.path.dirname
 ope = os.path.exists
 
 
-def _itk_check_masks(info, end_maskname, brain_mask, volumes_dir, masks_dir, ID, type_norm, itk_sif,diary_file):
+def _itk_check_masks(data_path, ID, type_norm, itk_sif,diary_file):
     ct = datetime.datetime.now()
-    nl = 'Run anat._200_Data_QC.clean._itk_check_masks'
+    nl = 'Run anat._itk1_Data_QC.clean._itk_check_masks'
     diary = open(diary_file, "a")
     diary.write(f'\n{ct}')
     diary.write(f'\n{nl}')
+
+    _,  dir_transfo,_, dir_prepro, _, volumes_dir, _, masks_dir = getpath.anat(data_path,
+                                                                     '', '', False, False, 'native')
+    anat_input1 = opj(dir_prepro, ID + '_space-raw_desc-n4Bias_')
+    output4mask  = opj(masks_dir, ID + '_desc-step1_mask.nii.gz')
+
+    end_maskname = '_'.join([ID, 'final', 'mask.nii.gz'])
+    input4msk = anat_input1 + type_norm + '.nii.gz'
 
     def run_command_and_wait(command):
         print(bcolors.OKGREEN + "INFO: Running command:" + bcolors.ENDC, command)
@@ -43,10 +50,15 @@ def _itk_check_masks(info, end_maskname, brain_mask, volumes_dir, masks_dir, ID,
           opj(masks_dir,end_maskname))
     run_cmd.msg(nl, diary_file,'OKGREEN')
 
-    command = (itk_sif + 'itksnap -g ' + opj(volumes_dir, ID + '_space-acpc_desc-template_' + type_norm + '.nii.gz') +
-               ' -o ' + opj(info[0][4], '_'.join([info[0][0], 'space-acpc_desc-SS', type_norm]) + '.nii.gz'))
+    command = (itk_sif + 'itksnap -g ' + input4msk +
+               ' -s ' + output4mask)
     run_command_and_wait(command)
+
+    if ope(opj(masks_dir,end_maskname)):
+        nl = 'WARNING: We found an already existing final mask !!! it will be used! but restart step 2 to re-skullstrip your image !'
+        run_cmd.msg(nl, diary_file, 'WARNING')
+        output4mask = opj(masks_dir, ID + '_desc-step1_mask.nii.gz')
+        shutil.copyfile(opj(masks_dir,end_maskname), output4mask)
 
     diary.write(f'\n')
     diary.close()
-

@@ -82,7 +82,7 @@ def retrieve(ID,data_path, Session,anat_func_same_space,use_erode_V_func_masks,u
     return anat_subject,brainmask,G_mask, WBG_mask, V_mask,W_mask,dir_transfo, FS_dir, dir_prepro, volumes_dir, labels_dir, masks_dir
 
 
-def create(folderforTemplate_Anat,diary_file):
+def create(folderforTemplate_Anat,use_erode_V_func_masks,use_erode_WM_func_masks,species,TfMRI,diary_file):
 
     # The anatomy organization folders
     dir_transfo = ''
@@ -92,13 +92,19 @@ def create(folderforTemplate_Anat,diary_file):
     masks_dir   = ''
     FS_dir      =''
 
-    anat_subject = opj(folderforTemplate_Anat, 'template.nii.gz')
-    brainmask = opj(folderforTemplate_Anat,    'brainmask.nii.gz')
-    V_mask = opj(folderforTemplate_Anat, 'Vmask.nii.gz')
-    W_mask = opj(folderforTemplate_Anat, 'Wmask.nii.gz')
-    G_mask = opj(folderforTemplate_Anat, 'Gmask.nii.gz')
-
+    anat_subject = opj(folderforTemplate_Anat, species + '_space-acpc_desc-template_' + TfMRI + '.nii.gz')
+    brainmask    = opj(folderforTemplate_Anat, 'masks',  species + '_mask.nii.gz')
+    G_mask       = opj(folderforTemplate_Anat,  'masks',   species + '_desc-Cerebral_Gray_mask.nii.gz')
+    WBG_mask = opj(folderforTemplate_Anat, 'masks',  species + '_desc-Whole_Brain_Gray_mask.nii.gz')
+    if use_erode_V_func_masks == True:
+        V_mask = opj(folderforTemplate_Anat, 'masks',  species + '_desc-erod-Vent_mask.nii.gz')
+    else:
+        V_mask = opj(folderforTemplate_Anat,'masks',   species + '_desc-Vent_mask.nii.gz')
+    if use_erode_WM_func_masks == True:
+        W_mask = opj(folderforTemplate_Anat,'masks',   species + '_desc-erod-White_mask.nii.gz')
+    else:
+        W_mask = opj(folderforTemplate_Anat,'masks',   species + '_desc-White_mask.nii.gz')
     nl = ' No individual anat template will be used for this animal'
     run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-    return anat_subject, brainmask, G_mask, V_mask, W_mask, dir_transfo, FS_dir, dir_prepro, volumes_dir, labels_dir, masks_dir
+    return anat_subject, brainmask, G_mask, WBG_mask, V_mask, W_mask, dir_transfo, FS_dir, dir_prepro, volumes_dir, labels_dir, masks_dir

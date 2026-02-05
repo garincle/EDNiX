@@ -6,7 +6,6 @@ import subprocess
 ####DL
 from nilearn.decomposition import DictLearning
 from nilearn import regions
-import nibabel as nib
 import numpy.ma as ma
 from nilearn.masking import compute_epi_mask
 import ants
@@ -16,12 +15,8 @@ from matplotlib.ticker import FormatStrFormatter
 import os
 import numpy as np
 import nibabel as nib
-from itertools import combinations
-from scipy.ndimage import label, generic_filter
-import pandas as pd
-from pathlib import Path
 from nilearn.image import load_img, resample_to_img
-import shutil
+import csv
 
 #Path to the excels files and data structure
 opj = os.path.join
@@ -33,14 +28,17 @@ spco = subprocess.check_output
 spgo = subprocess.getoutput
 
 def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, oversample_dictionary, bids_dir, images_dir, mean_imgs, min_size, lower_cutoff,
-            upper_cutoff, MAIN_PATH, FS_dir, templatelow, templatehigh, TR, smoothing, ratio_n_voxel, redo):
+            upper_cutoff, MAIN_PATH, templatelow, templatehigh, TR, smoothing, redo, method_mask_func, specific):
 
     reftemplate_path = ''
     sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _, sing_synstrip, Unetpath = Load_EDNiX_requirement.load_requirement(
         MAIN_PATH, reftemplate_path, bids_dir, 'yes')
 
     #### DL analysis and functional atlas building
-    output_results1 = opj(bids_dir, 'Group_Stats')
+    output_results1 = os.path.join(bids_dir, 'DicL')
+    if not os.path.exists(output_results1): os.mkdir(output_results1)
+    #### DL analysis and functional atlas building
+    output_results1 = os.path.join(bids_dir, 'DicL', 'QC_specificity_' + specific)
     if not os.path.exists(output_results1): os.mkdir(output_results1)
 
     if oversample_map == True:
@@ -48,44 +46,96 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
     else:
         studytemplatebrain = templatelow
 
-    mean_imgs_rs = nilearn.image.concat_imgs(mean_imgs, ensure_ndim=None, memory=None, memory_level=0, auto_resample=True, verbose=0)
-    mask_img = compute_epi_mask(mean_imgs_rs,
-                                lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff,
-                                connected=True, opening=1,
-                                exclude_zeros=True, ensure_finite=True)
-    mask_img.to_filename(opj(output_results1, 'mask_mean_func.nii.gz'))
-    command = sing_afni + '3dmask_tool -overwrite -prefix ' + opj(output_results1, 'mask_mean_func.nii.gz') + \
-              ' -input ' + opj(output_results1, 'mask_mean_func.nii.gz') + ' -fill_holes '
-    nl = spgo(command)
-    print(nl)
-
-    # Resample to match the mask function
-    command = f"{sing_afni} 3dresample -master {opj(output_results1, 'mask_mean_func.nii.gz')} -prefix {opj(output_results1, 'mask_mean_func_orig.nii.gz')} " \
-              f"-input {mask_func} -overwrite -bound_type SLAB"
-    nl = spgo(command)
-    print(nl)
-
-    command = sing_afni + '3dcalc -a ' + opj(output_results1, 'mask_mean_func.nii.gz') + \
-              ' -b ' + opj(output_results1, 'mask_mean_func_orig.nii.gz') + \
-              ' -expr "a*b" -prefix ' + opj(output_results1, 'mask_mean_func_overlapp.nii.gz') + ' -overwrite'
-    nl = spgo(command)
-    print(nl)
-
-    command = sing_afni + '3dmask_tool -overwrite -prefix ' + opj(output_results1, 'mask_mean_func_overlapp.nii.gz') + \
-              ' -input ' + opj(output_results1, 'mask_mean_func_overlapp.nii.gz') + ' -fill_holes'
-    nl = spgo(command)
-    print(nl)
-
-    if oversample_dictionary == True:
-        command = f"{sing_afni} 3dresample -master {studytemplatebrain} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
-                  f"-input {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite -bound_type SLAB"
+    if method_mask_func == 'mask_func_over_Gray':
+        mean_imgs_rs = nilearn.image.concat_imgs(mean_imgs, ensure_ndim=None, memory=None, memory_level=0, auto_resample=True, verbose=0)
+        mask_img = compute_epi_mask(mean_imgs_rs,
+                                    lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff,
+                                    connected=True, opening=1,
+                                    exclude_zeros=True, ensure_finite=True)
+        mask_img.to_filename(opj(output_results1, 'mask_mean_func.nii.gz'))
+        command = sing_afni + '3dmask_tool -overwrite -prefix ' + opj(output_results1, 'mask_mean_func.nii.gz') + \
+                  ' -input ' + opj(output_results1, 'mask_mean_func.nii.gz') + ' -fill_holes '
         nl = spgo(command)
         print(nl)
-    else:
-        command = f"{sing_afni} 3dresample -master {images_dir[0]} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
-                  f"-input {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite -bound_type SLAB"
+
+        # Resample to match the mask function
+        command = f"{sing_afni} 3dresample -master {opj(output_results1, 'mask_mean_func.nii.gz')} -prefix {opj(output_results1, 'mask_mean_func_orig.nii.gz')} " \
+                  f"-input {mask_func} -overwrite -bound_type SLAB"
         nl = spgo(command)
         print(nl)
+
+        command = sing_afni + '3dcalc -a ' + opj(output_results1, 'mask_mean_func.nii.gz') + \
+                  ' -b ' + opj(output_results1, 'mask_mean_func_orig.nii.gz') + \
+                  ' -expr "a*b" -prefix ' + opj(output_results1, 'mask_mean_func_overlapp.nii.gz') + ' -overwrite'
+        nl = spgo(command)
+        print(nl)
+
+        command = sing_afni + '3dmask_tool -overwrite -prefix ' + opj(output_results1, 'mask_mean_func_overlapp.nii.gz') + \
+                  ' -input ' + opj(output_results1, 'mask_mean_func_overlapp.nii.gz') + ' -fill_holes'
+        nl = spgo(command)
+        print(nl)
+
+    if method_mask_func == 'onlyprovidedmask':
+        mean_imgs_rs = nilearn.image.concat_imgs(mean_imgs, ensure_ndim=None, memory=None, memory_level=0,
+                                                 auto_resample=True, verbose=0)
+        mask_img = compute_epi_mask(mean_imgs_rs,
+                                    lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff,
+                                    connected=True, opening=1,
+                                    exclude_zeros=True, ensure_finite=True)
+        mask_img.to_filename(opj(output_results1, 'mask_mean_func.nii.gz'))
+        command = sing_afni + '3dmask_tool -overwrite -prefix ' + opj(output_results1, 'mask_mean_func.nii.gz') + \
+                  ' -input ' + opj(output_results1, 'mask_mean_func.nii.gz') + ' -fill_holes '
+        nl = spgo(command)
+        print(nl)
+
+        # Resample to match the mask function
+        command = f"{sing_afni} 3dresample -master {opj(output_results1, 'mask_mean_func.nii.gz')} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
+                  f"-input {mask_func} -overwrite -bound_type SLAB"
+        nl = spgo(command)
+        print(nl)
+
+
+    if method_mask_func == 'mask_func_minus_White':
+        mean_imgs_rs = nilearn.image.concat_imgs(mean_imgs, ensure_ndim=None, memory=None, memory_level=0,
+                                                 auto_resample=True, verbose=0)
+        mask_img = compute_epi_mask(mean_imgs_rs,
+                                    lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff,
+                                    connected=True, opening=1,
+                                    exclude_zeros=True, ensure_finite=True)
+        mask_img.to_filename(opj(output_results1, 'mask_mean_func.nii.gz'))
+        command = sing_afni + '3dmask_tool -overwrite -prefix ' + opj(output_results1, 'mask_mean_func.nii.gz') + \
+                  ' -input ' + opj(output_results1, 'mask_mean_func.nii.gz') + ' -fill_holes '
+        nl = spgo(command)
+        print(nl)
+
+        # Resample to match the mask function
+        command = f"{sing_afni} 3dresample -master {opj(output_results1, 'mask_mean_func.nii.gz')} -prefix {opj(output_results1, 'mask_mean_func_orig.nii.gz')} " \
+                  f"-input {mask_func} -overwrite -bound_type SLAB"
+        nl = spgo(command)
+        print(nl)
+
+        command = sing_afni + '3dcalc -a ' + opj(output_results1, 'mask_mean_func.nii.gz') + \
+                  ' -b ' + opj(output_results1, 'mask_mean_func_orig.nii.gz') + \
+                  ' -expr "ispositive(a-b)" -prefix ' + opj(output_results1, 'mask_mean_func_overlapp.nii.gz') + ' -overwrite'
+        nl = spgo(command)
+        print(nl)
+
+        command = sing_afni + '3dmask_tool -overwrite -prefix ' + opj(output_results1,
+                                                                      'mask_mean_func_overlapp.nii.gz') + \
+                  ' -input ' + opj(output_results1, 'mask_mean_func_overlapp.nii.gz') + ' -fill_holes'
+        nl = spgo(command)
+        print(nl)
+
+        if oversample_dictionary == True:
+            command = f"{sing_afni} 3dresample -master {studytemplatebrain} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
+                      f"-input {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite -bound_type SLAB"
+            nl = spgo(command)
+            print(nl)
+        else:
+            command = f"{sing_afni} 3dresample -master {images_dir[0]} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
+                      f"-input {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite -bound_type SLAB"
+            nl = spgo(command)
+            print(nl)
 
     if redo==True:
         lowresanat = ants.image_read(templatelow)  # Low-resolution atlas
@@ -118,9 +168,11 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
     labeled_img2 = new_img_like(images_dir[0], extracted_data, copy_header=True)
     labeled_img2.to_filename(mask_rs_path)
 
-
+    score_all_cpt = []
     for component in component_list:
-        result_dir = opj(output_results1, 'dicL'+ str(component))
+        result_dir = opj(output_results1,   str(alpha_dic) + '_alpha_' + '_alpha_' + str(smoothing) + '_smth_' +  str(specific))
+        if not os.path.exists(result_dir): os.mkdir(result_dir)
+        result_dir = opj(output_results1,   str(alpha_dic) + '_alpha_' + '_alpha_' + str(smoothing) + '_smth_' +  str(specific), str(component) )
         if not os.path.exists(result_dir): os.mkdir(result_dir)
 
         if oversample_dictionary == True:
@@ -142,7 +194,6 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
         Dl_i = result_dir + '/DL' + str(component) + 'cpts_DicL.nii.gz'
 
         scores = dict_learning.score(images_dir, per_component=True)
-
         plt.figure(figsize=(4, 4), constrained_layout=True)
         positions = np.arange(len(scores))
         plt.barh(positions, scores)
@@ -152,6 +203,8 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
         plt.gca().xaxis.set_major_formatter(FormatStrFormatter("%.3f"))
         plt.savefig(result_dir + '/explained_var.jpg')
         plt.close('all')
+
+        scores_all = dict_learning.score(images_dir, per_component=False)
 
         for i, cur_img in enumerate(iter_img(Dl_i)):
             tmap_filename = (result_dir + '/network' + str(i) + 'dl.nii.gz')
@@ -317,3 +370,39 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
                 ' -expr "a*step(b)" -prefix ' + result_dir + 'atlas/dict_learning_' + str(component) + 'compos_concat_smoothed_anatR.nii.gz' + ' -overwrite'
         nl = spgo(command)
         print(nl)
+
+        score_all_cpt.append(scores_all)
+
+    with open(result_dir + '/lists_data.csv', 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Component', 'Score'])  # Header
+        for component, score in zip(component_list, score_all_cpt):
+            writer.writerow([component, score])
+
+    # 2. Simple plot
+    plt.figure(figsize=(10, 5))
+    # Bar plot
+    plt.subplot(1, 2, 1)
+    plt.bar(component_list, score_all_cpt, color='skyblue', edgecolor='black')
+    plt.xlabel('Components')
+    plt.ylabel('Scores')
+    plt.title('Scores by Component')
+    plt.xticks(rotation=45)
+
+    # Line plot
+    plt.subplot(1, 2, 2)
+    plt.plot(component_list, score_all_cpt, 'o-', linewidth=2, markersize=8)
+    plt.xlabel('Components')
+    plt.ylabel('Scores')
+    plt.title('Score Trend')
+    plt.xticks(rotation=45)
+    plt.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+
+    # Save and show plot
+    plt.savefig(result_dir + '/plot.png', dpi=150, bbox_inches='tight')
+    plt.close()
+
+    print(f"Data saved to 'lists_data.csv'")
+    print(f"Plot saved to 'plot.png'")
