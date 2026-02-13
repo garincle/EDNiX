@@ -54,6 +54,14 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
             json_object = json.dumps(dictionary, indent=2)
             with open(residual_template.replace('.nii.gz', '.json'), "w") as outfile:
                 outfile.write(json_object)
+            mvt_shft_ANTs = []
+            w2inv_fwd = []
+            for elem1, elem2 in zip([Mean_Image_unwarped.replace('.nii.gz', '_1Warp.nii.gz'),
+                                     Mean_Image_unwarped.replace('.nii.gz', '_0GenericAffine.mat')],
+                                    [False, False]):
+                if opi(elem1):
+                    mvt_shft_ANTs.append(elem1)
+                    w2inv_fwd.append(elem2)
     else:
         if do_anat_to_func == True:
             mvt_shft_ANTs = []
@@ -82,11 +90,18 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
     MEAN = ants.image_read(Mean_Image_acpc)
     REF  = ants.image_read(Template_res_func)
 
-    TRANS = ants.apply_transforms(fixed=REF, moving=MEAN,
-                                  transformlist=info[0][9] + mvt_shft_ANTs,
-                                  interpolator=n_for_ANTS,
-                                  whichtoinvert=info[0][10] + w2inv_fwd)
-    ants.image_write(TRANS, Mean_Image_template, ri=False)
+    if IhaveanANAT == True:
+        TRANS = ants.apply_transforms(fixed=REF, moving=MEAN,
+                                      transformlist=info[0][9] + mvt_shft_ANTs,
+                                      interpolator=n_for_ANTS,
+                                      whichtoinvert=info[0][10] + w2inv_fwd)
+        ants.image_write(TRANS, Mean_Image_template, ri=False)
+    elif IhaveanANAT == False:
+        TRANS = ants.apply_transforms(fixed=REF, moving=MEAN,
+                                      transformlist=mvt_shft_ANTs,
+                                      interpolator=n_for_ANTS,
+                                      whichtoinvert=w2inv_fwd)
+        ants.image_write(TRANS, Mean_Image_template, ri=False)
 
     dictionary = {"Sources": [Mean_Image_acpc,
                               Template_res_func],
@@ -111,38 +126,44 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
     ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
     ##                                          Work on all FUNC                                                ## ##
     ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
-    if IhaveanANAT == True:
-        for i in range(int(nb_run)):
-            root_RS = extract_filename(RS[i])
-            if ope(opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')) == False:
-                residual = opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')
-                residual_template = opj(dir_prepro_template_postprocessed, root_RS + '_space-template_desc-fMRI_residual.nii.gz')
-            else:
-                residual = opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')
-                residual_template = opj(dir_prepro_template_postprocessed, root_RS + '_space-template_desc-fMRI_residual.nii.gz')
+    for i in range(int(nb_run)):
+        root_RS = extract_filename(RS[i])
+        if ope(opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')) == False:
+            residual = opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')
+            residual_template = opj(dir_prepro_template_postprocessed, root_RS + '_space-template_desc-fMRI_residual.nii.gz')
+        else:
+            residual = opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')
+            residual_template = opj(dir_prepro_template_postprocessed, root_RS + '_space-template_desc-fMRI_residual.nii.gz')
 
-            FUNC = ants.image_read(residual)
-            REF = ants.image_read(Template_res_func)
+        FUNC = ants.image_read(residual)
+        REF = ants.image_read(Template_res_func)
 
+        if IhaveanANAT == True:
             TRANS = ants.apply_transforms(fixed=REF, moving=FUNC,
                                           transformlist=info[0][9] + mvt_shft_ANTs,
                                           interpolator=n_for_ANTS,
                                           whichtoinvert=info[0][10] + w2inv_fwd,
                                           imagetype=3)
-            ants.image_write(TRANS, residual_template, ri=False)
+        elif IhaveanANAT == False:
+            TRANS = ants.apply_transforms(fixed=REF, moving=FUNC,
+                                          transformlist=mvt_shft_ANTs,
+                                          interpolator=n_for_ANTS,
+                                          whichtoinvert=w2inv_fwd,
+                                          imagetype=3)
+        ants.image_write(TRANS, residual_template, ri=False)
 
-            dictionary = {"Sources": [residual_template,
-                                      Template_res_func],
-                          "Description": ' Non linear normalization (ANTspy).'},
-            json_object = json.dumps(dictionary, indent=2)
-            with open(residual_template.replace('.nii.gz', '.json'), "w") as outfile:
-                outfile.write(json_object)
+        dictionary = {"Sources": [residual_template,
+                                  Template_res_func],
+                      "Description": ' Non linear normalization (ANTspy).'},
+        json_object = json.dumps(dictionary, indent=2)
+        with open(residual_template.replace('.nii.gz', '.json'), "w") as outfile:
+            outfile.write(json_object)
 
-            nl = str(residual_template) + ' done!'
-            run_cmd.msg(nl, diary_file, 'OKGREEN')
-            # Freeing memory
-            del FUNC
-            del REF
+        nl = str(residual_template) + ' done!'
+        run_cmd.msg(nl, diary_file, 'OKGREEN')
+        # Freeing memory
+        del FUNC
+        del REF
 
     resamp_no_check(Template_res_func, Mean_Image_template, 'msk', '', '', '', '')
     # Load the image directly

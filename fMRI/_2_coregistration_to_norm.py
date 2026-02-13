@@ -155,7 +155,7 @@ def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_
             # 1.0 calculate co-registration mean image ref to mean image func
             IMG = ants.image_read(fMRI_runMean_reoriented)
             mTx = ants.registration(fixed=REF, moving=IMG,
-                                    type_of_transform='SyNCC',
+                                    type_of_transform='BOLDRigid',
                                     initial_transform=None,
                                     outprefix=fMRI_run_inRef_mat)
 

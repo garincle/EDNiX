@@ -61,7 +61,7 @@ animalPosition    = ['humanlike'] # valid only for species smaller than humans
 
 
 # step 1 : coarse method (use for cropping and acpc setting)
-brain_skullstrip_1  = '3dSkullStrip_dog_macaque'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
+brain_skullstrip_1  = 'muSkullStrip_cross_species'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
 # step 2 : precise method
 brain_skullstrip_2  = 'NoSkullStrip'            # bet2_ANTS or MachinL
 # step 3 : valid only for study or session template :
@@ -104,7 +104,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################
-Skip_step = [1,'itk_1','itk_2','itk_3','flat_map', 'Clean']
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,'itk_2','itk_1','flat_map', 'Clean']
 _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      MAIN_PATH, bids_dir, BIDStype, species,
                      allinfo_study_c, list_to_keep, list_to_remove,

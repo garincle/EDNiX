@@ -2,9 +2,12 @@ import os
 import json
 import ants
 import nibabel as nib
-
-from nilearn.image import resample_to_img
-from nilearn.image.image import mean_img
+from scipy import ndimage
+import numpy as np
+from nilearn.image import mean_img
+from Tools import run_cmd,get_orientation, check_nii
+from fMRI.extract_filename import extract_filename
+from fMRI import Skullstrip_func, plot_QC_func
 
 opj = os.path.join
 opb = os.path.basename
@@ -12,13 +15,11 @@ opd = os.path.dirname
 ope = os.path.exists
 opi = os.path.isfile
 
-from Tools import run_cmd,get_orientation, check_nii
-from fMRI.extract_filename import extract_filename
-from fMRI import Skullstrip_func, plot_QC_func
+
 
 def Refimg_to_meanfMRI(MAIN_PATH, anat_func_same_space, BASE_SS_coregistr,TfMRI , dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_acpc_masks, dir_prepro_acpc_process,
                        dir_prepro_template_process, RS, nb_run, REF_int, ID, dir_transfo, brainmask, V_mask, W_mask, G_mask, WBG_mask, dilate_mask, n_for_ANTS, bids_dir,
-                       costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
+                       costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants, extra_erode,
                        sing_afni, sing_fs, sing_fsl, sing_itk, diary_file):
 
     nl = '##  Working on step ' + str(3) + '(function: _3_mask_fMRI).  ##'
@@ -230,6 +231,48 @@ def Refimg_to_meanfMRI(MAIN_PATH, anat_func_same_space, BASE_SS_coregistr,TfMRI 
             Skullstrip_func.Skullstrip_func(MAIN_PATH, Method_mask_func, Mean_Image, Prepro_fMRI_mask, anat_res_func, maskDilatfunc, dir_prepro_raw_process,
                                                       overwrite, costAllin, type_of_transform,
                                                       aff_metric_ants, sing_afni, sing_fsl, sing_fs, sing_itk, diary_file)
+
+    if extra_erode > 0:
+        # 1. Éroder final_mask basé sur l'intensité de Mean_Image
+        nl = 'Eroding final_mask based on Mean_Image intensity at edges'
+        run_cmd.msg(nl, diary_file, 'OKGREEN')
+
+        # Charger les images
+        mask_img = nib.load(Prepro_fMRI_mask)
+        mask_data = mask_img.get_fdata()
+        mean_img_nifti = nib.load(Mean_Image)
+        mean_data = mean_img_nifti.get_fdata()
+
+        # Créer un masque érodé basé sur l'intensité
+        # Détecter les contours du masque
+        eroded_mask = ndimage.binary_erosion(mask_data, iterations=extra_erode)
+        edge_mask = mask_data.astype(bool) & ~eroded_mask
+
+        # Calculer l'intensité moyenne dans le masque et sur les bords
+        mean_intensity_inside = np.mean(mean_data[eroded_mask])
+        std_intensity_inside = np.std(mean_data[eroded_mask])
+
+        # Seuil adaptatif : retirer les voxels de bord avec intensité < moyenne - 1*std
+        threshold = mean_intensity_inside - 1.0 * std_intensity_inside
+
+        # Nouveau masque : garder les voxels internes + voxels de bord avec intensité suffisante
+        new_mask = eroded_mask.copy()
+        edge_voxels_to_keep = edge_mask & (mean_data >= threshold)
+        new_mask = new_mask | edge_voxels_to_keep
+
+        # Sauvegarder le nouveau masque
+        new_mask_img = nib.Nifti1Image(new_mask.astype(np.float32), mask_img.affine, mask_img.header)
+        nib.save(new_mask_img, Prepro_fMRI_mask)
+
+        nl = f'Mask eroded: threshold={threshold:.2f}, voxels removed from edges: {np.sum(edge_mask) - np.sum(edge_voxels_to_keep)}'
+        run_cmd.msg(nl, diary_file, 'OKGREEN')
+
+        dictionary = {"Sources": [Prepro_fMRI_mask, Mean_Image],
+                      "Description": f'Intensity-based erosion at edges. Threshold: {threshold:.2f}',
+                      "Command": 'Python erosion based on Mean_Image intensity'}
+        json_object = json.dumps(dictionary, indent=3)
+        with open(Prepro_fMRI_mask.replace('.nii.gz', '.json'), "w") as outfile:
+            outfile.write(json_object)
 
     if not ope(opj(bids_dir, 'QC')):
         os.mkdir(opj(bids_dir, 'QC'))

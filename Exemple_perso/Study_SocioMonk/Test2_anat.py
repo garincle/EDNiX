@@ -6,7 +6,7 @@ from bids.reports import BIDSReport
 opj = os.path.join
 opb = os.path.basename
 
-MAIN_PATH = opj('//')
+MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS, load_bids
@@ -58,7 +58,7 @@ animalPosition    = ['humanlike'] # valid only for species smaller than humans
 
 ### masking and skull stripping ----------------------------------------------------------------------------------------
 # step 1 : coarse method (use for cropping and acpc setting)
-brain_skullstrip_1  = 'NoSkullStrip'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
+brain_skullstrip_1  = 'muSkullStrip_cross_species'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
 # step 2 : precise method
 brain_skullstrip_2  = 'NoSkullStrip'            # bet2_ANTS or MachinL
 # step 3 : valid only for study or session template :
@@ -75,7 +75,7 @@ Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
     align={'type_of_transform': 'Rigid', 'affmetric': 'mattes', 'affmetricT': 'mattes'},
-    coreg={'type_of_transform': 'SyN', 'affmetric': '', 'affmetricT': ''})
+    coreg={'type_of_transform': 'SyNCC', 'affmetric': '', 'affmetricT': ''})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 
@@ -114,16 +114,3 @@ _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
                      transfo_message='do_as_I_said', force_myelin_same_space=False,
                      check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
-
-### Surface QC summary creation --------------------------------------------------------------------------------
-# Function 1: Load EDNiX requirements
-sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _, sing_synstrip, Unetpath = Load_EDNiX_requirement.load_requirement(
-    MAIN_PATH, '', bids_dir, 'yes')
-# Function 2: Create QC summary for all subjects
-Plot_BIDS_surface_for_QC.create_surface_qc_summary(
-    sing_wb=sing_wb,
-    bids_root=bids_dir,
-    output_dir=bids_dir + "/QC/Surface",
-    template_scene=bids_dir + "/sub-301105/ses-1/anat/native/surfaces/Native_resol/Exemple1.scene",
-    scene_ID_name="301105",
-    scene_name="Exemple1")

@@ -6,7 +6,7 @@ from bids.reports import BIDSReport
 opj = os.path.join
 opb = os.path.basename
 
-MAIN_PATH = opj('//')
+MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS, load_bids
@@ -58,7 +58,7 @@ animalPosition    = ['humanlike'] # valid only for species smaller than humans
 
 ### masking and skull stripping ----------------------------------------------------------------------------------------
 # step 1 : coarse method (use for cropping and acpc setting)
-brain_skullstrip_1  = 'NoSkullStrip'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
+brain_skullstrip_1  = 'muSkullStrip_cross_species'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
 # step 2 : precise method
 brain_skullstrip_2  = 'NoSkullStrip'            # bet2_ANTS or MachinL
 # step 3 : valid only for study or session template :
@@ -75,7 +75,7 @@ Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
     align={'type_of_transform': 'Rigid', 'affmetric': 'mattes', 'affmetricT': 'mattes'},
-    coreg={'type_of_transform': 'SyN', 'affmetric': '', 'affmetricT': ''})
+    coreg={'type_of_transform': 'SyNCC', 'affmetric': '', 'affmetricT': ''})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 

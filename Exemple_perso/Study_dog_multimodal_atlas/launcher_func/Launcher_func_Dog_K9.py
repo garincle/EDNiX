@@ -38,8 +38,9 @@ type_norm = 'T1w' # T1 or T2
 TfMRI = 'T1w' # string
 ### if you don't have any anat image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
 Method_mask_func = '3dSkullStrip_dog' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+extra_erode=2
 #### ANTs function of the co-registration HammingWindowedSinc is advised
-IhaveanANAT = True # True or False
+IhaveanANAT = False # True or False
 anat_func_same_space = False # True or False
 type_of_transform = 'BOLDRigid'
 aff_metric_ants_Transl = 'MI' # string
@@ -60,7 +61,7 @@ selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = 'header'
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = ['itk_1', 'itk_2', 'Clean']
+Skip_step = [1,'itk_1','itk_2', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
@@ -68,7 +69,7 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     Slice_timing_info,
                     TfMRI, type_norm, creat_study_template,
                     anat_func_same_space, coregistration_longitudinal,
-                    Method_mask_func, do_anat_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
+                    Method_mask_func, extra_erode=extra_erode, do_anat_to_func=do_anat_to_func, folderforTemplate_Anat='/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/mammals/carnivorans/Dog/EDNiX/volumes/', IhaveanANAT=False,
                     ntimepoint_treshold=100, REF_int=0, T1_eq=5, correction_direction='Auto', overwrite_option=True,
                     DwellT='Auto', SED='Auto', TR='Auto', TRT='Auto',
                     nb_ICA_run=20, ICA_cleaning='Skip',

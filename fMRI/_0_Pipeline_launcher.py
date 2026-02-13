@@ -34,7 +34,7 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
                     Slice_timing_info,
                     TfMRI, type_norm, creat_study_template,
                     anat_func_same_space, coregistration_longitudinal,
-                    Method_mask_func, do_anat_to_func=True, folderforTemplate_Anat='', IhaveanANAT=True,
+                    Method_mask_func, extra_erode=0, do_anat_to_func=True, folderforTemplate_Anat='', IhaveanANAT=True,
                     ntimepoint_treshold=100, REF_int=0, T1_eq=5, correction_direction='Auto', overwrite_option=True,
                     DwellT='Auto', SED='Auto', TR='Auto', TRT='Auto',
                     nb_ICA_run=20, ICA_cleaning='Skip',
@@ -698,7 +698,7 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
                 else:
                     _3_mask_fMRI.Refimg_to_meanfMRI(MAIN_PATH, anat_func_same_space, BASE_SS,TfMRI , dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_acpc_masks, dir_prepro_acpc_process,
                            dir_prepro_template_process, RS, nb_run, REF_int, ID, dir_transfo, brainmask, V_mask, W_mask, G_mask, WBG_mask, dilate_mask, n_for_ANTS, bids_dir,
-                           costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants,
+                           costAllin, anat_subject, Method_mask_func, overwrite, type_of_transform, aff_metric_ants, extra_erode,
                            sing_afni, sing_fs, sing_fsl, sing_itk, diary_file)
 
                 if 'itk_1' in Skip_step:
