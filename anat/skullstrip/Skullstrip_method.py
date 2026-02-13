@@ -354,7 +354,7 @@ def Skullstrip_method(brain_skullstrip, end_maskname, input_for_msk,output_for_m
                         sing_afni, diary_file)
 
         elif brain_skullstrip == 'muSkullStrip_cross_species_dil':
-            Unetmask.do(input_for_msk, output_for_mask, 'model-02-_cross_species-epoch', Unetpath, ' -fill_holes -dilate_result 20 -10',
+            Unetmask.do(input_for_msk, output_for_mask, 'model-02-_cross_species-epoch', Unetpath, ' -fill_holes -dilate_result 10 -10',
                         sing_afni, diary_file)
 
         elif brain_skullstrip == 'Custum_Macaque2':

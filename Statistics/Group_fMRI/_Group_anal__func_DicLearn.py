@@ -76,20 +76,8 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
         print(nl)
 
     if method_mask_func == 'onlyprovidedmask':
-        mean_imgs_rs = nilearn.image.concat_imgs(mean_imgs, ensure_ndim=None, memory=None, memory_level=0,
-                                                 auto_resample=True, verbose=0)
-        mask_img = compute_epi_mask(mean_imgs_rs,
-                                    lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff,
-                                    connected=True, opening=1,
-                                    exclude_zeros=True, ensure_finite=True)
-        mask_img.to_filename(opj(output_results1, 'mask_mean_func.nii.gz'))
-        command = sing_afni + '3dmask_tool -overwrite -prefix ' + opj(output_results1, 'mask_mean_func.nii.gz') + \
-                  ' -input ' + opj(output_results1, 'mask_mean_func.nii.gz') + ' -fill_holes '
-        nl = spgo(command)
-        print(nl)
-
         # Resample to match the mask function
-        command = f"{sing_afni} 3dresample -master {opj(output_results1, 'mask_mean_func.nii.gz')} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
+        command = f"{sing_afni} 3dresample -master {studytemplatebrain} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
                   f"-input {mask_func} -overwrite -bound_type SLAB"
         nl = spgo(command)
         print(nl)
@@ -126,16 +114,16 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
         nl = spgo(command)
         print(nl)
 
-        if oversample_dictionary == True:
-            command = f"{sing_afni} 3dresample -master {studytemplatebrain} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
-                      f"-input {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite -bound_type SLAB"
-            nl = spgo(command)
-            print(nl)
-        else:
-            command = f"{sing_afni} 3dresample -master {images_dir[0]} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
-                      f"-input {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite -bound_type SLAB"
-            nl = spgo(command)
-            print(nl)
+    if oversample_dictionary == True:
+        command = f"{sing_afni} 3dresample -master {studytemplatebrain} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
+                  f"-input {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite -bound_type SLAB"
+        nl = spgo(command)
+        print(nl)
+    else:
+        command = f"{sing_afni} 3dresample -master {images_dir[0]} -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} " \
+                  f"-input {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite -bound_type SLAB"
+        nl = spgo(command)
+        print(nl)
 
     if redo==True:
         lowresanat = ants.image_read(templatelow)  # Low-resolution atlas
@@ -156,7 +144,7 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
         # Save output
         registered_atlas.to_filename( opj(output_results1, 'low_to_highR_template.nii.gz'))
         # --- choix de la référence (premier mean_img) ---
-        ref_img = load_img(images_dir[0])  # ou mean_imgs_rs si c'est ce que tu veux comme grille
+        ref_img = load_img(images_dir[0])  # ou mean_imzzgs_rs si c'est ce que tu veux comme grille
     from nilearn.image import new_img_like
     # --- resample le mask_func (nearest pour préserver binaire) ---
     ref_img = load_img(images_dir[6])  # ou mean_imgs_rs si c'est ce que tu veux comme grille
@@ -177,11 +165,11 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
 
         if oversample_dictionary == True:
             dict_learning = DictLearning(mask= opj(output_results1, 'mask_mean_func_overlapp.nii.gz'),n_components=component, alpha=alpha_dic, n_epochs=1,
-                                         verbose=10, standardize="zscore_sample", random_state=0, n_jobs=1, smoothing_fwhm=smoothing, detrend=False, t_r=TR)
+                                         verbose=10, standardize="zscore_sample", random_state=0, n_jobs=30, smoothing_fwhm=smoothing, detrend=False, t_r=TR)
         else:
             dict_learning = DictLearning(mask=opj(output_results1, 'mask_mean_func_overlapp.nii.gz'),
-                                         n_components=component, alpha=alpha_dic, batch_size=5, standardize="zscore_sample", n_epochs=1,
-                                         verbose=10, random_state=0, n_jobs=1, smoothing_fwhm=smoothing, detrend=False,
+                                         n_components=component, alpha=alpha_dic, standardize="zscore_sample", n_epochs=1,
+                                         verbose=10, random_state=0, n_jobs=30, smoothing_fwhm=smoothing, detrend=False,
                                          t_r=TR)
         dict_learning.fit(images_dir)
         print('[Example] Saving results')
@@ -192,7 +180,7 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
         components_img.to_filename(result_dir + '/DL' + str(component) + 'cpts_DicL.nii.gz')
         #load images
         Dl_i = result_dir + '/DL' + str(component) + 'cpts_DicL.nii.gz'
-
+        """
         scores = dict_learning.score(images_dir, per_component=True)
         plt.figure(figsize=(4, 4), constrained_layout=True)
         positions = np.arange(len(scores))
@@ -205,7 +193,7 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
         plt.close('all')
 
         scores_all = dict_learning.score(images_dir, per_component=False)
-
+        """
         for i, cur_img in enumerate(iter_img(Dl_i)):
             tmap_filename = (result_dir + '/network' + str(i) + 'dl.nii.gz')
             cur_img.to_filename(tmap_filename)
@@ -371,8 +359,8 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
         nl = spgo(command)
         print(nl)
 
-        score_all_cpt.append(scores_all)
-
+        """score_all_cpt.append(scores_all)"""
+    """
     with open(result_dir + '/lists_data.csv', 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['Component', 'Score'])  # Header
@@ -406,3 +394,4 @@ def dicstat(oversample_map, mask_func, cut_coords, alpha_dic, component_list, ov
 
     print(f"Data saved to 'lists_data.csv'")
     print(f"Plot saved to 'plot.png'")
+    """

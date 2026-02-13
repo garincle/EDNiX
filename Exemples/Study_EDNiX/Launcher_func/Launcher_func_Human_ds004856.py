@@ -12,7 +12,7 @@ sys.path.insert(1, opj(MAIN_PATH))
 species    = 'Human'
 # Override os.path.join to always return Linux-style paths
 bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Human/ds004856/'))
-allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T1w'], extensions=['.nii.gz'])
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['func'], suffixes= ['bold'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
@@ -41,14 +41,14 @@ Method_mask_func = '3dSkullStrip' # string 3dAllineate or nilearn or creat a man
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = False # True or False
-type_of_transform = 'SyNRA'
+type_of_transform = 'SyNBold'
 aff_metric_ants_Transl = 'mattes' # string
 aff_metric_ants = 'MI'
 do_anat_to_func = True # True or False
 Slice_timing_info = 'Auto'
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
-creat_study_template = True # True or Fals
+creat_study_template = False # True or Fals
 blur = 0# float
 #Dilate the functional brain mask by n layers
 dilate_mask = 0 # int
@@ -68,7 +68,7 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     Slice_timing_info,
                     TfMRI, type_norm, creat_study_template,
                     anat_func_same_space, coregistration_longitudinal,
-                    Method_mask_func, do_anat_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
+                    Method_mask_func, extra_erode=1, do_anat_to_func=do_anat_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
                     ntimepoint_treshold=100, REF_int=0, T1_eq=5, correction_direction='Auto', overwrite_option=True,
                     DwellT='Auto', SED='Auto', TR='Auto', TRT='Auto',
                     nb_ICA_run=20, ICA_cleaning='Skip',

@@ -92,7 +92,7 @@ def create(folderforTemplate_Anat,use_erode_V_func_masks,use_erode_WM_func_masks
     masks_dir   = ''
     FS_dir      =''
 
-    anat_subject = opj(folderforTemplate_Anat, species + '_space-acpc_desc-template_' + TfMRI + '.nii.gz')
+    anat_subject = opj(folderforTemplate_Anat, species + '_space-acpc_desc-SS_' + TfMRI + '.nii.gz')
     brainmask    = opj(folderforTemplate_Anat, 'masks',  species + '_mask.nii.gz')
     G_mask       = opj(folderforTemplate_Anat,  'masks',   species + '_desc-Cerebral_Gray_mask.nii.gz')
     WBG_mask = opj(folderforTemplate_Anat, 'masks',  species + '_desc-Whole_Brain_Gray_mask.nii.gz')

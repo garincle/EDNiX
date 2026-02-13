@@ -19,6 +19,10 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
         if folder_name:
             path_ref = opj(dirpath, folder_name[0])
 
+    if 'path_ref' not in locals() or not path_ref:
+        raise ValueError("path_ref is not defined — atlas path or species or MAIN_PATH is likely incorrect.")
+
+
     path_label_code = opj(path_ref, 'label_code')
     if 'T1' in type_norm:
         suffix_template = 'T1w'
