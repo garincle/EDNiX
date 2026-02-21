@@ -21,9 +21,9 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/imagina/BIDS/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Human/CERMEP_MXFDG/BIDS/'))
 # which format ?
-BIDStype = 'sub-{ID}_run-*_{Timage}.nii*'
+BIDStype = 'sub-{ID}_{Timage}.nii*'
 
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T1w'], extensions=['.nii.gz'])
 
@@ -31,11 +31,12 @@ allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], s
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 
 # choose if you want to select or remove ID from you analysis:
-list_to_keep   = [('PP10555', 'control1'), ('PP10555', 'control2')]
+list_to_keep   = []
 list_to_remove = []
-species    = 'Macaque'
+
+species    = 'Human'
 # is it a longitudinal study ?
-coregistration_longitudinal = False
+coregistration_longitudinal = True
 #do you want to use all the data or only the last one of each subject
 which_on  = 'max'                       # "all" or "max"
 
@@ -51,17 +52,17 @@ masking_img = 'T1w' # could be T1w or T2w (if left empty it will be set to "type
 
 # if you don't know anything about it : leave it empty
 # "AHF" stands for "Animal Head First",  "AFF" stands for "Animal Feet First", "humanlike" means no change to be done.
-humanPosition     = ['']
-orientation       = 'LSP' # "LPI" or ''
-animalPosition    = [''] # valid only for species smaller than humans
+humanPosition     = ['humanlike']
+orientation       = '' # "LPI" or ''
+animalPosition    = ['humanlike'] # valid only for species smaller than humans
 
 ### masking and skull stripping ----------------------------------------------------------------------------------------
 # step 1 : coarse method (use for cropping and acpc setting)
-brain_skullstrip_1  = 'muSkullStrip_cross_species'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
+brain_skullstrip_1  = 'synthstrip'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
 # step 2 : precise method
-brain_skullstrip_2  = 'NoSkullStrip'            # bet2_ANTS or MachinL
+brain_skullstrip_2  = 'synthstrip'            # bet2_ANTS or MachinL
 # step 3 : valid only for study or session template :
-template_skullstrip = 'Manual'
+template_skullstrip = 'synthstrip'
 
 # valid for resting-state Statistics -------------------------------------------------------------------------------------
 fMRImasks     = 'aseg' # must be aseg or custom
@@ -74,7 +75,7 @@ Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
     align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
-    coreg={'type_of_transform': 'SyN', 'affmetric': 'MI', 'affmetricT': 'MI'})
+    coreg={'type_of_transform': 'SyNCC', 'affmetric': '', 'affmetricT': ''})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 
@@ -96,8 +97,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = ['itk_1','itk_2','flat_map', 'Clean']
-
+Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################
@@ -124,7 +124,7 @@ Plot_BIDS_surface_for_QC.create_surface_qc_summary(
     sing_wb=sing_wb,
     bids_root=bids_dir,
     output_dir=bids_dir + "/QC/Surface",
-    template_scene=bids_dir + "/sub-Oliver/ses-1/anat/native/surfaces/Native_resol/Exemple1.scene",
-    scene_ID_name="Oliver",
+    template_scene=bids_dir + "/sub-408/ses-1/anat/native/surfaces/Native_resol/Exemple1.scene",
+    scene_ID_name="408",
     scene_name="Exemple1")
 '''

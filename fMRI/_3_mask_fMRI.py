@@ -57,7 +57,7 @@ def Refimg_to_meanfMRI(MAIN_PATH, anat_func_same_space, BASE_SS_coregistr,TfMRI 
     run_cmd.run(command, diary_file)
     '''
     #################################### production of Mean image ####################################
-
+    print(ffMRI_runMean_inRef_list1)
     mean_haxby = mean_img(ffMRI_runMean_inRef_list1)
     mean_haxby.to_filename(Mean_Image)
     dictionary = {"Sources": ffMRI_runMean_inRef_list1,

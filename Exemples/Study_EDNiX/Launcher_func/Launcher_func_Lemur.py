@@ -22,7 +22,7 @@ species    = 'Mouselemur'
 reference  = 'EDNiX'
 addatlas   = ''
 # choose if you want to select or remove ID from you analysis
-list_to_keep = [('263BCE', '01')]
+list_to_keep = []
 list_to_remove = []
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
@@ -47,9 +47,9 @@ creat_study_template = True # True or False
 doWARPonfunc = 'header'
 resting_or_task = 'resting'  # 'resting' or 'task'
 anat_func_same_space = False # True or False
-type_of_transform = 'SyNBoldAff'
-aff_metric_ants_Transl = 'MI' # string
-aff_metric_ants = 'MI'
+type_of_transform = 'BOLDAffine'
+aff_metric_ants_Transl = 'mattes' # string
+aff_metric_ants = 'meansquares'
 do_anat_to_func = True # True or False
 dilate_mask=0
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)

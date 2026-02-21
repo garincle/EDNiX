@@ -28,7 +28,7 @@ endfmri = '*_task-rest_*.nii.gz' # string
 endjson = '*_task-rest_*.json' # string
 endmap = '*_mapff.nii.gz' # string
 humanPosition     = ['']
-orientation       = 'RPS' # "LPI" or ''
+orientation       = 'LSP' # "LPI" or ''
 animalPosition    = [''] # valid only for species smaller than humans
 ## prior anat processing
 coregistration_longitudinal = False #True or False
@@ -39,7 +39,7 @@ TfMRI = 'T1w' # string
 Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
-anat_func_same_space = False # True or False
+anat_func_same_space = True # True or False
 type_of_transform = 'BOLDAffine'
 aff_metric_ants_Transl = 'mattes' # string
 aff_metric_ants = 'mattes'
@@ -56,10 +56,10 @@ smoothSBA = 3
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 ############ Right in a list format the steps that you want to skip
-doWARPonfunc = 'header'
+doWARPonfunc = 'WARP'
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = ['itk_1', 'itk_2', 'Clean']
+Skip_step = ['itk_1','Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,

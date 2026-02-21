@@ -20,14 +20,17 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
             path_ref = opj(dirpath, folder_name[0])
 
     if 'path_ref' not in locals() or not path_ref:
-        raise ValueError("path_ref is not defined — atlas path or species or MAIN_PATH is likely incorrect.")
-
+        raise ValueError("path_ref is not defined — atlas path or species or MAIN_PATH is likely incorrect. " +
+                         'specie = ' + str(specie) + ' path_ATLAS = ' + str(path_ATLAS) + ' dirpath = ' + str(
+            dirpath) + ' dirnames = ' + str(dirnames))
 
     path_label_code = opj(path_ref, 'label_code')
     if 'T1' in type_norm:
         suffix_template = 'T1w'
-    if 'T2' in type_norm:
+    elif 'T2' in type_norm:
         suffix_template = 'T2w'
+    else:
+        raise ValueError("type norm should at least contain the string 'T1' or 'T2', otherwise it can not be detected as such in the pipeline")
 
     # references ########################################################################################################
 
@@ -74,7 +77,7 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
             WM = opj(BASE_priors_folder, BALSAname + '_label-WM_probseg.nii.gz')
             Aseg_ref = opj(BASE_atlas_folder, BALSAname + '_seg-4FS_dseg.nii.gz')
 
-    
+
     elif specie == 'Chimpanzee':
         FS_refs          = opj(FS_tools, 'standard_mesh_atlases_chimp')
         BALSAname        = 'CY29'

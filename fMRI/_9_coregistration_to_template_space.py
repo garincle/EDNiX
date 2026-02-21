@@ -37,13 +37,11 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
         for i in range(int(nb_run)):
             root_RS = extract_filename(RS[i])
             if ope(opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')) == False:
-                residual = opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')
                 residual_anat = opj(dir_prepro_acpc_postprocessed, root_RS + '_space-acpc-anat_desc-fMRI_residual.nii.gz')
-                residual_template = opj(dir_prepro_template_postprocessed, root_RS + '_space-acpc-anat_desc-fMRI_residual.nii.gz')
+                residual_template = opj(dir_prepro_template_postprocessed, root_RS + '_space-acpc-template_desc-fMRI_residual.nii.gz')
             else:
-                residual = opj(dir_prepro_orig_postprocessed, root_RS + '_space-acpc-func_desc-fMRI_residual.nii.gz')
                 residual_anat = opj(dir_prepro_acpc_postprocessed, root_RS + '_space-acpc-anat_desc-fMRI_residual.nii.gz')
-                residual_template = opj(dir_prepro_template_postprocessed, root_RS + '_space-acpc-anat_desc-fMRI_residual.nii.gz')
+                residual_template = opj(dir_prepro_template_postprocessed, root_RS + '_space-acpc-template_desc-fMRI_residual.nii.gz')
 
             command = (sing_afni + '3dcalc' + overwrite + ' -a ' + residual_anat +
                        ' -prefix ' + residual_template + ' -expr "a"')
