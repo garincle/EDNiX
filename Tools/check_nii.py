@@ -126,8 +126,8 @@ def resamp(source,target,imgtype,path_code,labelname,diary_file,sing_wb):
         dummy = resample_to_img(source, target, interpolation=interp)
         dummy.to_filename(source)
         extracted_data = nib.load(source).get_fdata()
-        labeled_img2 = new_img_like(target, extracted_data, copy_header=True)
-        labeled_img2.to_filename(source)
+        #labeled_img2 = new_img_like(target, extracted_data, copy_header=True)
+        #labeled_img2.to_filename(source)
 
         if imgtype == 'label':
             cmd = (sing_wb + 'wb_command -volume-label-import' + ' ' + source +

@@ -40,7 +40,7 @@ TfMRI = 'T2w' # string
 Method_mask_func = '3dSkullStrip_monkey' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
-anat_func_same_space = False # True or False
+anat_func_same_space = True # True or False
 type_of_transform = 'SyNBoldAff'
 aff_metric_ants_Transl = 'MI' # string
 aff_metric_ants = 'MI'
@@ -57,7 +57,7 @@ smoothSBA = 3
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 ############ Right in a list format the steps that you want to skip
-doWARPonfunc = False
+doWARPonfunc = 'WARP'
 resting_or_task = 'resting'  # 'resting' or 'task'
 
 Skip_step = [1,'itk_1','itk_2','Clean']
