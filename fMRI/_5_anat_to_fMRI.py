@@ -31,11 +31,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
         cmd.append('-' + direction[i])
         cmd.append(str(vox))
     pad = ' '.join(cmd)
-
-    if IhaveanANAT == True:
-        orig_mask = dir_prepro_acpc_masks
-    else:
-        orig_mask = template_dir_masks
+    orig_mask = dir_prepro_acpc_masks
 
     Mean_Image = opj(dir_prepro_raw_process, 'all_runs_space-func_desc-fMRI_Mean_Image.nii.gz')
     Mean_Image_SS = opj(dir_prepro_raw_process, 'all_runs_space-func_desc-fMRI_Mean_Image_SS.nii.gz')
@@ -62,8 +58,6 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
     masked_img = nib.Nifti1Image(meanImg.get_fdata() * mask_img.get_fdata(), meanImg.affine, meanImg.header)
     nib.save(masked_img, Mean_Image_SS)
 
-    # modify the json file
-    json_file = Mean_Image_SS.replace('.nii.gz', '.json')
     dictionary = {
         "ADD_Sources": [Mean_Image_SS, Prepro_fMRI_mask],
         "ADD_Description": "Skull stripping (Nilearn/Nibabel equivalent of AFNI 3dcalc)."}
@@ -82,7 +76,6 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
     MEAN        = ants.image_read(Mean_Image_SS)
     ANAT        = ants.image_read(anat_res_func)
     mask        = ants.image_read(maskDilatfunc)
-    moving_mask = ants.image_read(Prepro_fMRI_mask)
 
     if 'i' in SED:      restrict = (1,0.1,0.1)
     elif 'j' in SED:    restrict = (0.1,1,0.1)
@@ -92,14 +85,14 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
     if anat_func_same_space == True:
         matrix = opj(dir_transfo, 'acpc_0GenericAffine.mat')
         MEAN_tr = ants.apply_transforms(fixed=ANAT, moving=MEAN, whichtoinvert=[False],
-                                        transformlist=matrix, interpolator='nearestNeighbor')
+                                        transformlist=matrix, interpolator=n_for_ANTS)
     else:
         matrix = Mean_Image_acpc.replace('.nii.gz', '_0GenericAffine.mat')
-        ants.registration(fixed=ANAT, moving=MEAN, type_of_transform='Rigid', #Translation ou Rigid avant!!
+        ants.registration(fixed=ANAT, moving=MEAN, type_of_transform='Rigid', #Translation avant!!
                           aff_metric=aff_metric_ants_Transl,
                           outprefix=Mean_Image_acpc.replace('.nii.gz', '_'))
         MEAN_tr = ants.apply_transforms(fixed=ANAT, moving=MEAN,
-                                        transformlist=matrix, interpolator='nearestNeighbor')
+                                        transformlist=matrix, interpolator=n_for_ANTS)
     print("moving func image to acpc anat space")
     ants.image_write(MEAN_tr, Mean_Image_acpc, ri=False)
     dictionary = {"Sources": [Mean_Image_SS,
@@ -163,7 +156,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
         run_cmd.msg(str(transfo_concat), diary_file, 'ENDC')
     
         MEAN_trAff = ants.apply_transforms(fixed=ANAT, moving=MEAN, transformlist=transfo_concat,
-                                           interpolator='nearestNeighbor')
+                                           interpolator=n_for_ANTS)
         ants.image_write(MEAN_trAff, Mean_Image_unwarped, ri=False)
     
         dictionary = {"Sources": [Mean_Image_acpc,
@@ -222,12 +215,14 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                                 maskDilatfunc,
                                 opj(orig_mask,'Vmask.nii.gz'),
                                 opj(orig_mask,'Wmask.nii.gz'),
-                                opj(orig_mask,'Gmask.nii.gz')],
+                                opj(orig_mask,'Gmask.nii.gz'),
+                                opj(orig_mask,'WBGmask.nii.gz')],
                                [opj(dir_prepro_orig_masks,'mask_ref.nii.gz'),
                                 maskDilat_funcspace,
                                 opj(dir_prepro_orig_masks,'Vmask.nii.gz'),
                                 opj(dir_prepro_orig_masks,'Wmask.nii.gz'),
-                                opj(dir_prepro_orig_masks,'Gmask.nii.gz')]):
+                                opj(dir_prepro_orig_masks,'Gmask.nii.gz'),
+                                opj(dir_prepro_orig_masks,'WBGmask.nii.gz')]):
         if ope(input1):
             if do_anat_to_func == True:
                 # mask
@@ -247,6 +242,9 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                            ' -dxyz ' + delta_x + ' ' + delta_y + ' ' + delta_z +
                            ' -input ' + input1)
                 run_cmd.run(command, diary_file)
+                check_nii.resamp(output2, Mean_Image_acpc, 'msk', '', '',
+                                 diary_file,
+                                 '')
             else:
                 nl = 'ERROR: If Anat and Func are not in the same space you need to perform that transformation (do_anat_to_func = True)'
                 run_cmd.msg(nl, diary_file, 'FAIL')
@@ -270,6 +268,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                  ' then no extraction of WM or Ventricles or GM will be possible... pls check that!'
             run_cmd.msg(nl, diary_file, 'WARNING')
     print("Work on list atlas" + str(list_atlases))
+
     #### each available atlas in anat space:
     if len(list_atlases[0]) > 0:
         for atlas in list_atlases[0]:
@@ -277,6 +276,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                 atlasfile = ID + '_seg-' + str(atlas) + '_dseg.nii.gz'
                 input1    = opj(labels_dir, atlasfile)
             else:
+                atlasfile = ID + '_seg-' + str(atlas) + '_dseg.nii.gz'
                 input1    = opj(template_dir_labels, species + '_seg-' + atlas + '_dseg.nii.gz')
             if not ope(input1):
                 nl = 'WARNING: atlas file ' + str(input1) + ' not found!'
@@ -295,6 +295,10 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                 with open(opj(dir_prepro_acpc_labels, atlasfile.replace('.nii.gz','.json')), "w") as outfile:
                     outfile.write(json_object)
                 run_cmd.run(command, diary_file)
+
+                check_nii.resamp_no_check(opj(dir_prepro_acpc_labels, atlasfile), Mean_Image_acpc, 'msk', '', '',
+                                 diary_file,
+                                 '')
 
                 if do_anat_to_func == True:
                     ## in func space
@@ -333,6 +337,9 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                     with open(opj(dir_prepro_orig_labels, atlasfile.replace('.nii.gz', '.json')), "w") as outfile:
                         outfile.write(json_object)
                     run_cmd.run(command, diary_file)
+                    check_nii.resamp_no_check(opj(dir_prepro_acpc_labels, atlasfile), Mean_Image_acpc, 'msk', '', '',
+                                              diary_file,
+                                              '')
     else:
         nl = 'WARNING: list_atlases is empty!'
         run_cmd.msg(nl, diary_file, 'WARNING')
@@ -356,6 +363,10 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
     with open(Mean_Image_res_anat.replace('.nii.gz','.json'), "w") as outfile:
         outfile.write(json_object)
     run_cmd.run(command, diary_file)
+
+    check_nii.resamp(Mean_Image_res_anat, Mean_Image_acpc, 'anat', '', '',
+                     diary_file,
+                     '')
 
     ### finally mask the func with mask
     for i in range(int(nb_run)):
@@ -387,34 +398,39 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
         fMRI_run_inRef_acpc = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef.nii.gz')
         fMRI_run_inRef_acpc_SS = opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef_SS.nii.gz')
 
+        outpuprefix_motion_folder = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction')
+        mat_files_pattern = opj(outpuprefix_motion_folder, 'img*.mat')
+
         imagetype = [3, 2]
         for image_to_send_acpc, image_to_creat_acpc, imagetype in zip([fMRI_BASE, fMRI_BASE_Mean], [fMRI_run_inRef_acpc, fMRI_runMean_inRef_acpc], imagetype):
             additional_transformations = []
-            if root_RS == root_RS_ref and recordings == 'very_old' and doWARPonfunc in ['WARP', 'header']:  # do not process ref not corrected...
-                # pas de transfo run to MEAN
-                print('No transformation for the reference run')
-            else:
-                fMRI_run_inRef_WARP = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-fMRI_run_inRef1Warp.nii.gz')
-                fMRI_run_inRef_mat = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-fMRI_run_inRef0GenericAffine.mat')
-
-                # AJOUTER DANS L'ORDRE INVERSE
-                additional_transformations.append(fMRI_run_inRef_WARP)  # 3. Warp (appliqué en premier)
-                additional_transformations.append(fMRI_run_inRef_mat)  # 2. Affine
-
             if anat_func_same_space == True:
                 matrix = opj(dir_transfo, 'acpc_0GenericAffine.mat')
             else:
                 matrix = Mean_Image_acpc.replace('.nii.gz', '_0GenericAffine.mat')
-
             additional_transformations.append(matrix)
 
-            print(additional_transformations)
+            if root_RS == root_RS_ref and recordings == 'very_old' and doWARPonfunc in ['WARP', 'header']:  # do not process ref not corrected...
+                # pas de transfo run to MEAN
+                print('No transformation for the reference run')
+            else:
+                #fMRI_run_inRef_WARP = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-fMRI_run_inRef1Warp.nii.gz')
+                fMRI_run_inRef_mat = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-fMRI_run_inRef0GenericAffine.mat')
+
+                # AJOUTER DANS L'ORDRE INVERSE
+                #additional_transformations.append(fMRI_run_inRef_WARP)  # 3. Warp (appliqué en premier)
+                additional_transformations.append(fMRI_run_inRef_mat)  # 2. Affine
+
             if imagetype == 3:
+                print(image_to_send_acpc)
+                print(opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef'))
+                print(opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction_*.mat'))
+                print(additional_transformations)
                 transfo_for_func.apply_motion_correction_and_transforms(
                     input_4d=image_to_send_acpc,
                     reference_image=Mean_Image_acpc,
                     output_4d=opj(dir_prepro_orig_process, root_RS + '_space-acpc-func_desc-fMRI_run_inRef'),
-                    mat_files_pattern=opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-motion_correction_*.mat'),
+                    mat_files_pattern=mat_files_pattern,
                     additional_transformations=additional_transformations,
                     TR=TR_val,
                     sing_afni=sing_afni,
@@ -435,6 +451,10 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                     outfile.write(json_object)
 
             elif imagetype == 2:
+                print(Mean_Image_acpc)
+                print(image_to_send_acpc)
+                print(additional_transformations)
+                print(n_for_ANTS)
                 FUNCACPC = ants.image_read(Mean_Image_acpc)
                 FUNC = ants.image_read(image_to_send_acpc)
                 MEAN_tr = ants.apply_transforms(fixed=FUNCACPC, moving=FUNC,

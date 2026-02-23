@@ -78,9 +78,13 @@ def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_
         with open(fMRI_runMean_unwarped.replace('.nii.gz', '.json'), "w") as outfile:
             outfile.write(json_object)
 
+        if doWARPonfunc in ['WARP', 'header']:
+            doWARPonfunc_spe = str(doWARPonfunc)
+        else:
+            doWARPonfunc_spe = 'WARP'
         # Fix orientation
         _2b_fix_orient.fix_orient(runMean_unwarped_reoriented, fMRI_runMean_unwarped, list_RS,
-                                  animalPosition, humanPosition, orientation, True, sing_afni, diary_file)
+                                  animalPosition, humanPosition, orientation, doWARPonfunc_spe, sing_afni, diary_file)
 
     ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ### ### ### #### ###
     ###                                              fix header problems                                                                ###
@@ -112,6 +116,7 @@ def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_
         root_RS = extract_filename(RS[r])
         root_RS_ref = extract_filename(RS[REF_int])
 
+        fMRI_reoriented = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-fMRI_reoriented.nii.gz')
         #### run mean REF, in new orient, and unwarped
         runMean_unwarped_reoriented_Ref = opj(dir_prepro_raw_process, root_RS_ref + '_space-func_desc-runMean_unwarped_reoriented.nii.gz')
         REF = ants.image_read(runMean_unwarped_reoriented_Ref)
@@ -122,7 +127,6 @@ def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_
         #### result of the co-registration
         fMRI_runMean_inRef = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-fMRI_runMean_inRef.nii.gz')
         fMRI_run_inRef_mat = opj(dir_prepro_raw_matrices, root_RS + '_space-func_desc-fMRI_run_inRef')
-
         fMRI_run_inRef = opj(dir_prepro_raw_process, root_RS + '_space-func_desc-fMRI_run_inRef.nii.gz')
 
         if root_RS == root_RS_ref and recordings == 'very_old' and doWARPonfunc in ['WARP', 'header']:  # do not process ref not corrected...
@@ -151,7 +155,7 @@ def coregist_to_norm(correction_direction, list_RS, dir_prepro_fmap, dir_prepro_
             # 1.0 calculate co-registration mean image ref to mean image func
             IMG = ants.image_read(fMRI_runMean_reoriented)
             mTx = ants.registration(fixed=REF, moving=IMG,
-                                    type_of_transform='SyNCC',
+                                    type_of_transform='BOLDRigid',
                                     initial_transform=None,
                                     outprefix=fMRI_run_inRef_mat)
 

@@ -22,7 +22,7 @@ import anat.skullstrip.Skullstrip_method
 def create_indiv_template_brain(dir_prepro, list_transfo, ID, Session, listTimage, volumes_dir,
                                 masking_img, brain_skullstrip_2,masks_dir, BASE_SS_coregistr, BASE_SS_mask,
                                 check_visualy_final_mask,bids_dir,MNIBcorrect_indiv,sing_afni,sing_fsl,sing_fs, sing_itk,
-                                sing_synstrip,Unetpath,diary_file,preftool):
+                                sing_synstrip,Unetpath, Skip_step, diary_file,preftool):
     dir_prepro, list_transfo, ID,
     Session, listTimage, volumes_dir, masking_img,
     brain_skullstrip_2, masks_dir, BASE_SS_coregistr,

@@ -21,7 +21,7 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Human/ds004856/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Human/ds004856/'))
 # which format ?
 BIDStype = 'sub-{ID}_ses-{Session}_{Timage}.nii*'
 
@@ -31,7 +31,7 @@ allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], s
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 
 # choose if you want to select or remove ID from you analysis:
-list_to_keep   = [('408', '1')]
+list_to_keep   = []
 list_to_remove = []
 
 species    = 'Human'
@@ -74,7 +74,7 @@ fMRImasks     = 'aseg' # must be aseg or custom
 Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
-    align={'type_of_transform': 'Rigid', 'affmetric': 'mattes', 'affmetricT': 'mattes'},
+    align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
     coreg={'type_of_transform': 'SyNCC', 'affmetric': '', 'affmetricT': ''})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
@@ -97,8 +97,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = [1,2,3,4,5,6,7,'itk_2', 'flat_map', 'Clean']
-
+Skip_step = [1,2,'itk_1','itk_2','itk_3','flat_map', 'Clean']
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################
@@ -124,6 +123,6 @@ Plot_BIDS_surface_for_QC.create_surface_qc_summary(
     sing_wb=sing_wb,
     bids_root=bids_dir,
     output_dir=bids_dir + "/QC/Surface",
-    template_scene=bids_dir + "/sub-301105/ses-1/anat/native/surfaces/Native_resol/Exemple1.scene",
-    scene_ID_name="301105",
+    template_scene=bids_dir + "/sub-408/ses-1/anat/native/surfaces/Native_resol/Exemple1.scene",
+    scene_ID_name="408",
     scene_name="Exemple1")

@@ -19,7 +19,8 @@ allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['func'], s
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
-list_to_remove = []
+list_to_remove = [('10', '1')]
+#
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
 #### fMRI pre-treatment
@@ -42,9 +43,9 @@ Method_mask_func = 'NoSkullStrip' # string 3dAllineate or nilearn or creat a man
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = False # True or False
-type_of_transform = 'SyNBoldAff'
-aff_metric_ants_Transl = 'mattes' # string
-aff_metric_ants = 'MI'
+type_of_transform = 'SyNCC'
+aff_metric_ants_Transl = 'CC' # string
+aff_metric_ants = 'CC'
 do_anat_to_func = True # True or False
 Slice_timing_info = 'Auto'
 ##### if you don't have an anat then template will be the same as anat...
@@ -57,10 +58,10 @@ smoothSBA = 0.4
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 selected_atlases = [['pcc', 0]]  # Using NEW VERSION format (single atlas)
 ############ Right in a list format the steps that you want to skip
-doWARPonfunc = False
+doWARPonfunc = 'WARP'
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = [1,2,10,16,'itk_1', 'itk_2', 'Clean']
+Skip_step = [1,'itk_1','itk_2', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
@@ -68,7 +69,7 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     Slice_timing_info,
                     TfMRI, type_norm, creat_study_template,
                     anat_func_same_space, coregistration_longitudinal,
-                    Method_mask_func, do_anat_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
+                    Method_mask_func, extra_erode=0, do_anat_to_func=do_anat_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
                     ntimepoint_treshold=100, REF_int=0, T1_eq=5, correction_direction='Auto', overwrite_option=True,
                     DwellT='Auto', SED='Auto', TR=2, TRT='Auto',
                     nb_ICA_run=20, ICA_cleaning='Skip',

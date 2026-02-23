@@ -12,7 +12,7 @@ def _itk_check_masks(dir_prepro_raw_masks, dir_prepro_raw_process, ID, sing_itk,
     nl = '##  Working on step ' + str(4) + '(function: _itk_check_masks).  ##'
     run_cmd.msg(nl, diary_file, 'HEADER')
 
-    final_mask = opj(dir_prepro_raw_masks, ID + '_final_mask_orig.nii.gz')
+    final_mask = opj(dir_prepro_raw_masks, ID + '_final_mask.nii.gz')
     Prepro_fMRI_mask = opj(dir_prepro_raw_masks, ID + '_fMRI_mask.nii.gz')
     Mean_Image = opj(dir_prepro_raw_process, 'all_runs_space-func_desc-fMRI_Mean_Image.nii.gz')
 

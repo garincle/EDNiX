@@ -11,7 +11,7 @@ from Tools import run_cmd
 
 def comphd(img1,img2):
     # check quality
-    hd1 = ants.image_headevr_info(img1)
+    hd1 = ants.image_header_info(img1)
     hd2 = ants.image_header_info(img2)
     test = []
     test.append(hd1['dimensions'][0:3] == hd2['dimensions'][0:3])
@@ -113,7 +113,7 @@ def resamp(source,target,imgtype,path_code,labelname,diary_file,sing_wb):
     else:
         interp = 'continuous'
 
-    differences = compare_headers(source, target, fields_to_compare=None, tolerance=1e-6, check_obliquity=True)
+    differences = compare_headers(source, target, fields_to_compare=fields_to_compare, tolerance=1e-6, check_obliquity=True)
 
     if differences:
         # Print differences
@@ -126,8 +126,8 @@ def resamp(source,target,imgtype,path_code,labelname,diary_file,sing_wb):
         dummy = resample_to_img(source, target, interpolation=interp)
         dummy.to_filename(source)
         extracted_data = nib.load(source).get_fdata()
-        labeled_img2 = new_img_like(target, extracted_data, copy_header=True)
-        labeled_img2.to_filename(source)
+        #labeled_img2 = new_img_like(target, extracted_data, copy_header=True)
+        #labeled_img2.to_filename(source)
 
         if imgtype == 'label':
             cmd = (sing_wb + 'wb_command -volume-label-import' + ' ' + source +
@@ -151,7 +151,7 @@ def resamp_no_check(source,target,imgtype,path_code,labelname,diary_file,sing_wb
     labeled_img2.to_filename(source)
 
     if imgtype == 'label':
-        cmd = (sing_wb + 'wb_command -volume-label-iimgtypemport' + ' ' + source +
+        cmd = (sing_wb + 'wb_command -volume-label-import' + ' ' + source +
                ' ' + opj(path_code, labelname + '_label.txt') + ' ' + source + ' -drop-unused-labels')
         run_cmd.run(cmd, diary_file)
 

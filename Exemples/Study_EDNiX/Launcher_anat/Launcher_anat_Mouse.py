@@ -14,7 +14,7 @@ from anat import _0_Pipeline_launcher
 from anat.load_transfo_parameters import build_transfos
 from Tools import Load_EDNiX_requirement
 from Plotting import Plot_BIDS_surface_for_QC
-
+from Tools import Load_subject_with_BIDS, load_bids
 ########################################################################################################################
 #                                       Set the pipeline parameters (see manual.....)                                  #
 ########################################################################################################################
@@ -22,27 +22,19 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Mouse/BIDS_Gd/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouse/BIDS_Gd/'))
 
 # which format ?
 BIDStype = 1
 
-########### Subject loader with BIDS  ##############
-layout = BIDSLayout(bids_dir, validate=False)
-report = BIDSReport(layout)
-df = layout.to_df()
-df.head()
-
-#### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
-allinfo_study_c = df[(df['suffix'] == 'T2w') & (df['extension'] == '.nii.gz')]
-
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
 ### select the subject, session to process
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
+
 
 # choose if you want to select or remove ID from you analysis:
 list_to_keep   = []
 list_to_remove = []
-
 species    = 'Mouse'
 
 # is it a longitudinal study ?
@@ -51,7 +43,7 @@ coregistration_longitudinal = False
 which_on  = 'all'                       # "all" or "max"
 
 # create  a study template
-creat_study_template  = True
+creat_study_template  = False
 
 #### Choose to normalize using T1 or T2
 
@@ -93,8 +85,8 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 Align_img_to_template = 'Ants'
 list_transfo = build_transfos(
     align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
-    coreg={'type_of_transform': 'BOLDAffine', 'affmetric': '', 'affmetricT': ''},
-    stdyT={'type_of_transform': 'SyN', 'affmetric': '', 'affmetricT': ''})
+    coreg={'type_of_transform': 'SyNCC', 'affmetric': 'MI', 'affmetricT': 'MI'},
+    stdyT={'type_of_transform': 'SyNCC', 'affmetric': '', 'affmetricT': ''})
 
 ########################################################################################################################
 #                                                                                                                      #
@@ -116,7 +108,7 @@ list_transfo = build_transfos(
 
 ########################################################################################################################
 
-Skip_step = [1,2,3,4,5,6,'itk_2', 'flat_map', 'Clean']
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,'itk_1','itk_2','flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
@@ -135,6 +127,7 @@ _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
 
 
+
 ### Surface QC summary creation --------------------------------------------------------------------------------
 # Function 1: Load EDNiX requirements
 sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _, sing_synstrip, Unetpath = Load_EDNiX_requirement.load_requirement(
@@ -144,6 +137,6 @@ Plot_BIDS_surface_for_QC.create_surface_qc_summary(
     sing_wb=sing_wb,
     bids_root=bids_dir,
     output_dir=bids_dir + "/QC/Surface",
-    template_scene=bids_dir + "/sub-jgrAesMEDISOc22r/ses-2/anat/native/surfaces/Native_resol/Exemple1.scene",
-    scene_ID_name="jgrAesMEDISOc22r",
+    template_scene=bids_dir + "/sub-jgrAesAWc11L/ses-1/anat/native/surfaces/Native_resol/Exemple1.scene",
+    scene_ID_name="jgrAesAWc11L",
     scene_name="Exemple1")

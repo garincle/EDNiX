@@ -96,8 +96,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #   Block3: step 200 (QC itksnap)                                                                                      #
 #                                                                                                                      #
 ########################################################################################################################
-
-Skip_step = ['itk_2', 'flat_map', 'Clean']
+Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
@@ -124,6 +123,6 @@ Plot_BIDS_surface_for_QC.create_surface_qc_summary(
     sing_wb=sing_wb,
     bids_root=bids_dir,
     output_dir=bids_dir + "/QC/Surface",
-    template_scene=bids_dir + "/sub-301105/ses-1/anat/native/surfaces/Native_resol/Exemple1.scene",
-    scene_ID_name="301105",
+    template_scene=bids_dir + "/sub-Elak/ses-1/anat/native/surfaces/Native_resol/Exemple1.scene",
+    scene_ID_name="Elak",
     scene_name="Exemple1")

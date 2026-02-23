@@ -6,16 +6,37 @@ from QC_group import Extract_surfaces_from_BIDS
 from Tools import Load_EDNiX_requirement
 
 # Setup paths
-MAIN_PATH = opj('/', 'srv', 'projects', 'easymribrain', 'code', 'EDNiX_Pilote', 'EDNiX_WIP')
+MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 reftemplate_path = opj(os.path.dirname(MAIN_PATH), "Atlases_library")
 
-bids_dirs = {'Mouse': "/srv/projects/easymribrain/scratch/Mouse/BIDS_Gd/",
-    'Mouse_lemur': "/srv/projects/easymribrain/scratch/Mouse_lemur/BIDS_Garin/",
-    'Rat': "/srv/projects/easymribrain/scratch/Rat/BIDS_Gd/"}
+bids_list = ['/scratch2/EDNiX/Rat/BIDS_Gd/',
+              '/scratch2/EDNiX/Dog/BIDS_k9/',
+              '/scratch2/EDNiX/Marmoset/BIDS_NIH_MBM/',
+              '/scratch2/EDNiX/Human/BIDS_ds004513-raw-data/',
+              '/scratch2/EDNiX/Human/ds004856/',
+              '/scratch2/EDNiX/Macaque/BIDS_Cdt_Garin/',
+              '/scratch2/EDNiX/Macaque/BIDS_BenHamed/',
+              '/scratch2/EDNiX/Mouse_lemur/BIDS_Garin/',
+              '/scratch2/EDNiX/Mouse/BIDS_Gd/']
 
-bids_list = ["/srv/projects/easymribrain/scratch/Rat/BIDS_Gd/", "/srv/projects/easymribrain/scratch/Mouse/BIDS_Gd/",
-             "/srv/projects/easymribrain/scratch/Mouse_lemur/BIDS_Garin/"]
+def build_bids_dirs(bids_paths):
+    bids_dirs = {}
+    for p in bids_paths:
+        norm = os.path.normpath(p)
+        parts = norm.split(os.sep)
 
+        # Expect structure: /scratch2/EDNiX/<SPECIES>/<BIDS_DIR>/
+        # Find species as element after "EDNiX"
+        if "EDNiX" in parts:
+            idx = parts.index("EDNiX")
+            if idx + 1 < len(parts):
+                species = parts[idx + 1]
+                bids_dirs[species] = p  # preserve trailing slash
+    return bids_dirs
+
+bids_dirs = build_bids_dirs(bids_list)
+
+print(bids_dirs)
 
 specific_regions_list = [[
         "Isocortex",
@@ -49,7 +70,7 @@ for bids_dir in bids_list:
                                              map_number=map_number)
 
 # Output directory for plots
-output_dir = "/srv/projects/easymribrain/scratch/surface_analysis"
+output_dir = "/scratch2/surface_analysis"
 os.makedirs(output_dir, exist_ok=True)
 
 # Collect all data

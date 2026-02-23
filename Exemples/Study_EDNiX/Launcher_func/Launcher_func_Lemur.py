@@ -34,17 +34,17 @@ endjson = '*_task-rest_*.json' # string
 endmap = '*_map.nii.gz' # string
 humanPosition     = ['']
 animalPosition    = [''] # valid only for species smaller than humans
-orientation = 'LSP' # string
+orientation = 'LIA' # string
 ## prior anat processing
 coregistration_longitudinal = False #True or False
 type_norm = 'T2w' # T1 or T2
 TfMRI = 'T2w' # string
 
 ## masking
-Method_mask_func = '3dSkullStrip_marmoset' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+Method_mask_func = 'muSkullStrip_cross_species' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 creat_study_template = True # True or False
 
-doWARPonfunc = True
+doWARPonfunc = 'header'
 resting_or_task = 'resting'  # 'resting' or 'task'
 anat_func_same_space = False # True or False
 type_of_transform = 'BOLDAffine'
@@ -54,7 +54,7 @@ do_anat_to_func = True # True or False
 dilate_mask=0
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 
-Skip_step = ['itk_1', 'itk_2', 'Clean']
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,'itk_1', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
@@ -62,7 +62,7 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     Slice_timing_info,
                     TfMRI, type_norm, creat_study_template,
                     anat_func_same_space, coregistration_longitudinal,
-                    Method_mask_func, do_anat_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
+                    Method_mask_func, extra_erode=0, do_anat_to_func=do_anat_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
                     ntimepoint_treshold=100, REF_int=0, T1_eq=5, correction_direction='Auto', overwrite_option=True,
                     DwellT='Auto', SED='Auto', TR='Auto', TRT='Auto',
                     nb_ICA_run=20, ICA_cleaning='Skip',

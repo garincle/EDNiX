@@ -86,7 +86,6 @@ def get(ID,datapath,bids_dir,Session,max_ses,suffix,type_norm,BASE_SS, BASE_mask
                                                                                                   coregistration_longitudinal,
                                                                                                   'all')
     TDir = dir_transfo
-
     transfoinv2 = ''
     transfofwd2 = ''
     w2inv2 = ''
@@ -99,13 +98,11 @@ def get(ID,datapath,bids_dir,Session,max_ses,suffix,type_norm,BASE_SS, BASE_mask
     transfofwd4 = ''
     w2inv4 = ''
     w2fwd4 = ''
-
     ref1          = reference
     sourceimage1  = BASE_SS
     sourcemask1   = BASE_mask
     labelname1    = opj(BASE_atlas_folder, species + '_seg-')
     transforname1 = ['native', 'to', ref1, transfoS]
-
     package1 = [ref1, sourceimage1, sourcemask1, labelname1, wb_template_vol, wb_template_masks, wb_template_labels]
 
     if coregistration_longitudinal == True:
@@ -114,7 +111,6 @@ def get(ID,datapath,bids_dir,Session,max_ses,suffix,type_norm,BASE_SS, BASE_mask
                                                                      '', False,
                                                                      True, 'native')
         TDir = transfo_refSession
-
         ref2          = 'refSession'
         sourceimage2  = opj(volumes_refSession, '_'.join([ID, suffix, type_norm]) + '.nii.gz')
         sourcemask2   = opj(mask_refSession, ID + '_mask.nii.gz')
@@ -139,7 +135,6 @@ def get(ID,datapath,bids_dir,Session,max_ses,suffix,type_norm,BASE_SS, BASE_mask
         package3      = [ref3, sourceimage3, sourcemask3, labelname3, wb_studytemplate_vol, wb_studytemplate_masks,
                          wb_studytemplate_labels]
     # set each step of transformation ..................................................................................
-
     # from native to template
     if opi(opj(TDir, '_'.join(transforname1 + ['1InverseWarp.nii.gz']))):
         transfoinv1 = [opj(TDir, '_'.join(transforname1 + ['0GenericAffine.mat'])),
@@ -169,10 +164,8 @@ def get(ID,datapath,bids_dir,Session,max_ses,suffix,type_norm,BASE_SS, BASE_mask
             transfofwd2 = transfoinv2
             w2fwd2      = [False]
 
-
     # from native to study template
     if creat_study_template == True:
-
         if opi(opj(TDir, '_'.join(transforname3 + ['1InverseWarp.nii.gz']))):
             transfoinv3 = [opj(TDir, '_'.join(transforname3 + ['0GenericAffine.mat'])),
                            opj(TDir, '_'.join(transforname3 + ['1InverseWarp.nii.gz']))]
@@ -203,10 +196,8 @@ def get(ID,datapath,bids_dir,Session,max_ses,suffix,type_norm,BASE_SS, BASE_mask
 
     ####################################################################################################################
     # adapt for each situation
-
     if creat_study_template == False:
         if coregistration_longitudinal == False:
-
             # classical situation
             transfoinv = transfoinv1
             w2inv      = w2inv1

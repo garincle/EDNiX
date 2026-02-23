@@ -41,7 +41,7 @@ coregistration_longitudinal = False
 which_on  = 'all'                       # "all" or "max"
 
 # create  a study template
-creat_study_template  = True
+creat_study_template  = False
 
 #### Choose to normalize using T1 or T2
 
@@ -78,8 +78,7 @@ Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
     align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
-    coreg={'type_of_transform': 'SyN', 'affmetric': 'MI', 'affmetricT': 'MI'},
-    stdyT={'type_of_transform': 'SyN', 'affmetric': 'MI', 'affmetricT': 'MI'})
+    coreg={'type_of_transform': 'SyNCC', 'affmetric': 'MI', 'affmetricT': 'MI'})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 
@@ -101,12 +100,11 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = [1,2,3,5,6,10,11,12,13,14,15,16,'itk_2', 'flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################
-
+Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
 _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      MAIN_PATH, bids_dir, BIDStype, species,
                      allinfo_study_c, list_to_keep, list_to_remove,
@@ -119,24 +117,7 @@ _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      transfo_message='do_as_I_said', force_myelin_same_space=False,
                      check_visualy_final_mask=True, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
 
-Skip_step = [1,2,3,5,6,7,8,9,'itk_2', 'flat_map', 'Clean']
 
-########################################################################################################################
-#                                       Run the preprocessing steps                                                    #
-########################################################################################################################
-
-_0_Pipeline_launcher.preprocess_anat(Skip_step,
-                     MAIN_PATH, bids_dir, BIDStype, species,
-                     allinfo_study_c, list_to_keep, list_to_remove,
-                     type_norm, otheranat, masking_img,
-                     orientation, animalPosition, humanPosition,
-                     coregistration_longitudinal, creat_study_template, which_on,
-                     brain_skullstrip_1, brain_skullstrip_2, template_skullstrip,
-                     list_transfo, Align_img_to_template, MNIBcorrect_indiv,
-                     fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
-                     transfo_message='do_as_I_said', force_myelin_same_space=False,
-                     check_visualy_final_mask=True, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
-'''
 ### Surface QC summary creation --------------------------------------------------------------------------------
 # Function 1: Load EDNiX requirements
 sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _, sing_synstrip, Unetpath = Load_EDNiX_requirement.load_requirement(
@@ -146,7 +127,7 @@ Plot_BIDS_surface_for_QC.create_surface_qc_summary(
     sing_wb=sing_wb,
     bids_root=bids_dir,
     output_dir=bids_dir + "/QC/Surface",
-    template_scene=bids_dir + "/sub-301105/ses-1/anat/native/surfaces/Native_resol/Exemple1.scene",
-    scene_ID_name="301105",
+    template_scene=bids_dir + "/sub-01/ses-1/anat/native/surfaces/Native_resol/Exemple1.scene",
+    scene_ID_name="01",
     scene_name="Exemple1")
-'''
+

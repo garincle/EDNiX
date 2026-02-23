@@ -142,18 +142,6 @@ def create_surface_qc_summary(sing_wb, bids_root, output_dir, template_scene, sc
         else:
             # Just create surface visualization without statistical map
             try:
-                # Create a simple metric file for visualization
-                left_metric = opj(surf_dir, f"{subject_id}_l_surface.func.gii")
-                right_metric = opj(surf_dir, f"{subject_id}_r_surface.func.gii")
-
-                # Create empty metric files for visualization
-                command = f'{sing_wb}wb_command -surface-geodesic-distance-all-to-all "{left_surf}" "{left_metric}"'
-                print(command)
-                spco(command, shell=True)
-                command = f'{sing_wb}wb_command -surface-geodesic-distance-all-to-all "{right_surf}" "{right_metric}"'
-                print(command)
-                spco(command, shell=True)
-
                 # Create scene and plot
                 with open(template_scene, 'r') as f:
                     scenetxt = f.read()

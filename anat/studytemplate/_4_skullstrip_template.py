@@ -17,7 +17,7 @@ from Tools import getpath
 
 from anat.skullstrip import Skullstrip_method
 
-def skullstrip_T(stdy_template,input4mask,output4msk,endname,type_norm,BASE_SS_coregistr, BASE_SS_mask, type_of_transform, aff_metric_ants,
+def skullstrip_T(stdy_template_SS, stdy_template,input4mask,output4msk,endname,type_norm,BASE_SS_coregistr, BASE_SS_mask, type_of_transform, aff_metric_ants,
                  study_template_atlas_folder, template_skullstrip,preftool,
                  check_visualy_final_mask,sing_afni, sing_fsl, sing_fs, sing_itk, sing_synstrip, Unetpath, diary_file):
 
@@ -42,13 +42,26 @@ def skullstrip_T(stdy_template,input4mask,output4msk,endname,type_norm,BASE_SS_c
 
     ## extract brain
     command = (sing_afni + '3dcalc -overwrite -a ' + stdy_template_mask + ' -b ' + input4mask +
-               ' -expr "(a*b)" -prefix ' + stdy_template)
+               ' -expr "(a*b)" -prefix ' + stdy_template_SS)
     run_cmd.do(command, diary_file)
 
     dictionary = {"Sources": [stdy_template_mask,
                               input4mask],
                   "Description": 'Skull stripping.', }
     json_object = json.dumps(dictionary, indent=2)
+    with open(stdy_template_SS.replace('.nii.gz','.json'), "w") as outfile:
+        outfile.write(json_object)
+
+    ## extract brain
+    command = (sing_afni + '3dcalc -overwrite -a ' + input4mask +
+               ' -expr "a" -prefix ' + stdy_template)
+    run_cmd.do(command, diary_file)
+
+    dictionary = {"Sources": [input4mask],
+                  "Description": 'Template orig', }
+    json_object = json.dumps(dictionary, indent=2)
     with open(stdy_template.replace('.nii.gz','.json'), "w") as outfile:
         outfile.write(json_object)
+
+
 

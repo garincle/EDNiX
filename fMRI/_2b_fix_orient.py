@@ -54,38 +54,52 @@ def fix_orient(runMean_reorient, fMRI_runMean_unwarpped, list_RS, animalP, human
     msg, _ = run_cmd.get(cmd, diary_file)
     obli = msg.decode("utf-8").split('\n')[-2]
 
+    print('obli = ' + obli)
+    print('orient = ' + orient)
+
     if obli == '1' and doWARPonfunc=='WARP':
         cmd = sing_afni + '3dWarp -overwrite -deoblique -prefix ' + runMean_reorient + ' ' + fMRI_runMean_unwarpped
+        print(cmd)
         run_cmd.run(cmd, diary_file)
         desc = 'Correction of the obliquity.'
-
+        run_cmd.do(cmd, diary_file)
         cmd = sing_afni + '3dinfo -orient ' + runMean_reorient
         msg, _ = run_cmd.get(cmd, diary_file)
-
         orient = msg.decode("utf-8").split('\n')[-2]
 
     if obli == '1' and doWARPonfunc=='header':
         cmd = sing_afni + '3dcalc -overwrite -a ' + fMRI_runMean_unwarpped + ' -prefix ' + runMean_reorient + ' -expr "a"'
         run_cmd.do(cmd, diary_file)
         desc = 'Copy .'
-
-        cmd = sing_afni + '3drefit -overwrite -deoblique -orient ' + orientation + ' ' +  runMean_reorient
+        print('drefit1')
+        cmd = sing_afni + '3drefit -overwrite -deoblique ' + runMean_reorient
         run_cmd.run(cmd, diary_file)
+        print(cmd)
         desc = 'Correction of the obliquity.'
-
         orient = msg.decode("utf-8").split('\n')[-2]
 
-    else:
+    elif obli == '0':
+        nl = 'info: No debolique will be applied because the image is not oblique'
+        run_cmd.msg(nl, diary_file, 'INFO')
+        cmd = sing_afni + '3dcalc -overwrite -a ' + fMRI_runMean_unwarpped + ' -prefix ' + runMean_reorient + ' -expr "a"'
+        run_cmd.do(cmd, diary_file)
+        desc = 'Copy .'
+
+    elif doWARPonfunc not in ['header', 'WARP']:
+        nl = 'WARNING: No debolique will be applied because doWARPonfunc variable was not "WARP" or "header"'
+        run_cmd.msg(nl, diary_file, 'WARNING')
         cmd = sing_afni + '3dcalc -overwrite -a ' + fMRI_runMean_unwarpped + ' -prefix ' + runMean_reorient + ' -expr "a"'
         run_cmd.do(cmd, diary_file)
         desc = 'Copy .'
 
     if not orientation == '':
+        nl = 'info: applied the wanted orientation: ' + orientation
+        run_cmd.msg(nl, diary_file, 'INFO')
         cmd = sing_afni + '3drefit -overwrite -orient ' + orientation + ' ' + runMean_reorient
         run_cmd.run(cmd, diary_file)
 
     else:
-        if not animalP == 'humanlike':
+        if not animalP[0] == 'humanlike':
             neworient = get_orientation.getreal(humanP, animalP, orient)
             run_cmd.msg('the new orientation will be : ' + neworient, diary_file, 'OKGREEN')
 

@@ -1,16 +1,10 @@
 #import
 import os
-
 opj = os.path.join
 ope = os.path.exists
-
-from Tools import run_cmd
-from Tools import diaryfile
-from Tools import getpath
-
-from anat.loop1 import _1_correct_orient
-from anat.loop1 import _2_clean_anat
-
+from Tools import getpath, diaryfile, run_cmd
+import inspect
+from anat.loop1 import _1_correct_orient, _itk1_QC, _2_clean_anat
 def run(ID, Session, data_path, path_rawanat,BIDStype, listTimage,otheranat, listTimage_orig, type_norm, orientation,IgotbothT1T2, force_myelin_same_space, Align_img_to_template,list_transfo,masking_img,
         brain_skullstrip_1, anat_ref_path, BASE_SS_coregistr, BASE_SS_mask, BASE_SS,check_visualy_each_img,check_visualy_final_mask, overwrite,bids_dir,Skip_step,
         MNIBcorrect_indiv,animalPosition,humanPosition,sing_afni, sing_fsl, sing_fs, sing_itk,sing_wb, sing_synstrip, Unetpath,preftool):
@@ -31,7 +25,22 @@ def run(ID, Session, data_path, path_rawanat,BIDStype, listTimage,otheranat, lis
     if ope(opj(bids_dir, 'QC')) == False: os.makedirs(opj(bids_dir, 'QC'))
 
     diary_file = diaryfile.create(opj(path_anat, str(ID) + ' session ' + str(Session)), NL1)
+    nl = 'INFO: Work on ' + str(ID) + ' session ' + str(Session)
+    launcher_parameters = diaryfile.create(opj(path_anat, str(ID) + 'launcher_parameters session ' + str(Session)),
+                                           nl)
+    frame = inspect.currentframe()
+    args_dict = inspect.getargvalues(frame).locals
 
+    with open(launcher_parameters, "w") as f:
+        f.write("Function: preprocess_data\n")
+        f.write("Effective parameters at runtime:\n\n")
+        for k, v in args_dict.items():
+            if k == "kwargs":
+                for kk, vv in v.items():
+                    f.write(f"- {kk} = {vv}\n")
+            else:
+                f.write(f"- {k} = {v}\n")
+    # ----------------------------------------
 
     if 1 in Skip_step:
         run_cmd.msg('INFO: skip step ' + str(1), diary_file, 'OKGREEN')
@@ -49,7 +58,10 @@ def run(ID, Session, data_path, path_rawanat,BIDStype, listTimage,otheranat, lis
                                                   BASE_SS_coregistr,BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img,
                                                   check_visualy_final_mask,overwrite, anat_ref_path,
                                                   sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb,sing_synstrip,
-                                   Unetpath, diary_file,preftool)
+                                   Unetpath, Skip_step, diary_file,preftool)
 
 
-
+    if 'itk_1' in Skip_step:
+        run_cmd.msg('INFO: skip step ' + str('itk_1'), diary_file, 'OKGREEN')
+    else:
+        _itk1_QC._itk_check_masks(data_path, ID, type_norm, sing_itk, diary_file)

@@ -9,17 +9,17 @@ opj = os.path.join
 MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
 
-species    = 'Marmoset'
+species    = 'Human'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Human/BIDS_ds004513-raw-data/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Human/BIDS_ds004513-raw-data/'))
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T1w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
-list_to_remove = []
-
+list_to_remove = [('s020', 'open'), ('s020', 'closed'), ('s023', 'closed'), ('s037', 'open')]
+#bad registration ('s023', 'closed')
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 #### fMRI pre-treatment
 T1_eq = 5 # int
@@ -27,7 +27,7 @@ REF_int = 0 # int
 ntimepoint_treshold = 100
 endfmri = '*_task-rest_bold.nii.gz' # string
 endjson = '*_task-rest_bold.json' # string
-endmap =  '' # string
+endmap =  '*_xx' # string
 humanPosition     = ['humanlike']
 orientation       = '' # "LPI" or ''
 animalPosition    = ['humanlike'] # valid only for species smaller than humans
@@ -41,9 +41,9 @@ Method_mask_func = '3dSkullStrip' # string 3dAllineate or nilearn or creat a man
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = True # True or False
-type_of_transform = 'SyNRA'
+type_of_transform = 'SyN'
 aff_metric_ants_Transl = 'mattes' # string
-aff_metric_ants = 'MI'
+aff_metric_ants = 'mattes'
 do_anat_to_func = False # True or False
 Slice_timing_info = 'Auto'
 ##### if you don't have an anat then template will be the same as anat...
@@ -57,10 +57,10 @@ smoothSBA = 4
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 ############ Right in a list format the steps that you want to skip
-doWARPonfunc = False
+doWARPonfunc = 'WARP'
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = ['itk_1', 'itk_2', 'Clean']
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,'itk_1','Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
@@ -68,13 +68,13 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     Slice_timing_info,
                     TfMRI, type_norm, creat_study_template,
                     anat_func_same_space, coregistration_longitudinal,
-                    Method_mask_func, do_anat_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
+                    Method_mask_func, extra_erode=0, do_anat_to_func=do_anat_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
                     ntimepoint_treshold=100, REF_int=0, T1_eq=5, correction_direction='Auto', overwrite_option=True,
                     DwellT='Auto', SED='Auto', TR='Auto', TRT='Auto',
                     nb_ICA_run=20, ICA_cleaning='Skip',
                     costAllin='lpa',
                     doWARPonfunc=doWARPonfunc, registration_fast=False, type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
-                    list_to_keep=[], list_to_remove=[], atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
+                    list_to_keep=list_to_keep, list_to_remove=list_to_remove, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
                     reference='EDNiX', post_treatment_method='Grandjean',
                     band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
                     use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',

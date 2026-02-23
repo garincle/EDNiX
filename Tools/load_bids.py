@@ -33,11 +33,11 @@ def Load_BIDS_to_pandas(bids_dir, modalities=None, suffixes=None, extensions=Non
 
     # Set default modalities if not provided
     if modalities is None:
-        modalities = ['anat', 'func', 'dwi', 'fmap']  # Standard BIDS modalities
+        modalities = ['anat', 'func', 'dwi', 'fmap', 'pet']  # Standard BIDS modalities
 
     # Set default suffixes if not provided
     if suffixes is None:
-        suffixes = ['T1w', 'T2w', 'bold', 'dwi', 'epi', 'phasediff', 'magnitude1', 'magnitude2']
+        suffixes = ['T1w', 'T2w', 'bold', 'dwi', 'epi', 'phasediff', 'magnitude1', 'magnitude2', 'pet']
 
     # Set default extensions if not provided
     if extensions is None:

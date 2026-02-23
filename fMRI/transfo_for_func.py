@@ -62,7 +62,8 @@ def apply_motion_correction_and_transforms(input_4d, reference_image, output_4d,
         moving_img = ants.image_read(input_file)
 
         # Construire la liste des transformations pour CE volume
-        transform_list = [mat_file] + additional_transformations
+        transform_list = additional_transformations.copy()  # contient déjà ACPC + (optionnel) run_to_ref
+        transform_list.append(mat_file)  # motion correction AJOUTÉ À LA FIN de la liste
 
         # Appliquer avec ANTs Python (pas de commande shell)
         transformed_img = ants.apply_transforms(

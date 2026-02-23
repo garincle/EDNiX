@@ -177,7 +177,7 @@ def create_qc_figure(output_results, Timage, snr_results, Ref_file,
             display = plotting.plot_anat(anat_filename, axes=ax5,
                                          title='D: Anat-Template registration',
                                          draw_cross=False)
-            display.add_contours(BASE_SS_coregistr, colors='r', linewidths=0.5)
+            display.add_contours(template_in_anat, colors='r', linewidths=0.5)
         except Exception as e:
             print(f"Error creating coverage plot: {str(e)}")
             ax5.axis('off')

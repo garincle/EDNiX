@@ -41,106 +41,86 @@ def preprocess_anat(Skip_step,
                      check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK'):
 
     """
-    Preprocess anat MRI data for a BIDS-compliant study, including orientation,
-    skull-stripping, normalization, template creation, coregistration, and mask generation.
+    Preprocess anatomical MRI data for BIDS-compliant studies, supporting human and non-human datasets.
 
-    The function is designed for both human and non-human datasets (e.g., rodents), supporting
-    longitudinal studies, multi-modal anat acquisitions, and fMRI-related masks. Preprocessing
-    is organized in modular steps that can be selectively skipped.
+    Performs modular preprocessing including orientation correction, skull-stripping, normalization,
+    study template creation, longitudinal coregistration, and fMRI mask generation.
 
-    Parameters
-    ----------
-    Skip_step : list
-        Steps of the pipeline to skip. Can include integers or descriptive strings (e.g., 'itk_1', 'flat_map').
-    MAIN_PATH : str
-        Base path for EDNiX installation and resources.
-    bids_dir : str
-        Path to BIDS-formatted dataset.
-    BIDStype : int
-        Format identifier for BIDS dataset structure.
-    species : str
-        Subject species ('Rat', 'Mouse', 'Human', etc.).
-    allinfo_study_c : pandas.DataFrame
-        DataFrame containing BIDS subject/session information for the study.
-    list_to_keep : list
-        List of (subject, session) tuples to include.
-    list_to_remove : list
-        List of (subject, session) tuples to exclude.
-    type_norm : str
-        Anatomical contrast used for normalization ('T1w' or 'T2w').
-    otheranat : str
-        Optional second anat modality ('T1w' or 'T2w') if available.
-    masking_img : str
-        Image contrast used for masking/skull-stripping (usually same as type_norm).
-    orientation : str
-        Target orientation ('LPI' or '').
-    animalPosition : list
-        Orientation of the animal during scanning (e.g., ['AHF', 'AFF', 'humanlike']).
-    humanPosition : list
-        Orientation of human subjects ('humanlike' or other).
-    coregistration_longitudinal : bool
-        Whether to perform longitudinal coregistration across sessions.
-    creat_study_template : bool
-        Flag to create a study-specific template.
-    which_on : str use all the data or only the last one of each subject
-        Indicates which data to use for the study-specific template: 'all' for all sessions, 'max' for last session only.
-    brain_skullstrip_1 : str
-        First-step skull-stripping method for coarse brain extraction.
-    brain_skullstrip_2 : str
-        Second-step skull-stripping method for fine extraction.
-    template_skullstrip : str
-        Skull-stripping method for study template or session template.
-    list_transfo : dict
-        Transformation parameters for rigid and nonlinear registrations.
-    Align_img_to_template : str
-        Coregistration tool/method (should be "3dAllineate" / "No" / "@Align_Centers" / " Ants").
-    MNIBcorrect_indiv : str
-        Bias field correction method ('N4', 'N3', or '').
-    fMRImasks : str
-        Type of fMRI masks to generate ('aseg' or 'custom').
-    reference : str, optional
-        Reference BIDS dataset or session ('EDNiX' by default).
-    do_fMRImasks : bool, optional
-        Whether to generate fMRI masks (default: True).
-    atlas_followers : list of lists, optional [[], [], [], []]
-        Specifies atlas-following regions for multi-level processing.
-    addatlas : str, optional
-        Additional atlas to include.
-    transfo_message : str, optional
-        Control behavior for transformations ('do_it_for_me' or 'do_as_I_said').
-    force_myelin_same_space : bool, optional
-        Force myelin maps to stay in the same space.
-    check_visualy_final_mask : bool, optional
-        Open QC viewer for the final mask (default: False).
-    check_visualy_each_img : bool, optional
-        Open QC viewer for each anat image (default: False).
-    overwrite_option : bool, optional
-        Overwrite existing files (default: True).
-    preftool : str, optional
-        Preferred visualization tool for QC ('ITK' or 'freeview').
+    :param Skip_step: Steps of the pipeline to skip (integers or descriptive strings)
+    :type Skip_step: list
+    :param MAIN_PATH: Base path for EDNiX installation and resources
+    :type MAIN_PATH: str
+    :param bids_dir: Path to BIDS-formatted dataset
+    :type bids_dir: str
+    :param BIDStype: Format identifier for BIDS dataset structure
+    :type BIDStype: int
+    :param species: Subject species ('Human', 'Rat', 'Mouse', etc. as in Atlases_library/atlas)
+    :type species: str
+    :param allinfo_study_c: DataFrame with subject/session metadata
+    :type allinfo_study_c: pandas.DataFrame
+    :param list_to_keep: List of (subject, session) tuples to include
+    :type list_to_keep: list
+    :param list_to_remove: List of (subject, session) tuples to exclude
+    :type list_to_remove: list
+    :param type_norm: Anatomical contrast for normalization ('T1w' or 'T2w')
+    :type type_norm: str
+    :param otheranat: Optional secondary anatomical contrast
+    :type otheranat: str
+    :param masking_img: Image contrast for masking/skull-stripping
+    :type masking_img: str
+    :param orientation: Target image orientation ('LPI', etc.)
+    :type orientation: str
+    :param animalPosition: Animal positioning during scanning
+    :type animalPosition: list
+    :param humanPosition: Human positioning
+    :type humanPosition: list
+    :param coregistration_longitudinal: Perform longitudinal coregistration
+    :type coregistration_longitudinal: bool
+    :param creat_study_template: Flag to create study-specific template
+    :type creat_study_template: bool
+    :param which_on: Template session selection: 'all' or 'max'
+    :type which_on: str
+    :param brain_skullstrip_1: Coarse skull-stripping method
+    :type brain_skullstrip_1: str
+    :param brain_skullstrip_2: Fine skull-stripping method
+    :type brain_skullstrip_2: str
+    :param template_skullstrip: Skull-stripping method for study/session template
+    :type template_skullstrip: str
+    :param list_transfo: Parameters for rigid and nonlinear transformations
+    :type list_transfo: dict
+    :param Align_img_to_template: Coregistration tool/method
+    :type Align_img_to_template: str
+    :param MNIBcorrect_indiv: Bias field correction method ('N4', 'N3', or '')
+    :type MNIBcorrect_indiv: str
+    :param fMRImasks: Type of fMRI masks to generate ('aseg' or 'custom')
+    :type fMRImasks: str
+    :param reference: Reference dataset or session
+    :type reference: str
+    :param do_fMRImasks: Generate fMRI masks
+    :type do_fMRImasks: bool
+    :param atlas_followers: Multi-level atlas-following regions
+    :type atlas_followers: list of lists
+    :param addatlas: Additional atlas to include
+    :type addatlas: str
+    :param transfo_message: Transformation control ('do_it_for_me' or 'do_as_I_said')
+    :type transfo_message: str
+    :param force_myelin_same_space: Maintain myelin maps in same space
+    :type force_myelin_same_space: bool
+    :param check_visualy_final_mask: Open QC viewer for final mask
+    :type check_visualy_final_mask: bool
+    :param check_visualy_each_img: Open QC viewer for each anatomical image
+    :type check_visualy_each_img: bool
+    :param overwrite_option: Overwrite existing files
+    :type overwrite_option: bool
+    :param preftool: Preferred QC visualization tool ('ITK' or 'freeview')
+    :type preftool: str
 
-    Workflow
-    --------
-    1. Load BIDS dataset and create DataFrame overview.
-    2. Select or exclude subjects and sessions.
-    3. Apply orientation correction and coarse cleaning of images.
-    4. Optionally create a study template and template mask.
-    5. Skull-strip anat images using stepwise methods.
-    6. Normalize images to template space using ANTs or other tools.
-    7. Generate fMRI-related masks and apply atlas transformations.
-    8. Optional QC checks on masks and intermediate results.
-    9. Optional cleaning and final QC visualization.
-
-    Notes
-    -----
-    - Steps are modular; users can skip any by specifying Skip_step.
-    - Supports both animal and human datasets, including longitudinal designs.
-    - Designed for integration with BIDS-formatted datasets for reproducibility.
+    :return: None
     """
 
     print(masking_img)
     (FS_refs, template_dir, reference,balsa_folder, BALSAname, balsa_brainT1,BASE_atlas_folder, BASE_template, BASE_SS,
-     BASE_mask, BASE_Gmask, BASE_Wmask, BASE_Vmask,CSF, GM, WM, Aseg_ref,list_atlases, path_label_code,all_ID,
+     BASE_mask, BASE_Gmask, BASE_WBGmask, BASE_Wmask, BASE_Vmask,CSF, GM, WM, Aseg_ref,list_atlases, path_label_code,all_ID,
      all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max,
      fs_tools,reftemplate_path,MNIBcorrect_indiv, masking_img) = set_launcher.get(MAIN_PATH,bids_dir,allinfo_study_c,species,list_to_keep,
                                                                    list_to_remove,reference,type_norm,MNIBcorrect_indiv, masking_img, atlas_followers)
