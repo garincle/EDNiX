@@ -23,7 +23,7 @@ antswarp    = '1Warp.nii.gz'
 antsinvwarp = '1InverseWarp.nii.gz'
 
 
-def add(specie,animal,newAtlasfile,newAtlasAnatfile,labelname,sameAnimal,doT,wFS,LR,diary_name,path_ATLAS, fs_tools,cmd_mris,sing_afni,sing_fs,export_fs,sing_wb):
+def add(specie,animal,newAtlasfile,newAtlasAnatfile,labelname,sameAnimal,doT,wFS,LR,diary_name,path_ATLAS, fs_tools,cmd_mris,path_code_label,sing_afni,sing_fs,export_fs,sing_wb):
 
     '''
     add_atlas_to_spec takes a labelled volume file fr oma an atlas and create a new volume file readable for WB and the corresponding labelled surfaces
