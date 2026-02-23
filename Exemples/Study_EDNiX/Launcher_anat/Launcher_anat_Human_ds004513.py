@@ -62,7 +62,7 @@ animalPosition    = ['humanlike'] # valid only for species smaller than humans
 # step 1 : coarse method (use for cropping and acpc setting)
 brain_skullstrip_1  = 'synthstrip'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
 # step 2 : precise method
-brain_skullstrip_2  = 'NoSkullStrip'            # bet2_ANTS or MachinL
+brain_skullstrip_2  = 'synthstrip'            # bet2_ANTS or MachinL
 # step 3 : valid only for study or session template :
 template_skullstrip = 'NoSkullStrip'
 
@@ -99,7 +99,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = [1,2,3,4,5,6,7,8,9,10,'itk_2', 'flat_map', 'Clean']
+Skip_step = [1,2,'itk_1','itk_2','itk_3','flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
@@ -126,6 +126,6 @@ Plot_BIDS_surface_for_QC.create_surface_qc_summary(
     sing_wb=sing_wb,
     bids_root=bids_dir,
     output_dir=bids_dir + "/QC/Surface",
-    template_scene=bids_dir + "/sub-301105/ses-1/anat/native/surfaces/Native_resol/Exemple1.scene",
-    scene_ID_name="301105",
+    template_scene=bids_dir + "/sub-s003/ses-closed/anat/native/surfaces/Native_resol/Exemple1.scene",
+    scene_ID_name="s003",
     scene_name="Exemple1")

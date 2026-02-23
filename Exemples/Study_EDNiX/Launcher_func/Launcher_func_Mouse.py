@@ -11,17 +11,18 @@ from Tools import Load_subject_with_BIDS, load_bids
 species = 'Mouse'
 ## linux ##FS_dir
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch/Mouse/BIDS_Gd/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouse/BIDS_Gd/'))
 
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
-
 ### select the subject, session to process
-Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
+Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
+
 # choose if you want to select or remove ID from you analysis
 list_to_keep = []
 list_to_remove = []
-#problem sub-jgrAesAWc21R1L_ses-2 loading image -jgrAesMEDISOc21R1L
+#problem sub-jgrAesAWc11R ses-2, sub-jgrAesAWc12R ses-2
+# L_ses-2 loading image -jgrAesMEDISOc21R1L
 #### fMRI pre-treatment
 T1_eq = 5 # int
 REF_int = 0 # int
@@ -40,15 +41,15 @@ TfMRI = 'acq-RARE_T2w' # string
 ### if you don't have any anat image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
 Method_mask_func = 'Vol_sammba_400' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
 #### ANTs function of the co-registration HammingWindowedSinc is advised
-anat_func_same_space = True # True or False
-type_of_transform = 'BOLDAffine'
+anat_func_same_space = False # True or False
+type_of_transform = 'BOLDRigid'
 aff_metric_ants_Transl = 'mattes' # string
 aff_metric_ants = 'mattes'
-do_anat_to_func = False # True or False
+do_anat_to_func = True # True or False
 Slice_timing_info = '-tpattern alt+z'
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
-creat_study_template = True # True or Fals
+creat_study_template = False # True or Fals
 blur = 0.5 # float
 #Dilate the functional brain mask by n layers
 dilate_mask = 2 # int
@@ -57,10 +58,9 @@ smoothSBA = 0.5
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 ############ Right in a list format the steps that you want to skip
-doWARPonfunc = False
+doWARPonfunc = 'header'
 resting_or_task = 'resting'  # 'resting' or 'task'
-
-Skip_step = [1,2,'itk_1', 'itk_2', 'Clean']
+Skip_step = ['itk_1','itk_2','Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
@@ -68,7 +68,7 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     Slice_timing_info,
                     TfMRI, type_norm, creat_study_template,
                     anat_func_same_space, coregistration_longitudinal,
-                    Method_mask_func, do_anat_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
+                    Method_mask_func, extra_erode=0, do_anat_to_func=do_anat_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
                     ntimepoint_treshold=100, REF_int=0, T1_eq=5, correction_direction='Auto', overwrite_option=True,
                     DwellT='Auto', SED='Auto', TR='Auto', TRT='Auto',
                     nb_ICA_run=20, ICA_cleaning='Skip',

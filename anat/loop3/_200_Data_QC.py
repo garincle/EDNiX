@@ -3,7 +3,7 @@
 import os
 import subprocess
 import datetime
-
+from Tools import run_cmd
 
 class bcolors:
     HEADER = '\033[95m'
@@ -24,7 +24,7 @@ opd = os.path.dirname
 ope = os.path.exists
 
 
-def _itk_check_masks(volumes_dir, masks_dir, ID, type_norm, itk_sif,diary_file):
+def _itk_check_masks(info, end_maskname, brain_mask, volumes_dir, masks_dir, ID, type_norm, itk_sif,diary_file):
     ct = datetime.datetime.now()
     nl = 'Run anat._200_Data_QC.clean._itk_check_masks'
     diary = open(diary_file, "a")
@@ -39,14 +39,14 @@ def _itk_check_masks(volumes_dir, masks_dir, ID, type_norm, itk_sif,diary_file):
         else:
             print(bcolors.OKGREEN + "INFO: Command failed with return code:" + bcolors.ENDC, result.returncode)
 
-    if ope(opj(volumes_dir, ID + '_space-acpc_desc-SS_res-iso_' + type_norm + '.nii.gz')) is True:
-        command = (itk_sif + 'itksnap -g ' + opj(volumes_dir, ID + '_space-acpc_desc-SS_res-iso_' + type_norm + '.nii.gz') +
-                   ' -s ' + opj(masks_dir, ID + '_desc-Gray_mask.nii.gz'))
-        run_command_and_wait(command)
-    else:
-        command = (itk_sif + 'itksnap -g ' + opj(volumes_dir, ID + '_space-acpc_desc-template_' + type_norm + '.nii.gz') +
-                   ' -s ' + opj(masks_dir, ID + '_desc-Gray_mask.nii.gz'))
-        run_command_and_wait(command)
+    nl = ('INFO: If you can not find a good solution for Skullstriping due to bad image quality, you can always modify it by hands and save it as: ' +
+          opj(masks_dir,end_maskname))
+    run_cmd.msg(nl, diary_file,'OKGREEN')
+
+    command = (itk_sif + 'itksnap -g ' + opj(volumes_dir, ID + '_space-acpc_desc-template_' + type_norm + '.nii.gz') +
+               ' -o ' + opj(info[0][4], '_'.join([info[0][0], 'space-acpc_desc-SS', type_norm]) + '.nii.gz')
+               + ' -s ' + brain_mask)
+    run_command_and_wait(command)
 
     diary.write(f'\n')
     diary.close()

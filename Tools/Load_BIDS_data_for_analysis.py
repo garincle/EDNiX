@@ -198,17 +198,18 @@ def reverse_load_data_bids(bids_dir, network_quality="all", file_pattern="-templ
         subject = match.group(1)
         session = match.group(2)
 
-        all_ID.append(subject)
-        all_Session.append(session)
-        all_data_path.append(str(parent_dir))
-        subject_sessions[subject].add(session)
-        subject_session_path[(subject, session)].append(str(parent_dir))
 
         if network_quality == 'all':
             images_dir.append(str(full_path))
+            all_ID.append(subject)
+            all_Session.append(session)
+            all_data_path.append(str(parent_dir))
+            subject_sessions[subject].add(session)
+            subject_session_path[(subject, session)].append(str(parent_dir))
+
         elif network_quality in ['Spurious', 'Specific', 'No', 'Unspecific']:
             # Path to the JSON file (adjust as needed)
-            json_path = f"{opd(parent_dir)}/01_funcspace/10_Results/fMRI_QC_SNR/*_QC_values.json"
+            json_path = f"{opd(opd(opd(parent_dir)))}/QC/*_full_results.json"
 
             # Load the JSON file (example, you might need glob to find the exact file)
             import json
@@ -225,6 +226,11 @@ def reverse_load_data_bids(bids_dir, network_quality="all", file_pattern="-templ
                 # Append if the category matches
                 if category == network_quality:
                     images_dir.append(str(full_path))
+                    all_ID.append(subject)
+                    all_Session.append(session)
+                    all_data_path.append(str(parent_dir))
+                    subject_sessions[subject].add(session)
+                    subject_session_path[(subject, session)].append(str(parent_dir))
 
             # Also check for corresponding mean image
         mean_image_path = parent_dir / 'all_runs_space-template-func_desc-fMRI_Mean_Image_SS.nii.gz'

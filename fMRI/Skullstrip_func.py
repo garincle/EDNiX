@@ -25,7 +25,7 @@ spgo = subprocess.getoutput
 
 from Tools import run_cmd
 
-def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, maskDilatfunc, dir_prepro_orig_process,
+def Skullstrip_func(MAIN_PATH, Method_mask_func, input_for_msk, output_for_mask, master, maskDilatfunc, dir_prepro_orig_process,
                                                       overwrite, costAllin, type_of_transform,
                                                       aff_metric_ants, afni_sif, fsl_sif, sing_fs, itk_sif,diary_file):
 
@@ -149,11 +149,14 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
             outfile.write(json_object)
 
     elif brain_skullstrip == 'muSkullStrip_cross_species':
-        command = 'python3 ' + opj(opd(afni_sif), 'NHP-BrainExtraction', 'UNet_Model', 'muSkullStrip.py') + \
+        Unetpath = opj(MAIN_PATH, 'Tool_library/Singularity/')
+        Unet_dir = opj(Unetpath, 'NHP-BrainExtraction', 'UNet_Model')
+
+        command = 'python3 ' + opj(Unet_dir, 'muSkullStrip.py') + \
                   ' -in ' + input_for_msk + \
-                  ' -model ' + opj(opd(afni_sif), 'NHP-BrainExtraction', 'UNet_Model', 'models',
+                  ' -model ' + opj(Unet_dir, 'models',
                                    'model-02-_cross_species-epoch') + \
-                  ' -out ' + opd(input_for_msk)
+                  ' -out ' + opd(output_for_mask)
         nl = spgo(command)
         diary.write(f'\n{nl}')
         print(nl)
@@ -436,11 +439,9 @@ def Skullstrip_func(Method_mask_func, input_for_msk, output_for_mask, master, ma
                                 reg_shrink_factors=(8, 4, 2, 1),
                                 verbose=True)
 
-        transfo_concat = transo
-
         REF_MASK = ants.image_read(maskDilatfunc)
         tmp_mask1 = ants.apply_transforms(fixed=IMG, moving=REF_MASK,
-                                          transformlist=transfo_concat, interpolator='nearestNeighbor')
+                                          transformlist=mTx['fwdtransforms'], interpolator='nearestNeighbor')
 
         spacing = tmp_mask1.spacing  # This will give you the voxel size in x, y, z (e.g., (1.0, 1.0, 1.2) mm)
         # Use voxel size as sigma for Gaussian smoothing

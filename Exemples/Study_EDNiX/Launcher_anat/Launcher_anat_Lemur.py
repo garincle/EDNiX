@@ -20,13 +20,13 @@ from Plotting import Plot_BIDS_surface_for_QC
 ########################################################################################################################
 # Where are the data
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/srv/projects/easymribrain/scratch/EDNiX/Mouse_lemur/BIDS_Garin/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouse_lemur/BIDS_Garin/'))
 
 # which format ?
 BIDStype = 1
 
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
-
+#
 ### select the subject, session to process
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 
@@ -60,7 +60,7 @@ animalPosition    = [''] # valid only for species smaller than humans
 
 ### masking and skull stripping ----------------------------------------------------------------------------------------
 # step 1 : coarse method (use for cropping and acpc setting)
-brain_skullstrip_1  = 'muSkullStrip_cross_species_dil'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
+brain_skullstrip_1  = 'muSkullStrip_cross_species'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
 # step 2 : precise method
 brain_skullstrip_2  = 'NoSkullStrip'            # bet2_ANTS or MachinL
 # step 3 : valid only for study or session template :
@@ -75,8 +75,9 @@ fMRImasks     = 'aseg' # must be aseg or custom
 #
 Align_img_to_template = 'Ants'
 list_transfo = build_transfos(
-    align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
-    coreg={'type_of_transform': 'BOLDAffine', 'affmetric': '', 'affmetricT': ''})
+    align={'type_of_transform': 'Rigid', 'affmetric': 'mattes', 'affmetricT': 'mattes'},
+    coreg={'type_of_transform': 'SyNCC', 'affmetric': 'mattes', 'affmetricT': 'mattes'},
+    stdyT={'type_of_transform': 'SyNCC', 'affmetric': 'mattes', 'affmetricT': 'mattes'})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 
@@ -100,7 +101,8 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 
 ########################################################################################################################
 
-Skip_step = [1,2,3,4,5,6,'itk_2', 'flat_map', 'Clean']
+Skip_step = [1,2,3,'itk_1','itk_2','itk_3','flat_map', 'Clean']
+
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
@@ -117,7 +119,7 @@ _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
                      transfo_message='do_as_I_said', force_myelin_same_space=False,
                      check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
-
+'''
 ### Surface QC summary creation --------------------------------------------------------------------------------
 # Function 1: Load EDNiX requirements
 sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _, sing_synstrip, Unetpath = Load_EDNiX_requirement.load_requirement(
@@ -130,3 +132,4 @@ Plot_BIDS_surface_for_QC.create_surface_qc_summary(
     template_scene=bids_dir + "/sub-967HACA/ses-01/anat/native/surfaces/Native_resol/Exemple1.scene",
     scene_ID_name="967HACA",
     scene_name="Exemple1")
+'''

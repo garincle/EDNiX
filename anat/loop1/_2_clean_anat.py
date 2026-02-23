@@ -8,7 +8,6 @@ opi = os.path.isfile
 opd = os.path.dirname
 ope = os.path.exists
 
-from Tools import run_cmd
 from Tools import QC_plot
 from Tools import getpath
 from Tools import check_nii
@@ -21,7 +20,7 @@ import anat.skullstrip.Skullstrip_method
 def clean_anat(Align_img_to_template, bids_dir, listTimage, list_transfo, ID, Session,
                type_norm, data_path,masking_img, brain_skullstrip_1, BASE_SS_coregistr,
                BASE_SS_mask, BASE_SS, IgotbothT1T2, check_visualy_each_img, check_visualy_final_mask,overwrite, anat_ref_path,
-               sing_afni,sing_fsl,sing_fs, sing_itk, sing_wb,sing_synstrip,Unetpath,diary_file,preftool):
+               sing_afni,sing_fsl,sing_fs, sing_itk, sing_wb,sing_synstrip,Unetpath, Skip_step, diary_file,preftool):
 
     _,  dir_transfo,_, dir_prepro, _, volumes_dir, _, masks_dir = getpath.anat(data_path,
                                                                      '', '', False, False, 'native')
@@ -42,7 +41,7 @@ def clean_anat(Align_img_to_template, bids_dir, listTimage, list_transfo, ID, Se
     anat_input7 = opj(volumes_dir, ID + '_space-acpc_desc-template_')
     anat_input8 = opj(volumes_dir, ID + '_space-acpc_desc-SS-step1_')
 
-    end_maskname = '_'.join([ID, 'final', 'mask_orig.nii.gz'])
+    end_maskname = '_'.join([ID, 'final', 'mask.nii.gz'])
     output4mask  = opj(masks_dir, ID + '_desc-step1_mask.nii.gz')
     msk_img      = opj(masks_dir, ID + '_space-acpc_desc-step1_mask.nii.gz')
 
@@ -116,6 +115,7 @@ def clean_anat(Align_img_to_template, bids_dir, listTimage, list_transfo, ID, Se
     with open(anat_input2 + type_norm + '.json', "w") as outfile:
         outfile.write(json_object)
 
+
     #  QC
     QC_plot.mosaic(anat_input1 + type_norm + '.nii.gz',
                    anat_input2 + type_norm + '.nii.gz',
@@ -132,9 +132,10 @@ def clean_anat(Align_img_to_template, bids_dir, listTimage, list_transfo, ID, Se
             refnb2 = i
 
     if Align_img_to_template == 'No':
-        acpcalign.none(anat_input2 + type_norm + '.nii.gz',
-                       anat_input4 + type_norm + '.nii.gz',
-                       overwrite,diary_file,sing_afni)
+        acpcalign.afni_empty(dir_transfo,diary_file)
+        cmd = (sing_afni + '3dcalc -overwrite -a ' + anat_input2 + type_norm + '.nii.gz'
+               + ' -prefix ' + anat_input4 + type_norm + '.nii.gz' + ' -expr "a"')
+        run_cmd.do(cmd, diary_file)
 
     elif Align_img_to_template == 'Ants':
         nl = 'acpc alignement'
@@ -147,7 +148,7 @@ def clean_anat(Align_img_to_template, bids_dir, listTimage, list_transfo, ID, Se
                            diary_file, sing_wb, '_desc-64_' + type_norm, 0)
 
     else:
-        nl = 'ERROR: Align_img_to_template need to be define as string ("3dAllineate", "@Align_Centers", "No" or "Ants")'
+        nl = 'ERROR: Align_img_to_template need to be define as string ("No" or "Ants")'
         raise Exception(run_cmd.error(nl, diary_file))
 
 
@@ -178,7 +179,6 @@ def clean_anat(Align_img_to_template, bids_dir, listTimage, list_transfo, ID, Se
 
 
     ##### Apply transfo to other anat images
-
     IMG = ants.image_read(output4mask)
     REF = ants.image_read(anat_input6 + type_norm + '.nii.gz')
     msk = ants.apply_transforms(fixed=REF, moving=IMG,
@@ -193,14 +193,11 @@ def clean_anat(Align_img_to_template, bids_dir, listTimage, list_transfo, ID, Se
     with open(msk_img.replace('.nii.gz', '.json'), "w") as outfile:
         outfile.write(json_object)
 
-
-
     if IgotbothT1T2 == True:
         listTimage2 = list(listTimage)
         listTimage2.append('T1wdividedbyT2w')
     else:
         listTimage2 = list(listTimage)
-
 
     for Timage in listTimage2:
         if Timage == 'T1wdividedbyT2w':
@@ -225,52 +222,53 @@ def clean_anat(Align_img_to_template, bids_dir, listTimage, list_transfo, ID, Se
             with open(anat_input6 + Timage + '.json', "w") as outfile:
                 outfile.write(json_object)
 
+        else:
+            #### ensure that both image are now in the same space, with the same header
+            check_nii.resamp(msk_img, anat_input6 + type_norm + '.nii.gz', 'msk', '', '',
+                             diary_file,
+                             '')
+        ######################################################################
+        ###     B0 correction ####### ==> create INDIV template !!!!!      ###
+        ######################################################################
 
-            ######################################################################
-            ###     B0 correction ####### ==> create INDIV template !!!!!      ###
-            ######################################################################
+        IMG = ants.image_read(anat_input6 + Timage + '.nii.gz')
+        IMG = ants.denoise_image(IMG, r=3, noise_model='Gaussian')
 
-            IMG = ants.image_read(anat_input6 + Timage + '.nii.gz')
+        ants.image_write(IMG, anat_input7 + Timage + '.nii.gz', ri=False)
 
-            IMG = ants.denoise_image(IMG, r=3, noise_model='Gaussian')
-
-            ants.image_write(IMG, anat_input7 + Timage + '.nii.gz', ri=False)
-
-            dictionary = {"Sources": anat_input6 + Timage + '.nii.gz',
-                          "Description": 'Denoising (ANTspy).', }
-            json_object = json.dumps(dictionary, indent=2)
-            with open(anat_input7 + Timage + '.json', "w") as outfile:
-                outfile.write(json_object)
-
-            ######################################################################
-            ###     Skull stripping  !!                                        ###
-            ######################################################################
-
-            new_img = IMG * msk
-
-            ants.image_write(new_img, anat_input8 + Timage + '.nii.gz')
-
-            dictionary = {"Sources": [anat_input7 + Timage + '.nii.gz',
-                                      msk_img],
-                          "Description": 'Skull stripping.', }
-            json_object = json.dumps(dictionary, indent=2)
-            with open(anat_input8 + Timage + '.json', "w") as outfile:
-                outfile.write(json_object)
-
-            ######################################################################
-            ###     QC               !!                                        ###
-            ######################################################################
-            QC_plot.mosaic(anat_input8 + Timage + '.nii.gz',
-                           BASE_SS_coregistr,
-                           opj(bids_dir, 'QC','align_rigid_to_template',
-                               ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png'))
+        dictionary = {"Sources": anat_input6 + Timage + '.nii.gz',
+                      "Description": 'Denoising (ANTspy).', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(anat_input7 + Timage + '.json', "w") as outfile:
+            outfile.write(json_object)
 
 
-            ####### check visually indiv template #######
-            if check_visualy_each_img == True:
-                # now look at the coordinate of the brain and ajust bet2 according to them
-                command = (sing_fs + 'freeview -v ' + anat_input8 + Timage + '.nii.gz')
-                run_cmd.do(command, diary_file)
+        ######################################################################
+        ###     Skull stripping  !!                                        ###
+        ######################################################################
+        new_img = IMG * msk
+        ants.image_write(new_img, anat_input8 + Timage + '.nii.gz')
+
+        dictionary = {"Sources": [anat_input7 + Timage + '.nii.gz',
+                                  msk_img],
+                      "Description": 'Skull stripping.', }
+        json_object = json.dumps(dictionary, indent=2)
+        with open(anat_input8 + Timage + '.json', "w") as outfile:
+            outfile.write(json_object)
+
+        ######################################################################
+        ###     QC               !!                                        ###
+        ######################################################################
+        QC_plot.mosaic(anat_input8 + Timage + '.nii.gz',
+                       BASE_SS_coregistr,
+                       opj(bids_dir, 'QC','align_rigid_to_template',
+                           ID + '_' + str(Session) + '_' + Timage + '_align_rigid_to_template.png'))
+
+        ####### check visually indiv template #######
+        if check_visualy_each_img == True:
+            # now look at the coordinate of the brain and ajust bet2 according to them
+            command = (sing_fs + 'freeview -v ' + anat_input8 + Timage + '.nii.gz')
+            run_cmd.do(command, diary_file)
 
 
 

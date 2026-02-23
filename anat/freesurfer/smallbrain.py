@@ -41,7 +41,7 @@ def get(animal,dir,file,brain_mask,diary_name,sing_fs):
     img = nib.load(file)
     # Get voxel sizes
     new_size, delta_y, delta_z = [str(round(abs(x), 10)) for x in img.header.get_zooms()[:3]]
-    if volume < 3000:
+    if volume < 10000:
         nl = ('That brain is too small. The header of the nifty file to be used by freessurfer will have the size and the resolution modified.'
             'hence a dat file is created to be able to reconstruct the surfaces later on')
         run_cmd.msg(nl, diary_name, 'OKGREEN')

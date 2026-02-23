@@ -19,11 +19,18 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
         if folder_name:
             path_ref = opj(dirpath, folder_name[0])
 
+    if 'path_ref' not in locals() or not path_ref:
+        raise ValueError("path_ref is not defined — atlas path or species or MAIN_PATH is likely incorrect. " +
+                         'specie = ' + str(specie) + ' path_ATLAS = ' + str(path_ATLAS) + ' dirpath = ' + str(
+            dirpath) + ' dirnames = ' + str(dirnames))
+
     path_label_code = opj(path_ref, 'label_code')
     if 'T1' in type_norm:
         suffix_template = 'T1w'
-    if 'T2' in type_norm:
+    elif 'T2' in type_norm:
         suffix_template = 'T2w'
+    else:
+        raise ValueError("type norm should at least contain the string 'T1' or 'T2', otherwise it can not be detected as such in the pipeline")
 
     # references ########################################################################################################
 
@@ -34,7 +41,8 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
     BASE_template      = opj(BASE_folder, specie + '_space-acpc_desc-template_' + suffix_template + '.nii.gz')
     BASE_SS            = opj(BASE_folder, specie + '_space-acpc_desc-SS_' + suffix_template + '.nii.gz')
     BASE_mask          = opj(BASE_masks_folder,  specie + '_mask.nii.gz')
-    BASE_Gmask         = opj(BASE_masks_folder,  specie + '_desc-Gray_mask.nii.gz')
+    BASE_Gmask         = opj(BASE_masks_folder,  specie + '_desc-Cerebral_Gray_mask.nii.gz')
+    BASE_WBGmask      = opj(BASE_masks_folder,  specie + '_desc-Whole_Brain_Gray_mask.nii.gz')
     BASE_Wmask         = opj(BASE_masks_folder,  specie + '_desc-erod-White_mask.nii.gz')
     BASE_Vmask         = opj(BASE_masks_folder,  specie + '_desc-erod-Vent_mask.nii.gz')
     CSF                = opj(BASE_priors_folder, specie + '_label-CSF_probseg.nii.gz')
@@ -60,7 +68,8 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
             BASE_priors_folder = opj(BASE_folder, 'priors')
             BASE_SS = balsa_brainT1
             BASE_mask = opj(BASE_masks_folder, BALSAname + '_mask.nii.gz')
-            BASE_Gmask = opj(BASE_masks_folder, BALSAname + '_desc-Gray_mask.nii.gz')
+            BASE_Gmask = opj(BASE_masks_folder, BALSAname + '_desc-Cerebral_Gray_mask.nii.gz')
+            BASE_WBGmask = opj(BASE_masks_folder, BALSAname + '_desc-Whole_Brain_Gray_mask.nii.gz')
             BASE_Wmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-White_mask.nii.gz')
             BASE_Vmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-Vent_mask.nii.gz')
             CSF = opj(BASE_priors_folder, BALSAname + '_label-CSF_probseg.nii.gz')
@@ -68,7 +77,7 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
             WM = opj(BASE_priors_folder, BALSAname + '_label-WM_probseg.nii.gz')
             Aseg_ref = opj(BASE_atlas_folder, BALSAname + '_seg-4FS_dseg.nii.gz')
 
-    
+
     elif specie == 'Chimpanzee':
         FS_refs          = opj(FS_tools, 'standard_mesh_atlases_chimp')
         BALSAname        = 'CY29'
@@ -87,7 +96,8 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
             BASE_priors_folder = opj(BASE_folder, 'priors')
             BASE_SS = balsa_brainT1
             BASE_mask = opj(BASE_masks_folder, BALSAname + '_mask.nii.gz')
-            BASE_Gmask = opj(BASE_masks_folder, BALSAname + '_desc-Gray_mask.nii.gz')
+            BASE_Gmask = opj(BASE_masks_folder, BALSAname + '_desc-Cerebral_Gray_mask.nii.gz')
+            BASE_WBGmask = opj(BASE_masks_folder, BALSAname + '_desc-Whole_Brain_Gray_mask.nii.gz')
             BASE_Wmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-White_mask.nii.gz')
             BASE_Vmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-Vent_mask.nii.gz')
             CSF = opj(BASE_priors_folder, BALSAname + '_label-CSF_probseg.nii.gz')
@@ -114,7 +124,8 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
             BASE_priors_folder = opj(BASE_folder, 'priors')
             BASE_SS = balsa_brainT1
             BASE_mask = opj(BASE_masks_folder, BALSAname + '_mask.nii.gz')
-            BASE_Gmask = opj(BASE_masks_folder, BALSAname + '_desc-Gray_mask.nii.gz')
+            BASE_Gmask = opj(BASE_masks_folder, BALSAname + '_desc-Cerebral_Gray_mask.nii.gz')
+            BASE_WBGmask = opj(BASE_masks_folder, BALSAname + '_desc-Whole_Brain_Gray_mask.nii.gz')
             BASE_Wmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-White_mask.nii.gz')
             BASE_Vmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-Vent_mask.nii.gz')
             CSF = opj(BASE_priors_folder, BALSAname + '_label-CSF_probseg.nii.gz')
@@ -251,7 +262,9 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
     elif kind == 'pet':
         return [BASE_folder, BASE_mask,REF,atlasnii,atlas_ctab,surf_dir,LRside,roi]
     elif kind == 'RS_ana':
-        return [BASE_SS, BASE_Gmask,atlasnii, BASE_mask,surf_dir,LRside,roi,atlas_ctab,listfig]
+        return [BASE_SS, BASE_Gmask, BASE_WBGmask, atlasnii, BASE_mask, surf_dir, LRside,roi, atlas_ctab, listfig]
+
+
     elif kind == 'atlas':
         [opj(path_ref, reference), BASE_folder]
 

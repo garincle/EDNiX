@@ -23,7 +23,7 @@ def fromITK_to_newFS(orig,desired):
     transfo = []
     opposite ={'R':'L','L':'R',
                'A':'P','P':'A',
-               'S':'I','I':'A'}
+               'S':'I','I':'S'}
     for index,item in enumerate(orig):
         if opposite[item] in desired:
             for i, j in enumerate(desired):
@@ -63,7 +63,7 @@ def use_ants(img):
     reorient = fromITK_to_newFS(orient_img, 'LIA')
 
     fwdFS_cmd = ' --in_orientation ' + orient_img + ' -r ' +  reorient + ' '
-    bckFS_cmd = ' --in_orientation LIA ' + reorient
+    bckFS_cmd = ' --in_orientation LIA -r ' + reorient + ' '
 
     return [orient_img,reorient,fwdFS_cmd,bckFS_cmd]
 

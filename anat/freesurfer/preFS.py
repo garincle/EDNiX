@@ -24,7 +24,8 @@ filled_edit  = [[4,2,10,11,12,13,26,28,31],
                 [77,85]]
 CSF_edit = [4,5,43,44,14,15,24,72,30,62,31,63]
 WM_edit  = [2,41,85,7,46,77,251,252,253,254,255]
-GM_edit  = [3,42,8,47,10,49,11,12,13,16,17,18,26,28,50,51,52,53,54,58,60]
+WBGM_edit  = [3,42,8,47,10,49,11,12,13,16,17,18,26,28,50,51,52,53,54,58,60]
+Cereb_GM_edit  = [3,42,10,49,11,12,13,17,18,26,28,50,51,52,53,54,58,60]
 
 # CSF, WM, GM min and max for T1 and T2
 min_max = [[1,35,80,110,40,90],
@@ -97,7 +98,7 @@ def prepa_img(Subname,Ref_file,dir_prepro,aseg_file,labels_dir,midsection,diary_
 
     new_img = ants.image_clone(BRAIN)*0
 
-    for select,min_im,max_im in zip([CSF_edit,GM_edit],
+    for select,min_im,max_im in zip([CSF_edit,Cereb_GM_edit],
                                     [new_min_max[0],new_min_max[4]],
                                     [new_min_max[1],new_min_max[5]]):
         img = ants.mask_image(norm,aseg,select)
@@ -174,7 +175,7 @@ def prepa_T2img(Subname,Ref_file,dir_prepro,asegfile,diary_name):
     norm    = (BRAIN / Sig_max) * 110
     new_min_max = min_max[1]
 
-    for select, min_im, max_im in zip([CSF_edit, GM_edit],
+    for select, min_im, max_im in zip([CSF_edit, Cereb_GM_edit],
                                       [new_min_max[0], new_min_max[4]],
                                       [new_min_max[1], new_min_max[5]]):
         img = ants.mask_image(norm, aseg, select)
@@ -260,24 +261,9 @@ def msk_RS(Subname,brain_msk,aseg_img,diary_name,mskversion):
     with open(opj(dir_msk, Subname + '_desc-dilat_mask.json'), "w") as outfile:
         outfile.write(json_object)
 
-    if mskversion == 'aseg':
-        aseg = ants.image_read(aseg_img)
-        img = ants.mask_image(aseg, aseg, GM_edit)
-        img[img > 0] = 1
-        dilate = ants.morphology(img, operation='dilate', radius=1, mtype='binary', shape='ball')
-
-        ants.image_write(dilate, opj(dir_msk, Subname + '_desc-Gray_mask.nii.gz'), ri=False)
-
-        dictionary = {"Sources": aseg_img,
-                      "Description": 'Gray mask.', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(opj(dir_msk, Subname + '_desc-Gray_mask.json'), "w") as outfile:
-            outfile.write(json_object)
-
-
-    for select,name,desc in zip([White_mask,Ventri_mask],['White','Vent'],['white matter','ventricles']):
-
+    for select,name,desc in zip([White_mask,Ventri_mask, Cereb_GM_edit, WBGM_edit],['White','Vent', 'Cerebral_Gray', 'Whole_Brain_Gray'],['white matter','ventricles', 'cerebral gray', 'Whole brain gray']):
         if mskversion == 'aseg':
+            aseg = ants.image_read(aseg_img)
             img = ants.mask_image(aseg, aseg, select)
             img[img > 0] = 1
             ants.image_write(img, opj(dir_msk, Subname + '_desc-' + name + '_mask.nii.gz'), ri=False)
