@@ -252,7 +252,8 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
         return [BASE_folder, BASE_mask,REF,atlasnii,atlas_ctab,surf_dir,LRside,roi]
     elif kind == 'RS_ana':
         return [BASE_SS, BASE_Gmask,atlasnii, BASE_mask,surf_dir,LRside,roi,atlas_ctab,listfig]
-
+    elif kind == 'atlas':
+        [opj(path_ref, reference), BASE_folder]
 
 def atlas(list_atlas,add_atlas):
     if not add_atlas == '':

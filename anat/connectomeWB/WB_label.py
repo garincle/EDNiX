@@ -177,7 +177,28 @@ def surfWB(cmd_mris_convert,FS_dir, animal,label,WB_dir,surftype,h,diary_name,si
     nl = surface[h] + ' surface done!'
     run_cmd.msg(nl, diary_name,'OKGREEN')
 
-    
+
+def surfvolWB(volumefile, animal, label, WB_dir, surftype, h, diary_name, sing_wb):
+    nl = 'create label surfaces for WB'
+    run_cmd.msg(nl, diary_name,'OKGREEN')
+
+    newgii = opj(WB_dir, '.'.join([animal, Hmin[h], label, surftype, 'label', 'gii']))
+
+    cmd = (sing_wb + 'wb_command -volume-label-to-surface-mapping ' +
+           ' ' + volumefile +
+           ' ' + opj(WB_dir, '.'.join([animal, Hmin[h], 'midthickness', 'surf', 'gii'])) +
+           ' ' + newgii +
+           ' -ribbon-constrained' +
+           ' ' + opj(WB_dir, '.'.join([animal, Hmin[h], 'white', 'surf', 'gii'])) +
+           ' ' + opj(WB_dir, '.'.join([animal, Hmin[h], 'pial', 'surf', 'gii'])) +
+           ' -dilate-missing 1')
+    run_cmd.wb(cmd, diary_name)
+
+    cmd = (sing_wb + 'wb_command -set-structure ' + newgii + ' ' + CORTEX[h])
+    run_cmd.wb(cmd, diary_name)
+
+    nl = surface[h] + ' surface done!'
+    run_cmd.msg(nl, diary_name,'OKGREEN')
 
 def mergelabel(animal,WB_dir,surftype,h,diary_name,label,nb,sing_wb):
 
@@ -219,7 +240,7 @@ def cifti(animal,label,WB_dir,surftype,roi,spec,diary_name,sing_wb):
     run_cmd.wb(cmd,diary_name)
 
 
-def vo2surfWB(animal,list_atlas,vol_dir,WB_dir,surftype,hemi_type,proj,roi,spec,diary_name,sing_wb):
+def vol2surfWB(animal,list_atlas,vol_dir,WB_dir,surftype,hemi_type,proj,roi,spec,diary_name,sing_wb):
 
     nl = 'Create label surfaces for WB from volume'
     run_cmd.msg(nl, diary_name,'OKGREEN')
@@ -229,7 +250,7 @@ def vo2surfWB(animal,list_atlas,vol_dir,WB_dir,surftype,hemi_type,proj,roi,spec,
         nb = list_atlas[2][n]
         if list_atlas[3][n] ==1:
 
-            vol = opj(vol_dir,animal + '_seg-' + g_name + '_dseg.nii.gz')
+            vol = opj(vol_dir,animal + '_seg-' +  g_name + '_dseg.nii.gz')
             
             for h in hemi_type :
                 newgii = opj(WB_dir,animal + '.' + h + '.' + g_name + surftype + '.label.gii')
