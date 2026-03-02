@@ -496,11 +496,11 @@ def WB_prep(cmd_mris_convert,FS_dir,FS_refs,dir_path,animal,species,spacing,resa
 
     #                 2.0 ribbon              #########################################################"
     #     for native space:  + supra / infra masks
-    WB_ribbon.create(dir_path, Ref_file, label_FS_all, animal, BALSAname, 'native', Hmin, RibbonValue, diary_name, sing_wb)
+    WB_ribbon.set(dir_path, Ref_file, label_FS_all, animal, BALSAname, 'native', Hmin, RibbonValue, diary_name, sing_wb)
 
     if towarp == 1:
         #     for template space
-        WB_ribbon.create(dir_path, Ref_norm, label_FS_all, animal, BALSAname, 'template', Hmin, RibbonValue, diary_name, sing_wb)
+        WB_ribbon.set(dir_path, Ref_norm, label_FS_all, animal, BALSAname, 'template', Hmin, RibbonValue, diary_name, sing_wb)
     
 
     # extras ###########################################################################################
