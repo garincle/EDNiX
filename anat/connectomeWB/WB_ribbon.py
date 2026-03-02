@@ -14,7 +14,7 @@ from Tools import getpath
 
 def set(dir_path,Ref_file,label_FS_all,animal,BALSAname,version,Hmin,RibbonValue,diary_name,sing_wb):
 
-    (path_anat, _, _, _, _, _, labels_dir, masks_dir, _,_, _, _,_, _,
+    (path_anat, _, _, _, _, _, labels_dir, masks_dir, _,_, _, _,_, wb_balsa_vol,
      wb_balsa_labels, _) = getpath.anat(dir_path, BALSAname, BALSAname, '', '', 'template')
 
     dir_native_resol, _, dir_balsa_resol, _, _ = getpath.surf(path_anat, BALSAname,BALSAname)
@@ -26,6 +26,7 @@ def set(dir_path,Ref_file,label_FS_all,animal,BALSAname,version,Hmin,RibbonValue
         Surf_out = ['pial', 'midthickness']
         vol_out  = ['ribbon', 'infra']
     elif version == 'template':
+        Ref_file = opj(wb_balsa_vol,'_'.join([animal,'space-' + BALSAname,'desc-SS','T1w.nii.gz']))
         dir_surf = dir_balsa_resol
         dir_out = wb_balsa_labels
         Surf_in  = 'white.native'
