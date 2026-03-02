@@ -507,8 +507,10 @@ def WB_prep(cmd_mris_convert,FS_dir,FS_refs,dir_path,animal,species,spacing,resa
 
     if species == 'Macaque':
         # parcellation from template surfaces (resolution = 32k) to native space volume
-        WB_vol_atlas.MY19(cmd_mris_convert, animal, FS_dir, balsa_folder, dir_path, Ref_file, path_label_code,
-                          Hmin, CORTEX, diary_name, sing_wb, sing_fs)
+        _,_,_,labelnames,_, _, _, _, _,origFile,parcellation_list,ssamp = WB_vol_atlas.get(BALSAname, balsa_folder, dir_path, path_label_code, diary_name)
+        WB_vol_atlas.set(origFile, animal, BALSAname, parcellation_list, labelnames, dir_native_resol, dir_native_32,
+            dir_balsa_resol, dir_balsa_32, dir_balsa_64, volumes_dir, labels_dir, FS_dir, Ref_file, ssamp, Hmin,
+            CORTEX, diary_name, cmd_mris_convert, sing_wb, sing_fs)
 
     # get the gray nuclei surfaces
     if do_Nu[0] ==1:
