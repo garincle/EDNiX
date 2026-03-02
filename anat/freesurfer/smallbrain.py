@@ -12,7 +12,7 @@ from Tools import run_cmd, get_orientation
 
 volume_ref = 107000
 
-def get(animal,dir,file,brain_mask,diary_name,sing_fs):
+def get(animal,dir,file,brain_mask,diary_name):
 
     nl = 'Check if the brain is not too small to fit the freesurfer requirement'
     run_cmd.msg(nl, diary_name, 'HEADER')

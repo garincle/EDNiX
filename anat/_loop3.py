@@ -149,7 +149,7 @@ def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat
         preFS.prepa_img(ID, new_Ref_file, dir_prepro, aseg_img,labels_dir, '', diary_file)
 
         # need to lie on the brain volume for small brain animals
-        change_hd,scaling,resamp,new_size,DATfile = smallbrain.get(ID, dir_prepro, new_Ref_file, '', diary_file,sing_fs)
+        change_hd,scaling,resamp,new_size,DATfile = smallbrain.get(ID, dir_prepro, new_Ref_file, '', diary_file)
 
         if iso == 0:
             list1 = [new_Ref_file,
