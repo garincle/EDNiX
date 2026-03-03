@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 from matplotlib import colors as mcolors
 import csv
+import fnmatch
+import shutil
 
 opj = os.path.join
 opb = os.path.basename
@@ -13,17 +15,36 @@ opi = os.path.isfile
 
 EDNIX_removelist = [0,1,2,3,4,5,6,13,33,34,35]
 
+Atlaspath = opj('/','scratch2','Atlases_library','atlas')
 
-def prepare(species_list):
+def EDNiXprepare(LUTfile,species_list):
+
+    fname   = opb(LUTfile)
+    name    = fname.split('_')[0]
+    newname = name[:-2]
 
     for i in range(len(species_list)):
-        name = opb(species_list[i].split('_'))[0]
-        newname=name[:-2]
-        FSLR(species_list[i], EDNIX_removelist, newname)
-        FS2_WB(species_list[i], name)
-        FS2_WB(species_list[i], newname)
-        FS2_ITK(species_list[i], name)
-        FS2_ITK(species_list[i], newname)
+
+        # search for the relevant folder
+        for dirpath, dirnames, filenames in os.walk(opj(Atlaspath)):
+            folder_name = fnmatch.filter(dirnames, species_list[i])
+            if folder_name:
+                path_ref = opj(dirpath, folder_name[0])
+
+        if 'path_ref' not in locals() or not path_ref:
+            raise ValueError("path_ref is not defined — atlas path or species or MAIN_PATH is likely incorrect. " +
+                             'specie = ' + str(species_list[i]) + ' path_ATLAS = ' + str(Atlaspath) + ' dirpath = ' + str(
+                dirpath) + ' dirnames = ' + str(dirnames))
+
+        path_label_code = opj(path_ref, 'label_code')
+
+        shutil.copyfile(LUTfile, opj(path_label_code,fname))
+
+        FSLR(opj(path_label_code,fname), EDNIX_removelist, newname)
+        FS2_WB(opj(path_label_code,fname), name)
+        FS2_WB(opj(path_label_code,fname), newname)
+        FS2_ITK(opj(path_label_code,fname), name)
+        FS2_ITK(opj(path_label_code,fname), newname)
 
 def FSLR(label_file,remove_list,REF):
     dir_label = opd(label_file)
