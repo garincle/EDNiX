@@ -11,6 +11,63 @@ opd = os.path.dirname
 ope = os.path.exists
 opi = os.path.isfile
 
+EDNIX_removelist = [0,1,2,3,4,5,6,13,33,34,35]
+
+
+def prepare(species_list):
+
+    for i in range(len(species_list)):
+        name = opb(species_list[i].split('_'))[0]
+        newname=name[:-2]
+        FSLR(species_list[i], EDNIX_removelist, newname)
+        FS2_WB(species_list[i], name)
+        FS2_WB(species_list[i], newname)
+        FS2_ITK(species_list[i], name)
+        FS2_ITK(species_list[i], newname)
+
+def FSLR(label_file,remove_list,REF):
+    dir_label = opd(label_file)
+    ORIG = pd.read_csv(label_file, sep=' ',
+                         names=["Index", "Names", "C1", "C2", "C3", 'alpha'])
+
+    RIGHT = ORIG.copy()
+    LEFT  = ORIG.copy()
+    MERGE = ORIG.copy()
+
+    # Remove rows starting with 'R_'
+    MERGE = MERGE[~MERGE["Names"].str.startswith("R_")]
+
+    # Remove 'L_' prefix from remaining names
+    MERGE["Names"] = MERGE["Names"].str.replace(r"^L_", "", regex=True)
+
+    # Save to new file
+    output_file = opj(dir_label, REF + '_StatsLUT.txt')
+    MERGE.to_csv(output_file, sep=' ', index=False, header=False)
+
+    print("File saved as", output_file)
+
+    LEFT = LEFT[~LEFT["Names"].str.startswith("R_")]
+
+    LEFT = LEFT[~LEFT["Index"].isin(remove_list)]
+    # Remove 'L_' prefix from remaining names
+    LEFT["Names"] = LEFT["Names"].str.replace(r"^L_", "", regex=True)
+
+    # Save to new file
+    output_file = opj(dir_label, opb(label_file).replace('_StatsLUT.txt','_l.ctab'))
+    LEFT.to_csv(output_file, sep=' ', index=False, header=False)
+
+    RIGHT = RIGHT[~RIGHT["Names"].str.startswith("L_")]
+
+    remove_list = np.add(remove_list,1000)
+
+    RIGHT = RIGHT[~RIGHT["Index"].isin(remove_list)]
+    # Remove 'L_' prefix from remaining names
+    RIGHT["Names"] = RIGHT["Names"].str.replace(r"^R_", "", regex=True)
+
+    # Save to new file
+    output_file = opj(dir_label, opb(label_file).replace('_StatsLUT.txt', '_r.ctab'))
+    RIGHT.to_csv(output_file, sep=' ', index=False, header=False)
+
 def FS2_WB(label_file,REF):
     # for Workbench
     dir_label = opd(label_file)
