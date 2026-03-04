@@ -15,8 +15,9 @@ opi = os.path.isfile
 
 EDNIX_removelist = [0,1,2,3,4,5,6,13,33,34,35]
 
-Atlaspath = opj('/','scratch2','Atlases_library','atlas')
-
+Atlaspath = opj('/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/')
+LUTfile = '/srv/projects/easymribrain/Atlases_library/atlas/ednix_lut/EDNIxCSCLR_StatsLUT.txt'
+species_list = ['Pig']
 def EDNiXprepare(LUTfile,species_list):
 
     fname   = opb(LUTfile)
@@ -39,7 +40,6 @@ def EDNiXprepare(LUTfile,species_list):
         path_label_code = opj(path_ref, 'label_code')
 
         shutil.copyfile(LUTfile, opj(path_label_code,fname))
-
         FSLR(opj(path_label_code,fname), EDNIX_removelist, newname)
         FS2_WB(opj(path_label_code,fname), name)
         FS2_WB(opj(path_label_code,fname), newname)

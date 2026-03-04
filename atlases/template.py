@@ -16,6 +16,12 @@ from anat.freesurfer import smallbrain, preFS, FS_surf,  FS_2_WB_short, FS_flat
 
 
 Hmin    = ['l','r']
+species =  'Pig'
+reference = 'EDNiX'
+atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]]
+MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+bids_dir = '/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/mammals/ungulates/Pig/'
+diary_file = '/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/mammals/ungulates/Pig/EDNiX/diary.txt'
 
 def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='ribbon',doflat=0):
 
@@ -33,11 +39,11 @@ def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='
         MAIN_PATH, reftemplate_path, bids_dir, 'yes')
 
 
-    (FS_refs, template_dir, reference,
-     balsa_folder, BALSAname, balsa_brainT1,
-     BASE_folder,BASE_atlas_folder, BASE_template, BASE_SS, BASE_mask, BASE_Gmask, BASE_WBGmask, BASE_Wmask, BASE_Vmask,
-     CSF, GM, WM, Aseg_ref,
-     list_atlas, path_label_code) = templatefeat.get(species, reftemplate_path, fs_tools, path_BALSA, reference,
+    (FS_refs,template_dir,reference,
+                balsa_folder,BALSAname,balsa_brainT1,
+                BASE_folder,BASE_atlas_folder, BASE_template,BASE_SS, BASE_mask, BASE_Gmask, BASE_Wmask, BASE_Vmask,
+                CSF, GM, WM, Aseg_ref,
+                list_atlas, path_label_code) = templatefeat.get(species, reftemplate_path, fs_tools, path_BALSA, reference,
                                                      '', '','T1w','anat', atlas_followers)
 
     FS_dir     = opj(template_dir,reference,'freesurfer')
@@ -49,6 +55,8 @@ def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='
         os.makedirs(opj(FS_dir,species, 'label'))
         os.makedirs(opj(FS_dir,species,  'scripts'))
     dir_prepro = opj(template_dir,reference,'preprocessing')
+    if not ope(dir_prepro):
+        os.makedirs(dir_prepro)
 
     cmd_tksurfer, cmd_flatten, cmd_mris, export_fs = Load_EDNiX_requirement.FS(fs_tools, FS_dir, diary_file, sing_fs)
 
@@ -57,7 +65,7 @@ def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='
     # modifications of the atlas to T1 already done
 
     # a little help for segmentation
-    preFS.prepa_img(species, species, dir_prepro, Aseg_ref, BASE_atlas_folder, '', diary_file)
+    preFS.prepa_img(species, BASE_SS, dir_prepro, Aseg_ref, BASE_atlas_folder, '', diary_file)
 
     list1 = [BASE_SS,
              '_'.join([species, 'desc-norm', 'T1w']),
