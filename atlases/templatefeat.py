@@ -17,7 +17,8 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
     for dirpath, dirnames, filenames in os.walk(opj(path_ATLAS, 'atlas')):
         folder_name = fnmatch.filter(dirnames, specie)
         if folder_name:
-            path_ref = opj(dirpath, folder_name[0])
+            if not opb(dirpath) == 'freesurfer':
+                path_ref = opj(dirpath, folder_name[0])
 
     if 'path_ref' not in locals() or not path_ref:
         raise ValueError("path_ref is not defined — atlas path or species or MAIN_PATH is likely incorrect. " +
