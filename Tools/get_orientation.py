@@ -4,30 +4,20 @@ import re
 import nibabel as nib
 
 spgo = subprocess.getoutput
-'''
-# purpose for FS : LIA
-orient_FS =  ['RAS','LAS','RSA','LSA',
-              'RIA','LIA','RSP','LSP',
-              'RPS','LPS','RPI','LPI',
-              'RIP','LIP','RAI','LAI',
-              'IAR','IAL','IPL']
 
-# because ITK, Antspy,Afni use the reverse notation as Freesurfer
-orient_itk = ['LPI','RPI','LIP','RIP',
-              'LSP','RSP','LIA','RIA',
-              'LAI','RAI','LAS','RAS',
-              'LSA','RSA','LPS','RPS',
-              'SPL','SPR','SAR']
-'''
+# purpose for FS : LIA
+FS ={'R':'L','L':'R',
+     'A':'P','P':'A',
+     'S':'I','I':'S'}
+
+
 def fromITK_to_newFS(orig,desired):
     transfo = []
-    opposite ={'R':'L','L':'R',
-               'A':'P','P':'A',
-               'S':'I','I':'S'}
+
     for index,item in enumerate(orig):
-        if opposite[item] in desired:
+        if FS[item] in desired:
             for i, j in enumerate(desired):
-                if opposite[item]==j:
+                if FS[item]==j:
                     transfo.append(i+1)
         else:
             for i, j in enumerate(desired):
@@ -35,7 +25,6 @@ def fromITK_to_newFS(orig,desired):
                     transfo.append((i+1)*-1)
     transfo = ' '.join(str(x) for x in transfo)
     return transfo
-
 
 #reorient_img = fromITK_to_newFS(orient_itk,'LIA')
 '''
@@ -60,9 +49,10 @@ def use_FS(img: object, sing_fs: object) -> object:
 def use_ants(img):
     img_hd = ants.image_read(img)
     orient_img = img_hd.orientation
+    orientFS = ''.join([FS[i] for i in orient_img])
     reorient = fromITK_to_newFS(orient_img, 'LIA')
 
-    fwdFS_cmd = ' --in_orientation ' + orient_img + ' -r ' +  reorient + ' '
+    fwdFS_cmd = ' --in_orientation ' + orientFS + ' -r ' +  reorient + ' '
     bckFS_cmd = ' --in_orientation LIA -r ' + reorient + ' '
 
     return [orient_img,reorient,fwdFS_cmd,bckFS_cmd]
@@ -71,10 +61,11 @@ def use_ants(img):
 def use_afni(img,sing_afni):
     cmd = sing_afni + '3dinfo -orient ' + img
     orient_img = spgo(cmd).split('\n')[-1]
+    orientFS = ''.join([FS[i] for i in orient_img])
     reorient = fromITK_to_newFS(orient_img, 'LIA')
 
-    fwdFS_cmd = ' --in_orientation ' + orient_img + ' -r ' + reorient + ' '
-    bckFS_cmd = ' --in_orientation LIA ' + reorient
+    fwdFS_cmd = ' --in_orientation ' + orientFS + ' -r ' + reorient + ' '
+    bckFS_cmd = ' --in_orientation LIA ' + reorient + ' '
 
     return [orient_img, reorient, fwdFS_cmd, bckFS_cmd]
 
