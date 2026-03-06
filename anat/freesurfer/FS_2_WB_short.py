@@ -39,7 +39,7 @@ def WB_prep(cmd_mris_convert,FS_dir,FS_refs,animal,species,Ref_file,datfile,refe
     elif species == 'Macaque':
         conv_voxmm = 0.75
 
-    vol_dir          = opj(template_dir,'volumes')
+    vol_dir          = opj(template_dir, reference,'volumes')
     labels_dir       = opj(vol_dir,'labels')
     masks_dir        = opj(vol_dir,'masks')
     dir_native_resol = opj(template_dir, reference, 'surfaces', 'Native_resol')

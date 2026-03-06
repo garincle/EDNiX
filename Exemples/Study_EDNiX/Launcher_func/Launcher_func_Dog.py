@@ -73,7 +73,7 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     DwellT='Auto', SED='Auto', TR='Auto', TRT='Auto',
                     nb_ICA_run=20, ICA_cleaning='Skip',
                     costAllin='lpa',
-                    doWARPonfunc=doWARPonfunc, registration_fast=False, type_of_transform=type_of_transform, n_for_ANTS='nearestNeighbor', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
+                    doWARPonfunc=doWARPonfunc, registration_fast=False, type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
                     list_to_keep=list_to_keep, list_to_remove=list_to_remove, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
                     reference='EDNiX', post_treatment_method='Grandjean',
                     band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,

@@ -245,7 +245,7 @@ def vol2surfWB(animal,list_atlas,vol_dir,WB_dir,surftype,hemi_type,proj,roi,spec
     nl = 'Create label surfaces for WB from volume'
     run_cmd.msg(nl, diary_name,'OKGREEN')
 
-    for n in range(len(list_atlas)):
+    for n in range(len(list_atlas[0])):
         g_name = list_atlas[0][n]
         nb = list_atlas[2][n]
         if list_atlas[3][n] ==1:
@@ -262,7 +262,7 @@ def vol2surfWB(animal,list_atlas,vol_dir,WB_dir,surftype,hemi_type,proj,roi,spec
                     ' ' + opj(WB_dir,animal + '.' + h + '.pial' + surftype + '.surf.gii'))
                 elif proj == 'vox':
                     cmd = (sing_wb + 'wb_command -volume-label-to-surface-mapping ' + vol + 
-                    ' ' + opj(WB_dir,animal + '.' + h + '.midthickness' + surftype + '.surf.gii') + 
+                    ' ' + opj(WB_dir,animal + '.' + h + '.midthickness' + surftype + '.surf.gii') +
                     ' ' + newgii )
                 run_cmd.wb(cmd,diary_name)
 

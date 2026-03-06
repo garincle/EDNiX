@@ -193,8 +193,6 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
     - Integrates fully with anat preprocessing to ensure accurate coregistration.
     """
 
-
-
     (FS_refs, template_dir, reference, balsa_folder, BALSAname, balsa_brainT1, BASE_atlas_folder, BASE_template, BASE_SS,
     BASE_mask, BASE_Gmask, BASE_WBGmask, BASE_Wmask, BASE_Vmask, CSF, GM, WM, Aseg_ref, list_atlas, path_label_code, all_ID,
     all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max,
