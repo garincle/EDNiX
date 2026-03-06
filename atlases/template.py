@@ -15,13 +15,12 @@ from atlases import templatefeat
 from anat.freesurfer import smallbrain, preFS, FS_surf,  FS_2_WB_short, FS_flat
 
 
-Hmin    = ['l','r']
-species =  'Pig'
-reference = 'EDNiX'
 atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]]
 MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
-bids_dir = '/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/mammals/ungulates/Pig/'
-diary_file = '/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/mammals/ungulates/Pig/EDNiX/diary.txt'
+
+
+Hmin    = ['l','r']
+
 
 def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='ribbon',doflat=0):
 
@@ -135,6 +134,7 @@ def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='
         labels_dir = dir_prepro
     else:
         Ref=''
+        DATfile=''
         labels_dir = BASE_atlas_folder
 
 
@@ -188,3 +188,17 @@ def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='
     FS_2_WB_short.WB_prep(cmd_mris, FS_dir, FS_refs, species, species, BASE_SS, DATfile, reference, list_atlas, balsa_folder,
             BALSAname,
             path_label_code, template_dir, proj, diary_file, sing_fs, sing_wb, export_fs)
+
+from pathlib import Path
+import fnmatch
+for species in [ 'Chimpanzee', 'Dog', 'Cat', 'Mouse', 'Rat']:
+    reference = 'EDNiX' # search for the relevant folder
+    for dirpath, dirnames, filenames in os.walk(os.path.join('/home/cgarin/PycharmProjects/EDNiX/Atlases_library/', 'atlas')):
+        folder_name = fnmatch.filter(dirnames, species)
+        if folder_name:
+            if not opb(dirpath) == 'freesurfer':
+                path_ref = os.path.join(dirpath, folder_name[0])
+    bids_dir = path_ref
+    diary_file = path_ref + '/diary.txt'
+    p = Path(diary_file); p.parent.mkdir(parents=True, exist_ok=True); p.touch()
+    modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='ribbon',doflat=0)

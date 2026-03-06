@@ -17,7 +17,7 @@ EDNIX_removelist = [0,1,2,3,4,5,6,13,33,34,35]
 
 Atlaspath = opj('/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/')
 LUTfile = '/srv/projects/easymribrain/Atlases_library/atlas/ednix_lut/EDNIxCSCLR_StatsLUT.txt'
-species_list = ['Pig']
+species_list = ['Pig', 'Human', 'Macaque', 'Mouselemur', 'Marmoset', 'Chimpanzee', 'Dog', 'Cat', 'Mouse', 'Rat']
 def EDNiXprepare(LUTfile,species_list):
 
     fname   = opb(LUTfile)
@@ -30,7 +30,8 @@ def EDNiXprepare(LUTfile,species_list):
         for dirpath, dirnames, filenames in os.walk(opj(Atlaspath)):
             folder_name = fnmatch.filter(dirnames, species_list[i])
             if folder_name:
-                path_ref = opj(dirpath, folder_name[0])
+                if not opb(dirpath) == 'freesurfer':
+                    path_ref = opj(dirpath, folder_name[0])
 
         if 'path_ref' not in locals() or not path_ref:
             raise ValueError("path_ref is not defined — atlas path or species or MAIN_PATH is likely incorrect. " +
