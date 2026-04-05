@@ -10,9 +10,7 @@ opb = os.path.basename
 opd = os.path.dirname
 opi = os.path.isfile
 
-from Tools import run_cmd, get_orientation
-from Tools import getpath
-
+from Tools import run_cmd, get_orientation, getpath
 from anat.freesurfer import mgz2ants
 from anat.freesurfer import preFS
 from anat.freesurfer import smallbrain
@@ -163,6 +161,7 @@ def Wconfig(FS_dir, FS_refs,animal,LR,diary_name,sing_fs,export_fs):
         nl = surface[H] + ' surface done!'
         run_cmd.msg(nl, diary_name,'OKGREEN')
 
+
 def Pcreate(animal,LR,diary_name,export_fs):
 
     nl = 'Create the pial surface'
@@ -183,6 +182,45 @@ def Pcreate(animal,LR,diary_name,export_fs):
 
         nl = surface[H] + ' surface done!'
         run_cmd.msg(nl, diary_name,'OKGREEN')
+
+def Pcreate_tessellate(animal, FS_dir, LR, diary_name, export_fs):
+    nl = 'Create the pial surface'
+    run_cmd.msg(nl, diary_name, 'OKGREEN')
+
+    gm_labels = {'l': '3', 'r': '42'}  # labels aseg GM L/R
+
+    if LR == 'l':
+        h = [0]
+    elif LR == 'r':
+        h = [1]
+    elif LR == 'lr':
+        h = range(2)
+
+    for H in h:
+        hemi = Hmin[H]  # 'l' ou 'r'
+
+        # 1. Extraire le masque GM pour cet hémisphère uniquement
+        cmd = (export_fs + 'mri_binarize --i ' + opj(FS_dir,animal,'mri', 'aseg.mgz') +
+               '--match ' + gm_labels[hemi] + ' ' +
+               '--o ' + opj(FS_dir,animal,'mri', 'gm_mask_' + hemi + 'h.mgz'))
+        run_cmd.do(cmd, diary_name)
+
+        # 2. Tesseller le masque GM → surface brute (espace voxel)
+        nosmooth_path = opj(FS_dir,animal,'surf',Hmin[H] + 'h.pial.nosmooth')
+        cmd = (export_fs + 'mri_tessellate ' +
+               opj(FS_dir,animal,'mri', 'gm_mask_' + hemi + 'h.mgz') + ' 1 '
+               + nosmooth_path)
+        run_cmd.do(cmd, diary_name)
+
+        # 3. Lisser
+        pial_path = opj(FS_dir,animal,'surf',Hmin[H] + 'h.pial')
+        cmd = (export_fs + 'mris_smooth -n 10 '
+               + nosmooth_path + ' '
+               + pial_path)
+        run_cmd.do(cmd, diary_name)
+
+        nl = surface[H] + ' surface done!'
+        run_cmd.msg(nl, diary_name, 'OKGREEN')
 
 def PcreateT2(T2_img,dir_path,aseg,LR,change_hd,diary_name,sing_fs,export_fs):
 

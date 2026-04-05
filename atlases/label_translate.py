@@ -6,18 +6,24 @@ from matplotlib import colors as mcolors
 import csv
 import fnmatch
 import shutil
+import subprocess
 
 opj = os.path.join
 opb = os.path.basename
 opd = os.path.dirname
 ope = os.path.exists
 opi = os.path.isfile
+spgo = subprocess.getoutput
+
+from anat.connectomeWB import WB_label
 
 EDNIX_removelist = [0,1,2,3,4,5,6,13,33,34,35]
 
 Atlaspath = opj('/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/')
 LUTfile = '/srv/projects/easymribrain/Atlases_library/atlas/ednix_lut/EDNIxCSCLR_StatsLUT.txt'
 species_list = ['Pig', 'Human', 'Macaque', 'Mouselemur', 'Marmoset', 'Chimpanzee', 'Dog', 'Cat', 'Mouse', 'Rat']
+
+
 def EDNiXprepare(LUTfile,species_list):
 
     fname   = opb(LUTfile)
@@ -41,11 +47,13 @@ def EDNiXprepare(LUTfile,species_list):
         path_label_code = opj(path_ref, 'label_code')
 
         shutil.copyfile(LUTfile, opj(path_label_code,fname))
+
         FSLR(opj(path_label_code,fname), EDNIX_removelist, newname)
         FS2_WB(opj(path_label_code,fname), name)
-        FS2_WB(opj(path_label_code,fname), newname)
+        FS2_WB(opj(path_label_code,newname + '_StatsLUT.txt'), newname)
         FS2_ITK(opj(path_label_code,fname), name)
-        FS2_ITK(opj(path_label_code,fname), newname)
+        FS2_ITK(opj(path_label_code,newname + '_StatsLUT.txt'), newname)
+
 
 def FSLR(label_file,remove_list,REF):
     dir_label = opd(label_file)

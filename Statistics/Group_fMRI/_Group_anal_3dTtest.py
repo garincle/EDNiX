@@ -1,5 +1,5 @@
 import nilearn
-from nilearn import plotting
+from nilearn import plotting, image
 import glob
 import subprocess
 import os
@@ -8,214 +8,260 @@ import nibabel as nib
 from nilearn.masking import compute_epi_mask
 import matplotlib.pyplot as plt
 from scipy.stats import norm
-import Tools.Load_EDNiX_requirement
-from fMRI.extract_filename import extract_filename
-from nilearn import image
-#################################################################################################
-#### LOADER YUNG LEMUR
-#################################################################################################
+from Tools import Load_EDNiX_requirement, check_nii, getpath
+
 opj = os.path.join
 opb = os.path.basename
-opn = os.path.normpath
-opd = os.path.dirname
 ope = os.path.exists
-spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-#################################################################################################
-#### Seed base analysis
-#################################################################################################
-def _3dttest_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, cut_coords, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, endfmri, mean_imgs):
+BOLD_SUFFIX = "_space-template_desc-fMRI_residual.nii.gz"
 
-    s_path, afni_sif, fsl_sif, fs_sif, itk_sif, wb_sif, strip_sif, s_bind = Tools.Load_EDNiX_requirement.load_requirement(
-        MAIN_PATH, bids_dir, FS_dir)
 
-    output_results1 = opj(bids_dir, 'Results')
-    if not os.path.exists(output_results1): os.mkdir(output_results1)
+def _bold_root(bold_path):
+    bn = opb(bold_path)
+    for suffix in (BOLD_SUFFIX, ".nii.gz", ".nii"):
+        if bn.endswith(suffix):
+            return bn[: -len(suffix)]
+    return bn
 
-    # If oversampling is enabled, use the base template, else use a predefined atlas
-    if oversample_map == True:
-        studytemplatebrain = templatehigh
-    else:
-        studytemplatebrain = templatelow
 
-    # Concatenate all the images in `mean_imgs`
-    mean_imgs_rs = nilearn.image.concat_imgs(mean_imgs, ensure_ndim=None, memory=None, memory_level=0,
-                                             auto_resample=True, verbose=0)
-    mask_img = compute_epi_mask(mean_imgs_rs,
-                                lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff,
-                                connected=True, opening=1,
-                                exclude_zeros=True, ensure_finite=True)
+def _sba_fish_path(bold_path, seed_name):
+    return opj(
+        os.path.dirname(
+            os.path.dirname(bold_path)),
+        "Stats", "SBA", seed_name,
+        f"{_bold_root(bold_path)}_correlations_fish.nii.gz",
+    )
 
-    mask_img.to_filename(opj(output_results1, 'mask_mean_func.nii.gz'))
+def _format_seed(name):
+    for ch in " ()/,:;.-":
+        name = name.replace(ch, "_")
+    return "".join(c for c in name if c.isalnum() or c == "_").strip("_")
 
-    # Apply mask using AFNI 3dmask_tool
-    command = f"singularity run {s_bind} {afni_sif} 3dmask_tool -overwrite -prefix {opj(output_results1, 'mask_mean_func.nii.gz')} " \
-              f"-input {opj(output_results1, 'mask_mean_func.nii.gz')} -fill_holes"
-    nl = spgo(command)
-    print(nl)
 
-    # Resample to match the mask function
-    command = f"singularity run {s_bind} {afni_sif} 3dresample -master {opj(output_results1, 'mask_mean_func.nii.gz')} -prefix {opj(output_results1, 'mask_mean_func_orig.nii.gz')} " \
-              f"-input {mask_func} -overwrite -bound_type SLAB"
-    nl = spgo(command)
-    print(nl)
+def _3dttest_EDNiX(
+    bids_dir,
+    templatehigh,
+    templatelow,
+    oversample_map,
+    mask_func,
+    cut_coords,
+    label_df,           # ← output of parse_label_file()
+    lower_cutoff,
+    upper_cutoff,
+    MAIN_PATH,
+    alpha,
+    bold_paths,         # ← output of extract_bold_paths()
+    mean_imgs,
+    regions_of_interest=None,  # optional list of base_region substrings to process
+):
+    """
+    Seed-based group t-test using AFNI 3dttest++.
 
-    # Apply the mask to the original data
-    command = f"singularity run {s_bind} {afni_sif} 3dcalc -a {opj(output_results1, 'mask_mean_func.nii.gz')} -b {opj(output_results1, 'mask_mean_func_orig.nii.gz')} " \
-              f"-expr 'a*b' -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite"
-    nl = spgo(command)
-    print(nl)
+    Parameters
+    ----------
+    bold_paths : dict — output of extract_bold_paths()
+                 keys: 'subject', 'session', 'run', 'bold_path'
 
-    # Iterate through each atlas and corresponding region
-    for panda_file, atlas in zip(panda_files, selected_atlases):
-        output_results = opj(output_results1, 'Grp_SBA_3dTTEST')
-        if not os.path.exists(opj(output_results1, 'Grp_SBA_3dTTEST')):
-            os.mkdir(opj(output_results1, 'Grp_SBA_3dTTEST'))
-        if not os.path.exists(output_results):
-            os.mkdir(output_results)
+    label_df   : pd.DataFrame — output of parse_label_file()
+                 columns: region_name, base_region, label_id, hemisphere, R, G, B, A
+                 Each row is one seed; region_name (e.g. 'L_Isocortex') is used as
+                 the SBA seed folder name.
 
-        # Define function to format seed names
-        def format_seed_name(seed_name):
-            replace_chars = [' ', '(', ')', ',', '/', ':', ';', '.', '-']
-            for char in replace_chars:
-                seed_name = seed_name.replace(char, '_')
-            formatted_name = ''.join(char for char in seed_name if char.isalnum() or char == '_')
-            formatted_name = formatted_name.strip('_')
-            return formatted_name
+    regions_of_interest : list of base_region substrings to restrict the analysis,
+                          e.g. ['Isocortex', 'Frontal'].  None = all regions.
+    """
+    sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _,sing_synstrip,Unetpath =  Load_EDNiX_requirement.load_requirement(MAIN_PATH,templatehigh,bids_dir,'yes')
 
-        def run_command(command):
-            """Helper function to run shell commands."""
-            print(f"Running command: {command}")
-            return subprocess.getoutput(command)
 
-        # Loop through each region in the pandas dataframe
-        for column, row in panda_file.T.items():
-            Seed_name = row['region']
-            Seed_name = format_seed_name(Seed_name)
+    output_results1 = opj(bids_dir, "Results")
+    os.makedirs(output_results1, exist_ok=True)
+    studytemplatebrain = templatehigh if oversample_map else templatelow
 
-            output_folder = opj(output_results, Seed_name)
-            if not os.path.exists(output_folder):
-                os.mkdir(output_folder)
+    # ── Group brain mask ─────────────────────────────────────────────────────
+    mean_imgs_rs = nilearn.image.concat_imgs(mean_imgs, auto_resample=True, verbose=0)
+    mask_img     = compute_epi_mask(
+        mean_imgs_rs,
+        lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff,
+        connected=True, opening=1, exclude_zeros=True, ensure_finite=True,
+    )
+    mask_path    = opj(output_results1, "mask_mean_func.nii.gz")
+    mask_orig    = opj(output_results1, "mask_mean_func_orig.nii.gz")
+    mask_overlap = opj(output_results1, "mask_mean_func_overlapp.nii.gz")
+    mask_img.to_filename(mask_path)
 
-            # List to store individual subject Fisher maps for averaging later
-            mean_per_subject = []
-            # Loop over all subjects and collect their Fisher maps for each region
+    for cmd in [
+        f"3dmask_tool -overwrite -input {mask_path} -prefix {mask_path} -fill_holes",
+        f"3dresample -master {mask_path} -input {mask_func} -prefix {mask_orig} -overwrite -bound_type SLAB",
+        f"3dcalc -a {mask_path} -b {mask_orig} -expr 'a*b' -prefix {mask_overlap} -overwrite",
+    ]:
+        print(spgo(f"{sing_afni} {cmd}"))
 
-            unique_IDs = np.unique(all_ID)  # Liste des ID uniques
-            for ID in unique_IDs:
-                # Trouver les index où l'ID correspond
-                indices = [i for i, x in enumerate(all_ID) if x == ID]
+    all_subjects   = bold_paths["subject"]
+    all_bold_list  = bold_paths["bold_path"]
 
-                subject_results = []
-                for idx in indices:
-                    data_path = all_data_path[idx]
+    output_results = opj(output_results1, "Grp_SBA_3dTTEST")
+    os.makedirs(output_results, exist_ok=True)
 
-                    dir_fMRI_Refth_RS = opj(data_path, 'func')
-                    dir_fMRI_Refth_RS_prepro = opj(dir_fMRI_Refth_RS, '01_prepro')
-                    dir_fMRI_Refth_RS_prepro3 = opj(dir_fMRI_Refth_RS_prepro, '03_atlas_space')
+    # Filter label_df by regions_of_interest if requested
+    seeds = label_df.copy()
+    if regions_of_interest:
+        seeds = seeds[seeds["region_name"].apply(
+            lambda b: any(r in _format_seed(b) for r in regions_of_interest))]
 
-                    list_RS = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endfmri)))
-                    list_RS_list = list_RS.copy()
+    for _, seed_row in seeds.iterrows():
+        seed_name     = _format_seed(seed_row["region_name"])
+        print('proccessing ' + str(seed_name) + ' seed')
+        output_folder = opj(output_results, seed_name)
+        os.makedirs(output_folder, exist_ok=True)
 
-                    for imageF in list_RS_list:
-                        root_RS = extract_filename(os.path.basename(imageF))
-                        input_results = opj(dir_fMRI_Refth_RS_prepro3, '10_Results', 'SBA', Seed_name)
-                        if ope(opj(input_results, root_RS + '_correlations_fish.nii.gz')):
-                            subject_results.append(opj(input_results, root_RS + '_correlations_fish.nii.gz'))
+        # ── Per-subject average Fisher-z maps ─────────────────────────────
+        mean_per_subject = []
+        master_file = None   # first valid avg map — used as resample target for ttest
 
-                if subject_results:
-                    output_file = opj(output_folder, f"{ID}_avg_fisher_map.nii.gz")
-                    if ope(output_file):
-                        os.remove(output_file)
+        for unique_id in sorted(set(all_subjects)):
+            fish_maps = [
+                _sba_fish_path(bold_p, seed_name)
+                for subj, bold_p in zip(all_subjects, all_bold_list)
+                if subj == unique_id and ope(_sba_fish_path(bold_p, seed_name))
+            ]
+            if not fish_maps:
+                print(f"  [WARN] No Fisher-z maps: subject={unique_id}  seed={seed_name}")
+                continue
 
-                    command = f"singularity run {s_bind} {afni_sif} 3dMean -prefix {output_file} {subprocess.list2cmdline(subject_results)}"
-                    nl = spgo(command)
-                    print(nl)
+            # ── Resample all runs to the first run before 3dMean ──────────
+            # Runs from different sessions may have different grid sizes
+            master_run     = fish_maps[0]
+            resampled_maps = [master_run]
+            for fm in fish_maps[1:]:
+                fm_rs = fm.replace(".nii.gz", "_rs.nii.gz")
+                print(spgo(
+                    f"{sing_afni} "
+                    f"3dresample -master {master_run} -input {fm} "
+                    f"-prefix {fm_rs} -overwrite -bound_type SLAB"
+                ))
+                resampled_maps.append(fm_rs if ope(fm_rs) else fm)
 
-                # **AVERAGE the Fisher maps across subjects** for each region
-                if ope(opj(output_folder, str(ID) + '_avg_fisher_map.nii.gz')):
-                    if ope(opj(output_folder, str(ID) + '_avg_fisher_map.nii.gz')):
-                        mean_per_subject.append(opj(output_folder, str(ID) + '_avg_fisher_map.nii.gz'))
+            avg_file = opj(output_folder, f"{unique_id}_avg_fisher_map.nii.gz")
+            if ope(avg_file):
+                os.remove(avg_file)
+            print(spgo(
+                f"{sing_afni} "
+                f"3dMean -prefix {avg_file} "
+                f"{subprocess.list2cmdline(resampled_maps)}"
+            ))
+            if ope(avg_file):
+                mean_per_subject.append(avg_file)
+                if master_file is None:
+                    master_file = avg_file   # first valid avg = master for ttest
 
-            if len(mean_per_subject)>1:
-                # Find and remove all files starting with 'TTnew'
-                for file in glob.glob(os.path.join(output_folder, "TTnew*")):
-                    os.remove(file)
-                    print(f"Removed: {file}")
+        if len(mean_per_subject) < 2:
+            print(f"  [SKIP] {seed_name}: only {len(mean_per_subject)} subject(s)")
+            continue
 
-                os.chdir(output_folder)
-                print(subprocess.list2cmdline(mean_per_subject))
-                if len(mean_per_subject)>14:
-                    command = f"singularity run {s_bind} {afni_sif} 3dttest++ -setA {subprocess.list2cmdline(mean_per_subject)} " \
-                              f"-toz -Clustsim -mask {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} "
-                    nl = spgo(command)
-                    print(nl)
+        # ── Resample all avg maps to master before 3dttest++ ──────────────
+        # Subjects processed on different sessions may have different grids
+        resampled_per_subject = [master_file]
+        for avg in mean_per_subject[1:]:
+            avg_rs = avg.replace(".nii.gz", "_rs.nii.gz")
+            print(spgo(
+                f"{sing_afni} "
+                f"3dresample -master {master_file} -input {avg} "
+                f"-prefix {avg_rs} -overwrite -bound_type SLAB"
+            ))
+            resampled_per_subject.append(avg_rs if ope(avg_rs) else avg)
 
-                    command = f"singularity run {s_bind} {afni_sif} 3dcalc -overwrite -a {opj(output_folder, 'TTnew+orig.HEAD[1]')} -expr a -prefix {opj(output_folder, Seed_name + 'ttest-stat_fisher_zmap.nii.gz')}"
-                    nl = spgo(command)
-                    print(nl)
+        # ── 3dttest++ ─────────────────────────────────────────────────────
+        for f in glob.glob(opj(output_folder, "TTnew*")):
+            os.remove(f)
+        os.chdir(output_folder)
 
-                    # Extract cluster size information
-                    cluster_size_command = f'singularity run {s_bind} {afni_sif} 1d_tool.py -infile {output_folder}/TTnew.CSimA.NN1_2sided.1D -csim_show_clustsize -verb 0 -csim_pthr 0.05 -csim_alpha {str(alpha)}'
-                    cluster_size_output = run_command(cluster_size_command)
-                    # Extract the cluster size from the output
-                    try:
-                        # Split the output into lines and find the line containing the cluster size
-                        for line in cluster_size_output.splitlines():
-                            if line.strip().isdigit():  # Check if the line is a number
-                                cluster_size = int(line.strip())
-                                print(f"Extracted Cluster Size: {cluster_size}")
-                                break
-                        else:
-                            raise ValueError("Cluster size not found in the output.")
-                    except ValueError as e:
-                        print(f"Error extracting cluster size: {e}")
-                        cluster_size = 0  # Set a default value or handle the error as needed
-                    print(str(cluster_size))
+        use_clustsim = len(resampled_per_subject) > 14
+        print(spgo(
+            f"{sing_afni} "
+            f"3dttest++ -setA {subprocess.list2cmdline(resampled_per_subject)} "
+            f"-toz {'-Clustsim ' if use_clustsim else ''}"
+            f"-mask {mask_overlap}"
+        ))
 
-                else:
-                    command = f"singularity run {s_bind} {afni_sif} 3dttest++ -setA {subprocess.list2cmdline(mean_per_subject)} " \
-                              f"-toz -mask {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} "
-                    nl = spgo(command)
-                    print(nl)
-                    cluster_size = 10
+        zmap = opj(output_folder, f"{seed_name}_ttest-stat_fisher_zmap.nii.gz")
+        print(spgo(
+            f"{sing_afni} "
+            f"3dcalc -overwrite "
+            f"-a {opj(output_folder, 'TTnew+orig.HEAD[1]')} "
+            f"-expr a -prefix {zmap}"
+        ))
 
-                    command = f"singularity run {s_bind} {afni_sif} 3dcalc -overwrite -a {opj(output_folder, 'TTnew+orig.HEAD[1]')} -expr a -prefix {opj(output_folder, Seed_name + 'ttest-stat_fisher_zmap.nii.gz')}"
-                    nl = spgo(command)
-                    print(nl)
+        correlation = opj(output_folder, f"{seed_name}_ttest-stat_fisher_cmap.nii.gz")
+        print(spgo(
+            f"{sing_afni} "
+            f"3dcalc -overwrite "
+            f"-a {opj(output_folder, 'TTnew+orig.HEAD[0]')} "
+            f"-expr a -prefix {correlation}"))
 
-                # Thresholding and visualization
-                z_map = opj(output_folder, Seed_name + 'ttest-stat_fisher_zmap.nii.gz')
-                loadimg = nib.load(z_map).get_fdata()
-                loadimgsort99 = np.percentile(np.abs(loadimg)[np.abs(loadimg) > 0], 99)
+        # ── Cluster threshold ─────────────────────────────────────────────
+        if use_clustsim:
+            csim_out = spgo(
+                f"{sing_afni} "
+                f"1d_tool.py -infile {output_folder}/TTnew.CSimA.NN1_2sided.1D "
+                f"-csim_show_clustsize -verb 0 -csim_pthr 0.05 -csim_alpha {alpha}"
+            )
+            try:
+                cluster_size = next(
+                    int(l.strip()) for l in csim_out.splitlines() if l.strip().isdigit()
+                )
+            except StopIteration:
+                cluster_size = 10
+        else:
+            cluster_size = 10
 
-                # Calculate the z-score for a two-tailed test
-                z_score = norm.ppf(1 - alpha / 2)
-                print(f"The z-score corresponding to an alpha level of {alpha} is {z_score:.2f}")
+        # ── Threshold & visualise ─────────────────────────────────────────
+        loadimg = nib.load(zmap).get_fdata()
+        vmax = np.percentile(np.abs(loadimg), 99) if np.any(loadimg) else 5.0
+        z_score = norm.ppf(1 - alpha / 2)
 
-                # Threshold the image
-                mask_imag = nilearn.image.threshold_img(z_map, z_score, cluster_threshold=int(cluster_size))  # Cluster threshold could be adjusted
-                mask_imag.to_filename(opj(output_folder, Seed_name + 'thresholded_ttest-stat_fisher.nii.gz'))
+        # Threshold the z-stat map (for stat plot)
+        thr_img = nilearn.image.threshold_img(zmap, z_score, cluster_threshold=int(cluster_size))
+        thr_path = opj(output_folder, f"{seed_name}_thresholded_ttest-stat_fisher.nii.gz")
+        thr_img.to_filename(thr_path)
 
-                # Load stat map and atlas
-                stat_map_path = opj(output_folder, Seed_name + 'thresholded_ttest-stat_fisher.nii.gz')
-                atlas_path = opj(atlas)  # must be 4D
+        # Threshold the correlation map using the same z-score mask
+        # (show only voxels that survive the stat threshold)
+        thr_cmap = nilearn.image.threshold_img(correlation, z_score, cluster_threshold=int(cluster_size))
+        thr_cmap_path = opj(output_folder, f"{seed_name}_thresholded_ttest-stat_fisher_cmap.nii.gz")
+        thr_cmap.to_filename(thr_cmap_path)
 
-                stat_img = image.load_img(stat_map_path)
-                atlas_img = image.load_img(atlas_path)
+        corr_data = nib.load(correlation).get_fdata()
+        vmax_corr = np.max(np.abs(corr_data)) if np.any(corr_data) else 1.0
 
-                # Plot stat map first
-                display = plotting.plot_stat_map(stat_img, dim=0, threshold=z_score, vmax=loadimgsort99,
-                                                 colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic',
-                                                 cut_coords=cut_coords)
+        # ── Plot 1: unthresholded group-mean Fisher-z correlation map ────
+        display = plotting.plot_stat_map(
+            correlation, dim=0, vmax=vmax_corr,
+            colorbar=True, bg_img=studytemplatebrain,
+            display_mode="y", cut_coords=cut_coords,
+            title=f"{seed_name} — mean Fisher-z (unthresholded)",
+        )
+        display.savefig(opj(output_folder, f"{seed_name}_correlation_mosaic.jpg"))
+        display.close()
 
-                # Overlay probabilistic atlas
-                plotting.plot_prob_atlas(atlas_img, display_mode='mosaic', cut_coords=cut_coords,
-                                         alpha=0.3, bg_img=None, axes=display.axes[0], figure=display.figure,
-                                         cmap='nipy_spectral')
+        # ── Plot 2: correlation map masked by stat threshold ──────────────
+        display = plotting.plot_stat_map(
+            thr_cmap, dim=0, threshold=0, vmax=vmax_corr,
+            colorbar=True, bg_img=studytemplatebrain,
+            display_mode="y", cut_coords=cut_coords,
+            title=f"{seed_name} — Fisher-z (p<{alpha}, cluster≥{cluster_size})",
+        )
+        display.savefig(opj(output_folder, f"{seed_name}_correlation_thresholded_mosaic.jpg"))
+        display.close()
 
-                display.savefig(opj(output_folder, Seed_name+ 'thresholded_stat_mosaic.jpg'))
-                display.close()
-                plt.close('all')
+        # ── Plot 3: thresholded t-stat z-score map ────────────────────────
+        display = plotting.plot_stat_map(
+            thr_img, dim=0, threshold=z_score, vmax=vmax,
+            colorbar=True, bg_img=studytemplatebrain,
+            display_mode="y", cut_coords=cut_coords,
+            title=f"{seed_name} — t-stat z-map (p<{alpha}, cluster≥{cluster_size})",
+        )
+        display.savefig(opj(output_folder, f"{seed_name}_thresholded_stat_mosaic.jpg"))
+        display.close()
+        plt.close("all")

@@ -211,9 +211,9 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
                          selected_atlases_SBA, panda_files_SBA, template_dir))
 
     if species in ['Human', 'Chimpanzee']:
-        config_f = opj(MAIN_PATH, 'Tool_library', 'config', 'b02b0Human.cnf')
+        config_f = opj(MAIN_PATH, 'Singularity_library', 'config', 'b02b0Human.cnf')
     else:
-        config_f = opj(MAIN_PATH, 'Tool_library', 'config', 'b02b0Macaque.cnf')
+        config_f = opj(MAIN_PATH, 'Singularity_library', 'config', 'b02b0Macaque.cnf')
 
     # Set the environment variable for the current process
     os.environ["AFNI_NIFTI_TYPE_WARN"] = "NO"

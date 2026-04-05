@@ -74,7 +74,7 @@ print(f"   • Validation: {len(val_set)} (anat: {anat_val}, func: {func_val})")
 
 
 # --- Step 4: Build training command ---
-afni_sif = '/srv/projects/easymribrain/code/EDNiX/Tool_library/Singularity/'
+afni_sif = '/srv/projects/easymribrain/code/EDNiX/Singularity_library/Singularity/'
 # --- Step 1: Define folders ---
 folders = {
     '-trmsk': '/srv/projects/easymribrain/scratch/Training_trainSs_UNet/masks',

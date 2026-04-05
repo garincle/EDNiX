@@ -10,7 +10,7 @@
 
 # Relative patterns (work regardless of project location)
 #Atlases_library/
-Tool_library/
+Singularity_library/
 venvEDNiX/
 Exemple_perso/
 

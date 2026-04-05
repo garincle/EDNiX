@@ -80,7 +80,7 @@ allinfo_study_c.rename(columns={'path': 'DICOMdir'}, inplace=True)
 folders = glob.glob(opj(bids_dir,'sub*'))
 
 # datatable generated with external info
-ml_excel = opn('/srv/projects/easymribrain/data/MRI/Macaque/BIDS_Cdt_Garin/Garin_macaque.xlsx')
+ml_excel = opn('/scratch2/EDNiX/Macaque/BIDS_Cdt_Garin/Garin_macaque.xlsx')
 animalinfo = pd.read_excel(ml_excel, sheet_name='animalinfo')
 MRIsessions = pd.read_excel(ml_excel, sheet_name='MRIsessions')
 MRIsessions12 = pd.read_excel(ml_excel, sheet_name='MRIsessions12')
