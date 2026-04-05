@@ -1,6 +1,6 @@
 import nilearn
 from nilearn import plotting
-import glob
+from Tools import Load_EDNiX_requirement, check_nii, getpath
 import subprocess
 import os
 import numpy as np
@@ -10,262 +10,291 @@ from nilearn.masking import compute_epi_mask
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 import Tools.Load_EDNiX_requirement
-from fMRI.extract_filename import extract_filename
-#################################################################################################
-#### LOADER YUNG LEMUR
-#################################################################################################
+
 opj = os.path.join
 opb = os.path.basename
-opn = os.path.normpath
-opd = os.path.dirname
 ope = os.path.exists
 spco = subprocess.check_output
 spgo = subprocess.getoutput
 
-#################################################################################################
-#### Seed base analysis
-#################################################################################################
-def _3dLMEr_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, folder_atlases, cut_coords, panda_files, selected_atlases,
-              lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha ,all_ID, all_Session, all_data_path, max_sessionlist, endfmri, mean_imgs,
-                                              model, gltCode, stat_img):
-
-    s_path, afni_sif, fsl_sif, fs_sif, itk_sif, wb_sif, strip_sif, s_bind = Tools.Load_EDNiX_requirement.load_requirement(
-        MAIN_PATH, bids_dir, FS_dir)
-    output_results1 = opj(bids_dir, 'Results')
-    if not os.path.exists(output_results1): os.mkdir(output_results1)
-
-    # If oversampling is enabled, use the base template, else use a predefined atlas
-    if oversample_map == True:
-        studytemplatebrain = templatehigh
-    else:
-        studytemplatebrain = templatelow
-
-    # Concatenate all the images in `mean_imgs`
-    mean_imgs_rs = nilearn.image.concat_imgs(mean_imgs, ensure_ndim=None, memory=None, memory_level=0,
-                                             auto_resample=True, verbose=0)
-    mask_img = compute_epi_mask(mean_imgs_rs,
-                                lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff,
-                                connected=True, opening=1,
-                                exclude_zeros=True, ensure_finite=True)
-
-    mask_img.to_filename(opj(output_results1, 'mask_mean_func.nii.gz'))
-
-    # Apply mask using AFNI 3dmask_tool
-    command = f"singularity run {s_bind} {afni_sif} 3dmask_tool -overwrite -prefix {opj(output_results1, 'mask_mean_func.nii.gz')} " \
-              f"-input {opj(output_results1, 'mask_mean_func.nii.gz')} -fill_holes"
-    nl = spgo(command)
-    print(nl)
-
-    # Resample to match the mask function
-    command = f"singularity run {s_bind} {afni_sif} 3dresample -master {opj(output_results1, 'mask_mean_func.nii.gz')} -prefix {opj(output_results1, 'mask_mean_func_orig.nii.gz')} " \
-              f"-input {mask_func} -overwrite -bound_type SLAB"
-    nl = spgo(command)
-    print(nl)
-
-    # Apply the mask to the original data
-    command = f"singularity run {s_bind} {afni_sif} 3dcalc -a {opj(output_results1, 'mask_mean_func.nii.gz')} -b {opj(output_results1, 'mask_mean_func_orig.nii.gz')} " \
-              f"-expr 'a*b' -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -overwrite"
-    nl = spgo(command)
-    print(nl)
-
-    # Iterate through each atlas and corresponding region
-    for panda_file, atlas in zip(panda_files, selected_atlases):
-        output_results = opj(output_results1, 'Grp_SBA_3dLME_network')
-        if not os.path.exists(opj(output_results1, 'Grp_SBA_3dLME_network')):
-            os.mkdir(opj(output_results1, 'Grp_SBA_3dLME_network'))
-        if not os.path.exists(output_results):
-            os.mkdir(output_results)
-
-        # Define function to format seed names
-        def format_seed_name(seed_name):
-            replace_chars = [' ', '(', ')', ',', '/', ':', ';', '.', '-']
-            for char in replace_chars:
-                seed_name = seed_name.replace(char, '_')
-            formatted_name = ''.join(char for char in seed_name if char.isalnum() or char == '_')
-            formatted_name = formatted_name.strip('_')
-            return formatted_name
-
-        def run_command(command):
-            """Helper function to run shell commands."""
-            print(f"Running command: {command}")
-            return subprocess.getoutput(command)
-
-        # Loop through each region in the pandas dataframe
-        for column, row in panda_file.T.items():
-            Seed_name = row['region']
-            Seed_name = format_seed_name(Seed_name)
-
-            output_folder = opj(output_results, Seed_name)
-            if not os.path.exists(output_folder):
-                os.mkdir(output_folder)
-
-            # List to store individual subject Fisher maps for averaging later
-            mean_per_subject = []
-            # Loop over all subjects and collect their Fisher maps for each region
-            all_images = []
-            all_Run_updated = []
-            all_Session_updated = []
-            all_ID_updated = []
-            for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, max_sessionlist):
-                dir_fMRI_Refth_RS = opj(data_path, 'func')
-                dir_fMRI_Refth_RS_prepro = opj(dir_fMRI_Refth_RS, '01_prepro')
-                dir_fMRI_Refth_RS_prepro3 = opj(dir_fMRI_Refth_RS_prepro, '03_atlas_space')
-
-                # Check the func runs
-                list_RS = sorted(glob.glob(opj(dir_fMRI_Refth_RS, endfmri)))
-                RS = [os.path.basename(i) for i in list_RS]
-                extract_filename
-                if len(list_RS) == 0:
-                    nl = 'ERROR : No func image found, we are look for an image define such as opj(dir_fMRI_Refth_RS, endfmri) and here it is ' + str(
-                        opj(dir_fMRI_Refth_RS, endfmri)) + ' I would check how you define "endfmri"'
-                    raise ValueError(nl)
+BOLD_SUFFIX = "_space-template_desc-fMRI_residual.nii.gz"
 
 
-                nb_run = len(list_RS)
-                # Setup for distortion correction using Fieldmaps
-                for i in range(0, int(nb_run)):
-                    root_RS = extract_filename(RS[i])
-                    input_results = opj(dir_fMRI_Refth_RS_prepro3, '10_Results', 'SBA', Seed_name)
-                    if ope(opj(input_results, root_RS + '_correlations_fish.nii.gz')):
-                        all_images.append(opj(input_results, root_RS + '_correlations_fish.nii.gz'))
-                        all_Run_updated.append('run_' + str(i))
-                        all_Session_updated.append('Sess_' + str(Session))
-                        all_ID_updated.append(ID)
+def _bold_root(bold_path):
+    bn = opb(bold_path)
+    for suffix in (BOLD_SUFFIX, ".nii.gz", ".nii"):
+        if bn.endswith(suffix):
+            return bn[: -len(suffix)]
+    return bn
 
-                        if len(all_images) == 1:
-                            Resample_master = opj(input_results, root_RS + '_correlations_fish.nii.gz')
-                        if len(all_images) > 1:
-                            # Check if image matches reference grid
-                            check_cmd = f"singularity run {s_bind} {afni_sif} 3dMatch -quiet -source {Resample_master} -input {opj(input_results, root_RS + '_correlations_fish.nii.gz')}"
-                            result = subprocess.run(check_cmd, shell=True, capture_output=True, text=True)
 
-                            if result.returncode != 0:  # Grid mismatch
-                                all_images = all_images[:-1]
-                                resampled_path = opj(input_results, root_RS + '_correlations_fish.nii.gz').replace('.nii.gz', '_resampled.nii.gz')
-                                resample_cmd = f"singularity run {s_bind} {afni_sif} 3dresample -overwrite -master {Resample_master} -input {opj(input_results, root_RS + '_correlations_fish.nii.gz')} -prefix {resampled_path}"
-                                subprocess.run(resample_cmd, shell=True, check=True)
-                                all_images.append(opj(input_results, root_RS + '_correlations_fish_resampled.nii.gz'))
+def _sba_fish_path(bold_path, seed_name):
+    return opj(
+        os.path.dirname(
+            os.path.dirname(bold_path)),
+        "Stats", "SBA", seed_name,
+        f"{_bold_root(bold_path)}_correlations_fish.nii.gz",
+    )
 
-            # Design matrix for GLM
-            # Create a DataFrame with unique subject-run pairs
-            panda_disign_matrix = pd.DataFrame({'Subj': all_ID_updated, 'Sess': all_Session_updated, 'run': all_Run_updated, 'InputFile': all_images})
 
-            # Ensure no duplicates and sort for consistency
-            panda_disign_matrix = panda_disign_matrix.drop_duplicates().sort_values(by=['Subj', 'run'])
+def _format_seed(name):
+    for ch in " ()/,:;.-":
+        name = name.replace(ch, "_")
+    return "".join(c for c in name if c.isalnum() or c == "_").strip("_")
 
-            # Save design matrix
-            base_filename = 'design_matrix.txt'
-            design_matrix_txt = opj(output_folder, base_filename)
 
-            if os.path.exists(design_matrix_txt):
-                os.remove(design_matrix_txt)
-            panda_disign_matrix.to_csv(design_matrix_txt, index=False, sep='\t')
+def _extract_cluster_threshold(cluster_file, pthr, alpha):
+    try:
+        with open(cluster_file) as f:
+            lines = f.readlines()
+        alpha_values = [float(a) for a in lines[6].split("|")[1].split()]
+        if alpha not in alpha_values:
+            return 10
+        col_idx = alpha_values.index(alpha) + 1
+        data    = np.loadtxt(cluster_file, comments="#")
+        row_idx = np.where(np.isclose(data[:, 0], pthr, atol=1e-6))[0]
+        if not len(row_idx):
+            return 10
+        cluster_size = data[row_idx[0], col_idx]
+        print(f"  Cluster threshold pthr={pthr} alpha={alpha} → {cluster_size:.1f} voxels")
+        return cluster_size
+    except Exception as e:
+        print(f"  [WARN] cluster file unreadable: {e}; using 10")
+        return 10
 
-            stat_maps = opj(output_folder + '3dLME_glt.nii.gz')
-            if os.path.exists(stat_maps):
-                os.remove(stat_maps)
-            print((opj(output_folder + '3dLME_glt_log.txt')))
-            if os.path.exists(opj(output_folder + '3dLME_glt_log.txt')):
-                os.remove(opj(output_folder + '3dLME_glt_log.txt'))
 
-            if os.path.exists(opj(output_folder + 'resid.nii.gz')):
-                os.remove(opj(output_folder + 'resid.nii.gz'))
+def _3dLMEr_EDNiX(
+    bids_dir,
+    templatehigh,
+    templatelow,
+    oversample_map,
+    mask_func,
+    cut_coords,
+    label_df,
+    lower_cutoff,
+    upper_cutoff,
+    MAIN_PATH,
+    alpha,
+    bold_paths,
+    mean_imgs,
+    model,
+    gltCode,
+    stat_img,
+    regions_of_interest=None):
+    """
+    Seed-based group analysis using AFNI 3dLMEr (mixed-effects).
 
-            os.chdir(output_results)
-            # Run GLM command with the design matrix and random effects
-            command = f'singularity run {s_bind} {afni_sif} 3dLMEr -prefix {stat_maps} ' \
-                      f'-jobs 20 -mask {opj(output_results1, "mask_mean_func_overlapp.nii.gz")} ' \
-                      f'-model {model}' \
-                      f" {gltCode} " \
-                      f'-dataTable @{output_folder}/design_matrix.txt -resid {output_folder}/resid.nii.gz'
-            print(command)
-            spco(command, shell=True)
+    Parameters
+    ----------
+    bold_paths : dict — output of extract_bold_paths()
+                 keys: 'subject', 'session', 'run', 'bold_path'
 
-            # Further analysis with 3dFWHMx, ClustSim, etc. (remaining code...)
-            #command = f"singularity run {s_bind} {afni_sif} 3dFWHMx -detrend {subprocess.list2cmdline(all_images)} " \
-            #          f" -input {output_results + 'resid.nii.gz'}  -unif"
-            #spco(command, shell=True)
+    label_df   : pd.DataFrame — output of parse_label_file()
+                 columns: region_name, base_region, label_id, hemisphere, R, G, B, A
+                 Each row defines one seed; region_name (e.g. 'L_Isocortex') is used
+                 as the SBA seed folder name.
 
-            command = f"singularity run {s_bind} {afni_sif} 3dClustSim -mask " \
-            f" {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} -LOTS -prefix {output_folder + '/Clust_'}"
-            spco(command, shell=True)
+    model      : 3dLMEr model string, e.g. '~1+(1|Subj)'
+    gltCode    : full -gltCode argument string(s) passed verbatim to 3dLMEr
+    stat_img   : list of contrast labels matching gltCode order,
+                 e.g. ['groupeffect', 'contrast1'].
+                 'groupeffect' skips cluster-based thresholding.
 
-            os.chdir(output_results)
-            for i, gltlabel in enumerate(stat_img):
-                if gltlabel == 'groupeffect':
-                    img_glt = output_folder + '/' + Seed_name + '_' + str(gltlabel) + '.nii.gz'
-                    output_z = nib.load(stat_maps).get_fdata()[:, :, :, 0, i]
-                    output_z = nilearn.image.new_img_like(stat_maps, output_z, copy_header=True)
-                    output_z.to_filename(img_glt)
+    regions_of_interest : list of base_region substrings to restrict the
+                          analysis.  None = all regions in label_df.
+    """
+    sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _,sing_synstrip,Unetpath =  Load_EDNiX_requirement.load_requirement(MAIN_PATH,templatehigh,bids_dir,'yes')
 
-                    # Visualization
-                    display = plotting.plot_stat_map(img_glt, dim=0,
-                                                     colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=cut_coords)
-                    display.savefig(opj(output_folder, Seed_name + '_' + str(gltlabel) + '_thresholded_stat_mosaic.jpg'))
-                    display.close()
-                    plt.close('all')
+    output_results1 = opj(bids_dir, "Results")
+    os.makedirs(output_results1, exist_ok=True)
+    studytemplatebrain = templatehigh if oversample_map else templatelow
 
+    # ── Group brain mask ─────────────────────────────────────────────────────
+    mean_imgs_rs = nilearn.image.concat_imgs(mean_imgs, auto_resample=True, verbose=0)
+    mask_img     = compute_epi_mask(
+        mean_imgs_rs,
+        lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff,
+        connected=True, opening=1, exclude_zeros=True, ensure_finite=True,
+    )
+    mask_path    = opj(output_results1, "mask_mean_func.nii.gz")
+    mask_orig    = opj(output_results1, "mask_mean_func_orig.nii.gz")
+    mask_overlap = opj(output_results1, "mask_mean_func_overlapp.nii.gz")
+    mask_img.to_filename(mask_path)
+
+    for cmd in [
+        f"3dmask_tool -overwrite -input {mask_path} -prefix {mask_path} -fill_holes",
+        f"3dresample -master {mask_path} -input {mask_func} -prefix {mask_orig} -overwrite -bound_type SLAB",
+        f"3dcalc -a {mask_path} -b {mask_orig} -expr 'a*b' -prefix {mask_overlap} -overwrite",
+    ]:
+        print(spgo(f"{sing_afni} {cmd}"))
+
+    all_subjects  = bold_paths["subject"]
+    all_sessions  = bold_paths["session"]
+    all_runs      = bold_paths["run"]
+    all_bold_list = bold_paths["bold_path"]
+
+    output_results = opj(output_results1, "Grp_SBA_3dLME_network")
+    os.makedirs(output_results, exist_ok=True)
+
+    seeds = label_df.copy()
+    if regions_of_interest:
+        seeds = seeds[seeds["region_name"].apply(
+            lambda b: any(r in _format_seed(b) for r in regions_of_interest))]
+
+    for _, seed_row in seeds.iterrows():
+        seed_name     = _format_seed(seed_row["region_name"])
+        output_folder = opj(output_results, seed_name)
+        os.makedirs(output_folder, exist_ok=True)
+
+        # ── Collect Fisher-z maps, build design matrix ────────────────────
+        all_images, all_IDs, all_Sess, all_Runs = [], [], [], []
+        Resample_master = None
+
+        for subj, ses, run, bold_p in zip(all_subjects, all_sessions, all_runs, all_bold_list):
+            fish = _sba_fish_path(bold_p, seed_name)
+            if not ope(fish):
+                print(f"  [SKIP] {fish}")
+                continue
+
+            if Resample_master is None:
+                Resample_master = fish
+                final_fish = fish
+            else:
+                check = subprocess.run(
+                    f"{sing_afni} "
+                    f"3dMatch -quiet -source {Resample_master} -input {fish}",
+                    shell=True, capture_output=True, text=True,
+                )
+                if check.returncode != 0:
+                    resampled = fish.replace(".nii.gz", "_resampled.nii.gz")
+                    subprocess.run(
+                        f"{sing_afni} "
+                        f"3dresample -overwrite -master {Resample_master} "
+                        f"-input {fish} -prefix {resampled}",
+                        shell=True, check=True,
+                    )
+                    final_fish = resampled
                 else:
-                    img_glt = output_folder + '/' + Seed_name + '_' + str(gltlabel) + '.nii.gz'
-                    output_z = nib.load(stat_maps).get_fdata()[:, :, :, 0, i]
-                    output_z = nilearn.image.new_img_like(stat_maps, output_z, copy_header=True)
-                    output_z.to_filename(img_glt)
+                    final_fish = fish
 
-                    cluster_file = output_folder + '/Clust_.NN1_2sided.1D'
-                    def extract_cluster_threshold(filename, pthr, alpha):
-                        # Read the file
-                        with open(filename, 'r') as f:
-                            lines = f.readlines()
+            all_images.append(final_fish)
+            all_IDs.append(str(subj))
+            all_Sess.append(f"Sess_{ses}")
+            all_Runs.append(f"run_{run}" if run is not None else "run_01")
 
-                        # Extract alpha values from the header
-                        header_line = lines[6]  # The alpha values are located in the 4th line
-                        alpha_values = [float(a) for a in header_line.split("|")[1].split()]
+        if len(all_images) < 2:
+            print(f"  [SKIP] {seed_name}: only {len(all_images)} image(s)")
+            continue
 
-                        # Check if the requested alpha exists in the file
-                        if alpha not in alpha_values:
-                            print(f"Invalid alpha={alpha}. Available alphas: {alpha_values}")
-                            return
+        design_df = (
+            pd.DataFrame({"Subj": all_IDs, "Sess": all_Sess, "run": all_Runs, "InputFile": all_images})
+            .drop_duplicates().sort_values(by=["Subj", "run"])
+        )
+        dm_path = opj(output_folder, "design_matrix.txt")
+        if ope(dm_path): os.remove(dm_path)
+        design_df.to_csv(dm_path, index=False, sep="\t")
 
-                        # Find the column index for the specified alpha
-                        col_idx = alpha_values.index(alpha) + 1  # Adjust for 0-based indexing
+        # ── 3dLMEr ────────────────────────────────────────────────────────
+        stat_maps = opj(output_folder, "3dLME_glt.nii.gz")
+        resid_path = opj(output_folder, "resid.nii.gz")
+        for f in [stat_maps, resid_path]:
+            if ope(f): os.remove(f)
 
-                        # Load the numeric data (skip comments)
-                        data = np.loadtxt(filename, comments="#")
+        os.chdir(output_results)
+        lmer_cmd = (
+            f"{sing_afni} "
+            f"3dLMEr -prefix {stat_maps} -jobs 20 -mask {mask_overlap} "
+            f"-model {model} {gltCode} "
+            f"-dataTable @{dm_path} -resid {resid_path}"
+        )
+        print(lmer_cmd)
+        spco(lmer_cmd, shell=True)
 
-                        # Find the row index for the specified pthr
-                        row_idx = np.where(np.isclose(data[:, 0], pthr, atol=1e-6))[0]
-                        if len(row_idx) == 0:
-                            print(f"No matching pthr={pthr} found in {filename}.")
-                            return
+        spco(
+            f"{sing_afni} "
+            f"3dClustSim -mask {mask_overlap} -LOTS -prefix {output_folder}/Clust_",
+            shell=True,
+        )
 
-                        # Extract the cluster size from the data
-                        cluster_size = data[row_idx[0], col_idx]
+        # ── Sub-brick extraction, threshold, visualise ────────────────────
+        # 3dLME sub-brick layout per glt:
+        #   brick 0          : Chi-sq (global F-test)
+        #   brick 1 + 2*i    : coefficient (effect / correlation) for glt i
+        #   brick 2 + 2*i    : Z-stat for glt i
+        os.chdir(output_results)
+        z_score = norm.ppf(1 - alpha / 2)
+        full_data = nib.load(stat_maps).get_fdata()
+        affine = nib.load(stat_maps).affine
 
-                        # Print the result
-                        print(f"Cluster size threshold for pthr={pthr}, alpha={alpha}: {cluster_size:.1f} voxels")
-                        return cluster_size
+        for i, glt_label in enumerate(stat_img):
+            coef_brick = 1 + 2 * i  # effect / correlation map
+            zstat_brick = 2 + 2 * i  # Z-stat map
 
-                    # Example usage:
-                    cluster_size = extract_cluster_threshold(cluster_file, alpha,0.05)
+            coef_path = opj(output_folder, f"{seed_name}_{glt_label}_coef.nii.gz")
+            zstat_path = opj(output_folder, f"{seed_name}_{glt_label}_zstat.nii.gz")
 
-                    # Apply thresholding
-                    loadimg = nib.load(img_glt).get_fdata()
-                    loadimgsort99 = np.percentile(np.abs(loadimg)[np.abs(loadimg) > 0], 99)
+            nib.save(nib.Nifti1Image(full_data[..., coef_brick], affine), coef_path)
+            nib.save(nib.Nifti1Image(full_data[..., zstat_brick], affine), zstat_path)
 
-                    z_score = norm.ppf(1 - alpha / 2)
-                    print(f"The z-score corresponding to an alpha level of {alpha} is {z_score:.2f}")
+            coef_data = full_data[..., coef_brick]
+            zstat_data = full_data[..., zstat_brick]
+            vmax_coef = np.max(np.abs(coef_data)) if np.any(coef_data) else 1.0
+            vmax_zstat = np.max(np.abs(zstat_data)) if np.any(zstat_data) else 5.0
 
-                    # Threshold the image
-                    mask_imag = nilearn.image.threshold_img(img_glt, z_score, cluster_threshold=float(cluster_size))
-                    mask_imag.to_filename(
-                        opj(output_folder, Seed_name + '_' + str(gltlabel) + '-stat.nii.gz'))
+            # ── Plot 1: unthresholded correlation / coefficient map ───────
+            display = plotting.plot_stat_map(
+                coef_path, dim=0, vmax=vmax_coef,
+                colorbar=True, bg_img=studytemplatebrain,
+                display_mode="y", cut_coords=cut_coords,
+                title=f"{seed_name} — {glt_label} coef (unthresholded)",
+            )
+            display.savefig(opj(output_folder, f"{seed_name}_{glt_label}_correlation.jpg"))
+            display.close()
+            plt.close("all")
 
-                    # Visualization
-                    display = plotting.plot_stat_map(
-                        opj(output_folder, Seed_name + '_' + str(gltlabel) + '-stat.nii.gz'),
-                        dim=0, threshold=z_score, vmax=loadimgsort99,
-                        colorbar=True, bg_img=studytemplatebrain, display_mode='mosaic', cut_coords=cut_coords)
-                    display.savefig(
-                        opj(output_folder, Seed_name + '_' + str(gltlabel) + '_thresholded_stat_mosaic.jpg'))
-                    display.close()
-                    plt.close('all')
+            if glt_label == "groupeffect":
+                # groupeffect: no cluster thresholding — just plot the Z-stat
+                display = plotting.plot_stat_map(
+                    zstat_path, dim=0, vmax=vmax_zstat,
+                    colorbar=True, bg_img=studytemplatebrain,
+                    display_mode="y", cut_coords=cut_coords,
+                    title=f"{seed_name} — {glt_label} Z-stat (unthresholded)",
+                )
+                display.savefig(opj(output_folder, f"{seed_name}_{glt_label}_zstat.jpg"))
+                display.close()
+                plt.close("all")
+            else:
+                cluster_size = _extract_cluster_threshold(
+                    opj(output_folder, "Clust_.NN1_2sided.1D"), alpha, 0.05
+                )
+
+                # Threshold Z-stat map
+                thr_zstat = nilearn.image.threshold_img(zstat_path, z_score, cluster_threshold=float(cluster_size))
+                thr_zstat_path = opj(output_folder, f"{seed_name}_{glt_label}_zstat_thr.nii.gz")
+                thr_zstat.to_filename(thr_zstat_path)
+
+                # Apply same spatial mask to coefficient map
+                thr_coef = nilearn.image.threshold_img(coef_path, z_score, cluster_threshold=float(cluster_size))
+                thr_coef_path = opj(output_folder, f"{seed_name}_{glt_label}_coef_thr.nii.gz")
+                thr_coef.to_filename(thr_coef_path)
+
+                # ── Plot 2: coefficient map masked by stat threshold ──────
+                display = plotting.plot_stat_map(
+                    thr_coef_path, dim=0, threshold=0, vmax=vmax_coef,
+                    colorbar=True, bg_img=studytemplatebrain,
+                    display_mode="y", cut_coords=cut_coords,
+                    title=f"{seed_name} — {glt_label} coef (p<{alpha}, cluster≥{cluster_size})",
+                )
+                display.savefig(opj(output_folder, f"{seed_name}_{glt_label}_correlation_thr.jpg"))
+                display.close()
+
+                # ── Plot 3: thresholded Z-stat map ────────────────────────
+                display = plotting.plot_stat_map(
+                    thr_zstat_path, dim=0, threshold=z_score, vmax=vmax_zstat,
+                    colorbar=True, bg_img=studytemplatebrain,
+                    display_mode="y", cut_coords=cut_coords,
+                    title=f"{seed_name} — {glt_label} Z-stat (p<{alpha}, cluster≥{cluster_size})",
+                )
+                display.savefig(opj(output_folder, f"{seed_name}_{glt_label}_zstat_thr.jpg"))
+                display.close()
+                plt.close("all")

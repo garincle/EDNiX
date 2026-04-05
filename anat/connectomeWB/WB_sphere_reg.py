@@ -57,13 +57,13 @@ def copyref(FS_mesh,dir_atlas_64,dir_atlas_32,wb_balsa_labels,atlasfile,animal,d
             shutil.copyfile(opj(FS_mesh, atlasfile),opj(wb_balsa_labels, atlasfile))
 
 
-def warp(animal,WB_surf,dir_native_resol,dir_atlas_resol,list_atlas,ref_transfo1,ref_transfo2,conv_voxmm,cmd_mris_convert,FS_dir,diary_name,sing_wb,sing_fs):
+def warp(animal,WB_surf,dir_native_resol,dir_atlas_resol,list_atlas,ref_transfo1,ref_transfo2,conv_voxmm,cmd_mris_convert,FS_dir,v,diary_name,sing_wb,sing_fs):
 
     nl ='# transform surfaces into atlas space\n'
     run_cmd.msg(nl,diary_name,'OKGREEN')
 
     for h in range(2):
-        labels = glob.glob(opj(FS_dir, animal, 'label', Hmin[h] + 'h.' + animal + '_*.annot'))
+
         for FSs in range(len(WB_surf)):
             cmd = (sing_wb + 'wb_command -surface-apply-warpfield ' + opj(dir_native_resol, animal + '.' + Hmin[h] + '.' + WB_surf[FSs] + '.surf.gii') +
                ' ' + ref_transfo1 + ' ' + opj(dir_atlas_resol, animal + '.' + Hmin[h] + '.' + WB_surf[FSs] + '.transient.surf.gii'))
@@ -200,17 +200,18 @@ def warp(animal,WB_surf,dir_native_resol,dir_atlas_resol,list_atlas,ref_transfo1
                ' 10 ' + opj(dir_atlas_resol, animal + '.' + Hmin[h] + '.curvature.shape.gii') + ' -nearest')
         run_cmd.wb(cmd,diary_name)
 
+        if v == 'FS':
+            # parcellations (.annot)
+            labels = glob.glob(opj(FS_dir, animal, 'label', Hmin[h] + 'h.' + animal + '_*.annot'))
 
-        # parcellations (.annot)
+            for j in labels:
+                name = opb(j).split('.')[1].split('_')[-1]
+                WB_label.surfWB(cmd_mris_convert, FS_dir, animal, name, opj(dir_atlas_resol), 'native', h, diary_name, sing_fs, sing_wb)
 
-        for j in labels:
-            name = opb(j).split('.')[1].split('_')[-1]
-            WB_label.surfWB(cmd_mris_convert, FS_dir, animal, name, opj(dir_atlas_resol), '.native', h, diary_name, sing_fs, sing_wb)
-
-        for a in range(len(list_atlas[0])):
-            if list_atlas[3][a] == 1:
-                if list_atlas[2][a] > 1:
-                    WB_label.mergelabel(animal, opj(dir_atlas_resol), '.native', h, diary_name, list_atlas[0][a], list_atlas[2][a], sing_wb)
+            for a in range(len(list_atlas[0])):
+                if list_atlas[3][a] == 1:
+                    if list_atlas[2][a] > 1:
+                        WB_label.mergelabel(animal, opj(dir_atlas_resol), 'native', h, diary_name, list_atlas[0][a], list_atlas[2][a], sing_wb)
 
 
 def sphere(cmd_mris_convert,animal,FS_dir,dir_atlas_resol,diary_name,sing_fs,sing_wb):
@@ -558,7 +559,7 @@ def cifti(animal ,dir_atlas_resol,dir_atlas_32,dir_atlas_64,diary_name,sing_wb):
                                              ['','.32k_fs_LR','.164k_fs_LR'],
                                              ['roi','atlasroi','atlasroi'],
                                              ['_native_LR','_fsaverage_LR_32k','_fsaverage_LR_164k'],
-                                             ['.native','.32k_fs_LR','.164k_fs_LR']):
+                                             ['native','32k_fs_LR','164k_fs_LR']):
 
         for surf ,color,mode_scale in zip(['curvature', 'thickness'],[palette[0],palette[1]],[scale[0],scale[0]]):
 

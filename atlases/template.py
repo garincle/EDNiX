@@ -15,15 +15,9 @@ from atlases import templatefeat
 from anat.freesurfer import smallbrain, preFS, FS_surf,  FS_2_WB_short, FS_flat
 
 
-atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]]
-MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
-
-
 Hmin    = ['l','r']
 
-
-def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='ribbon',doflat=0):
-
+def modif(smallbrainspecieslist, species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='ribbon',doflat=0):
 
     # reference templates
     if reference == '':
@@ -37,12 +31,11 @@ def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='
     sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _, sing_synstrip, Unetpath = Load_EDNiX_requirement.load_requirement(
         MAIN_PATH, reftemplate_path, bids_dir, 'yes')
 
-
-    (FS_refs,template_dir,reference,
-                balsa_folder,BALSAname,balsa_brainT1,
-                BASE_folder,BASE_atlas_folder, BASE_template,BASE_SS, BASE_mask, BASE_Gmask, BASE_Wmask, BASE_Vmask,
-                CSF, GM, WM, Aseg_ref,
-                list_atlas, path_label_code) = templatefeat.get(species, reftemplate_path, fs_tools, path_BALSA, reference,
+    (FS_refs, template_dir, reference,
+     balsa_folder, BALSAname, balsa_brainT1,
+     BASE_folder,BASE_atlas_folder, BASE_template, BASE_SS, BASE_mask, BASE_Gmask, BASE_WBGmask, BASE_Wmask, BASE_Vmask,
+     CSF, GM, WM, Aseg_ref,
+     list_atlas, path_label_code) = templatefeat.get(species, reftemplate_path, fs_tools, path_BALSA, reference,
                                                      '', '','T1w','anat', atlas_followers)
 
     FS_dir     = opj(template_dir,reference,'freesurfer')
@@ -58,11 +51,7 @@ def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='
         os.makedirs(dir_prepro)
 
     cmd_tksurfer, cmd_flatten, cmd_mris, export_fs = Load_EDNiX_requirement.FS(fs_tools, FS_dir, diary_file, sing_fs)
-
-    #loop for specie
-
     # modifications of the atlas to T1 already done
-
     # a little help for segmentation
     preFS.prepa_img(species, BASE_SS, dir_prepro, Aseg_ref, BASE_atlas_folder, '', diary_file)
 
@@ -77,13 +66,27 @@ def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='
              'wm.mgz',
              'aseg.mgz',
              'filled.mgz']
+    print(species)
 
-    if species in ['Mouse','Rat','Mouselemur','Bat']:
-        change_hd, scaling, resamp, new_size, DATfile = smallbrain.get(species, dir_prepro, species, '', diary_file)
+    if species in smallbrainspecieslist:
+        [_, _, fwdFS_cmd, _] = get_orientation.use_ants(list1[0])
+        list3 = ['orig_raw.mgz',
+                 'brain_raw.mgz',
+                 'wm_raw.mgz',
+                 'aseg_raw.mgz',
+                 'filled_raw.mgz']
+        # set the data and folder for freesurfer
+        for i in range(len(list1)):
+            if opi(list1[i]) == True:
+                cmd = sing_fs + 'mri_convert ' + fwdFS_cmd + list1[i] + ' ' + opj(FS_dir, species, 'mri', list3[i])
+                run_cmd.run(cmd, diary_file)
+
+        print('do small brain')
+        change_hd, scaling, resamp, new_size, DATfile = smallbrain.get(species, dir_prepro, BASE_SS, '', 30, diary_file)
 
         # set images to resolution 1mm
 
-        brain_img = ants.image_read(list[0])
+        brain_img = ants.image_read(list1[0])
 
         X = brain_img.origin
         S = brain_img.spacing
@@ -93,11 +96,11 @@ def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='
         new_orig[1] = X[1] * scaling[1] / S[1]
         new_orig[2] = X[2] * scaling[2] / S[2]
 
-        for new_img, dir_file, interp in zip(list,
+        for new_img, dir_file, interp in zip(list1,
                                              ['',dir_prepro,BASE_atlas_folder,BASE_atlas_folder,BASE_atlas_folder],
                                              [3, 3, 1, 1, 1]):
             print(new_img)
-            if new_img == list[0]:
+            if new_img == list1[0]:
                 resamp_img = ants.image_read(new_img)
             else:
                 resamp_img = ants.image_read(opj(dir_file, new_img + '.nii.gz'))
@@ -112,7 +115,7 @@ def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='
                     scaling)
             else:
                 descript = 'reformat image with a resampling of ' + str(scaling)
-            if new_img == list[0]:
+            if new_img == list1[0]:
                 newname = opj(dir_prepro, opb(new_img).replace('.nii.gz', '_resamp-' + str(scaling[0]) + '.nii.gz'))
                 print(newname)
             else:
@@ -120,7 +123,7 @@ def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='
                 print(newname)
             ants.image_write(resamp_img, newname)
             dictionary = {"Sources": [opj(dir_file, new_img),
-                                      list[0]],
+                                      list1[0]],
                           "Description": descript + ' (Antspy)'}
             json_object = json.dumps(dictionary, indent=2)
             with open(newname.replace('.nii.gz', '.json'), "w") as outfile:
@@ -129,16 +132,13 @@ def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='
         nl = 'Done'
         run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-        Ref = '_resamp-' + str(scaling)
+        Ref = '_resamp-' + str(scaling[0])
         list1[0] = opj(dir_prepro, opb(list1[0].replace('.nii.gz', Ref + '.nii.gz')))
         labels_dir = dir_prepro
     else:
-        Ref=''
-        DATfile=''
+        Ref = ''
+        DATfile = ''
         labels_dir = BASE_atlas_folder
-
-
-
 
     list1[1] = opj(dir_prepro, list1[1] + Ref + '.nii.gz')
     for i in range(2, 5):
@@ -188,17 +188,3 @@ def modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='
     FS_2_WB_short.WB_prep(cmd_mris, FS_dir, FS_refs, species, species, BASE_SS, DATfile, reference, list_atlas, balsa_folder,
             BALSAname,
             path_label_code, template_dir, proj, diary_file, sing_fs, sing_wb, export_fs)
-
-from pathlib import Path
-import fnmatch
-for species in [ 'Chimpanzee', 'Dog', 'Cat', 'Mouse', 'Rat']:
-    reference = 'EDNiX' # search for the relevant folder
-    for dirpath, dirnames, filenames in os.walk(os.path.join('/home/cgarin/PycharmProjects/EDNiX/Atlases_library/', 'atlas')):
-        folder_name = fnmatch.filter(dirnames, species)
-        if folder_name:
-            if not opb(dirpath) == 'freesurfer':
-                path_ref = os.path.join(dirpath, folder_name[0])
-    bids_dir = path_ref
-    diary_file = path_ref + '/diary.txt'
-    p = Path(diary_file); p.parent.mkdir(parents=True, exist_ok=True); p.touch()
-    modif(species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='ribbon',doflat=0)

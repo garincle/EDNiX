@@ -46,7 +46,7 @@ middle_value = ['-0.929', '0.091','0.075','0.125','0.5','-0.352','-0.289','-0.05
 MAIN_PATH = r'/srv/projects/easymribrain/code/EDNiX/'  # Update this path
 atlas_folder = '/srv/projects/easymribrain/data/Atlas/'
 s_bind = f' --bind {atlas_folder},{MAIN_PATH} '
-s_path = opj(MAIN_PATH, 'Tool_library', 'Singularity')
+s_path = opj(MAIN_PATH, 'Singularity_library', 'Singularity')
 afni_sif = opj(s_path, 'afni_ub24_latest.sif ')
 
 ###################### re-order altas based on excel file

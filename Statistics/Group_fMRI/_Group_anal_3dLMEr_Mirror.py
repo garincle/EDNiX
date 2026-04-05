@@ -1,575 +1,388 @@
 import os
-import glob
+from Tools import Load_EDNiX_requirement, check_nii, getpath
 import subprocess
 import numpy as np
 import pandas as pd
 import nibabel as nib
 import nilearn
 from nilearn import plotting
-
 from nilearn.masking import compute_epi_mask
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 import Tools.Load_EDNiX_requirement
-from fMRI.extract_filename import extract_filename
-# Path utilities
+
 opj = os.path.join
 opb = os.path.basename
 ope = os.path.exists
 
+BOLD_SUFFIX = "_space-template_desc-fMRI_residual.nii.gz"
+
+
+def _bold_root(bold_path):
+    bn = opb(bold_path)
+    for suffix in (BOLD_SUFFIX, ".nii.gz", ".nii"):
+        if bn.endswith(suffix):
+            return bn[: -len(suffix)]
+    return bn
+
+
+def _sba_fish_path(bold_path, seed_name):
+    return opj(
+        os.path.dirname(
+            os.path.dirname(bold_path)),
+        "Stats", "SBA", seed_name,
+        f"{_bold_root(bold_path)}_correlations_fish.nii.gz",
+    )
+
+
+def _format_seed(name):
+    for ch in " ()/,:;.-":
+        name = name.replace(ch, "_")
+    return "".join(c for c in name if c.isalnum() or c == "_").strip("_")
+
+
+def _format_seed_group(name):
+    """Remove L_/R_ hemisphere prefix then sanitise."""
+    name = name.replace("L_", "").replace("R_", "")
+    return _format_seed(name)
+
 
 def check_grid_match(reference, target):
-    """Check if two images have matching grids"""
-    ref_img = nib.load(reference)
-    target_img = nib.load(target)
-    return np.allclose(ref_img.affine, target_img.affine) and ref_img.shape == target_img.shape
+    ref, tgt = nib.load(reference), nib.load(target)
+    return np.allclose(ref.affine, tgt.affine) and ref.shape == tgt.shape
 
 
-def resample_to_match(reference, target, afni_sif, s_bind):
-    """Resample target to match reference grid"""
-    output_path = target.replace('.nii.gz', '_resampled.nii.gz')
-    command = f"singularity run {s_bind} {afni_sif} 3dresample -master {reference} -input {target} -prefix {output_path} -overwrite"
-    subprocess.run(command, shell=True, check=True)
-    return output_path
+def resample_to_match(reference, target, sing_afni, sing_wb):
+    out = target.replace(".nii.gz", "_resampled.nii.gz")
+    subprocess.run(
+        f"{sing_afni} "
+        f"3dresample -master {reference} -input {target} -prefix {out} -overwrite",
+        shell=True, check=True,
+    )
+    return out
 
 
-def format_seed_name(seed_name):
-    replace_chars = [' ', '(', ')', ',', '/', ':', ';', '.', '-']
-    for char in replace_chars:
-        seed_name = seed_name.replace(char, '_')
-    formatted_name = ''.join(char for char in seed_name if char.isalnum() or char == '_')
-    formatted_name = formatted_name.strip('_')
-    return formatted_name
-
-def format_seed_name_Group(seed_name):
-    """Format seed name by removing special characters and hemisphere prefixes"""
-    seed_name = seed_name.replace('L_', '').replace('R_', '')
-    replace_chars = [' ', '(', ')', ',', '/', ':', ';', '.', '-']
-    for char in replace_chars:
-        seed_name = seed_name.replace(char, '_')
-    return ''.join(char for char in seed_name if char.isalnum() or char == '_').strip('_')
-
-
-def mirror_hemisphere(img_path, output_dir, midline_x=1, is_left_seed=True):
-    """Mirror image by copying values from one hemisphere to the other,
-    skipping incomplete edge slices.
-
-    Parameters:
-    -----------
-    img_path : str
-        Path to input NIfTI image
-    output_dir : str
-        Directory to save mirrored image
-    midline_x : float
-        MNI x-coordinate of midline (default: 0.05166)
-    is_left_seed : bool
-        Whether the seed is in the left hemisphere
-
-    Returns:
-    --------
-    str: Path to mirrored image
+def mirror_hemisphere(img_path, output_dir, midline_x=0.0, is_left_seed=True):
     """
-    # Load the image
+    Mirror one hemisphere onto the other across the midline (x = midline_x mm).
+
+    Strategy
+    --------
+    For a LEFT seed  : copy left-of-midline voxels → symmetric right positions.
+    For a RIGHT seed : copy right-of-midline voxels → symmetric left positions.
+    The midline voxel is found using the full affine (handles oblique volumes).
+    The affine and header are preserved — the image stays in the same space.
+
+    Parameters
+    ----------
+    midline_x : x-coordinate of the midline in world (mm) space.
+                Default 0.0 (standard MNI/ACPC midline).
+    """
     img = nib.load(img_path)
     data = img.get_fdata()
     affine = img.affine
+    mirror = np.copy(data)
+    nx = data.shape[0]
 
-    # Create output array
-    mirrored_data = np.copy(data)
+    # World x-coordinate for every voxel index along axis 0
+    # Use full affine: world_x = affine[0,0]*i + affine[0,1]*j + affine[0,2]*k + affine[0,3]
+    # Here we want the x-coordinate along the first axis at j=k=0 (voxel col/slice centre)
+    # More robustly: compute world x at each i with j,k fixed at image centre
+    j0, k0 = data.shape[1] // 2, data.shape[2] // 2
+    xs = np.arange(nx)
+    # homogeneous coords for all i at (j0, k0)
+    vox_coords = np.stack([xs,
+                           np.full(nx, j0),
+                           np.full(nx, k0),
+                           np.ones(nx)], axis=0)  # 4 × nx
+    world_coords = affine @ vox_coords  # 4 × nx
+    world_xs = world_coords[0]  # x in mm
 
-    # Get precise midline voxel index
-    coords = np.array([[i, 0, 0, 1] for i in range(data.shape[0])])
-    world_coords = np.dot(affine, coords.T).T[:, 0]
-    midline_vox = np.argmin(np.abs(world_coords - midline_x))
+    midline_vox = int(np.argmin(np.abs(world_xs - midline_x)))
+    max_copy = min(midline_vox, nx - midline_vox - 1)
 
     if is_left_seed:
-        # Left seed: copy left to right
-        max_voxels_to_copy = min(midline_vox, data.shape[0] - midline_vox - 1)
-
-        for i in range(max_voxels_to_copy):
-            # Left source voxel
-            left_x = midline_vox - i - 1
-            # Right target voxel
-            right_x = midline_vox + i + 1
-
-            if left_x >= 0 and right_x < data.shape[0]:
-                mirrored_data[right_x] = data[left_x]
+        # Copy each left voxel to its symmetric right position
+        for i in range(max_copy):
+            lx = midline_vox - i - 1
+            rx = midline_vox + i + 1
+            if lx >= 0 and rx < nx:
+                mirror[rx] = data[lx]
     else:
-        # Right seed: copy right to left
-        max_voxels_to_copy = min(midline_vox, data.shape[0] - midline_vox - 1)
+        # Copy each right voxel to its symmetric left position
+        for i in range(max_copy):
+            rx = midline_vox + i + 1
+            lx = midline_vox - i - 1
+            if rx < nx and lx >= 0:
+                mirror[lx] = data[rx]
+    # NOTE: no mirror[::-1] — that would flip the entire volume and break the affine
 
-        for i in range(max_voxels_to_copy):
-            # Right source voxel
-            right_x = midline_vox + i + 1
-            # Left target voxel
-            left_x = midline_vox - i - 1
+    out_path = opj(output_dir, opb(img_path).replace(".nii.gz", "_mirrored.nii.gz"))
+    nib.save(nib.Nifti1Image(mirror, affine, img.header), out_path)
+    return out_path
 
-            if right_x < data.shape[0] and left_x >= 0:
-                mirrored_data[left_x] = data[right_x]
 
-        # Flip to match left-hemisphere orientation
-        mirrored_data = mirrored_data[::-1]
 
-    # Save result
-    mirrored_img = nib.Nifti1Image(mirrored_data, affine, img.header)
-    mirrored_path = opj(output_dir, f"{opb(img_path).replace('.nii.gz', '_mirrored.nii.gz')}")
-    mirrored_img.to_filename(mirrored_path)
-
-    return mirrored_path
-
-def run_3dLMEr_analysis(output_folder, mask_path, design_matrix_path, model, glt_spec, afni_sif, s_bind):
-    """
-    Run 3dLMEr analysis with configurable model and GLT specs
-
-    Parameters:
-    -----------
-    output_folder : str
-        Path to output directory
-    mask_path : str
-        Path to mask file
-    design_matrix_path : str
-        Path to design matrix file
-    model : str
-        Mixed effects model formula (e.g., "(1|Subj)*Hemisphere")
-    glt_spec : list of tuples
-        GLT specifications as (code, name, contrast) tuples
-    afni_sif : str
-        Path to AFNI Singularity image
-    s_bind : str
-        Singularity bind paths
-
-    Returns:
-    --------
-    str: Path to output statistical map
-    """
-    import os
-    import subprocess
-    from os.path import join as opj
-
-    # Set output paths
-    stat_maps = opj(output_folder, '3dLME_results.nii.gz')
-    resid_path = opj(output_folder, 'resid.nii.gz')
-    log_path = opj(output_folder, '3dLME_results_log.txt')
-
-    # Clean previous results
+def run_3dLMEr_analysis(output_folder, mask_path, design_matrix_path, model, glt_spec, sing_afni, sing_wb):
+    stat_maps  = opj(output_folder, "3dLME_results.nii.gz")
+    resid_path = opj(output_folder, "resid.nii.gz")
+    log_path   = opj(output_folder, "3dLME_results_log.txt")
     for f in [stat_maps, resid_path, log_path]:
-        if os.path.exists(f):
-            os.remove(f)
+        if ope(f): os.remove(f)
 
-    # Build GLT arguments
-    glt_args = []
-    for code, name, contrast in glt_spec:
-        glt_args.append(f"-gltCode {code} '{name}' '{contrast}'")
-    glt_cmd = " ".join(glt_args)
-
-    # Build the full command
-    cmd = (
-        f"singularity run {s_bind} {afni_sif} "
-        f"3dLMEr "
-        f"-prefix {stat_maps} "
-        f"-jobs 20 "
-        f"-mask {mask_path} "
-        f"-model \"{model}\" "
-        f"{glt_cmd} "
-        f"-dataTable @{design_matrix_path} "
-        f"-resid {resid_path}"
+    glt_args = " ".join(
+        f"-gltCode {code} '{name}' '{contrast}'" for code, name, contrast in glt_spec
     )
-
-    # Run with error handling
+    cmd = (
+        f"{sing_afni} "
+        f"3dLMEr -prefix {stat_maps} -jobs 20 -mask {mask_path} "
+        f"-model \"{model}\" {glt_args} "
+        f"-dataTable @{design_matrix_path} -resid {resid_path}"
+    )
+    print(f"Running 3dLMEr  model={model}  GLTs={glt_spec}")
     try:
-        print(f"Running 3dLMEr with:\nModel: {model}\nGLTs: {glt_spec}")
-        result = subprocess.run(
-            cmd,
-            shell=True,
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True
-        )
-
-        # Save logs
-        with open(log_path, 'w') as f:
-            f.write(f"=== Command ===\n{cmd}\n\n")
-            f.write("=== STDOUT ===\n")
-            f.write(result.stdout)
-            f.write("\n=== STDERR ===\n")
-            f.write(result.stderr)
-
-        print("3dLMEr completed successfully!")
-        return stat_maps
-
+        result = subprocess.run(cmd, shell=True, check=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                universal_newlines=True)
+        with open(log_path, "w") as f:
+            f.write(f"=== Command ===\n{cmd}\n\n=== STDOUT ===\n{result.stdout}\n=== STDERR ===\n{result.stderr}")
     except subprocess.CalledProcessError as e:
-        error_msg = f"""
-        3dLMEr failed with exit code {e.returncode}
-        Command: {cmd}
-        Error output:
-        {e.stderr}
-        """
-        raise RuntimeError(error_msg) from e
+        raise RuntimeError(f"3dLMEr failed (exit {e.returncode}):\n{e.stderr}") from e
+    return stat_maps
 
 
-def visualize_results(stat_maps, output_folder, contrast_names, studytemplatebrain, cut_coords, alpha):
-    """Visualize AFNI 3dLMEr results with proper contrast handling"""
-    # Load cluster thresholds
-    cluster_file = opj(output_folder, 'Clust_.NN1_2sided.1D')
+def visualize_results(stat_maps, output_folder, contrast_names, template, cut_coords, alpha):
+    cluster_file = opj(output_folder, "Clust_.NN1_2sided.1D")
     try:
-        with open(cluster_file) as f:
-            lines = f.readlines()
-        cluster_thresh = float(lines[8].split()[1])
+        cluster_thresh = float(open(cluster_file).readlines()[8].split()[1])
     except Exception as e:
-        print(f"Could not read cluster threshold file: {e}")
-        cluster_thresh = 10  # Fallback value
+        print(f"  [WARN] {e}; cluster_thresh=10")
+        cluster_thresh = 10
 
-    z_score = norm.ppf(1 - alpha / 2)
+    z_score      = norm.ppf(1 - alpha / 2)
+    img          = nib.load(stat_maps)
+    data, affine = img.get_fdata(), img.affine
 
-    # Load AFNI output
-    img = nib.load(stat_maps)
-    data = img.get_fdata()
-    affine = img.affine
-
-    # ==================================================================
-    # 1. First handle the overall F-test (sub-brick 0 - Hemisphere Chi-sq)
-    # ==================================================================
-    fstat_data = data[..., 0]
-    fstat_map = opj(output_folder, 'Hemisphere_ChiSq.nii.gz')
-    nib.save(nib.Nifti1Image(fstat_data, affine), fstat_map)
-
-    plotting.plot_stat_map(
-        fstat_map,
-        bg_img=studytemplatebrain,
-        display_mode='mosaic',
-        cut_coords=cut_coords,
-        title='Hemisphere Effect (χ²)',
-        cmap='hot',
-        colorbar=True
-    ).savefig(opj(output_folder, 'Hemisphere_ChiSq.png'), dpi=300)
+    fmap = opj(output_folder, "Hemisphere_ChiSq.nii.gz")
+    nib.save(nib.Nifti1Image(data[..., 0], affine), fmap)
+    plotting.plot_stat_map(fmap, bg_img=template, display_mode="y", cut_coords=cut_coords,
+                           title="Hemisphere Effect (χ²)", cmap="hot", colorbar=True
+                           ).savefig(opj(output_folder, "Hemisphere_ChiSq.png"), dpi=300)
     plt.close()
 
-    # ==================================================================
-    # 2. Handle each contrast (coefficients and Z-stats)
-    # ==================================================================
-    # Verify we have enough sub-bricks for all contrasts
-    n_contrasts = len(contrast_names)
-    expected_bricks = 1 + 2 * n_contrasts  # 1 F-stat + 2 per contrast (coef + zstat)
+    for i, name in enumerate(contrast_names):
+        coef_data  = data[..., 1 + 2 * i]
+        zstat_data = data[..., 2 + 2 * i]
+        nib.save(nib.Nifti1Image(coef_data,  affine), opj(output_folder, f"{name}_coef.nii.gz"))
+        nib.save(nib.Nifti1Image(zstat_data, affine), opj(output_folder, f"{name}_zstat.nii.gz"))
 
-    if data.shape[-1] < expected_bricks:
-        raise ValueError(f"Expected {expected_bricks} sub-bricks but got {data.shape[-1]}")
-
-    # Process each contrast
-    for i, contrast_name in enumerate(contrast_names):
-        # Calculate indices for this contrast
-        coef_idx = 1 + 2 * i
-        zstat_idx = 2 + 2 * i
-
-        # Save coefficient map
-        coef_data = data[..., coef_idx]
-        coef_map = opj(output_folder, f'{contrast_name}_coef.nii.gz')
-        nib.save(nib.Nifti1Image(coef_data, affine), coef_map)
-
-        # Save Z-stat map
-        zstat_data = data[..., zstat_idx]
-        zstat_map = opj(output_folder, f'{contrast_name}_zstat.nii.gz')
-        nib.save(nib.Nifti1Image(zstat_data, affine), zstat_map)
-
-        # Plot coefficients
-        plotting.plot_stat_map(
-            nib.Nifti1Image(coef_data, affine),
-            bg_img=studytemplatebrain,
-            display_mode='mosaic',
-            cut_coords=cut_coords,
-            title=f'{contrast_name} (Coefficients)',
-            cmap='cold_hot' if (np.any(coef_data < 0) and np.any(coef_data > 0)) else 'hot',
-            colorbar=True
-        ).savefig(opj(output_folder, f'{contrast_name}_coef.png'), dpi=300)
+        cmap_coef = "cold_hot" if (np.any(coef_data < 0) and np.any(coef_data > 0)) else "hot"
+        plotting.plot_stat_map(nib.Nifti1Image(coef_data, affine), bg_img=template,
+                               display_mode="y", cut_coords=cut_coords,
+                               title=f"{name} (Coefficients)", cmap=cmap_coef, colorbar=True
+                               ).savefig(opj(output_folder, f"{name}_coef.png"), dpi=300)
         plt.close()
 
-        # Threshold and plot Z-stats
-        pos_thr = nilearn.image.threshold_img(
-            nib.Nifti1Image(zstat_data, affine),
-            threshold=z_score,
-            cluster_threshold=cluster_thresh
-        )
-        neg_thr = nilearn.image.threshold_img(
-            nib.Nifti1Image(zstat_data, affine),
-            threshold=-z_score,
-            cluster_threshold=cluster_thresh
-        )
-
-        # Combine positive and negative thresholds
-        combined_data = pos_thr.get_fdata() - neg_thr.get_fdata()
-        combined_map = nib.Nifti1Image(combined_data, affine)
-        combined_path = opj(output_folder, f'{contrast_name}_thr.nii.gz')
-        nib.save(combined_map, combined_path)
-
-        # Determine colormap
-        has_pos = np.any(combined_data > 0)
-        has_neg = np.any(combined_data < 0)
-
-        plotting.plot_stat_map(
-            combined_map,
-            bg_img=studytemplatebrain,
-            display_mode='mosaic',
-            cut_coords=cut_coords,
-            title=f'{contrast_name} (|Z|>={z_score:.2f})',
-            cmap='cold_hot' if (has_pos and has_neg) else 'hot' if has_pos else 'winter',
-            colorbar=True
-        ).savefig(opj(output_folder, f'{contrast_name}_thr.png'), dpi=300)
+        # threshold positive tail: keep voxels >= +z_score
+        pos_thr  = nilearn.image.threshold_img(nib.Nifti1Image(zstat_data, affine), z_score, cluster_threshold=cluster_thresh)
+        # threshold negative tail: negate, threshold at +z_score, negate back
+        neg_thr  = -nilearn.image.threshold_img(nib.Nifti1Image(-zstat_data, affine), z_score, cluster_threshold=cluster_thresh).get_fdata()
+        combined = pos_thr.get_fdata() + neg_thr
+        comb_img = nib.Nifti1Image(combined, affine)
+        nib.save(comb_img, opj(output_folder, f"{name}_thr.nii.gz"))
+        has_pos, has_neg = np.any(combined > 0), np.any(combined < 0)
+        cmap = "cold_hot" if (has_pos and has_neg) else "hot" if has_pos else "winter"
+        plotting.plot_stat_map(comb_img, bg_img=template, display_mode="y", cut_coords=cut_coords,
+                               title=f"{name} (|Z|≥{z_score:.2f})", cmap=cmap, colorbar=True
+                               ).savefig(opj(output_folder, f"{name}_thr.png"), dpi=300)
         plt.close()
 
 
-def visualize_results_percentile(stat_maps, output_folder, contrast_names, studytemplatebrain, cut_coords, percent):
-    """Visualize AFNI results using percentile-based thresholding with proper contrast handling"""
-    # Load AFNI output
-    img = nib.load(stat_maps)
-    data = img.get_fdata()
-    affine = img.affine
+def visualize_results_percentile(stat_maps, output_folder, contrast_names, template, cut_coords, percent):
+    img          = nib.load(stat_maps)
+    data, affine = img.get_fdata(), img.affine
 
-    # Verify we have enough sub-bricks for all contrasts
-    n_contrasts = len(contrast_names)
-    expected_bricks = 1 + 2 * n_contrasts  # 1 F-stat + 2 per contrast (coef + zstat)
-
-    if data.shape[-1] < expected_bricks:
-        raise ValueError(f"Expected {expected_bricks} sub-bricks but got {data.shape[-1]}")
-
-    # ==================================================================
-    # 1. First handle the overall F-test (sub-brick 0 - Hemisphere Chi-sq)
-    # ==================================================================
-    fstat_data = data[..., 0]
-    fstat_map = opj(output_folder, 'Hemisphere_ChiSq.nii.gz')
-    nib.save(nib.Nifti1Image(fstat_data, affine), fstat_map)
-
-    # Plot F-stat with hot colormap (only positive values)
-    plotting.plot_stat_map(
-        fstat_map,
-        bg_img=studytemplatebrain,
-        display_mode='mosaic',
-        cut_coords=cut_coords,
-        title='Hemisphere Effect (χ²)',
-        cmap='hot',
-        colorbar=True
-    ).savefig(opj(output_folder, 'Hemisphere_ChiSq.png'), dpi=300)
+    fmap = opj(output_folder, "Hemisphere_ChiSq.nii.gz")
+    nib.save(nib.Nifti1Image(data[..., 0], affine), fmap)
+    plotting.plot_stat_map(fmap, bg_img=template, display_mode="y", cut_coords=cut_coords,
+                           title="Hemisphere Effect (χ²)", cmap="hot", colorbar=True
+                           ).savefig(opj(output_folder, "Hemisphere_ChiSq.png"), dpi=300)
     plt.close()
 
-    # ==================================================================
-    # 2. Handle each contrast (coefficients and Z-stats)
-    # ==================================================================
-    for i, contrast_name in enumerate(contrast_names):
-        # Calculate indices for this contrast
-        coef_idx = 1 + 2 * i
-        zstat_idx = 2 + 2 * i
+    for i, name in enumerate(contrast_names):
+        coef_data  = data[..., 1 + 2 * i]
+        zstat_data = data[..., 2 + 2 * i]
+        nib.save(nib.Nifti1Image(coef_data,  affine), opj(output_folder, f"{name}_coef.nii.gz"))
+        nib.save(nib.Nifti1Image(zstat_data, affine), opj(output_folder, f"{name}_zstat.nii.gz"))
 
-        # Save coefficient map
-        coef_data = data[..., coef_idx]
-        coef_map = opj(output_folder, f'{contrast_name}_coef.nii.gz')
-        print(coef_map)
-        nib.save(nib.Nifti1Image(coef_data, affine), coef_map)
-
-        # Save Z-stat map
-        zstat_data = data[..., zstat_idx]
-        zstat_map = opj(output_folder, f'{contrast_name}_zstat.nii.gz')
-        nib.save(nib.Nifti1Image(zstat_data, affine), zstat_map)
-
-
-    # Process each contrast
-    for i, contrast_name in enumerate(contrast_names):
-        # Calculate indices for this contrast
-        coef_idx = 1 + 2 * i
-        zstat_idx = 2 + 2 * i
-
-        # Save coefficient map
-        coef_data = data[..., coef_idx]
-        coef_map = opj(output_folder, f'{contrast_name}_coef.nii.gz')
-        print(coef_map)
-        nib.save(nib.Nifti1Image(coef_data, affine), coef_map)
-
-        # Save Z-stat map
-        zstat_data = data[..., zstat_idx]
-        zstat_map = opj(output_folder, f'{contrast_name}_zstat.nii.gz')
-        nib.save(nib.Nifti1Image(zstat_data, affine), zstat_map)
-
-        zstat_data = data[..., zstat_idx]
-        # Separate positive and negative values
-        pos_values = zstat_data[zstat_data > 0]
-        neg_values = zstat_data[zstat_data < 0]
-
-        # Initialize thresholds to extremes
-        pos_threshold = np.inf  # Will exclude everything if no pos values
-        neg_threshold = -np.inf  # Will exclude everything if no neg values
-
-        # Calculate percentiles only if values exist
-        if len(pos_values) > 0:
-            pos_threshold = np.percentile(pos_values, 100 - percent)
-
-        if len(neg_values) > 0:
-            neg_threshold = np.percentile(neg_values, percent)
-
-        # Apply thresholds
+        pos_vals = zstat_data[zstat_data > 0]
+        neg_vals = zstat_data[zstat_data < 0]
+        pos_thr  = np.percentile(pos_vals, 100 - percent) if len(pos_vals) else np.inf
+        neg_thr  = np.percentile(neg_vals, percent)       if len(neg_vals) else -np.inf
         thr_data = np.zeros_like(zstat_data)
-        thr_data[(zstat_data >= pos_threshold) | (zstat_data <= neg_threshold)] = zstat_data[
-            (zstat_data >= pos_threshold) | (zstat_data <= neg_threshold)]
+        mask     = (zstat_data >= pos_thr) | (zstat_data <= neg_thr)
+        thr_data[mask] = zstat_data[mask]
 
-        # Generate appropriate title based on what exists
-        if len(pos_values) > 100 and len(neg_values) > 100:
-            title = f"{contrast_name} (Top/Bottom {percent}%)"
-            cmap = 'cold_hot'
-        elif len(pos_values) > 100:
-            title = f"{contrast_name} (Top {percent}%)"
-            cmap = 'hot'
-        elif len(neg_values) > 100:
-            title = f"{contrast_name} (Bottom {percent}%)"
-            cmap = 'winter'
+        if   len(pos_vals) > 100 and len(neg_vals) > 100: title, cmap = f"{name} (Top/Bottom {percent}%)", "cold_hot"
+        elif len(pos_vals) > 100:                          title, cmap = f"{name} (Top {percent}%)", "hot"
+        elif len(neg_vals) > 100:                          title, cmap = f"{name} (Bottom {percent}%)", "winter"
         else:
-            print(f"Skipping {contrast_name} - no non-zero values")
-            continue
+            print(f"  [SKIP] {name} — no non-zero values"); continue
 
-        # Visualization
-        plotting.plot_stat_map(
-            nib.Nifti1Image(thr_data, affine),
-            bg_img=studytemplatebrain,
-            display_mode='mosaic',
-            cut_coords=cut_coords,
-            title=title,
-            cmap=cmap,
-            colorbar=True
-        ).savefig(opj(output_folder, f'{contrast_name}_thr_pct.png'), dpi=300)
+        plotting.plot_stat_map(nib.Nifti1Image(thr_data, affine), bg_img=template,
+                               display_mode="y", cut_coords=cut_coords,
+                               title=title, cmap=cmap, colorbar=True
+                               ).savefig(opj(output_folder, f"{name}_thr_pct.png"), dpi=300)
         plt.close()
 
-def _3dLMEr_EDNiX(bids_dir, templatehigh, templatelow, oversample_map, mask_func, cut_coords,
-                  panda_files, selected_atlases, lower_cutoff, upper_cutoff, MAIN_PATH, FS_dir, alpha,
-                  all_ID, all_Session, all_data_path, endfmri, mean_imgs,
-                  ntimepoint_treshold, model, glt_spec, contrast_names, midline_x, visualize, percent):
-    """
-    Complete seed-based analysis with proper hemisphere mirroring
 
-    For left seeds: Uses right-hemisphere mirrored version
-    For right seeds: Uses left-hemisphere mirrored version
+def _3dLMEr_EDNiX(
+    bids_dir,
+    templatehigh,
+    templatelow,
+    oversample_map,
+    mask_func,
+    cut_coords,
+    label_df,
+    lower_cutoff,
+    upper_cutoff,
+    MAIN_PATH,
+    alpha,
+    bold_paths,
+    mean_imgs,
+    model,
+    glt_spec,
+    contrast_names,
+    midline_x,
+    visualize,
+    percent,
+    regions_of_interest=None,
+):
     """
+    Seed-based group analysis with hemisphere mirroring using AFNI 3dLMEr.
 
-    # Load requirements and setup output
-    s_path, afni_sif, fsl_sif, fs_sif, itk_sif, wb_sif, strip_sif, s_bind = Tools.Load_EDNiX_requirement.load_requirement(
-        MAIN_PATH, bids_dir, FS_dir)
-    output_results1 = opj(bids_dir, 'Results')
+    Parameters
+    ----------
+    bold_paths : dict — output of extract_bold_paths()
+                 keys: 'subject', 'session', 'run', 'bold_path'
+
+    label_df   : pd.DataFrame — output of parse_label_file()
+                 columns: region_name, base_region, label_id, hemisphere, R, G, B, A
+                 Bilateral seed pairs are detected automatically via the L_/R_ prefix.
+
+    glt_spec   : list of (code, name, contrast) tuples for 3dLMEr -gltCode
+    contrast_names : list of output labels matching glt_spec order
+    midline_x  : MNI x-coordinate of brain midline in mm
+    visualize  : 'threshold' | 'percentile' | None
+    percent    : percentile cutoff when visualize='percentile'
+
+    regions_of_interest : list of base_region substrings to restrict the
+                          analysis.  None = all bilateral pairs in label_df.
+    """
+    sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _,sing_synstrip,Unetpath =  Load_EDNiX_requirement.load_requirement(MAIN_PATH,templatehigh,bids_dir,'yes')
+
+    output_results1 = opj(bids_dir, "Results")
     os.makedirs(output_results1, exist_ok=True)
-
-    # Template selection
     studytemplatebrain = templatehigh if oversample_map else templatelow
 
-    # Create group mask
-    mean_imgs_rs = nilearn.image.concat_imgs(mean_imgs)
-    mask_img = compute_epi_mask(mean_imgs_rs,
-                                lower_cutoff=lower_cutoff,
-                                upper_cutoff=upper_cutoff)
-    mask_img.to_filename(opj(output_results1, 'mask_mean_func.nii.gz'))
+    # ── Group brain mask ─────────────────────────────────────────────────────
+    mean_imgs_rs = nilearn.image.concat_imgs(mean_imgs, auto_resample=True, verbose=0)
+    mask_img     = compute_epi_mask(
+        mean_imgs_rs,
+        lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff,
+        connected=True, opening=1, exclude_zeros=True, ensure_finite=True,
+    )
+    mask_path    = opj(output_results1, "mask_mean_func.nii.gz")
+    mask_orig    = opj(output_results1, "mask_mean_func_orig.nii.gz")
+    mask_overlap = opj(output_results1, "mask_mean_func_overlapp.nii.gz")
+    mask_img.to_filename(mask_path)
 
-    # Process mask with AFNI
-    commands = [
-        f"3dmask_tool -overwrite -input {opj(output_results1, 'mask_mean_func.nii.gz')} "
-        f"-prefix {opj(output_results1, 'mask_mean_func.nii.gz')} -fill_holes",
+    for cmd in [
+        f"3dmask_tool -overwrite -input {mask_path} -prefix {mask_path} -fill_holes",
+        f"3dresample -overwrite -master {mask_path} -input {mask_func} -prefix {mask_orig}",
+        f"3dcalc -overwrite -a {mask_path} -b {mask_orig} -expr 'a*b' -prefix {mask_overlap}",
+    ]:
+        subprocess.run(f"{sing_afni} {cmd}", shell=True, check=True)
 
-        f"3dresample -overwrite -master {opj(output_results1, 'mask_mean_func.nii.gz')} "
-        f"-input {mask_func} -prefix {opj(output_results1, 'mask_mean_func_orig.nii.gz')}",
+    all_subjects  = bold_paths["subject"]
+    all_sessions  = bold_paths["session"]
+    all_runs      = bold_paths["run"]
+    all_bold_list = bold_paths["bold_path"]
 
-        f"3dcalc -overwrite -a {opj(output_results1, 'mask_mean_func.nii.gz')} "
-        f"-b {opj(output_results1, 'mask_mean_func_orig.nii.gz')} "
-        f"-expr 'a*b' -prefix {opj(output_results1, 'mask_mean_func_overlapp.nii.gz')}"
-    ]
+    output_results = opj(output_results1, "Grp_SBA_3dLME_network")
+    os.makedirs(output_results, exist_ok=True)
 
-    for cmd in commands:
-        subprocess.run(f"singularity run {s_bind} {afni_sif} {cmd}", shell=True, check=True)
+    # ── Build bilateral seed pairs from label_df ──────────────────────────
+    region_names = set(label_df["region_name"].values)
+    seed_pairs = {}
+    for _, row in label_df.iterrows():
+        name = row["region_name"]
+        if not name.startswith("L_"):
+            continue
+        if regions_of_interest and not any(r in _format_seed(row["region_name"]) for r in regions_of_interest):
+            continue
+        right = "R_" + name[2:]
+        if right in region_names:
+            seed_pairs[name] = right
 
-    # Main analysis loop
-    for panda_file, atlas in zip(panda_files, selected_atlases):
-        output_results = opj(output_results1, 'Grp_SBA_3dLME_network')
-        os.makedirs(output_results, exist_ok=True)
+    for left_raw, right_raw in seed_pairs.items():
+        left_seed  = _format_seed(left_raw)
+        right_seed = _format_seed(right_raw)
+        base_name  = _format_seed_group(left_raw)
+        print(f"\n  Seed pair: {left_seed} / {right_seed}  →  {base_name}")
 
-        # Create seed pairs dictionary (only store one direction)
-        seed_pairs = {}
-        for _, row in panda_file.iterrows():
-            seed_name = row['region']
-            if seed_name.startswith('L_'):
-                right_counterpart = 'R_' + seed_name[2:]
-                if right_counterpart in panda_file['region'].values:
-                    seed_pairs[seed_name] = right_counterpart  # Only store L->R mapping
+        output_folder = opj(output_results, base_name)
+        os.makedirs(output_folder, exist_ok=True)
 
-        # Process each unique seed pair only once
-        for key, value in seed_pairs.items():
-            key = format_seed_name(key)
-            value = format_seed_name(value)
-            base_seed_name = format_seed_name_Group(key)
-            print(base_seed_name)
+        design_data = []
+        master_file = None
 
-            output_folder = opj(output_results, base_seed_name)
-            os.makedirs(output_folder, exist_ok=True)
+        for current_seed, is_left in [(left_seed, True), (right_seed, False)]:
+            for subj, ses, run, bold_p in zip(all_subjects, all_sessions, all_runs, all_bold_list):
+                fish = _sba_fish_path(bold_p, current_seed)
+                if not ope(fish):
+                    print(f"  [SKIP] {fish}")
+                    continue
 
-            # Build design matrix
-            design_data = []
-            master_file = None
+                if master_file is None:
+                    master_file = fish
+                    final_fish  = fish
+                elif not check_grid_match(master_file, fish):
+                    final_fish  = resample_to_match(master_file, fish, sing_afni, sing_wb)
+                else:
+                    final_fish  = fish
 
-            # Process both original seed and its counterpart if exists
-            seeds_to_process = [key, value]
+                sba_dir       = os.path.dirname(fish)
+                mirrored_fish = mirror_hemisphere(final_fish, sba_dir, midline_x, is_left)
+                run_label     = f"run_{run}" if run is not None else "run_01"
 
-            for current_seed in seeds_to_process:
-                current_is_left = current_seed.startswith('L_')
-                base_seed_name = format_seed_name(current_seed)  # e.g. "OB" for both L_OB and R_OB
-                for ID, Session, data_path in zip(all_ID, all_Session, all_data_path):
-                    # Get input directory for current seed (either L or R version)
-                    input_dir = opj(data_path, 'func', '01_prepro', '03_atlas_space', '10_Results', 'SBA', current_seed)
-                    if not ope(input_dir):
-                        continue
+                design_data.append({
+                    "Subj":       str(subj),
+                    "Sess":       f"Sess_{ses}",
+                    "run":        run_label,
+                    "Hemisphere": "L" if is_left else "R",
+                    "InputFile":  mirrored_fish,
+                })
 
-                    # Process each run
-                    for run_idx, run_path in enumerate(sorted(glob.glob(opj(data_path, 'func', endfmri)))):
-                        root_RS = extract_filename(os.path.basename(run_path))
-                        original_file = opj(input_dir, f"{root_RS}_correlations_fish.nii.gz")
+        if not design_data:
+            print(f"  [SKIP] No valid data for {base_name}")
+            continue
 
-                        if not ope(original_file):
-                            continue
+        dm_df   = pd.DataFrame(design_data)[["Subj", "Sess", "run", "Hemisphere", "InputFile"]]
+        dm_path = opj(output_folder, "design_matrix.txt")
+        dm_df.to_csv(dm_path, sep="\t", index=False)
 
-                        # Handle resampling if needed
-                        if master_file is None:
-                            master_file = original_file
-                        elif not check_grid_match(master_file, original_file):
-                            original_file = resample_to_match(master_file, original_file, afni_sif, s_bind)
+        stat_maps = run_3dLMEr_analysis(
+            output_folder, mask_overlap, dm_path, model, glt_spec, sing_afni, sing_wb
+        )
 
-                        # Create mirrored version
-                        mirrored_file = mirror_hemisphere(original_file, input_dir, midline_x, current_is_left)
+        subprocess.run(
+            f"{sing_afni} "
+            f"3dClustSim -mask {mask_overlap} -LOTS -prefix {output_folder}/Clust_",
+            shell=True,
+        )
 
-                        # Determine which hemisphere we're analyzing
-                        analyzed_hemisphere = 'L' if current_is_left else 'R'
-
-                        # Add to design matrix
-                        design_data.append({
-                            'Subj': str(ID),
-                            'Sess': f'Sess_{Session}',
-                            'run': f'run_{run_idx}',
-                            'Hemisphere': analyzed_hemisphere,
-                            'InputFile': mirrored_file})
-
-            # Skip if no data
-            if not design_data:
-                print(f"No valid data for seed {base_seed_name}")
-                continue
-
-            # Save design matrix with proper column order
-            df = pd.DataFrame(design_data)[['Subj', 'Sess', 'run', 'Hemisphere', 'InputFile']]
-            design_matrix_path = opj(output_folder, 'design_matrix.txt')
-            df.to_csv(design_matrix_path, sep='\t', index=False)
-
-            # Run analysis
-            mask_path = opj(output_results1, 'mask_mean_func_overlapp.nii.gz')
-            stat_maps = run_3dLMEr_analysis(output_folder, mask_path, design_matrix_path, model, glt_spec, afni_sif, s_bind)
-
-            # Cluster simulation
-            command = (
-                f"singularity run {s_bind} {afni_sif} 3dClustSim -mask "
-                f"{opj(output_results1, 'mask_mean_func_overlapp.nii.gz')} "
-                f"-LOTS -prefix {output_folder}/Clust_")
-            subprocess.run(command, shell=True)
-
-            if visualize == 'threshold':
-                # Visualization
-                visualize_results(stat_maps, output_folder, contrast_names, studytemplatebrain, cut_coords, alpha)
-
-            elif visualize == 'percentile':
-                visualize_results_percentile(stat_maps, output_folder, contrast_names, studytemplatebrain, cut_coords,
-                                             percent)
+        if visualize == "threshold":
+            visualize_results(stat_maps, output_folder, contrast_names, studytemplatebrain, cut_coords, alpha)
+        elif visualize == "percentile":
+            visualize_results_percentile(stat_maps, output_folder, contrast_names, studytemplatebrain, cut_coords, percent)

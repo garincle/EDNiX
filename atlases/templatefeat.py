@@ -254,7 +254,7 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
     if kind == 'anat':
         return [FS_refs,path_ref,reference,
                 balsa_folder,BALSAname,balsa_brainT1,
-                BASE_folder,BASE_atlas_folder, BASE_template,BASE_SS, BASE_mask, BASE_Gmask, BASE_Wmask, BASE_Vmask,
+                BASE_folder,BASE_atlas_folder, BASE_template,BASE_SS, BASE_mask, BASE_Gmask, BASE_WBGmask, BASE_Wmask, BASE_Vmask,
                 CSF, GM, WM, Aseg_ref,
                 list_atlas, path_label_code]
 

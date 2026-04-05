@@ -7,7 +7,7 @@ opj = os.path.join
 opi = os.path.isfile
 opb = os.path.basename
 
-from Tools import run_cmd, diaryfile, getpath, make_iso_img, Load_EDNiX_requirement
+from Tools import run_cmd, diaryfile, getpath, make_iso_img, Load_EDNiX_requirement, get_orientation
 from atlases import templatefeat
 from anat.loop3 import backtonative, _16_anat_QC_SNR, _100_Data_Clean, _200_Data_QC
 from anat import transfo_T2toT1w
@@ -149,7 +149,7 @@ def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat
         preFS.prepa_img(ID, new_Ref_file, dir_prepro, aseg_img,labels_dir, '', diary_file)
 
         # need to lie on the brain volume for small brain animals
-        change_hd,scaling,resamp,new_size,DATfile = smallbrain.get(ID, dir_prepro, new_Ref_file, '', diary_file)
+        change_hd,scaling,resamp,new_size,DATfile = smallbrain.get(ID, dir_prepro, new_Ref_file, '', 20, diary_file)
 
         if iso == 0:
             list1 = [new_Ref_file,
@@ -165,6 +165,13 @@ def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat
                      '_'.join([ID, 'seg-filled','dseg'])]
         if change_hd == 1:
             preFS.resamp(list1, data_path,reference,BALSAname, scaling, new_size, resamp, diary_file)
+            [_, _, fwdFS_cmd, _] = get_orientation.use_ants(list1[0])
+            list3 = ['orig_raw.mgz']
+            # set the data and folder for freesurfer
+            for i in range(len(list1)):
+                if opi(list1[i]) == True:
+                    cmd = sing_fs + 'mri_convert ' + fwdFS_cmd + list1[i] + ' ' + opj(FS_dir, species, 'mri', list3[i])
+                    run_cmd.run(cmd, diary_file)
 
         # set the data and folder for freesurfer
         preFS.toFS(list1, ID, change_hd,scaling[0],data_path,reference,BALSAname,diary_file,sing_fs)

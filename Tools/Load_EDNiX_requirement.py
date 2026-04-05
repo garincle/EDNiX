@@ -24,10 +24,10 @@ def load_requirement(MAIN_PATH,reftemplate_path,bids_dir,singularity):
         sing_itk      = ''
         sing_turku    = ''
         sing_synStrip = ''
-        Unetpath = opj(MAIN_PATH,'Tool_library/Singularity/NHP-BrainExtraction/UNet_Model/models/')
+        Unetpath = opj(MAIN_PATH,'Singularity_library/Singularity/NHP-BrainExtraction/UNet_Model/models/')
 
     elif singularity == 'yes':
-        s_path = opj(opd(MAIN_PATH), 'Tool_library', 'Singularity')
+        s_path = opj(opd(MAIN_PATH), 'Singularity_library', 'Singularity')
         s_bind = '--bind ' + ','.join([bids_dir,reftemplate_path,s_path])
 
         sing_func1  = 'singularity run ' + s_bind

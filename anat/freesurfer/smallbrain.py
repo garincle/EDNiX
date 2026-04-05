@@ -12,7 +12,7 @@ from Tools import run_cmd, get_orientation
 
 volume_ref = 107000
 
-def get(animal,dir,file,brain_mask,diary_name):
+def get(animal,dir,file,brain_mask,factor,diary_name):
 
     nl = 'Check if the brain is not too small to fit the freesurfer requirement'
     run_cmd.msg(nl, diary_name, 'HEADER')
@@ -56,7 +56,7 @@ def get(animal,dir,file,brain_mask,diary_name):
 
         if img_size > 2000:
             resamp = 1
-            new_size = int(new_voxsize * 20) / 10
+            new_size = int(new_voxsize * factor) / 10
             if orient_raw[0] == 'R':
                 pos[0] = new_size
             if orient_raw[1] == 'A':

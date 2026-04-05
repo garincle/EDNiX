@@ -149,7 +149,7 @@ def Skullstrip_func(MAIN_PATH, Method_mask_func, input_for_msk, output_for_mask,
             outfile.write(json_object)
 
     elif brain_skullstrip == 'muSkullStrip_cross_species':
-        Unetpath = opj(MAIN_PATH, 'Tool_library/Singularity/')
+        Unetpath = opj(MAIN_PATH, 'Singularity_library/Singularity/')
         Unet_dir = opj(Unetpath, 'NHP-BrainExtraction', 'UNet_Model')
 
         command = 'python3 ' + opj(Unet_dir, 'muSkullStrip.py') + \
