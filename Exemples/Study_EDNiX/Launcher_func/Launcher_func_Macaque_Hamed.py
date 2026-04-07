@@ -41,8 +41,8 @@ Method_mask_func = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or
 #### ANTs function of the co-registration HammingWindowedSinc is advised
 IhaveanANAT = True # True or False
 anat_func_same_space = False # True or False
-type_of_transform = 'Rigid'
 aff_metric_ants_Transl = 'mattes' # string
+type_of_transform = 'Rigid'
 aff_metric_ants = 'CC'
 do_anat_to_func = True # True or False
 Slice_timing_info = '-tpattern seq-z'
@@ -55,7 +55,6 @@ dilate_mask = 0 # int
 SBAspace = ['func', 'atlas'] #list containing at least on of the string 'func', 'anat', 'atlas'
 smoothSBA = 3
 # for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
-selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 ############ Right in a list format the steps that you want to skip
 doWARPonfunc = False
 resting_or_task = 'resting'  # 'resting' or 'task'

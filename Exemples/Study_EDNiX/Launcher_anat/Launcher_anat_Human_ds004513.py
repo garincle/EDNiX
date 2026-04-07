@@ -20,7 +20,7 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Human/BIDS_ds004513-raw-data/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Human/ds004513-download/'))
 # which format ?
 BIDStype = 1
 
@@ -99,7 +99,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = [1,2,'itk_1','itk_2','itk_3','flat_map', 'Clean']
+Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #

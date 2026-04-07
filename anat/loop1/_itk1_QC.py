@@ -32,7 +32,7 @@ def _itk_check_masks(data_path, ID, type_norm, itk_sif,diary_file):
 
     _,  dir_transfo,_, dir_prepro, _, volumes_dir, _, masks_dir = getpath.anat(data_path,
                                                                      '', '', False, False, 'native')
-    anat_input1 = opj(dir_prepro, ID + '_space-raw_desc-n4Bias_')
+    anat_input1 = opj(dir_prepro, ID + '_space-acpc_desc-cropped_')
     output4mask  = opj(masks_dir, ID + '_desc-step1_mask.nii.gz')
 
     end_maskname = '_'.join([ID, 'final', 'mask.nii.gz'])
@@ -53,12 +53,6 @@ def _itk_check_masks(data_path, ID, type_norm, itk_sif,diary_file):
     command = (itk_sif + 'itksnap -g ' + input4msk +
                ' -s ' + output4mask)
     run_command_and_wait(command)
-
-    if ope(opj(masks_dir,end_maskname)):
-        nl = 'WARNING: We found an already existing final mask !!! it will be used! but restart step 2 to re-skullstrip your image !'
-        run_cmd.msg(nl, diary_file, 'WARNING')
-        output4mask = opj(masks_dir, ID + '_desc-step1_mask.nii.gz')
-        shutil.copyfile(opj(masks_dir,end_maskname), output4mask)
 
     diary.write(f'\n')
     diary.close()
