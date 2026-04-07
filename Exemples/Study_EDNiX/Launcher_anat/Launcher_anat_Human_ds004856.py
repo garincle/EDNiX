@@ -37,12 +37,10 @@ list_to_remove = []
 species    = 'Human'
 # is it a longitudinal study ?
 coregistration_longitudinal = True
-#do you want to use all the data or only the last one of each subject
-which_on  = 'max'                       # "all" or "max"
-
 # create  a study template
 creat_study_template  = False
-
+#do you want to use all the data or only the last one of each subject
+which_on  = 'max'                       # "all" or "max"
 #### Choose to normalize using T1 or T2
 
 type_norm = 'acq-MPRAGE_run-1_T1w'                      # T1w or T2w
@@ -97,7 +95,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = [1,2,'itk_1','itk_2','itk_3','flat_map', 'Clean']
+Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################

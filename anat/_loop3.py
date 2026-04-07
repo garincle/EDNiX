@@ -166,11 +166,15 @@ def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat
         if change_hd == 1:
             preFS.resamp(list1, data_path,reference,BALSAname, scaling, new_size, resamp, diary_file)
             [_, _, fwdFS_cmd, _] = get_orientation.use_ants(list1[0])
-            list3 = ['orig_raw.mgz']
+            list3 = ['orig_raw.mgz',
+                     'brain_raw.mgz',
+                     'wm_raw.mgz',
+                     'aseg_raw.mgz',
+                     'filled_raw.mgz']
             # set the data and folder for freesurfer
             for i in range(len(list1)):
                 if opi(list1[i]) == True:
-                    cmd = sing_fs + 'mri_convert ' + fwdFS_cmd + list1[i] + ' ' + opj(FS_dir, species, 'mri', list3[i])
+                    cmd = sing_fs + 'mri_convert ' + fwdFS_cmd + list1[i] + ' ' + opj(FS_dir, ID, 'mri', list3[i])
                     run_cmd.run(cmd, diary_file)
 
         # set the data and folder for freesurfer
