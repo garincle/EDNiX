@@ -209,12 +209,10 @@ def toFS(list1, Subname,change_hd,scaling,data_path,reference,BALSAname,diary_na
 
     if ope(opj(FS_dir, Subname)) == False:
         os.makedirs(opj(FS_dir, Subname))
-        os.makedirs(opj(FS_dir, Subname, 'mri'))
-        os.makedirs(opj(FS_dir, Subname, 'surf'))
-        os.makedirs(opj(FS_dir, Subname, 'stats'))
-        os.makedirs(opj(FS_dir, Subname, 'label'))
-        os.makedirs(opj(FS_dir, Subname, 'scripts'))
-
+    freesurferlist = ['mri', 'surf', 'stats', 'label', 'scripts']
+    for folder in freesurferlist:
+        if ope(opj(FS_dir, Subname, folder)) == False:
+            os.makedirs(opj(FS_dir, Subname, folder))
     if change_hd == 0:
         Ref = ''
     elif change_hd == 1:

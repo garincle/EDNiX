@@ -174,8 +174,18 @@ def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat
             # set the data and folder for freesurfer
             for i in range(len(list1)):
                 if opi(list1[i]) == True:
-                    cmd = sing_fs + 'mri_convert ' + fwdFS_cmd + list1[i] + ' ' + opj(FS_dir, ID, 'mri', list3[i])
-                    run_cmd.run(cmd, diary_file)
+                    output_path = opj(FS_dir, ID, 'mri', list3[i])
+                    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                    cmd = sing_fs + 'mri_convert ' + fwdFS_cmd + list1[i] + ' ' + output_path
+                    for attempt in range(2):  # Try twice
+                        result = run_cmd.run(cmd, diary_file)
+                        if result:
+                            break  # Success, move to next file
+                        elif attempt == 0:
+                            print(f"Attempt 1 failed for {list1[i]}, retrying...")
+                        else:
+                            print(f"Attempt 2 failed for {list1[i]}. Stopping all.")
+                            raise SystemExit("Failed after 2 attempts")
 
         # set the data and folder for freesurfer
         preFS.toFS(list1, ID, change_hd,scaling[0],data_path,reference,BALSAname,diary_file,sing_fs)

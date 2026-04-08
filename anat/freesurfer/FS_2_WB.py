@@ -502,7 +502,7 @@ def WB_prep(cmd_mris_convert, FS_dir, FS_refs, dir_path, animal, species, spacin
         name = opb(j).split('.')[2]
         WB_label.cifti(animal, name, opj(dir_native_resol), 'native', 'roi',
                        opj(dir_native_resol, animal + '_native_LR.wb.spec'), diary_name, sing_wb)
-        if iso == 1:
+        if iso == 0:
             atlasfile = opj(labels_dir, animal + '_seg-' + name + '_res-iso_dseg.nii.gz')
         else:
             atlasfile = opj(labels_dir, animal + '_seg-' + name + '_dseg.nii.gz')

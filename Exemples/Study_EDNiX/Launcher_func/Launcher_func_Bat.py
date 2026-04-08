@@ -61,7 +61,7 @@ selected_atlases = [['pcc', 0]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = 'WARP'
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = ['itk_1','itk_2', 'Clean']
+Skip_step = [10,12,13,14,'itk_1','itk_2', 'Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
@@ -79,8 +79,8 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     reference='EDNiX', post_treatment_method='Grandjean',
                     band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
                     use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
-                    selected_atlases_matrix='all', wanted_level_matrix='all',
-                    selected_atlases_SBA=['pcc', 0], panda_files_SBA=[pd.DataFrame({'region':['pcc'],'label':[1]})],
+                    selected_atlases_matrix=[['pcc'], [0]], wanted_level_matrix=0,
+                    selected_atlases_SBA=['pcc', 0], panda_files_SBA=[1],
                     SBAspace=['atlas'], erod_seed=True, smoothSBA=smoothSBA,
                     specific_roi_tresh=0.2, delta_thresh=0.1,
                     oversample_map=False, use_cortical_mask_func=False, n_cut=10, threshold_val=10)
