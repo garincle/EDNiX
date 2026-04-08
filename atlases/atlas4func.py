@@ -75,7 +75,10 @@ def setup(MAIN_PATH, species, reference, selected_atlases_matrix, wanted_level,
         default_labels = [162, 1162]
 
     # Utilise le label_df de l'atlas de selected_atlases
+    print(selected_atlases)
+    print(selected_atlases[0])
     panda_atlas = selected_atlases[0] if isinstance(selected_atlases, list) else 'EDNIxCSCLR'
+    print(panda_atlas)
     panda_df    = label_dfs.get(panda_atlas)
     if panda_df is None:
         # Si cet atlas n'est pas dans selected_atlases_matrix, le charger quand même
@@ -89,7 +92,7 @@ def setup(MAIN_PATH, species, reference, selected_atlases_matrix, wanted_level,
     subset = panda_df[panda_df['label'].isin(default_labels)].copy()
     if subset.empty:
         raise ValueError(
-            f"None of the label IDs {default_labels} were found for atlas '{panda_atlas}'"
+            f"None of the label IDs {default_labels} were foundFoundError: No label file for atlas '{panda_atlas}'"
         )
 
     panda_files = [pd.DataFrame({
