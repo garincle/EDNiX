@@ -42,19 +42,14 @@ from scipy import stats
 
 sys.path.insert(0, '/home/cgarin/PycharmProjects/EDNiX/')
 from Plotting.ednix_bids_tools import (
-    parse_label_file, get_atlas_label_path, find_species_path,
-    extract_bold_paths, extract_surface_paths, extract_thickness_paths,
-    extract_volume_paths, extract_qc_paths,
-    process_surfaces, process_thickness, process_volumes,
-    process_volumes_and_save, process_qc,
+    get_atlas_label_path, find_species_path,
     extract_and_process_surfaces_wb, extract_and_process_thickness_wb,
     extract_corr_matrix_paths, collect_corr_matrices, load_corr_matrix,
     collect_multi_species,
     export_to_excel, export_to_csv, export_summary_stats,
-    plot_morphometry_intra_bids, plot_morphometry_inter_species,
-    plot_multi_bids_comparison, plot_qc_dashboard,
-    run_full_pipeline,
-    _species_colors, _violin_strip_quartiles, _sig_bracket,
+    plot_morphometry_intra_bids,
+    plot_qc_dashboard,
+    _violin_strip_quartiles,
     PAPER_RC, PALETTE,
 )
 
@@ -159,8 +154,8 @@ SPECIES_BRAIN_WEIGHT_G = {
     'Bat':         0.8,
     'Mouse_lemur': 1.8,
     'Marmoset':    7.7,
-    'Macaque':     90,
-    'Human':       1400,
+    'Macaque':     70,
+    'Human':       1232,
     'Dog':         72,
     'Cat':         30,
     'Pig':         180,
@@ -183,7 +178,7 @@ species_multi_bids = {
         '/scratch2/EDNiX/Macaque/BIDS_Cdt_Garin',
     ],
     'Human': [
-        '/scratch2/EDNiX/Human/BIDS_ds004513-raw-data',
+        '/scratch2/EDNiX/Human/ds004513-download',
     ],
 }
 
