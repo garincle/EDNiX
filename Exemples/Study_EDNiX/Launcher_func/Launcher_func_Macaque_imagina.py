@@ -11,7 +11,7 @@ sys.path.insert(1, opj(MAIN_PATH))
 
 species    = 'Macaque'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/imagina/BIDS/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/imagina/BIDS/rawdata/'))
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
@@ -59,7 +59,7 @@ selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = 'WARP'
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-Skip_step = ['itk_1','Clean']
+Skip_step = ['itk_1','itk_2','Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,

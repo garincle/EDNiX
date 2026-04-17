@@ -282,10 +282,32 @@ def vol2surfWB(balsaswitch,animal, list_atlas, vol_dir, WB_dir, surftype, hemi_t
                            ' -ribbon-constrained ' +
                            opj(WB_dir, '.'.join([animal, h, 'white', suffix, 'gii'])) + ' ' +
                            opj(WB_dir, '.'.join([animal, h, 'pial', suffix, 'gii'])))
+                elif proj == 'ribbon_dil':
+                    cmd = (sing_wb + 'wb_command -volume-label-to-surface-mapping ' + vol +
+                           ' ' + opj(WB_dir, '.'.join([animal, h, 'pial', suffix, 'gii'])) +
+                           ' ' + newgii +
+                           ' -ribbon-constrained ' +
+                           opj(WB_dir, '.'.join([animal, h, 'white', suffix, 'gii'])) + ' ' +
+                           opj(WB_dir, '.'.join([animal, h, 'pial', suffix, 'gii']))) + ' -dilate-missing 10'
                     print(cmd)
                 elif proj == 'vox':
                     cmd = (sing_wb + 'wb_command -volume-label-to-surface-mapping ' + vol +
                            ' ' + opj(WB_dir, '.'.join([animal, h, 'midthickness', suffix, 'gii'])) +
+                           ' ' + newgii)
+
+                elif proj == 'vox_dil':
+                    cmd = (sing_wb + 'wb_command -volume-label-to-surface-mapping ' + vol +
+                           ' ' + opj(WB_dir, '.'.join([animal, h, 'midthickness', suffix, 'gii'])) +
+                           ' ' + newgii) + ' -dilate-missing 10'
+
+                elif proj == 'vox_pial':
+                    cmd = (sing_wb + 'wb_command -volume-label-to-surface-mapping ' + vol +
+                           ' ' + opj(WB_dir, '.'.join([animal, h, 'pial', suffix, 'gii'])) +
+                           ' ' + newgii)
+
+                elif proj == 'vox_inflated':
+                    cmd = (sing_wb + 'wb_command -volume-label-to-surface-mapping ' + vol +
+                           ' ' + opj(WB_dir, '.'.join([animal, h, 'inflated', suffix, 'gii'])) +
                            ' ' + newgii)
                 run_cmd.wb(cmd, diary_name)
 

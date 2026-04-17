@@ -33,7 +33,7 @@ Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 
 
 # choose if you want to select or remove ID from you analysis:
-list_to_keep   = []
+list_to_keep   = [('jgrAesISOc11R1L', '1')]
 list_to_remove = []
 species    = 'Mouse'
 
@@ -108,7 +108,7 @@ list_transfo = build_transfos(
 
 ########################################################################################################################
 
-Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,'itk_1','itk_2','flat_map', 'Clean']
+Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
@@ -128,15 +128,3 @@ _0_Pipeline_launcher.preprocess_anat(Skip_step,
 
 
 
-### Surface QC summary creation --------------------------------------------------------------------------------
-# Function 1: Load EDNiX requirements
-sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _, sing_synstrip, Unetpath = Load_EDNiX_requirement.load_requirement(
-    MAIN_PATH, '', bids_dir, 'yes')
-# Function 2: Create QC summary for all subjects
-Plot_BIDS_surface_for_QC.create_surface_qc_summary(
-    sing_wb=sing_wb,
-    bids_root=bids_dir,
-    output_dir=bids_dir + "/QC/Surface",
-    template_scene=bids_dir + "/sub-jgrAesAWc11L/ses-1/anat/native/surfaces/Native_resol/Exemple1.scene",
-    scene_ID_name="jgrAesAWc11L",
-    scene_name="Exemple1")
