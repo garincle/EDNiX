@@ -11,7 +11,7 @@ from Tools import Load_subject_with_BIDS, load_bids
 species = 'Mouse'
 ## linux ##FS_dir
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouse/BIDS_Gd/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouse/BIDS_Grandjean/'))
 
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])

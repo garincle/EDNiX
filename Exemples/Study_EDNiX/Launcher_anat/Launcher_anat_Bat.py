@@ -21,7 +21,7 @@ from Plotting import Plot_BIDS_surface_for_QC
 
 # Where are the data
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Bat/BIDS_bat/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Bat/BIDS_Washington/'))
 
 # which format ?
 BIDStype = 1

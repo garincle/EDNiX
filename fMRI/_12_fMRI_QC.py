@@ -2,7 +2,6 @@ import os
 import nilearn
 from nilearn import image
 from nilearn.input_data import NiftiLabelsMasker
-import shutil
 from shutil import copyfile
 import math
 import scipy
@@ -12,14 +11,13 @@ import nitime.utils as utils
 import nibabel as nib
 import pandas as pd
 import json
-import time
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from sklearn.metrics import mutual_info_score
 from sklearn.preprocessing import StandardScaler
 import ants
 import numpy as np
-from atlases import atlas4func
+from skimage.metrics import normalized_mutual_information
 
 opj = os.path.join
 opb = os.path.basename
@@ -88,9 +86,9 @@ def detect_image_type(anat_img, atlas_img,diary_file):
 
         # Calculate contrast ratios
         if not np.isnan(wm_mean) and not np.isnan(gm_mean) and not np.isnan(csf_mean):
-            wm_gm_ratio = wm_mean / gm_mean
-            wm_csf_ratio = wm_mean / csf_mean
-            gm_csf_ratio = gm_mean / csf_mean
+            wm_gm_ratio = abs(wm_mean / gm_mean)
+            wm_csf_ratio = abs(wm_mean / csf_mean)
+            gm_csf_ratio = abs(gm_mean / csf_mean)
 
             # Typical T1 contrasts: WM > GM > CSF
             t1_likelihood = 0
@@ -1058,7 +1056,13 @@ def fMRI_QC(correction_direction, path_func, ID, dir_prepro_template_process, di
                     # NMI index
                     fixed = ants.image_read(anat_img_path)
                     moving = ants.image_read(fmri_img_path)
-                    nmi = ants.image_mutual_information(fixed, moving)
+
+                    # Conversion en numpy
+                    fixed_np = fixed.numpy()
+                    moving_np = moving.numpy()
+                    assert fixed_np.shape == moving_np.shape, "Images must be aligned and same shape"
+                    # Calcul NMI
+                    nmi = normalized_mutual_information(fixed_np, moving_np)
                     qc_values['nmi'] = nmi
                 else:
                     qc_values['mi'] = np.nan

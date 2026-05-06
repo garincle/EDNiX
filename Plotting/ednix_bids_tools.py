@@ -486,7 +486,11 @@ def _read_one_surface(sub, ses, path, regions_of_interest):
 
             for region in df.index:
                 rs = str(region)
-                if regions_of_interest and not any(r in rs for r in regions_of_interest):
+                rs_base = rs.lower().lstrip('l_').lstrip('r_')
+                if regions_of_interest and not any(
+                    r.lower() in rs.lower() or rs_base in r.lower()
+                    for r in regions_of_interest
+                ):
                     continue
                 val = df.loc[region, col]
                 if pd.isna(val):
@@ -572,7 +576,11 @@ def _read_one_thickness(sub, ses, path, regions_of_interest):
 
             for region in df.index:
                 rs = str(region)
-                if regions_of_interest and not any(r in rs for r in regions_of_interest):
+                rs_base = rs.lower().lstrip('l_').lstrip('r_')
+                if regions_of_interest and not any(
+                    r.lower() in rs.lower() or rs_base in r.lower()
+                    for r in regions_of_interest
+                ):
                     continue
                 val = df.loc[region, col]
                 if pd.isna(val):
@@ -1305,7 +1313,11 @@ def process_volumes(volume_paths_dict, label_path, regions_of_interest=None,
                     continue
                 row  = label_lookup[lid]
                 base = row["base_region"]
-                if regions_of_interest and not any(r in base for r in regions_of_interest):
+                base_lower = base.lower()
+                if regions_of_interest and not any(
+                    r.lower() in base_lower or base_lower in r.lower()
+                    for r in regions_of_interest
+                ):
                     continue
                 records.append(dict(
                     subject=sub, session=ses,
@@ -1897,40 +1909,48 @@ def _sig_bracket(ax, x1, x2, y, p, h_frac=0.04):
     ax.text((x1+x2)/2, y+h, label, ha="center", va="bottom", fontsize=10)
 
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4.  FIXED _violin_strip_quartiles  (no grey background scatter)
+# ─────────────────────────────────────────────────────────────────────────────
+
 def _violin_strip_quartiles(ax, data, x_pos, color, width=0.4):
+    """
+    Draw a KDE violin + quartile lines at x_pos.
+    NOTE: the raw scatter dots are NOT drawn here — callers are responsible
+    for drawing coloured dots (by BIDS dir / anesthesia) on top.
+    This removes the unexplained grey that appeared when the background
+    scatter used a fixed '#888888' colour.
+    """
     data = np.asarray(data, dtype=float)
     data = data[~np.isnan(data)]
     if len(data) == 0:
         return
 
-    jitter = np.random.default_rng(42).uniform(-width*0.18, width*0.18, len(data))
-    ax.scatter(x_pos + jitter, data, color="white", s=18, zorder=3, linewidths=0)
-    ax.scatter(x_pos + jitter, data, color=color,   s=12, zorder=4,
-               alpha=0.75, linewidths=0.5, edgecolors="k")
-    for q, lw in zip(np.percentile(data, [25, 50, 75]), [1, 2, 1]):
-        ax.hlines(q, x_pos - width/2, x_pos + width/2, colors=color, linewidths=lw)
-
     if np.std(data) == 0 or len(data) < 2:
-        ax.hlines(data[0], x_pos - width/2, x_pos + width/2,
+        ax.hlines(data[0], x_pos - width / 2, x_pos + width / 2,
                   colors=color, linewidths=2, alpha=0.6)
         return
 
     from scipy.stats import gaussian_kde
     try:
-        kde = gaussian_kde(data, bw_method="scott")
+        kde = gaussian_kde(data, bw_method='scott')
     except Exception:
         return
 
-    y_g  = np.linspace(data.min(), data.max(), 200)
+    y_g = np.linspace(data.min(), data.max(), 200)
     dens = kde(y_g)
     dens = dens / dens.max() * (width / 2)
+
     ax.fill_betweenx(y_g, x_pos - dens, x_pos + dens,
-                     color=color, alpha=0.35, linewidth=0)
-    ax.plot(x_pos - dens, y_g, color=color, lw=0.8, alpha=0.6)
-    ax.plot(x_pos + dens, y_g, color=color, lw=0.8, alpha=0.6)
+                     color=color, alpha=0.25, linewidth=0)
+    ax.plot(x_pos - dens, y_g, color=color, lw=0.8, alpha=0.5)
+    ax.plot(x_pos + dens, y_g, color=color, lw=0.8, alpha=0.5)
+
     for q, lw in zip(np.percentile(data, [25, 50, 75]), [1, 2, 1]):
         dens_q = float(kde(q)) / kde(y_g).max() * (width / 2)
-        ax.hlines(q, x_pos - dens_q, x_pos + dens_q, colors=color, linewidths=lw)
+        ax.hlines(q, x_pos - dens_q, x_pos + dens_q,
+                  colors=color, linewidths=lw, zorder=3)
 
 
 def plot_morphometry_intra_bids(df, metric_col, metric_label, regions, output_path,
@@ -2249,3 +2269,483 @@ def run_full_pipeline(
 
     print(f"\n? Pipeline complete. Outputs: {output_dir}")
     return {"data": data, "excel_path": excel_path, "plots": plots}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.  ANESTHESIA MARKER MAPPING
+# ─────────────────────────────────────────────────────────────────────────────
+
+_ANESTH_MARKER = {
+    'awake': 'o',  # circle
+    'iso': 's',  # square  (isoflurane)
+    'isoflurane': 's',
+    'ketamine': '^',  # triangle up
+    'propofol': 'D',  # diamond
+    'medetomidine': 'P',  # plus (filled)
+    'dexmed': 'P',
+    'mixed': '*',  # star
+}
+
+
+def _anesthesia_marker(anesth_str: str) -> str:
+    """
+    Return a matplotlib marker character for the given anesthesia string.
+    Falls back to 'o' for unknown values.
+    """
+    if not isinstance(anesth_str, str):
+        return 'o'
+    s = anesth_str.strip().lower()
+    for key, marker in _ANESTH_MARKER.items():
+        if key in s:
+            return marker
+    return 'o'
+
+
+def _anesth_legend_handles(anesth_map: dict) -> list:
+    """Build legend handles for the anesthesia markers used in a figure."""
+    seen = {}
+    for v in anesth_map.values():
+        m = _anesthesia_marker(v)
+        label = v.strip() if isinstance(v, str) else 'unknown'
+        seen[label] = m
+    handles = [
+        plt.Line2D([0], [0], marker=m, color='grey', linestyle='None',
+                   markerfacecolor='grey', markersize=7, label=lbl)
+        for lbl, m in sorted(seen.items())
+    ]
+    return handles
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2.  BIDS X-OFFSET HELPER
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _bids_offsets(bids_dirs: list, spread: float = 0.22) -> dict:
+    """
+    Return a fixed x-offset per BIDS directory so clouds don't overlap.
+    With 1 BIDS → offset = 0.  With 2 → -spread/2, +spread/2, etc.
+    """
+    n = len(bids_dirs)
+    if n <= 1:
+        return {b: 0.0 for b in bids_dirs}
+    offsets = np.linspace(-spread / 2, spread / 2, n)
+    return {b: float(o) for b, o in zip(bids_dirs, offsets)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3.  SCATTER WITH ANESTHESIA MARKER
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _scatter_with_anesth(ax, x_vals, y_vals, color, subjects=None, sessions=None,
+                         anesth_map=None, s=20, alpha=0.80, zorder=5):
+    """
+    Drop-in replacement for ax.scatter that draws each point with the marker
+    corresponding to its anesthesia protocol.
+
+    Parameters
+    ----------
+    x_vals, y_vals : array-like
+    color          : face colour for all points
+    subjects, sessions : parallel arrays (same length as x_vals) used to look
+                         up anesth_map.  May be None.
+    anesth_map     : dict {(subject, session): anesth_str} or None.
+                     If None, all points get marker 'o'.
+    """
+    x_vals = np.asarray(x_vals, dtype=float)
+    y_vals = np.asarray(y_vals, dtype=float)
+
+    if anesth_map is None or subjects is None:
+        ax.scatter(x_vals, y_vals, color=color, s=s, alpha=alpha,
+                   zorder=zorder, linewidths=0.5, edgecolors='k')
+        return
+
+    # Group by marker so we do one scatter call per marker type
+    from collections import defaultdict
+    groups = defaultdict(lambda: ([], []))
+    for xi, yi, sub, ses in zip(x_vals, y_vals, subjects, sessions):
+        key = (str(sub), str(ses))
+        a_str = anesth_map.get(key, anesth_map.get((str(sub), '1'), ''))
+        m = _anesthesia_marker(a_str)
+        groups[m][0].append(xi)
+        groups[m][1].append(yi)
+
+    for marker, (xs, ys) in groups.items():
+        ax.scatter(xs, ys, color=color, marker=marker, s=s, alpha=alpha,
+                   zorder=zorder, linewidths=0.5, edgecolors='k')
+
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.  plot_cross_species_dots  (offset + anesthesia markers)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def plot_cross_species_dots(
+        df, metric_col, metric_label, regions, output_path,
+        hemisphere='left', log_scale=False,
+        normalise_by_brain=False, df_vol_for_norm=None,
+        atlas_level=1, bids_col=None, figsize=None,
+        anesth_map=None,  # NEW
+):
+    import matplotlib.ticker as ticker
+
+    # (keep the _filter_atlas_level / hemisphere filter logic from original)
+    # ... abbreviated here — paste the full body from ednix_bids_main.py's
+    #     plot_cross_species_dots, replacing only the scatter section below.
+
+    # ── REPLACEMENT scatter section (inside the species loop) ────────────────
+    #
+    #   bids_list  = sorted(rdf['bids_dir'].unique())
+    #   bd_offsets = _bids_offsets(bids_list)
+    #
+    #   for bd in bids_list:
+    #       bd_df  = sp_df[sp_df['bids_dir'] == bd]
+    #       bd_vals = bd_df[metric_col].dropna().values
+    #       if len(bd_vals) == 0:
+    #           continue
+    #       jitter  = rng.uniform(-0.10, 0.10, len(bd_vals))
+    #       x_draw  = xi + bd_offsets[bd] + jitter
+    #       _scatter_with_anesth(
+    #           ax, x_draw, bd_vals, _bids_col[bd],
+    #           subjects = bd_df.loc[bd_df[metric_col].notna(), 'subject'].values
+    #                      if 'subject' in bd_df.columns else None,
+    #           sessions = bd_df.loc[bd_df[metric_col].notna(), 'session'].values
+    #                      if 'session' in bd_df.columns else None,
+    #           anesth_map=anesth_map,
+    #       )
+    #
+    # After the species loop, if anesth_map is not None, add anesthesia legend:
+    #   if anesth_map:
+    #       ah = _anesth_legend_handles(anesth_map)
+    #       ax.legend(handles=ah, title='Anesthesia', fontsize=7,
+    #                 loc='upper right', frameon=False)
+    # ─────────────────────────────────────────────────────────────────────────
+    pass  # placeholder — see integration note above
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6.  plot_corr_matrix_per_bids
+# ─────────────────────────────────────────────────────────────────────────────
+
+def plot_corr_matrix_per_bids(
+        species_config,
+        output_path,
+        atlas_name="EDNIxCSC",
+        atlas_level=2,
+        use_lr=True,
+        figsize=None,
+        vmin=-0.5, vmax=0.5,
+        pval_thresh=0.05,
+        PALETTE=None,
+        PAPER_RC=None,
+):
+    """
+    Correlation matrix figure — ONE COLUMN PER BIDS DIRECTORY (not per species).
+
+    Layout: 3 rows (mean r | -log10 p | variance) × N_bids columns.
+    Species label is embedded in each panel title.
+
+    Parameters
+    ----------
+    species_config : same dict as used throughout EDNiX
+    output_path    : PNG/PDF destination
+    atlas_level    : hierarchy level for matrix extraction
+    use_lr         : True → use LR atlas for bilateral ROI pairs
+    vmin/vmax      : colour scale for mean-r row
+    PALETTE        : list of hex colours (imported from ednix_bids_tools)
+    PAPER_RC       : matplotlib rcParams dict (imported from ednix_bids_tools)
+    """
+    import math
+    import matplotlib.gridspec as gridspec
+    import matplotlib.cm as _cm
+    from matplotlib.colors import TwoSlopeNorm, Normalize
+    from scipy import stats as _stats
+
+    if PALETTE is None:
+        PALETTE = ["#0072B2", "#E69F00", "#009E73", "#CC79A7",
+                   "#56B4E9", "#D55E00", "#F0E442", "#000000"]
+    if PAPER_RC is None:
+        PAPER_RC = {
+            "axes.spines.top": False, "axes.spines.right": False,
+            "font.family": "sans-serif", "font.size": 11,
+            "figure.facecolor": "white", "axes.facecolor": "white",
+        }
+
+    # ── collect one matrix stack per (species, bids_dir) ───────────────────
+    bids_stacks = {}  # { (species, bids_label): {'mean','var','pval','rois','n'} }
+
+    for species, cfg in species_config.items():
+        bids_dirs = cfg.get('bids_dirs', [])
+        if isinstance(bids_dirs, str):
+            bids_dirs = [bids_dirs]
+        lk = cfg.get('list_to_keep', [])
+        lr = cfg.get('list_to_remove', [])
+
+        for bids_dir in bids_dirs:
+            bids_lbl = os.path.basename(bids_dir.rstrip('/'))
+            col_key = (species, bids_lbl)
+
+            records = extract_corr_matrix_paths(  # imported from ednix_bids_tools
+                bids_dir, atlas_name, atlas_level, use_lr, lk, lr)
+            if not records:
+                continue
+
+            sub_ses_runs = {}
+            rois_ref = None
+            n_skipped = 0
+
+            for rec in records:
+                try:
+                    rois, mat = load_corr_matrix(rec['path'])  # imported
+                    valid = mat[~np.isnan(mat)]
+                    if valid.size == 0 or np.all(valid == 0):
+                        n_skipped += 1;
+                        continue
+                    if rois_ref is None:
+                        rois_ref = rois
+                    key = (rec['subject'], rec['session'])
+                    sub_ses_runs.setdefault(key, []).append((rois, mat))
+                except Exception as e:
+                    print(f"    [ERROR] {rec['path']}: {e}")
+                    n_skipped += 1
+
+            if not sub_ses_runs:
+                continue
+
+            # Average runs per subject, then collect per-BIDS common ROI stack
+            subject_means = []
+            for (sub, ses), run_list in sorted(sub_ses_runs.items()):
+                rois_sets = [set(r) for r, _ in run_list]
+                common = rois_sets[0].intersection(*rois_sets[1:])
+                ref_rois = [r for r in run_list[0][0] if r in common]
+                if not ref_rois: continue
+                mats = []
+                for rois_r, mat_r in run_list:
+                    try:
+                        idx = [list(rois_r).index(r) for r in ref_rois]
+                        mats.append(mat_r[np.ix_(idx, idx)])
+                    except ValueError:
+                        pass
+                if mats:
+                    subject_means.append(
+                        (ref_rois,
+                         np.nanmean(np.stack(mats, axis=0), axis=0)))
+
+            if not subject_means:
+                continue
+
+            all_roi_sets = [set(r) for r, _ in subject_means]
+            common_sp = all_roi_sets[0].intersection(*all_roi_sets[1:])
+            rois_ref = [r for r in subject_means[0][0] if r in common_sp]
+
+            aligned = []
+            for rois_s, mat_s in subject_means:
+                idx = [list(rois_s).index(r) for r in rois_ref if r in rois_s]
+                if len(idx) == len(rois_ref):
+                    aligned.append(mat_s[np.ix_(idx, idx)])
+
+            if not aligned:
+                continue
+
+            stack = np.stack(aligned, axis=0)
+            n = stack.shape[0]
+            mean = np.nanmean(stack, axis=0)
+            var = np.nanvar(stack, axis=0)
+            if n >= 2:
+                _, pval = _stats.ttest_1samp(stack, 0, axis=0, nan_policy='omit')
+            else:
+                pval = np.full(mean.shape, np.nan)
+
+            bids_stacks[col_key] = dict(
+                mean=mean, var=var, pval=pval, rois=rois_ref, n=n,
+                species=species, bids_lbl=bids_lbl)
+
+            print(f"  [per_bids_matrix] {species} / {bids_lbl}: "
+                  f"n={n}  rois={len(rois_ref)}")
+
+    if not bids_stacks:
+        warnings.warn('plot_corr_matrix_per_bids: no matrix data found')
+        return None
+
+    # ── find common ROIs across all BIDS dirs ───────────────────────────────
+    all_rois_sets = [set(v['rois']) for v in bids_stacks.values()]
+    common_rois_set = all_rois_sets[0].intersection(*all_rois_sets[1:])
+    ref_order = next(iter(bids_stacks.values()))['rois']
+    common_rois = [r for r in ref_order if r in common_rois_set]
+
+    # Restrict each entry to common ROIs
+    for col_key, d in bids_stacks.items():
+        local_rois = d['rois']
+        idx = [local_rois.index(r) for r in common_rois if r in local_rois]
+        d['mean'] = d['mean'][np.ix_(idx, idx)]
+        d['var'] = d['var'][np.ix_(idx, idx)]
+        d['pval'] = d['pval'][np.ix_(idx, idx)]
+        d['rois'] = common_rois
+
+    # ── colour scales ────────────────────────────────────────────────────────
+    norm_r = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+    cmap_r = 'RdBu_r'
+    cmap_var = 'viridis'
+    all_var = np.concatenate([d['var'].ravel() for d in bids_stacks.values()])
+    valid_var = all_var[~np.isnan(all_var)]
+    vmax_var = float(np.nanpercentile(valid_var, 95)) if valid_var.size > 0 else 0.01
+    norm_var = Normalize(0, vmax_var)
+
+    # ── layout ───────────────────────────────────────────────────────────────
+    cols = list(bids_stacks.keys())
+    n_cols = len(cols)
+    n_rows = 3
+    short_rois = [r.replace('L_', 'L ').replace('R_', 'R ')[:16]
+                  for r in common_rois]
+    n_roi = len(common_rois)
+
+    w, h = figsize or (max(8, n_cols * 3.5), n_rows * 3.8)
+    fig = plt.figure(figsize=(w, h), facecolor='white')
+    gs = gridspec.GridSpec(n_rows, n_cols + 1,
+                           width_ratios=[1.0] * n_cols + [0.05],
+                           wspace=0.04, hspace=0.15)
+
+    with plt.rc_context(PAPER_RC):
+        for c_i, col_key in enumerate(cols):
+            d = bids_stacks[col_key]
+            sp_lbl = f"{d['species']} / {d['bids_lbl']} (n={d['n']})"
+
+            # Row 0: mean r
+            ax0 = fig.add_subplot(gs[0, c_i])
+            ax0.imshow(d['mean'], cmap=cmap_r, norm=norm_r,
+                       aspect='auto', interpolation='nearest')
+            ax0.set_title(sp_lbl, fontweight='bold', fontsize=7)
+            if c_i == 0:
+                ax0.set_ylabel('Mean r', fontsize=8)
+                ax0.set_yticks(range(n_roi))
+                ax0.set_yticklabels(short_rois, fontsize=4)
+            else:
+                ax0.set_yticks([])
+            ax0.set_xticks([])
+
+            # Row 1: -log10(p)
+            ax1 = fig.add_subplot(gs[1, c_i])
+            pval_disp = np.clip(d['pval'], 1e-10, 1.0)
+            ax1.imshow(-np.log10(pval_disp), cmap='hot_r',
+                       aspect='auto', vmin=0, vmax=4,
+                       interpolation='nearest')
+            if c_i == 0:
+                ax1.set_ylabel('-log10(p)', fontsize=8)
+                ax1.set_yticks(range(n_roi))
+                ax1.set_yticklabels(short_rois, fontsize=4)
+            else:
+                ax1.set_yticks([])
+            ax1.set_xticks([])
+
+            # Row 2: variance
+            ax2 = fig.add_subplot(gs[2, c_i])
+            ax2.imshow(d['var'], cmap=cmap_var, norm=norm_var,
+                       aspect='auto', interpolation='nearest')
+            if c_i == 0:
+                ax2.set_ylabel('Variance', fontsize=8)
+                ax2.set_yticks(range(n_roi))
+                ax2.set_yticklabels(short_rois, fontsize=4)
+            else:
+                ax2.set_yticks([])
+            ax2.set_xticks([])
+
+        # Colorbars
+        fig.colorbar(
+            _cm.ScalarMappable(norm=norm_r, cmap=cmap_r),
+            cax=fig.add_subplot(gs[0, -1]), label='Pearson r'
+        ).ax.yaxis.set_label_position('right')
+
+        fig.colorbar(
+            _cm.ScalarMappable(norm=Normalize(0, 4), cmap='hot_r'),
+            cax=fig.add_subplot(gs[1, -1]), label='-log10(p)'
+        ).ax.yaxis.set_label_position('right')
+
+        fig.colorbar(
+            _cm.ScalarMappable(norm=norm_var, cmap=cmap_var),
+            cax=fig.add_subplot(gs[2, -1]), label='Variance'
+        ).ax.yaxis.set_label_position('right')
+
+        plt.tight_layout()
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+        fig.savefig(output_path, bbox_inches='tight', dpi=200)
+        plt.close(fig)
+        print(f'  [plot] {output_path}')
+
+    return output_path
+
+def extract_regions_from_legend(file_path):
+    """
+    Extract region names from levels 1 to 4 from the Legend_2023 sheet.
+    This sheet contains 'Isocortex' and the complete hierarchical structure.
+    """
+
+    try:
+        # Read the Legend_2023 sheet
+        df_legend = pd.read_excel(file_path, sheet_name='Legend_2023')
+
+        # Extract level labels (these contain 'Isocortex', 'Allocortex', etc.)
+        level1_labels = df_legend['NEWLVL1'].dropna().unique()
+        level2_labels = df_legend['NEWLVL2'].dropna().unique()
+        level3_labels = df_legend['NEWLVL3'].dropna().unique()
+        level4_labels = df_legend['NEWLVL4'].dropna().unique()
+
+        # Filter out '0' and 'NA' values
+        level1_labels = [l for l in level1_labels if l != 0 and l != '0' and l != 'NA']
+        level2_labels = [l for l in level2_labels if l != 0 and l != '0' and l != 'NA']
+        level3_labels = [l for l in level3_labels if l != 0 and l != '0' and l != 'NA']
+        level4_labels = [l for l in level4_labels if l != 0 and l != '0' and l != 'NA']
+
+        # Create complete hierarchy from Legend sheet
+        hierarchy = {}
+
+        for _, row in df_legend.iterrows():
+            lvl1 = row['NEWLVL1']
+            lvl2 = row['NEWLVL2']
+            lvl3 = row['NEWLVL3']
+            lvl4 = row['NEWLVL4']
+
+            # Skip empty level 1
+            if pd.isna(lvl1) or lvl1 == 0 or lvl1 == '0' or lvl1 == 'NA':
+                continue
+
+            # Initialize level 1
+            if lvl1 not in hierarchy:
+                hierarchy[lvl1] = {}
+
+            # Process level 2
+            if not pd.isna(lvl2) and lvl2 != 0 and lvl2 != '0' and lvl2 != 'NA':
+                if lvl2 not in hierarchy[lvl1]:
+                    hierarchy[lvl1][lvl2] = {}
+
+                # Process level 3
+                if not pd.isna(lvl3) and lvl3 != 0 and lvl3 != '0' and lvl3 != 'NA':
+                    if lvl3 not in hierarchy[lvl1][lvl2]:
+                        hierarchy[lvl1][lvl2][lvl3] = []
+
+                    # Process level 4
+                    if not pd.isna(lvl4) and lvl4 != 0 and lvl4 != '0' and lvl4 != 'NA':
+                        if lvl4 not in hierarchy[lvl1][lvl2][lvl3]:
+                            hierarchy[lvl1][lvl2][lvl3].append(lvl4)
+
+        return {
+            'level1': sorted(list(level1_labels)),
+            'level2': sorted(list(level2_labels)),
+            'level3': sorted(list(level3_labels)),
+            'level4': sorted(list(level4_labels)),
+            'hierarchy': hierarchy
+        }
+
+    except Exception as e:
+        print(f"Error reading file: {e}")
+        return None
+
+
+def print_hierarchy(hierarchy, indent=0):
+    """Pretty print the hierarchical structure."""
+    for key, value in hierarchy.items():
+        print('  ' * indent + f'• {key}')
+        if isinstance(value, dict):
+            print_hierarchy(value, indent + 1)
+        elif isinstance(value, list) and value:
+            for item in sorted(value):
+                print('  ' * (indent + 1) + f'- {item}')

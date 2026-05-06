@@ -22,7 +22,7 @@ from Tools import Load_subject_with_BIDS, load_bids
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouse/BIDS_Gd/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouse/BIDS_Grandjean/'))
 
 # which format ?
 BIDStype = 1

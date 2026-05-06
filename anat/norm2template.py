@@ -169,6 +169,8 @@ def apply(template_name,template_file,destination,targetname,file,transfolist,w2
         interp = 'linear'
         name = targetname + '_space-' + template_name + '_desc-' + descript + '_T1w.nii.gz'
     print('file = '  + file)
+    print('type = ' + type)
+    print('interp = ' + interp)
     print('ope = ' + str(ope(file)))
     header = ants.image_header_info(file)
     if len(header['dimensions']) > 3:
@@ -178,10 +180,15 @@ def apply(template_name,template_file,destination,targetname,file,transfolist,w2
 
     IMG    = ants.image_read(file)
     SOURCE = ants.image_read(template_file)
+    print(transfolist)
+    print(w2inv_inv)
+    print(file)
+    print(template_file)
 
     A = ants.apply_transforms(fixed=SOURCE, moving=IMG,
                               transformlist=transfolist,
                               interpolator=interp,imagetype=dim4,whichtoinvert=w2inv_inv)
+    print(A)
     os.makedirs(destination, exist_ok=True)
     ants.image_write(A, opj(destination, name), ri=False)
 

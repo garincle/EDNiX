@@ -16,56 +16,64 @@ spco = subprocess.check_output
 
 # ─────────────────────────────────────────────────────────────────────────────
 def _patch_cifti_palette_xml(nii_path, replacements: dict):
-    """
-    Patch PaletteColorMapping fields directly in the NIfTI2/CIFTI binary XML
-    extension (ecode=32).  This is the ONLY reliable way to set fields that
-    wb_command -cifti-palette does not expose as CLI flags, such as:
-        ShowTickMarksSelected, NumericSubivisions, PrecisionDigits,
-        DisplayZeroData, ColorBarValuesMode, NumericFormatMode.
-
-    The XML stores the PaletteColorMapping as HTML-escaped text inside a
-    <Value> node, so tags appear as &lt;TAG&gt;value&lt;/TAG&gt;.
-    Both escaped and plain forms are handled.
-
-    Parameters
-    ----------
-    nii_path     : str  - Path to .dscalar.nii (modified in-place)
-    replacements : dict - {tag_name: new_value}, e.g.
-                          {'ShowTickMarksSelected': 'true', 'PaletteName': 'JET256'}
-    """
     with open(nii_path, 'rb') as f:
         raw = f.read()
 
-    hdr_end    = 540          # NIfTI2 header size
-    ext_start  = hdr_end + 4  # skip 4-byte extension flag
-    esize      = struct.unpack_from('<i', raw, ext_start)[0]
-    ecode      = struct.unpack_from('<i', raw, ext_start + 4)[0]
+    hdr_end = 540
+    ext_start = hdr_end + 4
+    esize = struct.unpack_from('<i', raw, ext_start)[0]
+    ecode = struct.unpack_from('<i', raw, ext_start + 4)[0]
     assert ecode == 32, f"Expected CIFTI ecode=32, got {ecode}"
 
     content_start = ext_start + 8
-    content_end   = ext_start + esize
-    xml_str       = raw[content_start:content_end].decode('utf-8', errors='replace')
+    content_end = ext_start + esize
+    xml_str = raw[content_start:content_end].decode('utf-8', errors='replace')
 
+    # NEW: Compress whitespace FIRST to free up space
+    import re
+    # Remove unnecessary whitespace between tags
+    xml_str = re.sub(r'>\s+<', '><', xml_str)
+    # Remove newlines and extra spaces
+    xml_str = re.sub(r'\s+', ' ', xml_str)
+    # Strip leading/trailing whitespace
+    xml_str = xml_str.strip()
+
+    # Then apply your replacements
     for tag, value in replacements.items():
         for open_tag, close_tag in [
             (f'&lt;{tag}&gt;', f'&lt;/{tag}&gt;'),
-            (f'<{tag}>',       f'</{tag}>'),
+            (f'<{tag}>', f'</{tag}>'),
         ]:
-            pattern     = re.escape(open_tag) + r'[^<&]*' + re.escape(close_tag)
+            pattern = re.escape(open_tag) + r'[^<&]*' + re.escape(close_tag)
             replacement = f'{open_tag}{value}{close_tag}'
-            xml_str, n  = re.subn(pattern, replacement, xml_str)
+            xml_str, n = re.subn(pattern, replacement, xml_str)
             if n:
-                break   # found in one form, stop
+                break
 
     new_bytes = xml_str.encode('utf-8')
-    max_len   = esize - 8
+    max_len = esize - 8
+
+    # NEW: If still too long, aggressive compression
+    if len(new_bytes) > max_len:
+        # Remove ALL optional whitespace
+        xml_str = re.sub(r'>\s+<', '><', xml_str)
+        xml_str = re.sub(r'\s', '', xml_str)  # Removes ALL whitespace
+        new_bytes = xml_str.encode('utf-8')
+
+        if len(new_bytes) > max_len:
+            # Last resort: Truncate precision digits
+            for tag in ['PrecisionDigits', 'NumericSubdivisions']:
+                if tag in replacements and len(replacements[tag]) > 1:
+                    replacements[tag] = replacements[tag][:1]  # Single digit
+                    # Re-apply replacement logic...
+
     assert len(new_bytes) <= max_len, \
         f"Patched XML too long: {len(new_bytes)} > {max_len}"
+
     padded = new_bytes + b'\x00' * (max_len - len(new_bytes))
 
     with open(nii_path, 'wb') as f:
         f.write(raw[:content_start] + padded + raw[content_end:])
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 def render_stat_maps(results_dir, results_subdir, stat_suffixes,
@@ -122,9 +130,9 @@ def nifti_to_surface_wb(
     delete_surf_file: bool = True,
     # Colorbar display options
     precision_digits: int      = 2,
-    numeric_subdivisions: int  = 0,
+    numeric_subdivisions: int  = 1,
     show_tick_marks: bool      = False,
-    colorbar_values_mode: str  = 'DATA',
+    colorbar_values_mode: str  = 'Decimal',
     numeric_format_mode: str   = 'AUTO',
     display_zero: bool         = True,
     display_positive: bool     = True,

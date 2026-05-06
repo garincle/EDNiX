@@ -19,7 +19,7 @@ from Tools import run_cmd,diaryfile
 from atlases import label_translate
 from anat.connectomeWB import WB_label
 
-def run(LUTfile,species_list,Atlaspath,wantSurf,sing_wb):
+def run(LUTfile,species_list,Atlaspath,wantSurf,sing_wb, proj):
 
     label_translate.EDNiXprepare(LUTfile,species_list)
 
@@ -65,7 +65,7 @@ def run(LUTfile,species_list,Atlaspath,wantSurf,sing_wb):
                 WB_label.vol2surfWB(0,species_list[i],
                                     list_atlas,
                                     labels_dir, dir_native_resol, 'native', ['l','r'],
-                                    'vox_dil', 'roi', opj(dir_native_resol, species_list[i] + '_native_LR.wb.spec'), diary_file,
+                                    proj, 'roi', opj(dir_native_resol, species_list[i] + '_native_LR.wb.spec'), diary_file,
                                     sing_wb)
 
         # for BALSA
@@ -116,7 +116,7 @@ def run(LUTfile,species_list,Atlaspath,wantSurf,sing_wb):
                 WB_label.vol2surfWB(1,species_list[i],
                                     list_atlas,
                                     opj(dir_balsavol,'labels'), opj(dir_balsa,BALSAsamp['resol'][0]), BALSAsamp['resol'][1], ['l', 'r'],
-                                    'vox_dil', 'roi', opj(dir_balsa,BALSAsamp['resol'][0], '_'.join([species_list[i], BALSAsamp['resol'][2] + '.wb.spec'])),
+                                    proj, 'roi', opj(dir_balsa,BALSAsamp['resol'][0], '_'.join([species_list[i], BALSAsamp['resol'][2] + '.wb.spec'])),
                                     diary_file,
                                     sing_wb)
 
@@ -162,7 +162,10 @@ BALSAsamp= {'resol':['native','native','native_LR',''],
 
 Atlaspath = opj('/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/')
 LUTfile = '/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/ednix_lut/EDNIxCSCLR_StatsLUT.txt'
-species_list = ['Cat', 'Dog']
+#species_list = ['Cat', 'Dog'] #vox
+species_list = ['Human', 'Macaque'] #ribbon_dil
+#species_list = ['Pig', 'Marmoset', 'Mouselemur', 'Rat', 'Chimpanzee', 'Mouse'] #ribbon_dil
+proj = 'ribbon_dil'
 sing_wb = 'vglrun singularity exec --bind /home/cgarin/PycharmProjects/EDNiX/Atlases_library/,/scratch2/,/scratch/ /home/cgarin/PycharmProjects/EDNiX/Singularity_library/workbench_2.1.0.sif '
 #sing_wb = 'vglrun singularity run --bind /srv/projects/,/srv/projects/easymribrain,/scratch2/,/scratch/ /home/cgarin/PycharmProjects/EDNiX/Singularity_library/Singularity/connectome_workbench_1.5.0-freesurfer-update.sif '
-run(LUTfile,species_list,Atlaspath,1,sing_wb)
+run(LUTfile,species_list,Atlaspath,1,sing_wb, proj)

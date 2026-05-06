@@ -40,8 +40,8 @@ SURFACE_CFG = dict(
     surface_type     = 'pial',
     palette_name     = 'RY-BC-BL',
     pos_max          = 90,
-    neg_max          = 90,
-    colorbar_mode    = 'percent',
+    neg_max          = 10,
+    colorbar_mode    = 'abs_pct',
     scene_template   = SCENE_TEMPLATE,
     scene_label      = 'New Scene 1',
 )

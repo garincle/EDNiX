@@ -10,11 +10,10 @@ opn = os.path.normpath
 opd = os.path.dirname
 ope = os.path.exists
 
-output_atlas = '/srv/projects/easymribrain/data/Atlas/13_Atlas_project/Atlases_V2/'
-input_atlas = '/srv/projects/easymribrain/data/Atlas/13_Atlas_project/Atlases_V2/'
-orig_atlases = '/srv/projects/easymribrain/data/Atlas/13_Atlas_project/0_Atlas_modify/Atlas/'
-WM_subspace = '/srv/projects/easymribrain/data/Atlas/13_Atlas_project/WM_GM/'
-atlas_exel = '/srv/projects/easymribrain/data/Atlas/13_Atlas_project/Classiff/Classif_VDual_newGlass.xlsx'
+output_atlas = '/srv/projects/easymribrain/data/Atlas/Atlases_V2/'
+input_atlas = '/srv/projects/easymribrain/data/Atlas/Atlases_V2/'
+orig_atlases = '/srv/projects/easymribrain/data/Atlas/0_Atlas_modify/Atlas/'
+atlas_exel = '/srv/projects/easymribrain/data/Atlas/Classiff/Classif_EDNiX.xlsx'
 
 species = [
     'Pig',
@@ -43,7 +42,7 @@ imposeWM_all = [
 
 middle_value = ['-0.929', '0.091','0.075','0.125','0.5','-0.352','-0.289','-0.05','0','0']
 
-MAIN_PATH = r'/srv/projects/easymribrain/code/EDNiX/'  # Update this path
+MAIN_PATH = r'/home/cgarin/PycharmProjects/EDNiX/'  # Update this path
 atlas_folder = '/srv/projects/easymribrain/data/Atlas/'
 s_bind = f' --bind {atlas_folder},{MAIN_PATH} '
 s_path = opj(MAIN_PATH, 'Singularity_library', 'Singularity')

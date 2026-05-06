@@ -125,6 +125,7 @@ def surfFS(volume, ctab, change_hd, diary_name, sing_fs, path_code_label, export
                        ' -surf mid -projfrac 0.01 ' + animal + ' ' + Hmin[H] + 'h ' + animal + '_' + name + str(
                             i + 1) + '.mgz ' +
                        Hmin[H] + 'h.' + animal + '_' + name + str(i + 1) + '.annot')
+                print(cmd)
                 run_cmd.do(cmd, diary_name)
 
             os.remove(opj(opd(volume), animal + '_seg-' + name + str(i + 1) + '_dseg.nii.gz'))
@@ -294,11 +295,6 @@ def vol2surfWB(balsaswitch,animal, list_atlas, vol_dir, WB_dir, surftype, hemi_t
                     cmd = (sing_wb + 'wb_command -volume-label-to-surface-mapping ' + vol +
                            ' ' + opj(WB_dir, '.'.join([animal, h, 'midthickness', suffix, 'gii'])) +
                            ' ' + newgii)
-
-                elif proj == 'vox_dil':
-                    cmd = (sing_wb + 'wb_command -volume-label-to-surface-mapping ' + vol +
-                           ' ' + opj(WB_dir, '.'.join([animal, h, 'midthickness', suffix, 'gii'])) +
-                           ' ' + newgii) + ' -dilate-missing 10'
 
                 elif proj == 'vox_pial':
                     cmd = (sing_wb + 'wb_command -volume-label-to-surface-mapping ' + vol +

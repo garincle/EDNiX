@@ -12,7 +12,7 @@ sys.path.insert(1, opj(MAIN_PATH))
 
 species    = 'Bat'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Bat/BIDS_bat/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Bat/BIDS_Washington/'))
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['func'], suffixes= ['bold'], extensions=['.nii.gz'])
 
 ### select the subject, session to process

@@ -26,15 +26,19 @@ ope = os.path.exists
 def _itk_check_masks(data_path, ID, type_norm, itk_sif,diary_file):
     ct = datetime.datetime.now()
     nl = 'Run anat._itk1_Data_QC.clean._itk_check_masks'
+
     diary = open(diary_file, "a")
     diary.write(f'\n{ct}')
     diary.write(f'\n{nl}')
 
     _,  dir_transfo,_, dir_prepro, _, volumes_dir, _, masks_dir = getpath.anat(data_path,
                                                                      '', '', False, False, 'native')
-    anat_input1 = opj(dir_prepro, ID + '_space-acpc_desc-cropped_')
-    output4mask  = opj(masks_dir, ID + '_desc-step1_mask.nii.gz')
+    anat_input1 = opj(dir_prepro, ID + '_space-raw_desc-n4Bias_')
+    output4mask = opj(masks_dir, ID + '_desc-step1_mask.nii.gz')
+    end_maskname = '_'.join([ID, 'final', 'mask.nii.gz'])
 
+    if os.path.exists(opj(masks_dir, end_maskname)):
+        output4mask = opj(masks_dir, end_maskname)
     end_maskname = '_'.join([ID, 'final', 'mask.nii.gz'])
     input4msk = anat_input1 + type_norm + '.nii.gz'
 

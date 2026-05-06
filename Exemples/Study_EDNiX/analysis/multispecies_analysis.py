@@ -50,7 +50,7 @@ from Plotting.ednix_bids_tools import (
     plot_morphometry_intra_bids,
     plot_qc_dashboard,
     _violin_strip_quartiles,
-    PAPER_RC, PALETTE,
+    PAPER_RC, PALETTE, extract_regions_from_legend
 )
 
 opj = os.path.join
@@ -74,19 +74,63 @@ SING_WB = (
     'connectome_workbench_1.5.0-freesurfer-update.sif'
 )
 
+regionliste = extract_regions_from_legend('/srv/projects/easymribrain/data/Atlas/Classiff/Legende_EDNiX.xlsx')
+
 # Regions shown in every figure panel — must match exact names in xlsx/label files
-PLOT_REGIONS = [
-    'Isocortex', 'Allocortex', 'Periallocortex',
-]
+PLOT_REGIONS = ['Auditory cortex (Superior temporal )', 'Insula and others in lateral sulcus', 'Middle Temporal, Inferior temporal , Temporal pole  (MIPT)', 'Motor and premotor', 'Olfactory cortex', 'Orbital PFC (oPFC)', 'Orbital frontal cortex (oFC)', 'Periarchicortex', 'Posterior medial cortex (PMC)', 'Posterior parietal cortex', 'Prefrontal cortex (PFC)', 'Somatosensory cortex', 'Ventral areas of the temporal lobe (vent Temp)', 'Visual pre and extra striate cortex', 'Visual striate cortex']
 
 REGIONS_OF_INTEREST = PLOT_REGIONS  # filter applied during data collection
 
 # Phylogenetic order — from most distant to closest to Human
 PHYLO_ORDER = [
-    'Bat', 'Rat', 'Mouse', 'Mouse_lemur',
+    'Bat', 'Rat', 'Mouse', 'Mouselemur',
     'Marmoset', 'Macaque', 'Human',
     'Dog', 'Pig', 'Cat',
 ]
+
+# ── anesthesia marker map ─────────────────────────────────────────────────
+_ANESTH_MARKER_MAP = {
+    'awake': 'o',
+    'isoflurane': 's',
+    'iso': 's',
+    'ketamine': '^',
+    'propofol': 'D',
+    'medetomidine': 'P',
+    'dexmed': 'P',
+}
+
+
+def _anesthesia_marker(anesth_str):
+    if not isinstance(anesth_str, str):
+        return 'o'
+    s = anesth_str.strip().lower()
+    for key, m in _ANESTH_MARKER_MAP.items():
+        if key in s:
+            return m
+    return 'o'
+
+
+def _bids_offsets(bids_dirs, spread=0.22):
+    n = len(bids_dirs)
+    if n <= 1:
+        return {b: 0.0 for b in bids_dirs}
+    offs = np.linspace(-spread / 2, spread / 2, n)
+    return {b: float(o) for b, o in zip(bids_dirs, offs)}
+
+
+# Build per-(subject, session) anesthesia map from the study database
+anesth_map = {}
+_db = pd.read_excel(
+    '/home/common/benhalab/CASCAD/EDNiX/databse_ednix_study.xlsx')
+_db.columns = _db.columns.str.strip()
+for _, _row in _db.iterrows():
+    _sub = str(_row.get('subject', '')).strip()
+    _ses = str(_row.get('session', '1')).strip()
+    _an = str(_row.get('Anesthesia', '')).strip()
+    if _sub:
+        anesth_map[(_sub, _ses)] = _an
+        anesth_map[(_sub, '1')] = anesth_map.get((_sub, '1'), _an)
+print(f"  anesth_map: {len(anesth_map)} entries")
 
 def _phylo_sort(species_list):
     """Sort species by phylogenetic proximity (defined in PHYLO_ORDER)."""
@@ -127,50 +171,16 @@ FUNC_SPEC_COL = 'sp_category'
 CORR_ATLAS_LEVEL = 2   # lvl2 for matrix plots
 CORR_USE_LR      = True   # use LR version for lvl2
 
-# Brain scaling config
-SCALE_Y_REGION   = 'Allocortex'     # y-axis region for morphometry scaling
-SCALE_X_REGION   = 'Isocortex'      # internal scaling denominator (plot3)
-# FC-specific allometric scaling
-FC_Y_ROI_A = 'L_Medial_prefrontal_cortex_(mPFC)'  # first ROI of the pair
-FC_Y_ROI_B = 'L_Posterior_parietal_cortex'         # second ROI of the pair
-FC_X_ROI_A   = 'L_Somatosensory_cortex'              # x-axis internal scaling
-FC_X_ROI_B   = 'R_Somatosensory_cortex'              # x-axis internal scaling
-# Body and brain weights per species (grams) — update as needed
-SPECIES_BODY_WEIGHT_G = {
-    'Mouse':       25,
-    'Rat':         300,
-    'Bat':         20,
-    'Mouse_lemur': 60,
-    'Marmoset':    350,
-    'Macaque':     7000,
-    'Human':       70000,
-    'Dog':         15000,
-    'Cat':         4000,
-    'Pig':         50000,
-}
-SPECIES_BRAIN_WEIGHT_G = {
-    'Mouse':       0.4,
-    'Rat':         2.0,
-    'Bat':         0.8,
-    'Mouse_lemur': 1.8,
-    'Marmoset':    7.7,
-    'Macaque':     70,
-    'Human':       1232,
-    'Dog':         72,
-    'Cat':         30,
-    'Pig':         180,
-}
-
 # ─────────────────────────────────────────────────────────────────────────────
 # SPECIES / BIDS DIRECTORIES
 # ─────────────────────────────────────────────────────────────────────────────
 
 species_bids_dict = {
-    'Rat':         '/scratch2/EDNiX/Rat/BIDS_Gd',
-    'Mouse':       '/scratch2/EDNiX/Mouse/BIDS_Gd',
+    'Rat':         '/scratch2/EDNiX/Rat/BIDS_Grandjean',
+    'Mouse':       '/scratch2/EDNiX/Mouse/BIDS_Grandjean',
     'Dog':         '/scratch2/EDNiX/Dog/BIDS_k9',
     'Marmoset':    '/scratch2/EDNiX/Marmoset/BIDS_NIH_MBM',
-    'Mouse_lemur': '/scratch2/EDNiX/Mouse_lemur/BIDS_Garin',
+    'Mouselemur': '/scratch2/EDNiX/Mouselemur/BIDS_Garin',
 }
 species_multi_bids = {
     'Macaque': [
@@ -204,7 +214,6 @@ for species, bids_dir in ALL_BIDS:
     extract_and_process_surfaces_wb(
         SING_WB, bids_dir, regions_to_process=PLOT_REGIONS,
         should_average_hemispheres=False, overwrite=False)
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 1  —  Build species_config and resolve atlas paths
@@ -430,14 +439,37 @@ def plot_cross_species_dots(
                 if len(vals) == 0:
                     continue
                 _violin_strip_quartiles(ax, vals, xi, '#888888')
-                for bd in sp_df['bids_dir'].unique():
-                    bd_vals = sp_df[sp_df['bids_dir'] == bd][metric_col].dropna().values
+                _bd_list = sorted(sp_df['bids_dir'].unique())
+                _bd_offset = _bids_offsets(_bd_list)
+                for bd in _bd_list:
+                    bd_df = sp_df[sp_df['bids_dir'] == bd]
+                    bd_vals = bd_df[metric_col].dropna().values
                     if len(bd_vals) == 0:
                         continue
-                    jitter = rng.uniform(-0.18, 0.18, len(bd_vals))
-                    ax.scatter(xi + jitter, bd_vals,
-                               color=_bids_col[bd], s=20, zorder=5,
-                               alpha=0.80, linewidths=0.5, edgecolors='k')
+                    jitter = rng.uniform(-0.10, 0.10, len(bd_vals))
+                    x_draw = xi + _bd_offset[bd] + jitter
+                    bd_subs = (bd_df.loc[bd_df[metric_col].notna(), 'subject'].values
+                               if 'subject' in bd_df.columns else None)
+                    bd_sess = (bd_df.loc[bd_df[metric_col].notna(), 'session'].values
+                               if 'session' in bd_df.columns else None)
+                    # Group by anesthesia marker
+                    if anesth_map and bd_subs is not None:
+                        from collections import defaultdict
+                        _grp = defaultdict(lambda: ([], []))
+                        for xv, yv, sub, ses in zip(x_draw, bd_vals, bd_subs, bd_sess):
+                            m = _anesthesia_marker(
+                                anesth_map.get((str(sub), str(ses)),
+                                               anesth_map.get((str(sub), '1'), '')))
+                            _grp[m][0].append(xv);
+                            _grp[m][1].append(yv)
+                        for _m, (_xs, _ys) in _grp.items():
+                            ax.scatter(_xs, _ys, color=_bids_col[bd], marker=_m,
+                                       s=20, zorder=5, alpha=0.80,
+                                       linewidths=0.5, edgecolors='k')
+                    else:
+                        ax.scatter(x_draw, bd_vals, color=_bids_col[bd], s=20,
+                                   zorder=5, alpha=0.80,
+                                   linewidths=0.5, edgecolors='k')
 
             if log_scale:
                 ax.set_yscale('log')
@@ -632,32 +664,34 @@ def plot_cross_species_qc(qc_df, output_path, anat_metrics=None, func_metrics=No
 
 def plot_qc_fc_report(qc_df, output_path, fc_cols=None, figsize=None):
     """
-    Network / FC quality report: spreading of classification metrics per species.
-    Shows intra/inter hemisphere correlations, pct pos, specificity scores.
+    Network / FC quality report — violin+dot per species, coloured by BIDS dir.
+    Anesthesia regime shown via marker shape (circle=awake, square=iso, etc.).
     """
     import matplotlib.ticker as ticker
+    from collections import defaultdict
     with plt.rc_context(PAPER_RC):
         fc_cols = [c for c in (fc_cols or FUNC_NET_COLS) if c in qc_df.columns]
         if not fc_cols:
             warnings.warn('plot_qc_fc_report: no network columns found'); return None
 
         species_order = _phylo_sort(qc_df['species'].unique())
-        bids_dirs     = sorted(qc_df['bids_dir'].unique())                         if 'bids_dir' in qc_df.columns else []
+        bids_dirs = sorted(qc_df['bids_dir'].unique()) \
+                    if 'bids_dir' in qc_df.columns else []
         _bids_col = dict(GLOBAL_BIDS_COL)
-        for i, bd in enumerate([b for b in bids_dirs if b not in _bids_col]):
-            _bids_col[bd] = PALETTE[(len(_bids_col) + i) % len(PALETTE)]
+        for _i, bd in enumerate([b for b in bids_dirs if b not in _bids_col]):
+            _bids_col[bd] = PALETTE[(len(_bids_col) + _i) % len(PALETTE)]
 
         label_map = {
-            'net_intra_left_mean':         'Intra L (mean r)',
-            'net_intra_right_mean':        'Intra R (mean r)',
-            'net_inter_mean':              'Inter hemi (mean r)',
-            'net_intra_left_pct_pos':      'Intra L (% pos)',
-            'net_intra_right_pct_pos':     'Intra R (% pos)',
-            'net_inter_pct_pos':           'Inter (% pos)',
-            'net_p_intra_vs_inter':        'p intra vs inter',
-            'sp_specific_correlation':     'Specific pair r',
-            'sp_nonspecific_correlation':  'Non-specific pair r',
-            'sp_specific':                 'Specificity (yes=1)',
+            'net_intra_left_mean':        'Intra L (mean r)',
+            'net_intra_right_mean':       'Intra R (mean r)',
+            'net_inter_mean':             'Inter hemi (mean r)',
+            'net_intra_left_pct_pos':     'Intra L (% pos)',
+            'net_intra_right_pct_pos':    'Intra R (% pos)',
+            'net_inter_pct_pos':          'Inter (% pos)',
+            'net_p_intra_vs_inter':       'p intra vs inter',
+            'sp_specific_correlation':    'Specific pair r',
+            'sp_nonspecific_correlation': 'Non-specific pair r',
+            'sp_specific':               'Specificity (yes=1)',
         }
 
         NCOLS  = min(4, len(fc_cols))
@@ -667,24 +701,53 @@ def plot_qc_fc_report(qc_df, output_path, fc_cols=None, figsize=None):
         axes = np.array(axes).flatten()
 
         for i, metric in enumerate(fc_cols):
-            ax  = axes[i]
-            mdf = qc_df[['species', 'bids_dir', metric]].dropna()                   if 'bids_dir' in qc_df.columns                   else qc_df[['species', metric]].dropna()
+            ax = axes[i]
+            cols_needed = ['species', metric]
+            if 'bids_dir'  in qc_df.columns: cols_needed.append('bids_dir')
+            if 'subject'   in qc_df.columns: cols_needed.append('subject')
+            if 'session'   in qc_df.columns: cols_needed.append('session')
+            mdf = qc_df[cols_needed].dropna(subset=[metric])
 
             for xi, sp in enumerate(species_order):
                 sp_df = mdf[mdf['species'] == sp]
                 vals  = sp_df[metric].values
                 if len(vals) == 0:
                     continue
-                _violin_strip_quartiles(ax, vals, xi, '#888888')
+                # Violin coloured by first BIDS of this species
+                _bds = sorted(sp_df['bids_dir'].unique()) if 'bids_dir' in sp_df.columns else []
+                _vc  = _bids_col.get(_bds[0], '#888888') if _bds else '#888888'
+                _violin_strip_quartiles(ax, vals, xi, _vc)
+
                 if 'bids_dir' in sp_df.columns:
-                    for bd in sp_df['bids_dir'].unique():
-                        bd_vals = sp_df[sp_df['bids_dir'] == bd][metric].values
+                    _bd_list   = sorted(sp_df['bids_dir'].unique())
+                    _bd_offset = _bids_offsets(_bd_list)
+                    for bd in _bd_list:
+                        bd_df   = sp_df[sp_df['bids_dir'] == bd]
+                        bd_vals = bd_df[metric].dropna().values
                         if len(bd_vals) == 0:
                             continue
-                        jitter = rng.uniform(-0.18, 0.18, len(bd_vals))
-                        ax.scatter(xi + jitter, bd_vals,
-                                   color=_bids_col.get(bd, '#888888'), s=18, zorder=5,
-                                   alpha=0.80, linewidths=0.5, edgecolors='k')
+                        jitter = rng.uniform(-0.10, 0.10, len(bd_vals))
+                        x_draw = xi + _bd_offset[bd] + jitter
+                        dot_color = _bids_col.get(bd, '#888888')
+                        # Anesthesia markers for network / functional report
+                        if anesth_map and 'subject' in bd_df.columns:
+                            bd_subs = bd_df['subject'].values
+                            bd_sess = bd_df['session'].values \
+                                      if 'session' in bd_df.columns else ['1'] * len(bd_subs)
+                            _grp = defaultdict(lambda: ([], []))
+                            for xv, yv, sub, ses in zip(x_draw, bd_vals, bd_subs, bd_sess):
+                                _m = _anesthesia_marker(
+                                    anesth_map.get((str(sub), str(ses)),
+                                                   anesth_map.get((str(sub), '1'), '')))
+                                _grp[_m][0].append(xv); _grp[_m][1].append(yv)
+                            for _m, (_xs, _ys) in _grp.items():
+                                ax.scatter(_xs, _ys, color=dot_color, marker=_m,
+                                           s=20, zorder=5, alpha=0.80,
+                                           linewidths=0.5, edgecolors='k')
+                        else:
+                            ax.scatter(x_draw, bd_vals, color=dot_color, s=20,
+                                       zorder=5, alpha=0.80,
+                                       linewidths=0.5, edgecolors='k')
 
             ax.set_xticks(range(len(species_order)))
             ax.set_xticklabels(species_order, rotation=35, ha='right', fontsize=8)
@@ -695,17 +758,32 @@ def plot_qc_fc_report(qc_df, output_path, fc_cols=None, figsize=None):
         for j in range(i + 1, len(axes)):
             axes[j].set_visible(False)
 
-        # No suptitle for network QC
         plt.tight_layout()
+        # BIDS colour legend
         if bids_dirs:
-            handles = [mpatches.Patch(facecolor=_bids_col.get(bd, '#888'), label=_bids_label(bd))
-                       for bd in bids_dirs]
-            fig.legend(handles=handles, loc='lower center',
-                       bbox_to_anchor=(0.5, -0.05),
-                       ncol=min(len(handles), 6),
+            bids_handles = [mpatches.Patch(facecolor=_bids_col.get(bd, '#888'),
+                                           label=_bids_label(bd))
+                            for bd in bids_dirs]
+            fig.legend(handles=bids_handles, loc='lower center',
+                       bbox_to_anchor=(0.5, -0.06),
+                       ncol=min(len(bids_handles), 6),
                        title='BIDS dir', fontsize=8, frameon=False)
-            fig.subplots_adjust(bottom=0.12)
-
+        # Anesthesia marker legend
+        if anesth_map:
+            _anesth_seen = {}
+            for v in anesth_map.values():
+                if isinstance(v, str) and v.strip():
+                    _anesth_seen.setdefault(v.strip(), _anesthesia_marker(v))
+            _ahandles = [
+                plt.Line2D([0],[0], marker=_m, color='#333', linestyle='None',
+                           markerfacecolor='#333', markersize=7, label=_lbl)
+                for _lbl, _m in sorted(_anesth_seen.items())
+            ]
+            fig.legend(handles=_ahandles, loc='lower right',
+                       bbox_to_anchor=(0.99, 0.0), ncol=1,
+                       title='Anesthesia', fontsize=7, frameon=True,
+                       edgecolor='#ccc')
+        fig.subplots_adjust(bottom=0.15)
         os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
         fig.savefig(output_path, bbox_inches='tight', dpi=200)
         plt.close(fig)
@@ -794,14 +872,37 @@ def plot_combo(df_surface, df_volume, df_thickness, output_path, regions,
                         continue
                     _violin_strip_quartiles(ax, vals, xi, '#888888')
                     if 'bids_dir' in sp_df.columns:
-                        for bd in sp_df['bids_dir'].unique():
-                            bd_v = sp_df[sp_df['bids_dir'] == bd][metric_col].dropna().values
-                            if len(bd_v) == 0:
+                        _bd_list = sorted(sp_df['bids_dir'].unique())
+                        _bd_offset = _bids_offsets(_bd_list)
+                        for bd in _bd_list:
+                            bd_df = sp_df[sp_df['bids_dir'] == bd]
+                            bd_vals = bd_df[metric_col].dropna().values
+                            if len(bd_vals) == 0:
                                 continue
-                            jitter = rng.uniform(-0.18, 0.18, len(bd_v))
-                            ax.scatter(xi + jitter, bd_v,
-                                       color=_bids_col[bd], s=16, zorder=5,
-                                       alpha=0.8, linewidths=0.4, edgecolors='k')
+                            jitter = rng.uniform(-0.10, 0.10, len(bd_vals))
+                            x_draw = xi + _bd_offset[bd] + jitter
+                            bd_subs = (bd_df.loc[bd_df[metric_col].notna(), 'subject'].values
+                                       if 'subject' in bd_df.columns else None)
+                            bd_sess = (bd_df.loc[bd_df[metric_col].notna(), 'session'].values
+                                       if 'session' in bd_df.columns else None)
+                            # Group by anesthesia marker
+                            if anesth_map and bd_subs is not None:
+                                from collections import defaultdict
+                                _grp = defaultdict(lambda: ([], []))
+                                for xv, yv, sub, ses in zip(x_draw, bd_vals, bd_subs, bd_sess):
+                                    m = _anesthesia_marker(
+                                        anesth_map.get((str(sub), str(ses)),
+                                                       anesth_map.get((str(sub), '1'), '')))
+                                    _grp[m][0].append(xv);
+                                    _grp[m][1].append(yv)
+                                for _m, (_xs, _ys) in _grp.items():
+                                    ax.scatter(_xs, _ys, color=_bids_col[bd], marker=_m,
+                                               s=20, zorder=5, alpha=0.80,
+                                               linewidths=0.5, edgecolors='k')
+                            else:
+                                ax.scatter(x_draw, bd_vals, color=_bids_col[bd], s=20,
+                                           zorder=5, alpha=0.80,
+                                           linewidths=0.5, edgecolors='k')
 
                 if log_scale:
                     ax.set_yscale('log')
@@ -902,6 +1003,418 @@ def plot_specificity_bar(qc_df, output_path, cat_col='sp_category', figsize=None
         fig.savefig(output_path, bbox_inches='tight', dpi=200)
         plt.close(fig)
         print(f'  [plot] {output_path}')
+    return output_path
+
+
+
+def _anesth_legend_handles_from_map(anesth_map):
+    """Build marker legend handles for the anesthesia map used globally."""
+    seen = {}
+    for v in (anesth_map or {}).values():
+        if isinstance(v, str) and v.strip():
+            seen.setdefault(v.strip(), _anesthesia_marker(v))
+    return [
+        plt.Line2D([0],[0], marker=_m, color='#333', linestyle='None',
+                   markerfacecolor='#333', markersize=7, label=_lbl)
+        for _lbl, _m in sorted(seen.items())
+    ]
+
+
+def _bids_anesth_label(bids_lbl, qc_df):
+    """
+    Return dominant anesthesia protocol for a BIDS directory,
+    inferred from anesth_map + subject/session columns in qc_df.
+    Returns a short string like 'awake' or 'iso' or 'mixed'.
+    """
+    if 'bids_dir' not in qc_df.columns or 'subject' not in qc_df.columns:
+        return ''
+    bd_df = qc_df[qc_df['bids_dir'] == bids_lbl]
+    protocols = set()
+    for _, row in bd_df.iterrows():
+        sub = str(row.get('subject', ''))
+        ses = str(row.get('session', '1'))
+        an  = anesth_map.get((sub, ses), anesth_map.get((sub, '1'), ''))
+        if an.strip():
+            protocols.add(an.strip().lower().split('/')[0].strip())
+    if not protocols:
+        return ''
+    if len(protocols) == 1:
+        return list(protocols)[0]
+    return 'mixed'
+
+
+def plot_specificity_bar_per_bids(qc_df, output_path, cat_col='sp_category', figsize=None):
+    """
+    Stacked bar chart of specificity categories — one bar per BIDS directory.
+    BIDS dirs grouped/coloured by species.
+    Anesthesia regime shown in legend.
+    """
+    with plt.rc_context(PAPER_RC):
+        if cat_col not in qc_df.columns or 'bids_dir' not in qc_df.columns:
+            warnings.warn('plot_specificity_bar_per_bids: missing columns'); return None
+
+        cats   = ['Specific', 'Unspecific', 'Spurious', 'No']
+        colors = {'Specific':'#009E73','Unspecific':'#E69F00',
+                  'Spurious':'#CC79A7','No':'#D55E00'}
+
+        # Build ordered list: BIDS dirs sorted by species (phylo), then by name
+        sp_of_bids = {}
+        if 'species' in qc_df.columns:
+            for bd in qc_df['bids_dir'].unique():
+                sps = qc_df[qc_df['bids_dir'] == bd]['species'].dropna().unique()
+                sp_of_bids[bd] = sps[0] if len(sps) > 0 else 'Unknown'
+        else:
+            for bd in qc_df['bids_dir'].unique():
+                sp_of_bids[bd] = 'Unknown'
+
+        phylo_rank = {sp: i for i, sp in enumerate(_phylo_sort(list(set(sp_of_bids.values()))))}
+        bids_order = sorted(sp_of_bids.keys(),
+                            key=lambda b: (phylo_rank.get(sp_of_bids[b], 99), b))
+
+        counts = {}
+        for bd in bids_order:
+            sub = qc_df[qc_df['bids_dir'] == bd][cat_col].dropna()
+            total = len(sub)
+            counts[bd] = {c: 100.0 * (sub == c).sum() / total
+                          if total > 0 else 0.0
+                          for c in cats}
+
+        n_bd = len(bids_order)
+        w, h = figsize or (max(5, n_bd * 1.3), 5.5)
+        fig, ax = plt.subplots(figsize=(w, h))
+
+        bar_w   = 0.70
+        x       = np.arange(n_bd)
+        bottoms = np.zeros(n_bd)
+        for cat in cats:
+            vals = np.array([counts[bd][cat] for bd in bids_order])
+            ax.bar(x, vals, bar_w, bottom=bottoms,
+                   color=colors[cat], label=cat,
+                   edgecolor='white', linewidth=0.5)
+            for xi, (v, b) in enumerate(zip(vals, bottoms)):
+                if v > 5:
+                    ax.text(xi, b + v/2, f'{v:.0f}%',
+                            ha='center', va='center',
+                            fontsize=7, color='white', fontweight='bold')
+            bottoms += vals
+
+        # x-tick labels: "BidsLabel\n(Species)" with colour per species
+        sp_colors_map = {sp: PALETTE[i % len(PALETTE)]
+                         for i, sp in enumerate(_phylo_sort(list(set(sp_of_bids.values()))))}
+        ax.set_xticks(x)
+        tick_labels = [f'{_bids_label(bd)}\n({sp_of_bids[bd]})' for bd in bids_order]
+        ax.set_xticklabels(tick_labels, rotation=35, ha='right', fontsize=8)
+        for tick, bd in zip(ax.get_xticklabels(), bids_order):
+            tick.set_color(sp_colors_map.get(sp_of_bids[bd], '#333'))
+
+        ax.set_ylabel('% subjects', fontsize=10)
+        ax.set_ylim(0, 108)
+        import matplotlib.ticker as _tk
+        ax.yaxis.set_major_formatter(_tk.FormatStrFormatter('%.0f%%'))
+
+        # Category legend
+        cat_handles = [mpatches.Patch(facecolor=colors[c], label=c) for c in cats]
+        ax.legend(handles=cat_handles, loc='upper center',
+                  bbox_to_anchor=(0.5, -0.28), ncol=len(cats),
+                  fontsize=8, frameon=False, title='Category')
+
+        # Anesthesia marker legend
+        if anesth_map:
+            ah = _anesth_legend_handles_from_map(anesth_map)
+            if ah:
+                fig.legend(handles=ah, loc='upper right',
+                           bbox_to_anchor=(0.99, 0.99), ncol=1,
+                           title='Anesthesia', fontsize=7,
+                           frameon=True, edgecolor='#ccc')
+
+        plt.tight_layout()
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+        fig.savefig(output_path, bbox_inches='tight', dpi=200)
+        plt.close(fig)
+        print(f'  [plot] {output_path}')
+    return output_path
+
+
+def _collect_corr_per_bids(species_config, atlas_name, atlas_level, use_lr):
+    """
+    Like collect_corr_matrices but returns one entry per (species, bids_dir)
+    instead of pooling all BIDS dirs of the same species.
+    Returns dict: { (species, bids_lbl): {mean, var, pval, rois, n, species, bids_lbl} }
+    """
+    from scipy import stats as _stats
+    result = {}
+    for species, cfg in species_config.items():
+        bids_dirs = cfg.get('bids_dirs', [])
+        if isinstance(bids_dirs, str):
+            bids_dirs = [bids_dirs]
+        lk = cfg.get('list_to_keep',   [])
+        lr = cfg.get('list_to_remove', [])
+
+        for bids_dir in bids_dirs:
+            bids_lbl = os.path.basename(bids_dir.rstrip('/'))
+            col_key  = (species, bids_lbl)
+            records  = extract_corr_matrix_paths(
+                bids_dir, atlas_name, atlas_level, use_lr, lk, lr)
+            if not records:
+                continue
+
+            sub_ses_runs = {}
+            rois_ref = None
+            for rec in records:
+                try:
+                    rois, mat = load_corr_matrix(rec['path'])
+                    valid = mat[~np.isnan(mat)]
+                    if valid.size == 0 or np.all(valid == 0):
+                        continue
+                    if rois_ref is None:
+                        rois_ref = rois
+                    key = (rec['subject'], rec['session'])
+                    sub_ses_runs.setdefault(key, []).append((rois, mat))
+                except Exception as _e:
+                    print(f'    [ERROR] {rec["path"]}: {_e}')
+
+            if not sub_ses_runs:
+                continue
+
+            subject_means = []
+            for (sub, ses), run_list in sorted(sub_ses_runs.items()):
+                rois_sets = [set(r) for r, _ in run_list]
+                common    = rois_sets[0].intersection(*rois_sets[1:])
+                ref_rois  = [r for r in run_list[0][0] if r in common]
+                if not ref_rois: continue
+                mats = []
+                for rois_r, mat_r in run_list:
+                    try:
+                        idx = [list(rois_r).index(r) for r in ref_rois]
+                        mats.append(mat_r[np.ix_(idx, idx)])
+                    except ValueError:
+                        pass
+                if mats:
+                    subject_means.append(
+                        (ref_rois,
+                         np.nanmean(np.stack(mats, axis=0), axis=0)))
+
+            if not subject_means:
+                continue
+
+            all_roi_sets = [set(r) for r, _ in subject_means]
+            common_sp    = all_roi_sets[0].intersection(*all_roi_sets[1:])
+            rois_ref     = [r for r in subject_means[0][0] if r in common_sp]
+
+            aligned = []
+            for rois_s, mat_s in subject_means:
+                idx = [list(rois_s).index(r) for r in rois_ref if r in rois_s]
+                if len(idx) == len(rois_ref):
+                    aligned.append(mat_s[np.ix_(idx, idx)])
+
+            if not aligned:
+                continue
+
+            stack = np.stack(aligned, axis=0)
+            n     = stack.shape[0]
+            mean  = np.nanmean(stack, axis=0)
+            var   = np.nanvar(stack,  axis=0)
+            _, pv = _stats.ttest_1samp(stack, 0, axis=0, nan_policy='omit')                     if n >= 2 else (None, np.full(mean.shape, np.nan))
+
+            result[col_key] = dict(mean=mean, var=var, pval=pv,
+                                   rois=rois_ref, n=n,
+                                   species=species, bids_lbl=bids_lbl)
+            print(f'  [per_bids_corr] {species}/{bids_lbl}: n={n} rois={len(rois_ref)}')
+
+    # Restrict all entries to common ROIs
+    if result:
+        all_roi_sets = [set(v['rois']) for v in result.values()]
+        common_rois_set = all_roi_sets[0].intersection(*all_roi_sets[1:])
+        ref_order = next(iter(result.values()))['rois']
+        common_rois = [r for r in ref_order if r in common_rois_set]
+        for col_key, d in result.items():
+            lr_rois = d['rois']
+            idx = [lr_rois.index(r) for r in common_rois]
+            d['mean'] = d['mean'][np.ix_(idx, idx)]
+            d['var']  = d['var'][np.ix_(idx, idx)]
+            d['pval'] = d['pval'][np.ix_(idx, idx)]
+            d['rois'] = common_rois
+
+    return result
+
+
+def plot_corr_matrix_combo_per_bids(
+    species_config, output_path,
+    atlas_name="EDNIxCSC", atlas_level=2, use_lr=True,
+    figsize=None, vmin=-0.5, vmax=0.5,
+):
+    """
+    Correlation matrix (mean r | -log10 p | variance) — one column per BIDS dir.
+    Title of each column: "Species / BIDSdir (n=X, anesthesia)".
+    Anesthesia marker legend added from global anesth_map.
+    """
+    import matplotlib.gridspec as gridspec
+    import matplotlib.cm as _cm
+    from matplotlib.colors import TwoSlopeNorm, Normalize
+
+    bids_data = _collect_corr_per_bids(species_config, atlas_name, atlas_level, use_lr)
+    if not bids_data:
+        warnings.warn('plot_corr_matrix_combo_per_bids: no data'); return None
+
+    # Order columns: phylogenetic species order, then bids_lbl alphabetically
+    phylo_rank = {sp: i for i, sp in enumerate(_phylo_sort(
+        [d['species'] for d in bids_data.values()]))}
+    cols = sorted(bids_data.keys(),
+                  key=lambda k: (phylo_rank.get(bids_data[k]['species'], 99),
+                                 bids_data[k]['bids_lbl']))
+
+    common_rois = bids_data[cols[0]]['rois']
+    short_rois  = [r.replace('L_','L ').replace('R_','R ')[:16] for r in common_rois]
+    n_roi = len(common_rois)
+    n_cols = len(cols)
+    n_rows = 3
+
+    norm_r   = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+    cmap_r   = 'RdBu_r'
+    cmap_var = 'viridis'
+    all_var  = np.concatenate([bids_data[k]['var'].ravel() for k in cols])
+    vmax_var = float(np.nanpercentile(all_var[~np.isnan(all_var)], 95))                if all_var[~np.isnan(all_var)].size > 0 else 0.01
+    norm_var = Normalize(0, vmax_var)
+
+    w, h = figsize or (max(8, n_cols * 3.5), n_rows * 3.8)
+    fig  = plt.figure(figsize=(w, h), facecolor='white')
+    gs   = gridspec.GridSpec(n_rows, n_cols + 1,
+                             width_ratios=[1.0]*n_cols + [0.05],
+                             wspace=0.04, hspace=0.15)
+
+    for c_i, col_key in enumerate(cols):
+        d   = bids_data[col_key]
+        # Build title with anesthesia info
+        an_str = _bids_anesth_label(d['bids_lbl'],
+                                    df_qc if df_qc is not None else pd.DataFrame())
+        title  = f"{d['species']} / {d['bids_lbl']} (n={d['n']}" + (f", {an_str})" if an_str else ")")
+
+        ax0 = fig.add_subplot(gs[0, c_i])
+        ax0.imshow(d['mean'], cmap=cmap_r, norm=norm_r,
+                   aspect='auto', interpolation='nearest')
+        ax0.set_title(title, fontweight='bold', fontsize=7)
+        if c_i == 0:
+            ax0.set_ylabel('Mean r', fontsize=8)
+            ax0.set_yticks(range(n_roi)); ax0.set_yticklabels(short_rois, fontsize=4)
+        else:
+            ax0.set_yticks([])
+        ax0.set_xticks([])
+
+        ax1 = fig.add_subplot(gs[1, c_i])
+        ax1.imshow(-np.log10(np.clip(d['pval'], 1e-10, 1.0)),
+                   cmap='hot_r', aspect='auto', vmin=0, vmax=4,
+                   interpolation='nearest')
+        if c_i == 0:
+            ax1.set_ylabel('-log10(p)', fontsize=8)
+            ax1.set_yticks(range(n_roi)); ax1.set_yticklabels(short_rois, fontsize=4)
+        else:
+            ax1.set_yticks([])
+        ax1.set_xticks([])
+
+        ax2 = fig.add_subplot(gs[2, c_i])
+        ax2.imshow(d['var'], cmap=cmap_var, norm=norm_var,
+                   aspect='auto', interpolation='nearest')
+        if c_i == 0:
+            ax2.set_ylabel('Variance', fontsize=8)
+            ax2.set_yticks(range(n_roi)); ax2.set_yticklabels(short_rois, fontsize=4)
+        else:
+            ax2.set_yticks([])
+        ax2.set_xticks([])
+
+    fig.colorbar(_cm.ScalarMappable(norm=norm_r, cmap=cmap_r),
+                 cax=fig.add_subplot(gs[0,-1]), label='Pearson r').ax.yaxis.set_label_position('right')
+    fig.colorbar(_cm.ScalarMappable(norm=Normalize(0,4), cmap='hot_r'),
+                 cax=fig.add_subplot(gs[1,-1]), label='-log10(p)').ax.yaxis.set_label_position('right')
+    fig.colorbar(_cm.ScalarMappable(norm=norm_var, cmap=cmap_var),
+                 cax=fig.add_subplot(gs[2,-1]), label='Variance').ax.yaxis.set_label_position('right')
+
+    plt.tight_layout()
+    # Anesthesia legend
+    ah = _anesth_legend_handles_from_map(anesth_map)
+    if ah:
+        fig.legend(handles=ah, loc='lower right', bbox_to_anchor=(0.99, 0.0),
+                   ncol=1, title='Anesthesia', fontsize=7, frameon=True, edgecolor='#ccc')
+
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    fig.savefig(output_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+    print(f'  [plot] {output_path}')
+    return output_path
+
+
+def plot_corr_matrix_sig_norm_per_bids(
+    species_config, output_path,
+    atlas_name="EDNIxCSC", atlas_level=2, use_lr=True,
+    figsize=None,
+):
+    """
+    Normalised FC matrix (r / mean|r|) — one panel per BIDS directory.
+    Anesthesia regime shown in legend.
+    """
+    from matplotlib.colors import TwoSlopeNorm
+    import matplotlib.cm as _cm
+    import matplotlib.gridspec as gridspec
+    from matplotlib.colors import Normalize
+
+    bids_data = _collect_corr_per_bids(species_config, atlas_name, atlas_level, use_lr)
+    if not bids_data:
+        warnings.warn('plot_corr_matrix_sig_norm_per_bids: no data'); return None
+
+    phylo_rank = {sp: i for i, sp in enumerate(_phylo_sort(
+        [d['species'] for d in bids_data.values()]))}
+    cols = sorted(bids_data.keys(),
+                  key=lambda k: (phylo_rank.get(bids_data[k]['species'], 99),
+                                 bids_data[k]['bids_lbl']))
+
+    common_rois = bids_data[cols[0]]['rois']
+    short_rois  = [r.replace('L_','L ').replace('R_','R ')[:16] for r in common_rois]
+    n_roi  = len(common_rois)
+    n_cols = len(cols)
+
+    norm = TwoSlopeNorm(vmin=-3.0, vcenter=0, vmax=3.0)
+    cmap = 'RdBu_r'
+
+    w, h = figsize or (max(6, n_cols * 3.5), 5.5)
+    fig  = plt.figure(figsize=(w, h), facecolor='white')
+    gs   = gridspec.GridSpec(1, n_cols + 1,
+                             width_ratios=[1.0]*n_cols + [0.05],
+                             wspace=0.04)
+
+    for c_i, col_key in enumerate(cols):
+        d = bids_data[col_key]
+        mat_mean_r = float(np.nanmean(np.abs(d['mean'])))
+        sig_norm   = d['mean'] / mat_mean_r if mat_mean_r > 1e-6 else d['mean'].copy()
+
+        an_str = _bids_anesth_label(d['bids_lbl'],
+                                    df_qc if df_qc is not None else pd.DataFrame())
+        title  = f"{d['species']} / {d['bids_lbl']} (n={d['n']}" + (f", {an_str})" if an_str else ")")
+
+        ax = fig.add_subplot(gs[0, c_i])
+        ax.imshow(sig_norm, cmap=cmap, norm=norm,
+                  aspect='equal', interpolation='nearest')
+        ax.set_title(title, fontweight='bold', fontsize=7)
+        if c_i == 0:
+            ax.set_yticks(range(n_roi))
+            ax.set_yticklabels(short_rois, fontsize=4)
+            ax.set_ylabel('r / mean(|r|)', fontsize=8)
+        else:
+            ax.set_yticks([])
+        ax.set_xticks([])
+
+    fig.colorbar(_cm.ScalarMappable(norm=norm, cmap=cmap),
+                 cax=fig.add_subplot(gs[0,-1]),
+                 label='r / mean(|r|)').ax.yaxis.set_label_position('right')
+
+    plt.tight_layout()
+    ah = _anesth_legend_handles_from_map(anesth_map)
+    if ah:
+        fig.legend(handles=ah, loc='lower right', bbox_to_anchor=(0.99, 0.0),
+                   ncol=1, title='Anesthesia', fontsize=7, frameon=True, edgecolor='#ccc')
+
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    fig.savefig(output_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+    print(f'  [plot] {output_path}')
     return output_path
 
 
@@ -1170,7 +1683,11 @@ def _plot_fc_scaling(df, y_col, y_label, output_path, x_cols=None, x_labels=None
             # OLS + 95% prediction interval on log-log
             xv = np.clip(sub[x_col].values.astype(float), 1e-12, None)
             yv = sub[y_col].values.astype(float)
-            # Allow negative FC values → use linear scale for FC, log for weight
+            # Allow negative FC values → use linear scale for FC, log for weight*
+            print(xv)
+            print(yv)
+            print(x_col)
+            print(y_col)
             if x_col in ('body_g', 'brain_g'):
                 lx = np.log10(xv)
                 ly = yv          # FC r values can be negative — keep linear
@@ -1228,171 +1745,6 @@ def _plot_fc_scaling(df, y_col, y_label, output_path, x_cols=None, x_labels=None
         print(f'  [plot] {output_path}')
     return output_path
 
-
-def plot_brain_scaling(
-    df_morph,
-    metric_col,
-    metric_label,
-    output_path,
-    y_region=None,
-    x_region=None,
-    atlas_level=1,
-    hemisphere='bilateral',
-    figsize=None,
-):
-    """
-    Allometric brain scaling — 3-panel figure.
-    For each subject/session compute the mean of y_region metric, then plot:
-      Panel 1 : y vs body weight  (log-log)
-      Panel 2 : y vs brain weight (log-log)
-      Panel 3 : y vs x_region metric (log-log, internal scaling)
-    Each dot = one subject, coloured by species (phylogenetic order).
-    Regression line (OLS on log-log) per panel.
-    """
-    import matplotlib.ticker as ticker
-    from scipy import stats as _stats
-
-    y_region = y_region or SCALE_Y_REGION
-    x_region = x_region or SCALE_X_REGION
-
-    with plt.rc_context(PAPER_RC):
-        plot_df = _filter_atlas_level(df_morph.copy(), atlas_level)
-
-        # hemisphere filter
-        if hemisphere and hemisphere != 'bilateral':
-            filt = plot_df[plot_df['hemisphere'] == hemisphere]
-            plot_df = filt if not filt.empty else plot_df[plot_df['hemisphere'] == 'bilateral']
-        elif hemisphere == 'bilateral':
-            bil = plot_df[plot_df['hemisphere'] == 'bilateral']
-            if bil.empty:
-                # sum L+R
-                grp = [c for c in ('species','bids_dir','subject','session',
-                                   'atlas_level') if c in plot_df.columns]
-                plot_df = (plot_df[plot_df['region'].isin([y_region, x_region])]
-                           .groupby(grp + ['region'])[metric_col]
-                           .sum().reset_index())
-            else:
-                plot_df = bil
-
-        # Extract per-subject means for y_region and x_region
-        id_cols = [c for c in ('species','bids_dir','subject','session')
-                   if c in plot_df.columns]
-
-        def _region_mean(reg):
-            sub = plot_df[plot_df['region'] == reg]
-            if sub.empty:
-                return pd.DataFrame()
-            return sub.groupby(id_cols)[metric_col].mean().reset_index()                      .rename(columns={metric_col: reg})
-
-        df_y = _region_mean(y_region)
-        df_x = _region_mean(x_region)
-
-        if df_y.empty:
-            warnings.warn(f'plot_brain_scaling: no data for y_region={y_region}')
-            return None
-
-        df_merged = df_y.copy()
-        if not df_x.empty:
-            df_merged = df_merged.merge(df_x, on=id_cols, how='inner')
-
-        # Add weight columns
-        df_merged['body_g']  = df_merged['species'].map(SPECIES_BODY_WEIGHT_G)
-        df_merged['brain_g'] = df_merged['species'].map(SPECIES_BRAIN_WEIGHT_G)
-
-        species_order = _phylo_sort(df_merged['species'].unique())
-        sp_colors     = {sp: PALETTE[i % len(PALETTE)]
-                         for i, sp in enumerate(species_order)}
-
-        panels = [
-            ('body_g',  'Body weight (g)',  'body'),
-            ('brain_g', 'Brain weight (g)', 'brain'),
-        ]
-        if x_region and x_region in df_merged.columns:
-            panels.append((x_region, f'{x_region[:20]}', 'internal'))
-        # Only keep panels with data
-        panels = [(xc, xl, xt) for xc, xl, xt in panels
-                  if xc in df_merged.columns and df_merged[xc].notna().any()]
-
-        n_panels = len(panels)
-        w, h = figsize or (n_panels * 4.5, 4.5)
-        fig, axes = plt.subplots(1, n_panels, figsize=(w, h))
-        if n_panels == 1:
-            axes = [axes]
-
-        for ax, (x_col, x_label, _) in zip(axes, panels):
-            sub = df_merged[[y_region, x_col, 'species']].dropna()
-            if sub.empty:
-                ax.set_visible(False); continue
-
-            for sp in species_order:
-                sp_sub = sub[sub['species'] == sp]
-                if sp_sub.empty: continue
-                ax.scatter(sp_sub[x_col], sp_sub[y_region],
-                           color=sp_colors[sp], s=40, zorder=5,
-                           alpha=0.85, edgecolors='k', linewidths=0.5,
-                           label=sp)
-
-            # OLS regression on log-log + 95% confidence interval
-            log_x = np.log10(np.clip(sub[x_col].values.astype(float), 1e-9, None))
-            log_y = np.log10(np.clip(sub[y_region].values.astype(float), 1e-9, None))
-            valid = np.isfinite(log_x) & np.isfinite(log_y)
-            if valid.sum() >= 3:
-                lx, ly = log_x[valid], log_y[valid]
-                slope, intercept, r, p, se = _stats.linregress(lx, ly)
-                x_fit   = np.linspace(lx.min(), lx.max(), 200)
-                y_fit   = intercept + slope * x_fit
-                # 95% prediction interval via t-distribution
-                n_v    = valid.sum()
-                t_crit = _stats.t.ppf(0.975, df=n_v - 2)
-                x_mean = lx.mean()
-                ssx    = np.sum((lx - x_mean)**2)
-                resid_var = np.sum((ly - (intercept + slope*lx))**2) / (n_v - 2)
-                if ssx > 1e-12:
-                    # Prediction interval (includes individual variability)
-                    se_pred = np.sqrt(resid_var * (1 + 1/n_v +
-                                      (x_fit - x_mean)**2 / ssx))
-                else:
-                    # All x-values identical (same weight per species) —
-                    # use residual std as width
-                    se_pred = np.full_like(x_fit, np.sqrt(resid_var))
-                ax.plot(10**x_fit, 10**y_fit,
-                        color='k', lw=1.5, linestyle='--', alpha=0.8, zorder=3)
-                ax.fill_between(10**x_fit,
-                                10**(y_fit - t_crit * se_pred),
-                                10**(y_fit + t_crit * se_pred),
-                                color='k', alpha=0.15, zorder=2)
-                p_str = f'{p:.3f}' if p >= 0.001 else '<0.001'
-                ax.text(0.05, 0.95,
-                        f'slope={slope:.2f}  r={r:.2f}  p={p_str}',
-                        transform=ax.transAxes, fontsize=8,
-                        va='top', color='#333333')
-
-            ax.set_xscale('log'); ax.set_yscale('log')
-            ax.set_xlabel(x_label, fontsize=9)
-            ax.set_ylabel(f'{y_region} ({metric_label})' if ax is axes[0] else '',
-                          fontsize=9)
-            ax.xaxis.set_major_formatter(ticker.LogFormatterSciNotation())
-
-        # Panel labels A/B/C
-        _pl = list('ABCDEFGH')
-        for _pi, _ax in enumerate(axes):
-            _ax.text(-0.12, 1.02, _pl[_pi], transform=_ax.transAxes,
-                     fontsize=13, fontweight='bold', va='bottom', ha='left')
-        # Shared legend
-        handles = [mpatches.Patch(facecolor=sp_colors[sp], label=sp)
-                   for sp in species_order]
-        plt.tight_layout()
-        fig.legend(handles=handles, loc='lower center',
-                   bbox_to_anchor=(0.5, -0.06),
-                   ncol=min(len(handles), 7),
-                   fontsize=8, frameon=False, title='Species')
-        fig.subplots_adjust(bottom=0.18)
-
-        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-        fig.savefig(output_path, bbox_inches='tight', dpi=200)
-        plt.close(fig)
-        print(f'  [plot] {output_path}')
-    return output_path
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1460,14 +1812,20 @@ if df_qc is not None and not df_qc.empty:
         opj(qc_dir, 'QC_cross_species_network_report.png'),
         fc_cols=FUNC_NET_COLS,
     )
-    # Specificity category bar chart (separate figure)
+    # Specificity category bar chart — by species (original)
     plot_specificity_bar(
         df_qc,
         opj(qc_dir, 'QC_cross_species_specificity_bar.png'),
         cat_col=FUNC_SPEC_COL,
     )
+    # Specificity category bar chart — by BIDS dir (extra figure)
+    plot_specificity_bar_per_bids(
+        df_qc,
+        opj(qc_dir, 'QC_cross_species_specificity_bar_per_bids.png'),
+        cat_col=FUNC_SPEC_COL,
+    )
 
-# Correlation matrix combo (mean / p<0.05 / variance per species)
+# Correlation matrix combo — by species (original)
 plot_corr_matrix_combo(
     species_config,
     opj(combo_dir, f'combo_corr_matrix_lvl{CORR_ATLAS_LEVEL}.png'),
@@ -1475,135 +1833,170 @@ plot_corr_matrix_combo(
     atlas_level=CORR_ATLAS_LEVEL,
     use_lr=CORR_USE_LR,
 )
-# Normalized significant FC — companion figure
+# Correlation matrix combo — by BIDS dir (extra figure)
+plot_corr_matrix_combo_per_bids(
+    species_config,
+    opj(combo_dir, f'combo_corr_matrix_per_bids_lvl{CORR_ATLAS_LEVEL}.png'),
+    atlas_name=ATLAS_NAME,
+    atlas_level=CORR_ATLAS_LEVEL,
+    use_lr=CORR_USE_LR,
+)
+
+# Normalized significant FC — by species (original)
 plot_corr_matrix_sig_norm(
     species_config,
     opj(combo_dir, f'combo_corr_matrix_sig_norm_lvl{CORR_ATLAS_LEVEL}.png'),
     atlas_name=ATLAS_NAME,
     atlas_level=CORR_ATLAS_LEVEL,
     use_lr=CORR_USE_LR,
-    pval_thresh=1.0,   # show ALL cells normalized [-1,1], no significance masking
+    pval_thresh=1.0,
+)
+# Normalized significant FC — by BIDS dir (extra figure)
+plot_corr_matrix_sig_norm_per_bids(
+    species_config,
+    opj(combo_dir, f'combo_corr_matrix_sig_norm_per_bids_lvl{CORR_ATLAS_LEVEL}.png'),
+    atlas_name=ATLAS_NAME,
+    atlas_level=CORR_ATLAS_LEVEL,
+    use_lr=CORR_USE_LR,
 )
 
-# ── Brain scaling / allometric plots ─────────────────────────────────────────
-scaling_dir = opj(FIG_DIR, 'cross_species', 'brain_scaling')
-os.makedirs(scaling_dir, exist_ok=True)
-
-for df, metric_col, metric_label, mod in [
-    (df_surface,   'surface_area_mm2', 'Surface area (mm²)',      'surface'),
-    (df_volume,    'volume_mm3',        'Volume (mm³)',            'volume'),
-    (df_thickness, 'thickness_mm',      'Cortical thickness (mm)', 'thickness'),
-]:
-    if df is None or df.empty:
-        continue
-    plot_brain_scaling(
-        df, metric_col, metric_label,
-        opj(scaling_dir, f'scaling_{mod}_lvl{ATLAS_LEVEL}.png'),
-        y_region=SCALE_Y_REGION,
-        x_region=SCALE_X_REGION,
-        atlas_level=ATLAS_LEVEL,
-    )
-
-# ── FC allometric scaling — mPFC↔PPC pair vs body weight / brain weight / somato FC
-# Runs independently — does not require _corr_lvl0 to succeed.
-# ROI matching uses partial name matching (case-insensitive).
-
-def _find_roi_exact_then_partial(exact_name, partial_pattern, rois):
+def _ols_on_ax(ax, xv, yv, log_x):
     """
-    ROI lookup: try exact match first (FC_Y_ROI_A/B config names),
-    then fall back to case-insensitive partial match.
-    Returns matched ROI name or None.
+    Fit OLS on (xv, yv) and draw a dashed regression line + 95% prediction
+    band on `ax`.
+
+    Parameters
+    ----------
+    ax     : matplotlib Axes
+    xv, yv : 1-D float arrays (may contain NaN / inf)
+    log_x  : bool ? if True, x is log10-transformed before regression;
+             the axis scale must be set to 'log' by the caller.
+
+    Returns
+    -------
+    (slope, r, p) on success, or None when degenerate (< 3 finite points,
+    or all x identical).  A horizontal median line is drawn in the degenerate
+    case so the panel is never blank.
     """
-    # 1. Exact match
-    if exact_name in rois:
-        return exact_name
-    # 2. Case-insensitive exact
-    exact_lo = exact_name.lower()
-    for r in rois:
-        if r.lower() == exact_lo:
-            return r
-    # 3. Partial fallback
-    pat = partial_pattern.lower()
-    return next((r for r in rois if pat in r.lower()), None)
+    from scipy import stats as _st
 
-print("\n  [FC scaling] extracting mPFC↔PPC ROI pair per subject...")
-print(f"  Target ROIs: y_a={FC_Y_ROI_A!r}  y_b={FC_Y_ROI_B!r}")
-print(f"               x_a={FC_X_ROI_A!r}  x_b={FC_X_ROI_B!r}")
-_fc_pair_rows = []
-for _sp, _cfg in species_config.items():
-    for _bd in _cfg.get('bids_dirs', []):
-        _recs = extract_corr_matrix_paths(
-            _bd, ATLAS_NAME, 2, False,
-            _cfg.get('list_to_keep', []), _cfg.get('list_to_remove', []))
-        _done = set()
-        for _rec in _recs:
-            _k = (_rec['subject'], _rec['session'])
-            if _k in _done: continue
-            _done.add(_k)
-            try:
-                _rois, _mat = load_corr_matrix(_rec['path'])
-                # Use exact config names first, partial pattern as fallback
-                _roi_a = _find_roi_exact_then_partial(FC_Y_ROI_A, 'prefrontal',       _rois)
-                _roi_b = _find_roi_exact_then_partial(FC_Y_ROI_B, 'posterior_parietal', _rois)
-                _roi_sa = _find_roi_exact_then_partial(FC_X_ROI_A, 'somatosensory',    _rois)
-                _roi_sb = _find_roi_exact_then_partial(FC_X_ROI_B, 'somatosensory',    _rois)
-                _row = dict(species=_sp,
-                            bids_dir=os.path.basename(_bd),
-                            subject=_rec['subject'],
-                            session=_rec['session'])
-                if _roi_a and _roi_b:
-                    _ia = _rois.index(_roi_a)
-                    _ib = _rois.index(_roi_b)
-                    _row['FC_mpfc_ppc'] = float(_mat[_ia, _ib])
-                    print(f"    {_sp} sub-{_rec['subject']}: "
-                          f"{_roi_a} ↔ {_roi_b} = {_row['FC_mpfc_ppc']:.3f}")
-                else:
-                    print(f"    [WARN] {_sp} sub-{_rec['subject']}: "
-                          f"mPFC={_roi_a}  PPC={_roi_b}  "
-                          f"(available: {_rois[:5]}...)")
-                # Somatosensory: average L and R if both found, else whichever is found
-                _somato_vals = []
-                for _roi_s in [_roi_sa, _roi_sb]:
-                    if _roi_s and _roi_s in _rois:
-                        _is = _rois.index(_roi_s)
-                        _somato_vals.append(float(np.nanmean(_mat[_is, :])))
-                if _somato_vals:
-                    _row['FC_somato_mean'] = float(np.mean(_somato_vals))
-                _fc_pair_rows.append(_row)
-            except Exception as _e:
-                print(f"    [ERROR] {_rec['path']}: {_e}")
+    lx    = np.log10(np.clip(xv, 1e-9, None)) if log_x else np.array(xv, dtype=float)
+    valid = np.isfinite(lx) & np.isfinite(yv)
+    if valid.sum() < 3:
+        return None
 
-print(f"  [FC scaling] {len(_fc_pair_rows)} rows, "
-      f"valid FC_mpfc_ppc: "
-      f"{sum('FC_mpfc_ppc' in r for r in _fc_pair_rows)}")
+    lxv, lyv = lx[valid], np.array(yv, dtype=float)[valid]
+    ssx = float(np.sum((lxv - lxv.mean()) ** 2))
 
-if _fc_pair_rows:
-    _df_fc2 = pd.DataFrame(_fc_pair_rows)
-    _df_fc2.to_csv(opj(scaling_dir, 'fc_roi_pair_per_subject.csv'), index=False)
+    if ssx < 1e-12:
+        # Degenerate: all x-values are identical (e.g. one species, one weight)
+        ax.axhline(float(np.median(lyv)), color='k',
+                   lw=1.2, linestyle='--', alpha=0.55)
+        return None
 
-    if 'FC_mpfc_ppc' in _df_fc2.columns and _df_fc2['FC_mpfc_ppc'].notna().any():
-        _df_fc2['body_g']  = _df_fc2['species'].map(SPECIES_BODY_WEIGHT_G)
-        _df_fc2['brain_g'] = _df_fc2['species'].map(SPECIES_BRAIN_WEIGHT_G)
+    slope, intercept, r, p, _ = _st.linregress(lxv, lyv)
+    n_v    = int(valid.sum())
+    t_crit = _st.t.ppf(0.975, df=n_v - 2)
+    x_fit  = np.linspace(lxv.min(), lxv.max(), 200)
+    y_fit  = intercept + slope * x_fit
+    resid  = np.sum((lyv - (intercept + slope * lxv)) ** 2) / (n_v - 2)
+    se     = np.sqrt(resid * (1 + 1 / n_v + (x_fit - lxv.mean()) ** 2 / ssx))
+    x_plot = 10 ** x_fit if log_x else x_fit
 
-        # 3 panels: mPFC↔PPC vs (A) body weight, (B) brain weight, (C) somato FC
-        _x_cols   = ['body_g', 'brain_g']
-        _x_labels = ['Body weight (g)', 'Brain weight (g)']
-        if 'FC_somato_mean' in _df_fc2.columns and _df_fc2['FC_somato_mean'].notna().any():
-            _x_cols.append('FC_somato_mean')
-            _x_labels.append('Somatosensory mean FC (r)')
+    ax.plot(x_plot, y_fit,
+            color='k', lw=1.5, linestyle='--', alpha=0.8, zorder=3)
+    ax.fill_between(x_plot,
+                    y_fit - t_crit * se,
+                    y_fit + t_crit * se,
+                    color='k', alpha=0.15, zorder=2)
+    p_str = f'{p:.3f}' if p >= 0.001 else '<0.001'
+    ax.text(0.05, 0.95,
+            f'slope={slope:.2f}  r={r:.2f}  p={p_str}',
+            transform=ax.transAxes, fontsize=8,
+            va='top', color='#333333')
+    return slope, r, p
 
-        _plot_fc_scaling(
-            _df_fc2,
-            y_col='FC_mpfc_ppc',
-            y_label='mPFC ↔ PPC  (r)',
-            output_path=opj(scaling_dir, 'scaling_fc_lvl1.png'),
-            x_cols=_x_cols,
-            x_labels=_x_labels,
-        )
-    else:
-        print("  [FC scaling] WARNING: no valid FC_mpfc_ppc values — plot skipped")
-else:
-    print("  [FC scaling] WARNING: no subjects found — check ROI names in lvl2 matrices")
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# PART 5  ?  Figure 2: summary heatmap (all connections × all species)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def plot_fc_connections_summary(df_fc, connections, output_path, figsize=None):
+    """
+    Heatmap where:
+      rows    = FC connections (in the order listed in `connections`)
+      columns = species (phylogenetic order)
+      cell    = median normalised FC (r / mean|r|) across all subjects
+
+    Cells are annotated with the numeric median.
+    A diverging RdBu_r colormap is centred at 0; the colour range is set
+    to the 95th percentile of |median| across all cells.
+    """
+    from matplotlib.colors import TwoSlopeNorm
+    import matplotlib.cm as _cm
+
+    species_order = _phylo_sort(df_fc['species'].unique())
+
+    # Restrict to connections that actually produced data
+    keys   = [k for k, *_ in connections
+              if k in df_fc.columns and df_fc[k].notna().any()]
+    labels = {k: lbl for k, *_, lbl in connections}
+
+    if not keys:
+        warnings.warn('plot_fc_connections_summary: no data')
+        return None
+
+    # Build median matrix  (n_connections × n_species)
+    mat = np.full((len(keys), len(species_order)), np.nan)
+    for ki, k in enumerate(keys):
+        for si, sp in enumerate(species_order):
+            vals = df_fc.loc[df_fc['species'] == sp, k].dropna().values
+            if len(vals):
+                mat[ki, si] = float(np.median(vals))
+
+    finite = mat[np.isfinite(mat)]
+    vext   = float(np.nanpercentile(np.abs(finite), 95)) if finite.size > 0 else 1.0
+    norm   = TwoSlopeNorm(vmin=-vext, vcenter=0, vmax=vext)
+    cmap   = 'RdBu_r'
+
+    n_r, n_c = mat.shape
+    w, h = figsize or (max(5, n_c * 1.0 + 3.5), max(3, n_r * 0.6 + 1.5))
+
+    with plt.rc_context(PAPER_RC):
+        fig, ax = plt.subplots(figsize=(w, h))
+        ax.imshow(mat, cmap=cmap, norm=norm,
+                  aspect='auto', interpolation='nearest')
+
+        # Annotate each cell with its median value
+        for ki in range(n_r):
+            for si in range(n_c):
+                v = mat[ki, si]
+                if np.isfinite(v):
+                    text_color = 'white' if abs(v) > 0.45 * vext else '#222'
+                    ax.text(si, ki, f'{v:.2f}',
+                            ha='center', va='center',
+                            fontsize=7, color=text_color)
+
+        ax.set_xticks(range(n_c))
+        ax.set_xticklabels(species_order, rotation=30, ha='right', fontsize=9)
+        ax.set_yticks(range(n_r))
+        ax.set_yticklabels([labels.get(k, k) for k in keys], fontsize=8)
+        ax.set_title('FC connections of interest  -  median  r / mean|r|',
+                     fontweight='bold', fontsize=10)
+
+        cb = fig.colorbar(_cm.ScalarMappable(norm=norm, cmap=cmap),
+                          ax=ax, fraction=0.03, pad=0.03)
+        cb.set_label('r / mean|r|', fontsize=8)
+        cb.ax.yaxis.set_label_position('right')
+
+        plt.tight_layout()
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+        fig.savefig(output_path, bbox_inches='tight', dpi=200)
+        plt.close(fig)
+        print(f'  [plot] {output_path}')
+
+    return output_path
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 5B  —  PER-BIDS FIGURES

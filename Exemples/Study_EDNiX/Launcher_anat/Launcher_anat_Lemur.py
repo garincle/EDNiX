@@ -20,7 +20,7 @@ from Plotting import Plot_BIDS_surface_for_QC
 ########################################################################################################################
 # Where are the data
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouse_lemur/BIDS_Garin/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouselemur/BIDS_Garin/'))
 
 # which format ?
 BIDStype = 1
@@ -101,7 +101,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 
 ########################################################################################################################
 
-Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
+Skip_step = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,'itk_1','itk_2','itk_3','flat_map', 'Clean']
 
 
 ########################################################################################################################

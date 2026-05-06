@@ -10,7 +10,7 @@ opn = os.path.normpath
 opj = os.path.join
 
 MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouse_lemur/BIDS_Garin/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouselemur/BIDS_Garin/'))
 # which format ?
 BIDStype = 1
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)

@@ -1,23 +1,21 @@
-
 import os
-import ants
 import json
 import numpy as np
 import nibabel as nib
-
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import nilearn
 from nilearn import plotting
 from sklearn.preprocessing import StandardScaler
+from Tools import run_cmd
+import ants
+from skimage.metrics import normalized_mutual_information
 
 opj = os.path.join
 opb = os.path.basename
 opi = os.path.isfile
 opd = os.path.dirname
 ope = os.path.exists
-
-from Tools import run_cmd
 
 
 #################################################################################################
@@ -521,7 +519,7 @@ def anat_QC(info, type_norm, ID, volumes_dir,masks_dir,labels_dir,targetsuffix,l
                         average_snr_results['White_Matter'] = avg_white_snr
 
                         cnr_val = np.abs(average_snr_results['Gray_Matter'] - average_snr_results['White_Matter']) / noise
-                        cortical_contrast = (average_snr_results['White_Matter'] - average_snr_results['Gray_Matter']) / (
+                        cortical_contrast = np.abs(average_snr_results['White_Matter'] - average_snr_results['Gray_Matter']) / (
                                 (average_snr_results['White_Matter'] + average_snr_results['Gray_Matter']) / 2)
 
                         #################### QC that doesn't require atlaslvl1 ####################
@@ -546,8 +544,19 @@ def anat_QC(info, type_norm, ID, volumes_dir,masks_dir,labels_dir,targetsuffix,l
                         ## NMI index
                         fixed = ants.image_read(img_ref)
                         moving = ants.image_read(template_in_anat)
-                        nmi = ants.image_mutual_information(fixed, moving)
-                        line_QC_func.append(f"  NMI_index: {nmi}")
+
+                        # Conversion en numpy
+                        fixed_np = fixed.numpy()
+                        moving_np = moving.numpy()
+
+                        # Optionnel mais recommandé : même masque / même taille
+                        # (à adapter selon ton pipeline)
+                        assert fixed_np.shape == moving_np.shape, "Images must be aligned and same shape"
+
+                        # Calcul NMI
+                        nmi = normalized_mutual_information(fixed_np, moving_np)
+
+                        line_QC_func.append(f"  NMI_index: {nmi:.4f}")
 
                         # Create the comprehensive QC figure
                         create_qc_figure(output_results, Timage, snr_results, img_ref,
