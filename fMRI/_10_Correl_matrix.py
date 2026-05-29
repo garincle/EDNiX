@@ -24,7 +24,7 @@ from fMRI.extract_filename import extract_filename
 ####Seed base analysis
 #################################################################################################
 def correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_matrix, segmentation_name_list,
-                  ID, Session, TR_val, dir_prepro_orig_labels, dir_prepro_orig,
+                  ID, Session, TR_val, dir_prepro_orig_labels, dir_prepro_orig, matrix_fit,
                   sing_afni,diary_file):
 
     nl = '##  Working on step ' + str(10) + '(function: _10_Correl_matrix).  ##'
@@ -271,88 +271,88 @@ def correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_ma
                         memory=None, verbose=5)
 
                     time_series = NAD_masker.fit_transform(func_filename)
+                for correl_type in matrix_fit:
+                    correlation_measure = ConnectivityMeasure(kind=correl_type, standardize='zscore',)
+                    correlation_matrix = correlation_measure.fit_transform([time_series])[0]
 
-                correlation_measure = ConnectivityMeasure(kind="correlation", standardize='zscore_sample',)
-                correlation_matrix = correlation_measure.fit_transform([time_series])[0]
+                    # Plot the correlation matrix
+                    # Mask the main diagonal for visualization:
+                    np.fill_diagonal(correlation_matrix, 0)
+                    # The labels we have start with the background (0), hence we skip the
+                    # first label
+                    # matrices are ordered for block-like representation
+                    nl = str(correlation_matrix.shape)
+                    run_cmd.msg(nl, diary_file, 'OKGREEN')
+                    nl = str(len(panda_file['region']))
+                    run_cmd.msg(nl, diary_file, 'OKGREEN')
+                    nl = str(correlation_matrix)
+                    run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-                # Plot the correlation matrix
-                # Mask the main diagonal for visualization:
-                np.fill_diagonal(correlation_matrix, 0)
-                # The labels we have start with the background (0), hence we skip the
-                # first label
-                # matrices are ordered for block-like representation
-                nl = str(correlation_matrix.shape)
-                run_cmd.msg(nl, diary_file, 'OKGREEN')
-                nl = str(len(panda_file['region']))
-                run_cmd.msg(nl, diary_file, 'OKGREEN')
-                nl = str(correlation_matrix)
-                run_cmd.msg(nl, diary_file, 'OKGREEN')
+                    plotting.plot_matrix(
+                        correlation_matrix,
+                        labels=atlas_filtered_list,
+                        vmax=0.8,
+                        vmin=-0.8)
+                    plt.savefig(opj(output_results,'_'.join([runname, correl_type + '_matrix.png'])))
 
-                plotting.plot_matrix(
-                    correlation_matrix,
-                    labels=atlas_filtered_list,
-                    vmax=0.8,
-                    vmin=-0.8)
-                plt.savefig(opj(output_results,'_'.join([runname,'matrix.png'])))
+                    # Convert correlation matrix to a DataFrame
+                    corr_df = pd.DataFrame(correlation_matrix, index=atlas_filtered_list, columns=atlas_filtered_list)
+                    corr_df.to_csv(opj(output_results,'_'.join([runname, correl_type + '_matrix.csv'])))
 
-                # Convert correlation matrix to a DataFrame
-                corr_df = pd.DataFrame(correlation_matrix, index=atlas_filtered_list, columns=atlas_filtered_list)
-                corr_df.to_csv(opj(output_results,'_'.join([runname,'matrix.csv'])))
+                    # Correctly construct new_df from lists
+                    new_df = pd.DataFrame({
+                        'labels_final': labels_final,  # List of labels (e.g., [1, 2, 3])
+                        'atlas_filtered_list': atlas_filtered_list  # List of regions (e.g., ['A', 'B', 'C'])
+                    })
 
-                # Correctly construct new_df from lists
-                new_df = pd.DataFrame({
-                    'labels_final': labels_final,  # List of labels (e.g., [1, 2, 3])
-                    'atlas_filtered_list': atlas_filtered_list  # List of regions (e.g., ['A', 'B', 'C'])
-                })
+                    # Merge with panda_file to verify regions
+                    merged_df = pd.merge(
+                        new_df,
+                        panda_file[['label', 'region']],
+                        left_on='labels_final',
+                        right_on='label',
+                        how='left'  # Keep all rows from new_df, add matches from panda_file
+                    )
 
-                # Merge with panda_file to verify regions
-                merged_df = pd.merge(
-                    new_df,
-                    panda_file[['label', 'region']],
-                    left_on='labels_final',
-                    right_on='label',
-                    how='left'  # Keep all rows from new_df, add matches from panda_file
-                )
+                    # Check for mismatches (optional)
+                    merged_df['is_consistent'] = (
+                            merged_df['atlas_filtered_list'] == merged_df['region']
+                    )
+                    print("Mismatches:\n", merged_df[~merged_df['is_consistent']])
 
-                # Check for mismatches (optional)
-                merged_df['is_consistent'] = (
-                        merged_df['atlas_filtered_list'] == merged_df['region']
-                )
-                print("Mismatches:\n", merged_df[~merged_df['is_consistent']])
+                    # Save the merged DataFrame
+                    merged_df.to_csv(opj(output_results,'_'.join([runname,'check','fit', correl_type + '_matrix.csv'])),index=False)
 
-                # Save the merged DataFrame
-                merged_df.to_csv(opj(output_results,'_'.join([runname,'check','fit','matrix.csv'])),index=False)
+                    connection = []
+                    value  = []
+                    # Iterate through the matrix to populate the list
+                    for num in range(len(atlas_filtered_list)):
+                        for num2 in range(num + 1, len(atlas_filtered_list)):
+                            connection.append(f"{atlas_filtered_list[num]} to {atlas_filtered_list[num2]}")
+                            value.append(correlation_matrix[num, num2])
 
-                connection = []
-                value  = []
-                # Iterate through the matrix to populate the list
-                for num in range(len(atlas_filtered_list)):
-                    for num2 in range(num + 1, len(atlas_filtered_list)):
-                        connection.append(f"{atlas_filtered_list[num]} to {atlas_filtered_list[num2]}")
-                        value.append(correlation_matrix[num, num2])
+                    nl = str(connection)
+                    run_cmd.msg(nl, diary_file, 'OKGREEN')
+                    nl = str(value)
+                    run_cmd.msg(nl, diary_file, 'OKGREEN')
+                    nl = str(len(connection))
+                    run_cmd.msg(nl, diary_file, 'OKGREEN')
+                    nl = str(len(value))
+                    run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-                nl = str(connection)
-                run_cmd.msg(nl, diary_file, 'OKGREEN')
-                nl = str(value)
-                run_cmd.msg(nl, diary_file, 'OKGREEN')
-                nl = str(len(connection))
-                run_cmd.msg(nl, diary_file, 'OKGREEN')
-                nl = str(len(value))
-                run_cmd.msg(nl, diary_file, 'OKGREEN')
+                    # Create DataFrame from the list
+                    flattened_df = pd.DataFrame([value], columns=connection)
+                    flattened_df['ID'] = ID
+                    flattened_df['Session'] = Session
 
-                # Create DataFrame from the list
-                flattened_df = pd.DataFrame([value], columns=connection)
-                flattened_df['ID'] = ID
-                flattened_df['Session'] = Session
+                    # Display the flattened DataFrame
+                    nl = str(flattened_df)
+                    run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-                # Display the flattened DataFrame
-                nl = str(flattened_df)
-                run_cmd.msg(nl, diary_file, 'OKGREEN')
+                    # Optionally, save the flattened DataFrame to a CSV file
+                    flattened_df.to_csv(opj(output_results,'_'.join([runname,'flattened',correl_type,'matrix.csv'])), index=False)
 
-                # Optionally, save the flattened DataFrame to a CSV file
-                flattened_df.to_csv(opj(output_results,'_'.join([runname,'flattened','correlation','matrix.csv'])), index=False)
-
-            else:
-                nl = 'WARNING: ' + str(func_filename) + ' not found!!'
-                run_cmd.msg(nl, diary_file, 'WARNING')
+                else:
+                    nl = 'WARNING: ' + str(func_filename) + ' not found!!'
+                    run_cmd.msg(nl, diary_file, 'WARNING')
 

@@ -21,7 +21,7 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/BIDS_Cdt_Garin'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/BIDS_Zhu_Garin/'))
 # which format ?
 BIDStype = 1
 
@@ -31,7 +31,7 @@ allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], s
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 
 # choose if you want to select or remove ID from you analysis:
-list_to_keep   = [('Oliver', '11')]
+list_to_keep   = []
 list_to_remove = []
 species    = 'Macaque'
 # is it a longitudinal study ?
@@ -96,7 +96,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = ['flat_map', 'Clean']
+Skip_step = ['itk_1','itk_2','itk_3','itk_final','flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #

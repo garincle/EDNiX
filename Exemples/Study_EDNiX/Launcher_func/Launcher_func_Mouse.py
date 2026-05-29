@@ -11,7 +11,7 @@ from Tools import Load_subject_with_BIDS, load_bids
 species = 'Mouse'
 ## linux ##FS_dir
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouse/BIDS_Grandjean/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouse/BIDS_Grandjean2/'))
 
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
@@ -78,8 +78,8 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     reference='EDNiX', post_treatment_method='Grandjean',
                     band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
                     use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
-                    selected_atlases_matrix='all', wanted_level_matrix='all',
+                    selected_atlases_matrix='all', wanted_level_matrix='all', matrix_fit=['covariance', 'correlation', 'partial correlation'],
                     selected_atlases_SBA='default', panda_files_SBA='default',
                     SBAspace=['atlas'], erod_seed=True, smoothSBA=smoothSBA,
-                    specific_roi_tresh=0.2, delta_thresh=0.1,
+                    intra_thresh=0.240, delta_thresh=0.1,
                     oversample_map=False, use_cortical_mask_func=False, n_cut=10, threshold_val=10)

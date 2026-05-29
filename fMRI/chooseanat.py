@@ -56,7 +56,7 @@ def retrieve(ID,data_path, Session,anat_func_same_space,use_erode_V_func_masks,u
 
             else:
                 nl = ("ERROR: We haven't found any anat template for this animal! We can't continue ! please provide a valid link for at least one anat image! "
-                         "current link is :") + str(template_anat_for_fmri)
+                         "current link is : glob.glob(") + str(opj(opd(data_path), '**', branch_path, '*_desc-SS_' + TfMRI + '.nii*'))
                 raise Exception(run_cmd.error(nl, diary_file))
         else:
             path_anat, dir_transfo, FS_dir, dir_prepro, dir_native, volumes_dir, labels_dir, masks_dir = getpath.anat(

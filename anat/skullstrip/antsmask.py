@@ -53,7 +53,6 @@ def create(input_for_msk,process_dir,masking_img,
 
     if Tversion == 'translation':
         transfo_concat = [nameT + 'shift_0GenericAffine.mat']
-        run_cmd.msg(mTx, diary_file, 'ENDC')
 
     elif Tversion == 'nonlinear':
         mTx = ants.registration(fixed=refIMG, moving=REF_BET, outprefix=nameT,

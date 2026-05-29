@@ -53,7 +53,7 @@ aff_metric_ants = 'meansquares'
 do_anat_to_func = True # True or False
 dilate_mask=0
 selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
-
+smoothSBA =0.7
 Skip_step = ['itk_1', 'itk_2','Clean']
 fMRI._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
@@ -72,8 +72,8 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     reference='EDNiX', post_treatment_method='Grandjean',
                     band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
                     use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
-                    selected_atlases_matrix='all', wanted_level_matrix='all',
+                    selected_atlases_matrix='all', wanted_level_matrix='all', matrix_fit=['covariance', 'correlation', 'partial correlation'],
                     selected_atlases_SBA='default', panda_files_SBA='default',
-                    SBAspace=['func', 'anat', 'atlas'], erod_seed=True, smoothSBA=0.7,
-                    specific_roi_tresh=0.2, delta_thresh=0.1,
+                    SBAspace=['atlas'], erod_seed=True, smoothSBA=smoothSBA,
+                    intra_thresh=0.240, delta_thresh=0.1,
                     oversample_map=False, use_cortical_mask_func=False, n_cut=10, threshold_val=10)

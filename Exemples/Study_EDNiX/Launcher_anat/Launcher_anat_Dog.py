@@ -21,7 +21,7 @@ from Plotting import Plot_BIDS_surface_for_QC
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Dog/BIDS_k9/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Dog/BIDS_Boch_K9/'))
 # which format ?
 BIDStype = 2
 
@@ -104,7 +104,7 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################
-Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
+Skip_step = ['itk_1','itk_2','itk_3','itk_final','flat_map', 'Clean']
 _0_Pipeline_launcher.preprocess_anat(Skip_step,
                      MAIN_PATH, bids_dir, BIDStype, species,
                      allinfo_study_c, list_to_keep, list_to_remove,

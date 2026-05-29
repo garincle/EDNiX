@@ -75,7 +75,17 @@ def run(ID, Session, data_path, max_ses,type_norm,ref_suffix,coregistration_long
     if 'itk_2' in Skip_step:
         run_cmd.msg('INFO: skip step ' + str('itk_2'), diary_file, 'OKGREEN')
     else:
+        run_cmd.msg('INFO: Checking the output of the second masking step', diary_file, 'OKGREEN')
         output4mask = opj(masks_dir, ID + '_desc-step2_mask.nii.gz')
+        end_maskname = '_'.join([ID, 'final', 'mask', '2.nii.gz'])
+        input4msk = opj(volumes_dir, ID + '_space-acpc_desc-SS-step1_' + masking_img + '.nii.gz')
+        _mask2_Data_QC._itk_check_masks(output4mask, input4msk, end_maskname, masks_dir, sing_itk, diary_file)
+
+    if 'itk_final' in Skip_step:
+        run_cmd.msg('INFO: skip step ' + str('itk_2'), diary_file, 'OKGREEN')
+    else:
+        run_cmd.msg('INFO: Checking the output of the template into native space', diary_file,'OKGREEN')
+        output4mask = opj(masks_dir, ID + '_space-acpc_mask.nii.gz')
         end_maskname = '_'.join([ID, 'final', 'mask', '2.nii.gz'])
         input4msk = opj(volumes_dir, ID + '_space-acpc_desc-SS-step1_' + masking_img + '.nii.gz')
         _mask2_Data_QC._itk_check_masks(output4mask, input4msk, end_maskname, masks_dir, sing_itk, diary_file)

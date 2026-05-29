@@ -44,10 +44,10 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
                     reference='EDNiX', post_treatment_method='Grandjean',
                     band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
                     use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
-                    selected_atlases_matrix='all', wanted_level_matrix='all',
+                    selected_atlases_matrix='all', wanted_level_matrix='all', matrix_fit=['covariance', 'correlation', 'partial correlation'],
                     selected_atlases_SBA='default', panda_files_SBA='default',
                     SBAspace=['func', 'anat', 'atlas'], erod_seed=True, smoothSBA=False,
-                    specific_roi_tresh=0.2, delta_thresh=0.1,
+                    intra_thresh=0.240, delta_thresh=0.05,
                     oversample_map=False, use_cortical_mask_func=False, n_cut=10, threshold_val=10, **kwargs):
 
     """
@@ -761,7 +761,7 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
 
                     else:
                         _10_Correl_matrix.correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_matrix, segmentation_name_list,
-                          ID, Session, TR_val, dir_prepro_orig_labels, dir_prepro_orig,
+                          ID, Session, TR_val, dir_prepro_orig_labels, dir_prepro_orig, matrix_fit,
                           sing_afni,diary_file)
 
                     if 11 in Skip_step:
@@ -788,7 +788,7 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
                         run_cmd.msg(nl, diary_file, 'OKGREEN')
 
                     else:
-                        _14_fMRI_QC_matrix.fMRI_QC_matrix(path_func, dir_prepro_orig, specific_roi_tresh, delta_thresh, RS, nb_run, diary_file)
+                        _14_fMRI_QC_matrix.fMRI_QC_matrix(path_func, dir_prepro_orig, intra_thresh, delta_thresh, RS, nb_run, diary_file)
 
                     if 'itk_2' in Skip_step:
                         nl = 'skip step ' + str('itk_2')

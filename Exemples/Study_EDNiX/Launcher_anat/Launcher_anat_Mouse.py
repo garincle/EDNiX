@@ -22,7 +22,7 @@ from Tools import Load_subject_with_BIDS, load_bids
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouse/BIDS_Grandjean/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouse/BIDS_Grandjean2/'))
 
 # which format ?
 BIDStype = 1
@@ -33,7 +33,7 @@ Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 
 
 # choose if you want to select or remove ID from you analysis:
-list_to_keep   = [('jgrAesISOc11R1L', '1')]
+list_to_keep   = []
 list_to_remove = []
 species    = 'Mouse'
 
@@ -108,8 +108,7 @@ list_transfo = build_transfos(
 
 ########################################################################################################################
 
-Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
-
+Skip_step = ['itk_1','itk_2','itk_3','itk_final','flat_map', 'Clean']
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################
