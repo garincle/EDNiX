@@ -73,18 +73,21 @@ CORR_USE_LR      = True
 
 species_bids_dict = {
     'Rat':        '/scratch2/EDNiX/Rat/BIDS_Grandjean',
-    'Mouse':      '/scratch2/EDNiX/Mouse/BIDS_Grandjean',
-    'Dog':        '/scratch2/EDNiX/Dog/BIDS_k9',
-    'Marmoset':   '/scratch2/EDNiX/Marmoset/BIDS_NIH_MBM',
+    'Mouse':      '/scratch2/EDNiX/Mouse/BIDS_Grandjean2',
+    'Dog':        '/scratch2/EDNiX/Dog/BIDS_Boch_K9',
+    'Marmoset':   '/scratch2/EDNiX/Marmoset/BIDS_Tian',
     'Mouselemur': '/scratch2/EDNiX/Mouselemur/BIDS_Garin',
 }
 species_multi_bids = {
     'Macaque': [
+        '/scratch2/EDNiX/Macaque/BIDS_Tremblay',
         '/scratch2/EDNiX/Macaque/BIDS_BenHamed',
-        '/scratch2/EDNiX/Macaque/BIDS_Cdt_Garin',
+        '/scratch2/EDNiX/Macaque/BIDS_Zhu_Garin',
     ],
     'Human': [
-        '/scratch2/EDNiX/Human/ds004513-download',
+        '/scratch2/EDNiX/Human/BIDS_Merida',
+        '/scratch2/EDNiX/Human/BIDS_Park',
+        '/scratch2/EDNiX/Human/BIDS_Castrillon',
     ],
 }
 
@@ -140,8 +143,8 @@ run_wb_extraction(
     overwrite_surface   = True,   # ← set False after first successful run
     n_atlas_levels      = N_ATLAS_LEVELS,
 )
-
 '''
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # STEP 1  —  Build species_config and resolve atlas paths
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -182,7 +185,7 @@ data = collect_multi_species(
     atlas_library_root      = ATLAS_LIB,
     species_atlas_fragments = species_atlas_fragments,
 )
-
+'''
 df_surface   = data.get('surface')
 df_volume    = data.get('volume')
 df_thickness = data.get('thickness')
@@ -337,14 +340,12 @@ print("""
   └── per_bids/
       └── <species>_<bids>/    (surface|volume|thickness × hemi + QC_dashboard)
 """)
-
+'''
 from Plotting.ednix_threshold_explorer import run_pipeline
 
 result = run_pipeline(
     data["qc"],
-    fit_kind='correlation',
     bids_root_template = "/scratch2/EDNiX/{species}/{bids_dir}",
-    method   = "auto",
     n_top    = 10,
     stringency=0,
     fig_dir  = "/scratch2/EDNiX/results/cross_species/qc_recap")

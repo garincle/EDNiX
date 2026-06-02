@@ -1719,6 +1719,7 @@ def collect_multi_species(species_config, regions_of_interest=None,
 
     for species, cfg in species_config.items():
         bids_dirs = cfg.get("bids_dirs", [])
+        print(bids_dirs)
         if isinstance(bids_dirs, str): bids_dirs = [bids_dirs]
         lk = cfg.get("list_to_keep",   [])
         lr = cfg.get("list_to_remove", [])
@@ -1736,7 +1737,9 @@ def collect_multi_species(species_config, regions_of_interest=None,
 
         for bids_dir in bids_dirs:
             bids_dir = _linux_path(bids_dir)
+            print(bids_dir)
             bids_lbl = os.path.basename(bids_dir)
+            print(bids_lbl)
             print(f"\n  ↳ BIDS: {bids_dir}")
 
             if "surface" in extract:
@@ -1771,6 +1774,7 @@ def collect_multi_species(species_config, regions_of_interest=None,
                 df = process_qc(qp)
                 if not df.empty:
                     df.insert(0, "bids_dir", bids_lbl)
+                    print("insert " + str(bids_lbl))
                     df.insert(0, "species",  species)
                     accumulators["qc"].append(df)
 
