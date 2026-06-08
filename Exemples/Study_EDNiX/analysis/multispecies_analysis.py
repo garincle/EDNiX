@@ -80,7 +80,7 @@ species_bids_dict = {
 }
 species_multi_bids = {
     'Macaque': [
-        '/scratch2/EDNiX/Macaque/BIDS_Tremblay',
+
         '/scratch2/EDNiX/Macaque/BIDS_BenHamed',
         '/scratch2/EDNiX/Macaque/BIDS_Zhu_Garin',
     ],
@@ -182,10 +182,11 @@ data = collect_multi_species(
     extract                 = ('surface', 'volume', 'thickness', 'qc'),
     atlas_name              = ATLAS_NAME,
     atlas_label_paths       = atlas_label_paths,
+    fit_kind='correlation',
     atlas_library_root      = ATLAS_LIB,
     species_atlas_fragments = species_atlas_fragments,
 )
-'''
+
 df_surface   = data.get('surface')
 df_volume    = data.get('volume')
 df_thickness = data.get('thickness')
@@ -340,12 +341,22 @@ print("""
   └── per_bids/
       └── <species>_<bids>/    (surface|volume|thickness × hemi + QC_dashboard)
 """)
-'''
-from Plotting.ednix_threshold_explorer import run_pipeline
 
+from Plotting.ednix_threshold_explorer import run_pipeline_multilevel, run_pipeline
+'''
 result = run_pipeline(
     data["qc"],
     bids_root_template = "/scratch2/EDNiX/{species}/{bids_dir}",
     n_top    = 10,
     stringency=0,
     fig_dir  = "/scratch2/EDNiX/results/cross_species/qc_recap")
+'''
+result = run_pipeline_multilevel(data["qc"], fit_kind="correlation",
+                            bids_root_template="/scratch2/EDNiX/{species}/{bids_dir}",
+                            atlas_levels=(2, 3, 4),
+                            subsets=("all", "primates", "primates_rodents"),
+                            thresh_intra=None, thresh_delta=None, stringency=0.0,
+                            n_top=10, atlas_name="EDNIxCSC", use_lr=True,
+                            fp_test="species_mean", fdr_alpha=0.05,
+                            fig_dir  = "/scratch2/EDNiX/results/cross_species/qc_recap",
+                            verbose=True)

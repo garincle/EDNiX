@@ -1,8 +1,6 @@
 import os
 import sys
-from bids import BIDSLayout
-from bids.reports import BIDSReport
-from Tools import Load_subject_with_BIDS, load_bids
+from Tools import load_bids
 opj = os.path.join
 opb = os.path.basename
 
@@ -10,10 +8,8 @@ MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS
-from anat import _0_Pipeline_launcher
-from anat.load_transfo_parameters import build_transfos
-from Tools import Load_EDNiX_requirement
-from Plotting import Plot_BIDS_surface_for_QC
+from modalities.anat import _0_Pipeline_launcher
+from modalities.anat.load_transfo_parameters import build_transfos
 
 ########################################################################################################################
 #                                       Set the pipeline parameters (see manual.....)                                  #
@@ -103,16 +99,16 @@ Skip_step = [10,11,12,13,14,15,16,'itk_1','itk_2','itk_3','itk_final','flat_map'
 ########################################################################################################################
 
 _0_Pipeline_launcher.preprocess_anat(Skip_step,
-                     MAIN_PATH, bids_dir, BIDStype, species,
-                     allinfo_study_c, list_to_keep, list_to_remove,
-                     type_norm, otheranat, masking_img,
-                     orientation, animalPosition, humanPosition,
-                     coregistration_longitudinal, creat_study_template, which_on,
-                     brain_skullstrip_1, brain_skullstrip_2, template_skullstrip,
-                     list_transfo, Align_img_to_template, MNIBcorrect_indiv,
-                     fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['Stuart', 'pcc'], ['ctab', 'txt'], [1, 1], [1, 1]], addatlas='',
-                     transfo_message='do_as_I_said', force_myelin_same_space=False,
-                     check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
+                                     MAIN_PATH, bids_dir, BIDStype, species,
+                                     allinfo_study_c, list_to_keep, list_to_remove,
+                                     type_norm, otheranat, masking_img,
+                                     orientation, animalPosition, humanPosition,
+                                     coregistration_longitudinal, creat_study_template, which_on,
+                                     brain_skullstrip_1, brain_skullstrip_2, template_skullstrip,
+                                     list_transfo, Align_img_to_template, MNIBcorrect_indiv,
+                                     fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['Stuart', 'pcc'], ['ctab', 'txt'], [1, 1], [1, 1]], addatlas='',
+                                     transfo_message='do_as_I_said', force_myelin_same_space=False,
+                                     check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
 '''
 ### Surface QC summary creation --------------------------------------------------------------------------------
 # Function 1: Load EDNiX requirements

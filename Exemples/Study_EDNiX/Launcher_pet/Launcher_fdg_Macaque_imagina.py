@@ -1,7 +1,7 @@
 import os
 import sys
 import Tools.Read_atlas
-import pet._0_Pipeline_launcher
+import modalities.pet._0_Pipeline_launcher
 from Tools import Load_subject_with_BIDS, load_bids
 opn = os.path.normpath
 opj = os.path.join
@@ -53,7 +53,7 @@ dilate_mask = 5 # int
 doWARPonfunc = 'header'
 
 Skip_step = ['itk_1', 'itk_2', 'Clean']
-pet._0_Pipeline_launcher.preprocess_data(
+modalities.pet._0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson,
                     animalPosition, humanPosition, orientation,

@@ -58,8 +58,17 @@ for animal, transfo, ref_brain in zip(species, transformations, ref_brains):
             ants.image_write(moved, opj(input_atlas,animal, animal + '_seg-atlaslvl' + str(i + 1) + '-' + lr[1:] + '_dseg.nii.gz'), ri=False)
 
 species = [
-
+    'Pig',
+    'Mouse_lemur',
+    'Marmoset',
+    'Macaque',
+    'Chimpanzee',
+    'CatinDog',
+    'DoginCat',
+    'Mouse',
+    'RatWHS',
     'Human']
+
 
 for animal in species:
     print(animal)

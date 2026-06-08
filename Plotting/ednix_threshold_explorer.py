@@ -53,10 +53,8 @@ CATS = ["Specific", "Unspecific", "No", "Spurious"]
 _DEFAULT_BIDS = "/scratch2/EDNiX/{species}/{bids_dir}"
 
 _PRIMARY_NETWORKS = {
-    "motor": ["Motor_and_premotor"],
     "somatosensory": ["Somatosensory_cortex"],
     "visual_striate": ["Visual_striate_cortex"],
-    "visual_extra": ["Visual_pre_and_extra_striate_cortex"],
     "auditory": ["Auditory_cortex"],
 }
 
@@ -90,12 +88,30 @@ def _save_or_show(fig, path):
         plt.show()
 
 def _load_matrix(path):
+    """
+    Load (rois, mat) from a correlation matrix CSV.
+
+    Tries Plotting.ednix_bids_tools.load_corr_matrix first (which may have
+    pipeline-specific parsing logic). If that fails for ANY reason (import
+    error, parsing error like 'could not convert string to float: 263BCE'
+    on alphanumeric subject IDs, etc.), falls back to a plain pandas read.
+    The fallback should work for any standard "ROI labels in header + index,
+    numeric values elsewhere" CSV.
+    """
     try:
         from Plotting.ednix_bids_tools import load_corr_matrix
-        return load_corr_matrix(path)
     except ImportError:
-        df = pd.read_csv(path, index_col=0)
-        return list(df.index), df.values.astype(float)
+        load_corr_matrix = None
+    if load_corr_matrix is not None:
+        try:
+            return load_corr_matrix(path)
+        except Exception:
+            pass   # fall through to local loader
+    df = pd.read_csv(path, index_col=0)
+    # Strip whitespace from labels (common BIDS quirk)
+    df.columns = df.columns.astype(str).str.strip()
+    df.index = df.index.astype(str).str.strip()
+    return list(df.index), df.values.astype(float)
 
 def _inter_col(df):
     """Pick the heterotopic inter column if present, else legacy inter."""
@@ -127,24 +143,46 @@ def _common_bilateral_rois(matrices_with_rois):
     return _bilateral_pair_filter([r for r in common])
 
 
-def compute_subset_common_rois(df_scored, species_subset=None, verbose=True):
+def compute_subset_common_rois(df_scored, species_subset=None,
+                                report_csv_path=None, verbose=True):
     """
     Load all (or subset) corr matrices listed in df_scored and return the
     common bilateral ROI list — the same list is then used for fig 04 and
     fingerprint figures so their ROI sets are guaranteed identical.
 
-    When verbose=True, prints a per-species and global report of which ROIs
-    are dropped and why:
-      - missing in species X (present elsewhere but not in any X matrix)
-      - has no L/R counterpart  (homotopic bilateral pairing failed)
+    STRICT semantics (matches what fig 04 needs):
+      - Per-species: INTERSECTION across all matrices of that species
+        (an ROI must be present in EVERY matrix of that species to count)
+      - Across species: intersection of those per-species intersections
+      - Then bilateral-pair filter
+
+    This is stricter than a union-within-species and guarantees that every
+    individual matrix in df_scored contains all the returned ROIs (so no
+    matrix is silently dropped at fig 04 alignment).
+
+    When verbose=True, reports two kinds of drops:
+      (1) per-species attrition: ROIs present in some but not all matrices
+      (2) cross-species attrition: ROIs present in every matrix of species A
+          but missing in species B
+
+    report_csv_path : optional path. If given, writes a per-file CSV listing
+        every (species, subject, session, run, missing_roi, attrition_kind)
+        — useful for tracking down which specific scans are missing which
+        ROIs. The 'attrition_kind' column is 'intra_species_inconsistent'
+        (the ROI exists in some matrices of this species but not this one)
+        or 'cross_species_absent' (the ROI is absent in this species entirely
+        — same status for every file of that species).
     """
     df = df_scored.copy()
     if species_subset is not None and "species" in df.columns:
         df = df[df["species"].isin(species_subset)]
 
-    # collect per-species ROI sets (union of all matrices for that species)
-    species_rois = {}  # species -> set of ROIs found in any of its matrices
+    # Per-species: union AND intersection across matrices of that species
+    species_union = {}    # species -> set: ROIs present in ANY matrix
+    species_inter = {}    # species -> set: ROIs present in EVERY matrix (strict)
+    species_perfile = {}  # species -> list of dicts with full metadata + roi set
     n_loaded_per_sp = {}
+
     for _, row in df.iterrows():
         path = row.get("corr_matrix_path", None)
         sp = str(row.get("species", "?"))
@@ -152,51 +190,134 @@ def compute_subset_common_rois(df_scored, species_subset=None, verbose=True):
             continue
         try:
             rois, _ = _load_matrix(path)
-            species_rois.setdefault(sp, set()).update(rois)
+            roi_set = set(rois)
+            species_union.setdefault(sp, set()).update(roi_set)
+            if sp in species_inter:
+                species_inter[sp] &= roi_set
+            else:
+                species_inter[sp] = set(roi_set)
+            species_perfile.setdefault(sp, []).append({
+                "path":     path,
+                "rois":     roi_set,
+                "bids_dir": str(row.get("bids_dir", "?")),
+                "subject":  str(row.get("subject", "?")),
+                "session":  str(row.get("session", "?")),
+                "run":      str(row.get("run", "?")),
+            })
             n_loaded_per_sp[sp] = n_loaded_per_sp.get(sp, 0) + 1
         except Exception:
             pass
 
-    if not species_rois:
+    if not species_inter:
         return []
 
-    # universe = union across all species (anything we ever saw)
-    universe = set().union(*species_rois.values())
+    universe = set().union(*species_union.values())
 
-    # raw common = strict intersection of species-level unions
-    raw_common = set.intersection(*species_rois.values()) if len(species_rois) > 1 \
-        else set(next(iter(species_rois.values())))
+    # cross-species intersection of per-species INTERSECTIONS (strict)
+    raw_common = (set.intersection(*species_inter.values())
+                  if len(species_inter) > 1
+                  else set(next(iter(species_inter.values()))))
 
-    # bilateral-paired final list
     paired = _bilateral_pair_filter(list(raw_common))
     paired_set = set(paired)
 
+    # ──── compute attritions (used for both verbose report and CSV) ──────────
+    # intra-species inconsistency: ROI in union but not intersection
+    intra_attrition = {}  # roi -> list of species where this holds
+    for sp in species_union:
+        u, i = species_union[sp], species_inter[sp]
+        for roi in u - i:
+            intra_attrition.setdefault(roi, []).append(sp)
+
+    # cross-species absence: ROI absent (not even in union) from >=1 species
+    cross_missing = {}
+    for roi in universe - raw_common:
+        absent_from = [sp for sp in species_inter
+                       if roi not in species_union[sp]]
+        if absent_from:
+            cross_missing[roi] = absent_from
+
+    # ──── write per-file missing-ROI CSV if requested ────────────────────────
+    if report_csv_path:
+        report_rows = []
+        # For each species, walk each file and check which "dropped" ROIs
+        # are missing from that specific file
+        all_dropped = sorted(set(intra_attrition.keys()) | set(cross_missing.keys()))
+        for sp, files in species_perfile.items():
+            for entry in files:
+                file_rois = entry["rois"]
+                for roi in all_dropped:
+                    # Decide attribution kind for this (file, roi):
+                    #   - if ROI absent from this entire species → cross_species_absent
+                    #   - else if ROI absent from this specific file → intra_species_inconsistent
+                    #   - else: the file has it, skip
+                    if roi not in species_union.get(sp, set()):
+                        kind = "cross_species_absent"
+                    elif roi not in file_rois:
+                        kind = "intra_species_inconsistent"
+                    else:
+                        continue
+                    report_rows.append({
+                        "species":         sp,
+                        "bids_dir":        entry["bids_dir"],
+                        "subject":         entry["subject"],
+                        "session":         entry["session"],
+                        "run":             entry["run"],
+                        "missing_roi":     roi,
+                        "attrition_kind":  kind,
+                        "corr_matrix_path": entry["path"],
+                    })
+        if report_rows:
+            os.makedirs(os.path.dirname(os.path.abspath(report_csv_path)),
+                        exist_ok=True)
+            pd.DataFrame(report_rows).sort_values(
+                ["attrition_kind", "species", "bids_dir", "subject",
+                 "session", "run", "missing_roi"]
+            ).to_csv(report_csv_path, index=False)
+            if verbose:
+                n_intra = sum(1 for r in report_rows
+                              if r["attrition_kind"] == "intra_species_inconsistent")
+                n_cross = sum(1 for r in report_rows
+                              if r["attrition_kind"] == "cross_species_absent")
+                print(f"  [common ROIs] missing-ROI report: {report_csv_path}")
+                print(f"                {len(report_rows)} rows  "
+                      f"({n_intra} intra-species inconsistencies, "
+                      f"{n_cross} cross-species absences)")
+
+    # ──── verbose log ────────────────────────────────────────────────────────
     if verbose:
-        print(f"  [common ROIs] species: {sorted(species_rois.keys())}")
-        for sp in sorted(species_rois.keys()):
-            n_sp = len(species_rois[sp])
+        print(f"  [common ROIs] species: {sorted(species_inter.keys())}")
+        for sp in sorted(species_inter.keys()):
+            n_u = len(species_union[sp])
+            n_i = len(species_inter[sp])
             n_mat = n_loaded_per_sp.get(sp, 0)
-            print(f"     {sp:14s} {n_sp:4d} unique ROIs across {n_mat} matrices")
+            print(f"     {sp:14s} {n_u:4d} union | {n_i:4d} intersection "
+                  f"across {n_mat} matrices")
 
-        # ROIs in universe but missing from at least one species
-        missing_in_species = sorted(universe - raw_common)
-        # ROIs that survived intersection but lost their L/R partner
+        if intra_attrition:
+            print(f"  [dropped: inconsistent across matrices within a species] "
+                  f"({len(intra_attrition)})")
+            for roi in sorted(intra_attrition.keys())[:60]:
+                detail = []
+                for sp in intra_attrition[roi]:
+                    n_with = sum(1 for entry in species_perfile[sp]
+                                 if roi in entry["rois"])
+                    n_total = len(species_perfile[sp])
+                    detail.append(f"{sp}({n_with}/{n_total})")
+                print(f"     {roi:46s}  {', '.join(detail)}")
+            if len(intra_attrition) > 60:
+                print(f"     ... ({len(intra_attrition) - 60} more)")
+
+        if cross_missing:
+            print(f"  [dropped: missing in >=1 species entirely] "
+                  f"({len(cross_missing)})")
+            for roi in sorted(cross_missing.keys())[:60]:
+                print(f"     {roi:46s}  missing in: "
+                      f"{', '.join(cross_missing[roi])}")
+            if len(cross_missing) > 60:
+                print(f"     ... ({len(cross_missing) - 60} more)")
+
         unpaired = sorted(raw_common - paired_set)
-
-        print(f"  [common ROIs] universe={len(universe)}  "
-              f"intersection={len(raw_common)}  "
-              f"bilateral-paired={len(paired)}")
-
-        if missing_in_species:
-            print(f"  [dropped: missing in >=1 species] ({len(missing_in_species)})")
-            # group by which species are missing each ROI
-            for roi in missing_in_species[:60]:  # cap output
-                missing_from = sorted(sp for sp, rs in species_rois.items()
-                                      if roi not in rs)
-                print(f"     {roi:42s}  missing in: {', '.join(missing_from)}")
-            if len(missing_in_species) > 60:
-                print(f"     ... ({len(missing_in_species) - 60} more)")
-
         if unpaired:
             print(f"  [dropped: no L/R counterpart] ({len(unpaired)})")
             for roi in unpaired[:30]:
@@ -206,6 +327,9 @@ def compute_subset_common_rois(df_scored, species_subset=None, verbose=True):
 
         n_l = sum(1 for r in paired if r.startswith("L_"))
         n_r = sum(1 for r in paired if r.startswith("R_"))
+        print(f"  [common ROIs] universe={len(universe)}  "
+              f"strict intersection={len(raw_common)}  "
+              f"bilateral-paired={len(paired)}")
         print(f"  [common ROIs] FINAL: {len(paired)} bilateral "
               f"({n_l} L + {n_r} R)")
 
@@ -260,11 +384,7 @@ def _find_all_run_paths(bids_root, subject, session, fit_kind,
     all_files = []
     for ses_d in ses_dirs:
         for mid in [
-            os.path.join("func", "acpc-func", "Stats", "Correl_matrix"),
-            os.path.join("func", "Stats", "Correl_matrix"),
-            os.path.join("func", "acpc-func", "Correl_matrix"),
-            os.path.join("func", "Correl_matrix"),
-        ]:
+            os.path.join("func", "acpc-func", "Stats", "Correl_matrix", atlas_name + lr, fk_re),]:
             d = os.path.join(ses_d, mid)
             if not os.path.isdir(d):
                 continue
@@ -335,21 +455,37 @@ def _classify_one(intra, inter_h, t_intra, t_delta):
 
 def compute_primary_score_from_matrix(mat, rois):
     """
-    intra        : median homotopic same-network r
-    inter        : median ALL cross-network pairs (reference)
-    inter_hetero : median contralateral cross-network pairs only
+    intra        : median homotopic same-network r        (L_X ↔ R_X)
+    inter        : median ALL cross-network pairs         (reference)
+    inter_hetero : median contralateral cross-network r   (L_X ↔ R_Y, X≠Y)
+                   excludes ipsilateral (L_X↔L_Y, R_X↔R_Y) -- leakage risk
+    delta        : intra − inter_hetero
+
+    Also returns per-pair r values so the calculation can be audited:
+      pairs_intra        : list of dicts {network, l_name, r_name, r}
+      pairs_inter_hetero : list of dicts {net_a, net_b, l_name, r_name, r}
     """
     primary = _find_primary_rois(rois)
     nets = list(primary.keys())
     if not nets:
         return dict(intra_means={}, mean_intra=np.nan, mean_inter=np.nan,
                     mean_inter_hetero=np.nan, delta=np.nan,
-                    contrast_ratio=np.nan, networks_found=[])
+                    contrast_ratio=np.nan, networks_found=[],
+                    pairs_intra=[], pairs_inter_hetero=[], pairs_inter_ipsi=[])
 
     intra_vals = {net: float(mat[v["L"], v["R"]])
                   if np.isfinite(mat[v["L"], v["R"]]) else np.nan
                   for net, v in primary.items()}
     median_intra = float(np.nanmedian(list(intra_vals.values())))
+
+    # Per-pair audit records
+    pairs_intra = [
+        dict(network=net, l_name=primary[net]["L_name"],
+             r_name=primary[net]["R_name"], r=intra_vals[net])
+        for net in nets
+    ]
+    pairs_inter_hetero = []
+    pairs_inter_ipsi = []
 
     inter_all, inter_hetero = [], []
     for i in range(len(nets)):
@@ -357,14 +493,35 @@ def compute_primary_score_from_matrix(mat, rois):
             na, nb = nets[i], nets[j]
             ia_L, ia_R = primary[na]["L"], primary[na]["R"]
             ib_L, ib_R = primary[nb]["L"], primary[nb]["R"]
+            ia_Lname, ia_Rname = primary[na]["L_name"], primary[na]["R_name"]
+            ib_Lname, ib_Rname = primary[nb]["L_name"], primary[nb]["R_name"]
+
+            # All 4 cross-network pairs (for "inter_all" reference)
             for ia, ib in [(ia_L, ib_L), (ia_L, ib_R), (ia_R, ib_L), (ia_R, ib_R)]:
                 r = float(mat[ia, ib])
                 if np.isfinite(r):
                     inter_all.append(r)
-            for ia, ib in [(ia_L, ib_R), (ia_R, ib_L)]:   # contralateral only
+
+            # Contralateral only (heterotopic cross-network): L_na↔R_nb, R_na↔L_nb
+            for ia, ib, n1, n2 in [
+                (ia_L, ib_R, ia_Lname, ib_Rname),
+                (ia_R, ib_L, ia_Rname, ib_Lname),
+            ]:
                 r = float(mat[ia, ib])
                 if np.isfinite(r):
                     inter_hetero.append(r)
+                    pairs_inter_hetero.append(
+                        dict(net_a=na, net_b=nb, name_a=n1, name_b=n2, r=r))
+
+            # Ipsilateral cross-network (for completeness in audit, NOT used)
+            for ia, ib, n1, n2 in [
+                (ia_L, ib_L, ia_Lname, ib_Lname),
+                (ia_R, ib_R, ia_Rname, ib_Rname),
+            ]:
+                r = float(mat[ia, ib])
+                if np.isfinite(r):
+                    pairs_inter_ipsi.append(
+                        dict(net_a=na, net_b=nb, name_a=n1, name_b=n2, r=r))
 
     median_inter = float(np.nanmedian(inter_all)) if inter_all else np.nan
     median_inter_hetero = float(np.nanmedian(inter_hetero)) if inter_hetero else np.nan
@@ -381,7 +538,10 @@ def compute_primary_score_from_matrix(mat, rois):
 
     return dict(intra_means=intra_vals, mean_intra=median_intra,
                 mean_inter=median_inter, mean_inter_hetero=median_inter_hetero,
-                delta=delta, contrast_ratio=ratio, networks_found=nets)
+                delta=delta, contrast_ratio=ratio, networks_found=nets,
+                pairs_intra=pairs_intra,
+                pairs_inter_hetero=pairs_inter_hetero,
+                pairs_inter_ipsi=pairs_inter_ipsi)
 
 # =============================================================================
 # STEP 1 — SCORE ALL RUNS
@@ -390,8 +550,19 @@ def compute_primary_score_from_matrix(mat, rois):
 def score_all_runs(df_qc, fit_kind,
                    bids_root_template=_DEFAULT_BIDS,
                    atlas_name="EDNIxCSC", atlas_level=2,
-                   use_lr=True, verbose=True):
+                   use_lr=True, audit_csv_path=None, verbose=True):
+    """
+    Score every run found under df_qc rows.
+
+    audit_csv_path : optional path. If given, writes a per-pair audit CSV
+                     listing every individual r value that went into the
+                     intra and inter_hetero medians, for every run.
+                     Use this to verify the calculation against your own
+                     hand check.
+    """
     all_runs, n_scored = [], 0
+    audit_rows = []  # one row per (run, pair)
+
     for idx, row in df_qc.iterrows():
         run_infos = _get_all_run_paths_for_row(
             fit_kind, row, bids_root_template, atlas_name, atlas_level, use_lr)
@@ -408,6 +579,9 @@ def score_all_runs(df_qc, fit_kind,
                     "primary_inter_hetero": ps["mean_inter_hetero"],
                     "primary_delta": ps["delta"],
                     "contrast_ratio": ps["contrast_ratio"],
+                    "n_networks_found": len(ps["networks_found"]),
+                    "n_intra_pairs": len(ps["pairs_intra"]),
+                    "n_inter_hetero_pairs": len(ps["pairs_inter_hetero"]),
                 }
                 for net, val in ps["intra_means"].items():
                     run_row[f"per_net_intra_{net}"] = val
@@ -415,6 +589,36 @@ def score_all_runs(df_qc, fit_kind,
                     if col not in run_row:
                         run_row[col] = row.get(col, np.nan)
                 all_runs.append(run_row)
+
+                # AUDIT rows: every individual pair that contributed
+                for p in ps["pairs_intra"]:
+                    audit_rows.append(dict(
+                        species=sp, bids_dir=bd, subject=sub, session=ses,
+                        run=os.path.basename(run_path),
+                        kind="intra_homotopic",
+                        network=p["network"],
+                        roi_a=p["l_name"], roi_b=p["r_name"], r=p["r"],
+                        contributes_to="intra",
+                    ))
+                for p in ps["pairs_inter_hetero"]:
+                    audit_rows.append(dict(
+                        species=sp, bids_dir=bd, subject=sub, session=ses,
+                        run=os.path.basename(run_path),
+                        kind="inter_hetero_contralateral",
+                        network=f"{p['net_a']}--{p['net_b']}",
+                        roi_a=p["name_a"], roi_b=p["name_b"], r=p["r"],
+                        contributes_to="inter_hetero",
+                    ))
+                for p in ps["pairs_inter_ipsi"]:
+                    audit_rows.append(dict(
+                        species=sp, bids_dir=bd, subject=sub, session=ses,
+                        run=os.path.basename(run_path),
+                        kind="inter_ipsi_cross_network",
+                        network=f"{p['net_a']}--{p['net_b']}",
+                        roi_a=p["name_a"], roi_b=p["name_b"], r=p["r"],
+                        contributes_to="(reference only, NOT used)",
+                    ))
+
                 n_scored += 1
             except Exception as e:
                 warnings.warn(f"[score] {run_path}: {e}")
@@ -423,13 +627,31 @@ def score_all_runs(df_qc, fit_kind,
         raise ValueError("No runs could be loaded! Check bids_root_template.")
     df_scored = pd.DataFrame(all_runs)
 
+    if audit_csv_path and audit_rows:
+        os.makedirs(os.path.dirname(os.path.abspath(audit_csv_path)), exist_ok=True)
+        pd.DataFrame(audit_rows).to_csv(audit_csv_path, index=False)
+        if verbose:
+            print(f"  [audit] {len(audit_rows)} pair-records written to {audit_csv_path}")
+
     if verbose:
         print(f"  [score] {n_scored} runs scored from {len(df_qc)} session rows")
-        for c in ["primary_intra", "primary_delta"]:
+        for c in ["primary_intra", "primary_delta", "primary_inter_hetero"]:
             v = df_scored[c].dropna()
             if len(v):
-                print(f"  [score] {c:14s}: {v.min():.3f}--{v.max():.3f} "
+                print(f"  [score] {c:22s}: {v.min():.3f}--{v.max():.3f} "
                       f"median={v.median():.3f}")
+        # Show 1 example run in full
+        if n_scored > 0:
+            ex = df_scored.iloc[0]
+            print(f"  [score] example run: {ex['species']}/{ex['subject']}/"
+                  f"{ex.get('session','-')}/{ex['run']}")
+            print(f"          intra={ex['primary_intra']:.4f}  "
+                  f"inter_hetero={ex['primary_inter_hetero']:.4f}  "
+                  f"delta={ex['primary_delta']:.4f}  "
+                  f"n_nets={int(ex['n_networks_found'])} "
+                  f"({int(ex['n_intra_pairs'])} intra, "
+                  f"{int(ex['n_inter_hetero_pairs'])} inter pairs)")
+
     return df_scored
 
 # =============================================================================
@@ -461,8 +683,8 @@ def suggest_thresholds(df_scored, method="auto",
     else:
         s = np.clip(stringency, -1.0, 1.0)
         # base = median (P50). symmetric anchors: P75 strict, P25 lenient.
-        base_intra = np.percentile(intra_vals, 50)
-        base_delta = np.percentile(delta_vals, 50)
+        base_intra = np.percentile(intra_vals, 33)
+        base_delta = np.percentile(delta_vals, 33)
         if s >= 0:
             auto_intra = base_intra + s * (np.percentile(intra_vals, 75) - base_intra)
             auto_delta = base_delta + s * (np.percentile(delta_vals, 75) - base_delta)
@@ -585,19 +807,21 @@ def plot_threshold_selection(df_scored, thresh_intra=None, thresh_delta=None,
         ax.plot(xg, kg(xg), color="#0072B2", lw=2.2, zorder=3,
                 label="global (pooled)")
 
-        ymax = ax.get_ylim()[1]
-        # percentiles
+        # percentiles — use axis-fraction y so labels don't drift with scale.
+        # `get_xaxis_transform()` = data coords on x, axes-fraction on y.
+        trans = ax.get_xaxis_transform()
         for p, ls in [(25, ":"), (50, "--"), (75, ":")]:
             xp = np.percentile(g, p)
             ax.axvline(xp, color="#555555", lw=1.0, ls=ls, zorder=4)
-            ax.text(xp, ymax * 0.95, f"P{p}", rotation=90, fontsize=6,
-                    color="#555555", ha="right", va="top")
+            ax.text(xp, 0.92, f"P{p}", rotation=90, fontsize=6,
+                    color="#555555", ha="right", va="top",
+                    transform=trans)
         # chosen threshold + its percentile location
         pctl = _stats.percentileofscore(g, thr)
         ax.axvline(thr, color="#D55E00", lw=2.4, zorder=5)
-        ax.text(thr, ymax * 0.99, f" thr={thr:.3f}\n (≈P{pctl:.0f})",
+        ax.text(thr, 0.98, f" thr={thr:.3f}\n (≈P{pctl:.0f})",
                 color="#D55E00", fontsize=8, ha="left", va="top",
-                fontweight="bold", zorder=6)
+                fontweight="bold", zorder=6, transform=trans)
 
         ax.set_xlabel(xlabel, fontsize=10)
         ax.set_ylabel("Density", fontsize=9)
@@ -636,12 +860,80 @@ def plot_threshold_selection(df_scored, thresh_intra=None, thresh_delta=None,
     ymax = float(np.nanmax(df[inter_col].dropna())) + 0.01
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
+
+    # ── decision-region tints — MUST match _classify_one exactly:
+    #   Spurious   : y > x                        (ALL x, not just x>thr_intra)
+    #   No         : y ≤ x AND x ≤ thr_intra
+    #   Unspecific : y ≤ x AND x > thr_intra AND y ≥ x − Δ
+    #   Specific   : y ≤ x AND x > thr_intra AND y < x − Δ
+    # The previous version painted "No" over the entire left strip even where
+    # y > x — that visually contradicted the classifier (which puts those
+    # points in Spurious) and made Spurious look almost empty in the 2D plot.
+    # ─────────────────────────────────────────────────────────────────────────
+    xs_fill = np.linspace(xmin, xmax, 400)
+
+    # Spurious: above the y=x diagonal (no x-threshold gating)
+    ax.fill_between(xs_fill, xs_fill, ymax,
+                    where=(xs_fill <= xmax),
+                    color=to_rgba(_CAT_COLORS["Spurious"], 0.10), zorder=1)
+    # No: below diagonal AND left of intra threshold
+    ax.fill_between(xs_fill, ymin, xs_fill,
+                    where=(xs_fill <= thresh_intra),
+                    color=to_rgba(_CAT_COLORS["No"], 0.10), zorder=1)
+    # Unspecific: below diagonal, right of intra, ABOVE Δ boundary
+    ax.fill_between(xs_fill, xs_fill - thresh_delta, xs_fill,
+                    where=(xs_fill > thresh_intra),
+                    color=to_rgba(_CAT_COLORS["Unspecific"], 0.10), zorder=1)
+    # Specific: below diagonal, right of intra, below Δ boundary
+    ax.fill_between(xs_fill, ymin, xs_fill - thresh_delta,
+                    where=(xs_fill > thresh_intra),
+                    color=to_rgba(_CAT_COLORS["Specific"], 0.10), zorder=1)
+
     ax.axvline(thresh_intra, color="#222", lw=1.8, ls="--", zorder=5)
-    # delta decision boundary: inter_hetero = intra - delta_thresh
     xs = np.linspace(xmin, xmax, 100)
     ax.plot(xs, xs - thresh_delta, color="#444", lw=1.4, ls=":",
             zorder=5, label=f"Δ={thresh_delta:.2f} boundary")
     ax.plot(xs, xs, color="#bbb", lw=1.0, zorder=2, label="inter=intra")
+
+    # ── category labels — find a point INSIDE each visible region.
+    #    Spurious now spans full width (above diagonal), No is the lower-left
+    #    triangle. ─────────────────────────────────────────────────────────────
+    def _label_pos(region):
+        if region == "Spurious":
+            # Above y=x, spans full x. Search wide.
+            x_test = np.linspace(xmin + (xmax - xmin) * 0.05,
+                                 xmax - (xmax - xmin) * 0.05, 200)
+        elif region == "No":
+            # Below y=x AND left of intra threshold. Search in left strip.
+            if thresh_intra <= xmin:
+                return None
+            x_test = np.linspace(xmin + (thresh_intra - xmin) * 0.10,
+                                 thresh_intra - (thresh_intra - xmin) * 0.10, 100)
+        else:
+            # Right-of-intra regions (Specific, Unspecific)
+            x_test = np.linspace(thresh_intra + (xmax - thresh_intra) * 0.05,
+                                 thresh_intra + (xmax - thresh_intra) * 0.95, 200)
+        candidates = []
+        for x in x_test:
+            if region == "Specific":     yA, yB = ymin, x - thresh_delta
+            elif region == "Unspecific": yA, yB = x - thresh_delta, x
+            elif region == "Spurious":   yA, yB = x, ymax
+            elif region == "No":         yA, yB = ymin, x
+            yA = max(yA, ymin); yB = min(yB, ymax)
+            if yB > yA + 0.01:
+                candidates.append((x, (yA + yB) / 2, yB - yA))
+        if not candidates:
+            return None
+        # pick the x with the largest visible y-span (most room for label)
+        x, y, _ = max(candidates, key=lambda t: t[2])
+        return x, y
+
+    for region in ("Specific", "Unspecific", "Spurious", "No"):
+        pos = _label_pos(region)
+        if pos is not None:
+            ax.text(pos[0], pos[1], region,
+                    color=_CAT_COLORS[region], fontsize=11, fontweight="bold",
+                    alpha=0.65, ha="center", va="center", zorder=4)
 
     ax.set_xlabel("Primary intra-network r", fontsize=10)
     ax.set_ylabel("Primary inter-network r (hetero)", fontsize=10)
@@ -866,12 +1158,18 @@ def plot_fc_matrices_by_category(df_scored, cats,
 
     if all_roi_sets:
         if common_rois is not None:
-            # use externally supplied list (already bilateral-paired)
-            available = set.intersection(*all_roi_sets) if len(all_roi_sets) > 1 else all_roi_sets[0]
-            common_rois = [r for r in common_rois if r in available]
+            # Externally supplied list (already bilateral-paired). TRUST IT.
+            # Matrices that don't have ALL these ROIs will be rejected one by
+            # one below at the alignment stage. Do NOT re-intersect at the
+            # per-matrix level — that would be stricter than the species-level
+            # intersection that produced this list, and shrink the matrix.
+            print(f"  [Fig 04] using externally-supplied common ROI list "
+                  f"({len(common_rois)} bilateral)")
         else:
             common_unfiltered = set.intersection(*all_roi_sets) if len(all_roi_sets) > 1 else all_roi_sets[0]
             common_rois = _bilateral_pair_filter(list(common_unfiltered))
+            print(f"  [Fig 04] computed local common ROI list "
+                  f"({len(common_rois)} bilateral)")
     else:
         common_rois = common_rois or []
     if len(common_rois) < 4:
@@ -879,15 +1177,24 @@ def plot_fc_matrices_by_category(df_scored, cats,
         return None
 
     results = {}
+    n_rejected_total = 0
     for cat in cats_order:
         results[cat] = {}
         for g in all_groups:
             mats = all_matrices[cat][g]
             aligned = []
+            n_rejected_here = 0
             for rois, mat in mats:
                 idx_map = [rois.index(r) for r in common_rois if r in rois]
                 if len(idx_map) == len(common_rois):
                     aligned.append(mat[np.ix_(idx_map, idx_map)])
+                else:
+                    n_rejected_here += 1
+            if n_rejected_here:
+                missing_count = len(common_rois) - len(idx_map) if mats else 0
+                print(f"    [Fig 04] {g}/{cat}: rejected {n_rejected_here}/{len(mats)} "
+                      f"matrices (missing common ROIs in those matrices)")
+                n_rejected_total += n_rejected_here
             n_loaded = len(aligned)
             # MEDIAN across runs (robust)
             med_mat = np.nanmedian(np.stack(aligned, 0), 0) if aligned else None
@@ -895,6 +1202,9 @@ def plot_fc_matrices_by_category(df_scored, cats,
             n_in_df = (df[gm].shape[0] if cat == "all"
                        else df[gm & (df["fp_category"] == cat)].shape[0])
             results[cat][g] = (common_rois, med_mat, n_loaded, n_in_df)
+
+    if n_rejected_total:
+        print(f"  [Fig 04] total matrices rejected during alignment: {n_rejected_total}")
 
     n_rois = len(common_rois)
     n_grp = len(all_groups)
@@ -1088,12 +1398,38 @@ def build_fc_fingerprint(sp_mats, n_top=10, fp_test="species_mean",
         effect[i, j] = effect[j, i] = e
         pval[i, j] = pval[j, i] = p
 
-    # BH-FDR across all tested edges (upper triangle)
+    # BH-FDR across all tested edges (upper triangle only - lower triangle
+    # is the symmetric mirror and is NEVER tested or counted separately).
     p_flat = pval[triu]
+    n_tested_edges = int(triu.sum())
+    n_finite_p = int(np.sum(np.isfinite(p_flat)))
+    # SANITY CHECK: ensure we have exactly n*(n-1)/2 unique tests
+    expected_n = n_roi * (n_roi - 1) // 2
+    assert n_tested_edges == expected_n, \
+        f"BUG: triu has {n_tested_edges} entries but expected {expected_n} for n_roi={n_roi}"
+
     q_flat = _bh_fdr(p_flat)
     qval = np.full((n_roi, n_roi), np.nan)
-    qval[triu] = q_flat
-    qval = qval + qval.T
+    # Symmetric assignment WITHOUT using addition (NaN + value = NaN!)
+    ii, jj = np.argwhere(triu).T
+    qval[ii, jj] = q_flat
+    qval[jj, ii] = q_flat
+
+    if verbose:
+        print(f"  [fingerprint stats] matrix is {n_roi}x{n_roi}")
+        print(f"                      tested {n_tested_edges} UNIQUE edges "
+              f"(upper triangle; lower triangle is mirror, NOT tested twice)")
+        print(f"                      finite p-values: {n_finite_p}/{n_tested_edges}")
+        n_survive = int(np.sum(np.isfinite(q_flat) & (q_flat < fdr_alpha)))
+        print(f"                      BH-FDR α={fdr_alpha}: "
+              f"{n_survive}/{n_finite_p} survive")
+        if n_finite_p > 0:
+            print(f"                      min p = {np.nanmin(p_flat):.2e}, "
+                  f"min q = {np.nanmin(q_flat):.2e}")
+            print(f"                      ⚠ BH threshold for {n_finite_p} tests, "
+                  f"α={fdr_alpha}: raw p needs to be ≤ "
+                  f"{fdr_alpha * 1 / n_finite_p:.2e} for smallest, "
+                  f"≤ {fdr_alpha:.2e} for largest")
 
     # connection type masks
     homo_mask = np.zeros((n_roi, n_roi), bool)
@@ -1166,7 +1502,12 @@ def build_fc_fingerprint(sp_mats, n_top=10, fp_test="species_mean",
 # FIGURE 05 — FINGERPRINT CONNECTIONS (right bars = FDR survivors only)
 # =============================================================================
 
-def plot_fingerprint_connections(fp, n_top_per_type=8, output_path=None):
+def plot_fingerprint_connections(fp, n_top_per_type=5, output_path=None):
+    """
+    Left:  full edge-effect heatmap (gold stars on FDR-survivors).
+    Right: top-N connections per type by |effect| — NOT filtered to FDR
+           survivors. Stars (*, **, ***) flag those that DO survive FDR.
+    """
     rois = fp["rois"]
     effect = fp["effect_mat"]
     qmat = fp["qval_mat"]
@@ -1180,16 +1521,18 @@ def plot_fingerprint_connections(fp, n_top_per_type=8, output_path=None):
                    "heterotopic": "Heterotopic (L↔R cross-region)",
                    "ipsilateral": "Ipsilateral (same hemisphere)"}
 
-    # survivors per type, ranked by effect
-    surv = [c for c in fp["connections"] if c["survived"]]
+    # Top-N per type BY |effect| (regardless of significance).
+    # Note: connections are built from triu so each edge appears EXACTLY ONCE
+    # (L_X↔R_Y and R_Y↔L_X are the same single edge - no double-counting).
     by_type = {"homotopic": [], "heterotopic": [], "ipsilateral": []}
-    for c in surv:
+    for c in fp["connections"]:
         by_type[c["type"]].append(c)
     for ct in by_type:
-        by_type[ct] = sorted(by_type[ct], key=lambda c: c["effect"],
+        by_type[ct] = sorted(by_type[ct],
+                             key=lambda c: abs(c["effect"]) if np.isfinite(c["effect"]) else -1,
                              reverse=True)[:n_top_per_type]
 
-    fig_height = max(9, n_top_per_type * 0.55 + 4)
+    fig_height = max(9, n_top_per_type * 0.7 + 4)
     fig = plt.figure(figsize=(16, fig_height))
     gs = gridspec.GridSpec(4, 2, height_ratios=[1, 1, 1, 0.15],
                            width_ratios=[1.0, 0.9], hspace=0.35, wspace=0.25,
@@ -1206,8 +1549,11 @@ def plot_fingerprint_connections(fp, n_top_per_type=8, output_path=None):
     ax_heat.set_xticks(range(n_roi)); ax_heat.set_yticks(range(n_roi))
     ax_heat.set_xticklabels(short, rotation=90, fontsize=3)
     ax_heat.set_yticklabels(short, fontsize=3)
-    ax_heat.set_title(f"Edge effect ({fp['fp_test']}) — stars survive FDR<{alpha}",
-                      fontsize=9, fontweight="bold")
+    n_total_surv = int(np.sum(np.triu(np.isfinite(qmat) & (qmat < alpha), k=1)))
+    ax_heat.set_title(
+        f"Edge effect ({fp['fp_test']}) — "
+        f"{n_total_surv} edges survive FDR<{alpha}",
+        fontsize=9, fontweight="bold")
     surv_ij = np.argwhere(np.isfinite(qmat) & (qmat < alpha))
     for i, j in surv_ij:
         if i < j:
@@ -1217,8 +1563,9 @@ def plot_fingerprint_connections(fp, n_top_per_type=8, output_path=None):
     fig.colorbar(im, cax=cbar_ax_heat, orientation="horizontal",
                  label="Edge effect (estimate)").ax.tick_params(labelsize=7)
 
-    # RIGHT: survivors per type
-    all_e = [c["effect"] for ct in by_type for c in by_type[ct]]
+    # RIGHT: top-N per type (regardless of significance) + stars on FDR survivors
+    all_e = [c["effect"] for ct in by_type for c in by_type[ct]
+             if np.isfinite(c["effect"])]
     e_abs = max(float(np.nanpercentile(np.abs(all_e), 97)), 0.05) if all_e else 0.5
     norm_r = TwoSlopeNorm(vmin=-e_abs, vcenter=0, vmax=e_abs)
     cmap_r = plt.cm.RdBu_r
@@ -1228,7 +1575,7 @@ def plot_fingerprint_connections(fp, n_top_per_type=8, output_path=None):
         conns = by_type[ct]
         color = type_colors[ct]
         if not conns:
-            ax.text(0.5, 0.5, f"No {ct} edges survive FDR", ha="center",
+            ax.text(0.5, 0.5, f"No {ct} edges", ha="center",
                     va="center", transform=ax.transAxes, fontsize=9, color="#aaa")
             ax.set_title(type_labels[ct], fontsize=9, fontweight="bold", color=color)
             ax.set_xticks([]); ax.set_yticks([])
@@ -1236,19 +1583,36 @@ def plot_fingerprint_connections(fp, n_top_per_type=8, output_path=None):
         y_pos = np.arange(len(conns))
         e_vals = [c["effect"] for c in conns]
         q_vals = [c["qval"] for c in conns]
-        ax.barh(y_pos, e_vals, color=[cmap_r(norm_r(e)) for e in e_vals],
+        p_vals = [c["pval"] for c in conns]
+        ax.barh(y_pos, e_vals, color=[cmap_r(norm_r(e)) if np.isfinite(e) else "#ccc"
+                                       for e in e_vals],
                 edgecolor="white", lw=0.5, height=0.7)
-        for yi, (e, q) in enumerate(zip(e_vals, q_vals)):
-            sig = "***" if q < .001 else "**" if q < .01 else "*" if q < .05 else ""
-            ax.text(e + (0.01 if e >= 0 else -0.01), yi,
-                    f"q={q:.3f}{sig}", va="center",
-                    ha="left" if e >= 0 else "right", fontsize=6, color="#333")
+        for yi, (e, q, p) in enumerate(zip(e_vals, q_vals, p_vals)):
+            # Significance stars based on FDR-CORRECTED q
+            if np.isnan(q):
+                sig = ""
+                lbl = f"p={p:.3f} (no q)"
+            else:
+                sig = "***" if q < .001 else "**" if q < .01 else "*" if q < .05 else ""
+                lbl = f"q={q:.3f}{sig}"
+            x_off = 0.01 if (np.isfinite(e) and e >= 0) else -0.01
+            ax.text(e + x_off if np.isfinite(e) else 0, yi,
+                    lbl, va="center",
+                    ha="left" if (np.isfinite(e) and e >= 0) else "right",
+                    fontsize=6,
+                    color="#000" if sig else "#666",
+                    fontweight="bold" if sig else "normal")
         ax.set_yticks(y_pos)
         ax.set_yticklabels([f"{c['roi_i'][:15]} ↔ {c['roi_j'][:15]}" for c in conns],
                            fontsize=6)
         ax.axvline(0, color="#aaa", lw=0.7)
         ax.set_xlabel("Edge effect", fontsize=7)
-        ax.set_title(type_labels[ct], fontsize=8, fontweight="bold", color=color)
+        # title shows N-survive / N-shown
+        n_surv_here = sum(1 for c in conns
+                          if np.isfinite(c["qval"]) and c["qval"] < alpha)
+        ax.set_title(f"{type_labels[ct]}  (top {len(conns)} by |effect|; "
+                     f"{n_surv_here} survive FDR)",
+                     fontsize=7.5, fontweight="bold", color=color)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.tick_params(labelsize=6)
@@ -1539,12 +1903,15 @@ def _load_human_runs(df_scored, species="Human"):
 
 def plot_human_threshold_sweep(df_scored, thresh_intra, thresh_delta,
                                species="Human",
-                               factors=(0.8, 0.9, 1.0, 1.1, 1.2),
+                               factors=(0.4, 0.7, 1.0, 1.3, 1.6),
                                output_path=None):
     """
     Convenience wrapper: render the COMBINED sweep (both thresholds scaled
     together). For the three-panel decomposition use
     plot_human_threshold_sweeps() (plural).
+
+    Default factors span -60% to +60% around the cross-species threshold,
+    chosen large enough to produce visible category shifts.
     """
     df, mats, intra, inter = _load_human_runs(df_scored, species)
     if not mats:
@@ -1561,13 +1928,17 @@ def plot_human_threshold_sweep(df_scored, thresh_intra, thresh_delta,
 
 def plot_human_threshold_sweeps(df_scored, thresh_intra, thresh_delta,
                                 species="Human",
-                                factors=(0.8, 0.9, 1.0, 1.1, 1.2),
+                                factors=(0.4, 0.7, 1.0, 1.3, 1.6),
                                 output_paths=None):
     """
     Three separate sweep figures:
       (a) vary intra only      (Δ fixed at cross-species value)
       (b) vary Δ only          (intra fixed at cross-species value)
       (c) vary both            (intra and Δ scaled by the same factor)
+
+    Default factors span -60% to +60% (so the most extreme threshold is 1.6×
+    cross-species value).  The 1.0× column is starred as the cross-species
+    reference.
 
     output_paths : dict with keys 'intra', 'delta', 'both' (any may be None)
                    or None to display.
@@ -1576,11 +1947,11 @@ def plot_human_threshold_sweeps(df_scored, thresh_intra, thresh_delta,
     if not mats:
         print(f"  [Fig 07] no {species} runs")
         return None
+    print(f"  [Fig 07] {species}: {len(mats)} runs loaded")
 
     op = output_paths or {}
     figs = {}
 
-    # (a) vary intra only
     figs["intra"] = _human_sweep_figure(
         mats, intra, inter,
         sweep_intra=[thresh_intra * f for f in factors],
@@ -1589,7 +1960,6 @@ def plot_human_threshold_sweeps(df_scored, thresh_intra, thresh_delta,
         sweep_label="varying intra threshold only (Δ fixed)",
         species=species, output_path=op.get("intra"))
 
-    # (b) vary delta only
     figs["delta"] = _human_sweep_figure(
         mats, intra, inter,
         sweep_intra=[thresh_intra] * len(factors),
@@ -1598,7 +1968,6 @@ def plot_human_threshold_sweeps(df_scored, thresh_intra, thresh_delta,
         sweep_label="varying Δ threshold only (intra fixed)",
         species=species, output_path=op.get("delta"))
 
-    # (c) vary both
     figs["both"] = _human_sweep_figure(
         mats, intra, inter,
         sweep_intra=[thresh_intra * f for f in factors],
@@ -1642,20 +2011,25 @@ def plot_human_surrogate_sensitivity(df_scored, cats, thresh_intra, thresh_delta
                                      species="Human", seed=42, output_path=None):
     """
     For each surrogate type (Original, Shift, Smooth, Noise):
-      - apply the perturbation to EVERY human Specific run individually
+      - apply the perturbation to EVERY human run individually (NOT just
+        pre-classified Specific ones — otherwise the "Original" column
+        would not match the species' real category proportions)
       - score and classify each perturbed matrix
       - show (top) the median perturbed matrix + its classification
       - show (bottom) the stacked-bar proportion of categories across runs
+
+    The "Original" column proportions MUST match the species' bar in Fig 03.
 
     Note: shift/smooth/noise are PARAMETRIC PERTURBATIONS, not formal null
     surrogates (they don't preserve BOLD spectral / autocorr structure).
     """
     df = df_scored.copy()
-    df["_cat"] = cats.values if hasattr(cats, "values") else cats
-    sp_df = df[(df["species"] == species) & (df["_cat"] == "Specific")] \
-        if "species" in df.columns else df
+    # Use ALL runs of this species (do not pre-filter to Specific).
+    sp_df = df[df["species"] == species] if "species" in df.columns else df
     if sp_df.empty:
-        sp_df = df[df["species"] == species] if "species" in df.columns else df
+        print(f"  [Fig 08] no {species} runs")
+        return None
+
     mats, rois_ref = [], None
     for _, row in sp_df.iterrows():
         path = row.get("corr_matrix_path", None)
@@ -1670,15 +2044,17 @@ def plot_human_surrogate_sensitivity(df_scored, cats, thresh_intra, thresh_delta
         except Exception:
             pass
     if not mats:
-        print(f"  [Fig 08] no {species} matrices")
+        print(f"  [Fig 08] no loadable {species} matrices")
         return None
+    print(f"  [Fig 08] {species}: loaded {len(mats)}/{len(sp_df)} matrices "
+          f"(should match Fig 03 species count)")
 
     rng = np.random.default_rng(seed)
     surrogate_kinds = [
         ("Original",       None,      {}),
-        ("Shift (+0.10)",  "shift",   dict(shift=0.10)),
+        ("Shift (+0.30)",  "shift",   dict(shift=0.30)),
         ("Smooth (α=0.4)", "smooth",  dict(alpha=0.4)),
-        ("Noise (σ=0.10)", "noise",   dict(sigma=0.10)),
+        ("Noise (σ=0.30)", "noise",   dict(sigma=0.30)),
     ]
 
     # Apply each perturbation to every run, classify each, summarise.
@@ -1801,10 +2177,14 @@ def run_pipeline(df_qc, fit_kind="correlation",
 
     # ── 1-3: score + threshold + classify (all species) ──────────────────────
     print("\n[1] Scoring all runs...")
+    audit_path = (os.path.join(fig_dir, f"lvl{atlas_level}", "all",
+                               "00_per_pair_audit.csv")
+                  if fig_dir else None)
     df_scored = score_all_runs(df_qc, fit_kind,
                                bids_root_template=bids_root_template,
                                atlas_name=atlas_name, atlas_level=atlas_level,
-                               use_lr=use_lr, verbose=verbose)
+                               use_lr=use_lr, audit_csv_path=audit_path,
+                               verbose=verbose)
 
     print("\n[2] Thresholds (pooled cross-species)...")
     thresh = suggest_thresholds(df_scored, thresh_intra=thresh_intra,
@@ -1815,6 +2195,13 @@ def run_pipeline(df_qc, fit_kind="correlation",
     print("\n[3] Classifying...")
     cats = classify_runs(df_scored, t_in, t_de, verbose=verbose)
     df_scored["fp_category"] = cats.values
+
+    # Save per-run summary CSV (one row per run, with computed intra/inter/Δ
+    # and assigned category) so the user can audit Fig 03 / Fig 07 / Fig 08
+    if fig_dir:
+        summary_path = _p("00_per_run_summary.csv", "all")
+        df_scored.to_csv(summary_path, index=False)
+        print(f"  [save] per-run summary: {summary_path}")
 
     # ── threshold + class-overview figures (all species, single render) ──────
     print("\n[4] Fig 01 threshold selection...")
@@ -1841,9 +2228,13 @@ def run_pipeline(df_qc, fit_kind="correlation",
 
         print(f"\n  ─── subset: {subset_name} ───")
 
-        # SAME common ROI list used by fig 04 and the fingerprint figures
+        # SAME common ROI list used by fig 04 and the fingerprint figures.
+        # Also write a per-file missing-ROI report so the user can track down
+        # exactly which subject/session/run is missing which ROI.
+        roi_report_path = _p("00_missing_rois_per_file.csv", subset_name)
         common_rois = compute_subset_common_rois(
-            df_scored, species_subset=species_subset, verbose=verbose)
+            df_scored, species_subset=species_subset,
+            report_csv_path=roi_report_path, verbose=verbose)
 
         print(f"  [7-{subset_name}] Fig 04 FC matrices by category...")
         plot_fc_matrices_by_category(
@@ -1908,6 +2299,49 @@ def run_pipeline(df_qc, fit_kind="correlation",
 # MULTI-LEVEL / MULTI-SUBSET DRIVER
 # =============================================================================
 
+def _rescore_at_level(df_qc, df_scored_lvl2, fit_kind, bids_root_template,
+                       atlas_name, atlas_level, use_lr, verbose=True):
+    """
+    For atlas levels OTHER THAN 2: rediscover matrix paths at the new level,
+    score (so we have a level-L FC matrix path per run), and INHERIT the
+    lvl-2 category. Used for building figs 04 / 05 at other levels without
+    re-classifying — the categorization is fixed at lvl 2 where the
+    primary-network ROIs live.
+
+    Returns df_scored_L with the same one-row-per-run shape as score_all_runs
+    but with `fp_category` copied from lvl 2 via (species, subject, session,
+    run-index) match. Runs without a lvl-2 match get fp_category=NaN and are
+    dropped.
+    """
+    df_l = score_all_runs(df_qc, fit_kind,
+                           bids_root_template=bids_root_template,
+                           atlas_name=atlas_name, atlas_level=atlas_level,
+                           use_lr=use_lr, audit_csv_path=None, verbose=False)
+
+    # Build key for matching: extract the "run_N" index from the filename
+    def _run_idx(run_name):
+        m = re.search(r"_run_(\d+)_", str(run_name))
+        return int(m.group(1)) if m else -1
+
+    df_l["_run_idx"] = df_l["run"].apply(_run_idx)
+    df_l2 = df_scored_lvl2.copy()
+    df_l2["_run_idx"] = df_l2["run"].apply(_run_idx)
+
+    key_cols = ["species", "subject", "session", "_run_idx"]
+    # only keep category columns from lvl2
+    cats_only = df_l2[key_cols + ["fp_category"]].drop_duplicates(subset=key_cols)
+    merged = df_l.merge(cats_only, on=key_cols, how="left",
+                         suffixes=("", "_l2"))
+
+    n_unmatched = merged["fp_category"].isna().sum()
+    n_total = len(merged)
+    if verbose:
+        print(f"  [lvl{atlas_level}] {n_total - n_unmatched}/{n_total} runs "
+              f"matched to lvl-2 categories ({n_unmatched} unmatched dropped)")
+    merged = merged[merged["fp_category"].notna()].drop(columns=["_run_idx"])
+    return merged
+
+
 def run_pipeline_multilevel(df_qc, fit_kind="correlation",
                             bids_root_template=_DEFAULT_BIDS,
                             atlas_levels=(2, 3, 4),
@@ -1917,24 +2351,130 @@ def run_pipeline_multilevel(df_qc, fit_kind="correlation",
                             fp_test="species_mean", fdr_alpha=0.05,
                             fig_dir=None, verbose=True):
     """
-    Loop the full pipeline over atlas levels. Each level call internally
-    renders all subset variants (all / primates / primates_rodents).
+    Strategy:
+      - Level 2: full pipeline (score + threshold + classify + ALL figures).
+        This is where the primary-network categories are computed.
+      - Levels != 2: ONLY figures 04 + 05, using the lvl-2 category labels
+        carried over via (species, subject, session, run_idx) matching.
+        Thresholds and primary scores are NOT recomputed because the
+        primary-network ROIs may not even exist at finer levels.
 
     Output tree: fig_dir/lvl{L}/{subset}/NN_*.png
     """
     results = {}
+
+    # ─── Step 1: full pipeline at level 2 (must be in atlas_levels) ──────────
+    if 2 not in atlas_levels:
+        print(f"  [warn] atlas_levels {atlas_levels} doesn't include 2; "
+              f"adding lvl 2 since categories are defined there")
+        atlas_levels = (2,) + tuple(l for l in atlas_levels if l != 2)
+
+    print("\n" + "█" * 60 + "\n  LEVEL 2 — full pipeline (defines categories)\n" + "█" * 60)
+    try:
+        res_l2 = run_pipeline(
+            df_qc, fit_kind=fit_kind, bids_root_template=bids_root_template,
+            thresh_intra=thresh_intra, thresh_delta=thresh_delta,
+            stringency=stringency, n_top=n_top, atlas_name=atlas_name,
+            atlas_level=2, use_lr=use_lr, subsets=subsets,
+            fp_test=fp_test, fdr_alpha=fdr_alpha,
+            fig_dir=fig_dir, verbose=verbose)
+        results[2] = res_l2
+    except Exception as e:
+        print(f"  [FATAL: lvl 2 failed] {e}")
+        return results
+
+    df_scored_lvl2 = res_l2["df_scored"]
+    cats_lvl2 = res_l2["cats"]
+
+    # ─── Step 2: figs 04 + 05 only, at other levels with lvl-2 categories ────
     for lvl in atlas_levels:
+        if lvl == 2:
+            continue
+        print("\n" + "█" * 60
+              + f"\n  LEVEL {lvl} — figs 04+05 only, using lvl-2 categories\n"
+              + "█" * 60)
         try:
-            res = run_pipeline(
-                df_qc, fit_kind=fit_kind, bids_root_template=bids_root_template,
-                thresh_intra=thresh_intra, thresh_delta=thresh_delta,
-                stringency=stringency, n_top=n_top, atlas_name=atlas_name,
-                atlas_level=lvl, use_lr=use_lr, subsets=subsets,
-                fp_test=fp_test, fdr_alpha=fdr_alpha,
-                fig_dir=fig_dir, verbose=verbose)
-            results[lvl] = res
+            df_scored_L = _rescore_at_level(
+                df_qc, df_scored_lvl2, fit_kind=fit_kind,
+                bids_root_template=bids_root_template,
+                atlas_name=atlas_name, atlas_level=lvl, use_lr=use_lr,
+                verbose=verbose)
+            if df_scored_L.empty:
+                print(f"  [skip lvl{lvl}] no runs found at level {lvl}")
+                continue
+            cats_L = df_scored_L["fp_category"]
+
+            def _pL(name, subset_name):
+                if fig_dir is None:
+                    return None
+                d = os.path.join(fig_dir, f"lvl{lvl}", subset_name)
+                os.makedirs(d, exist_ok=True)
+                return os.path.join(d, name)
+
+            results[lvl] = {"df_scored": df_scored_L, "cats": cats_L,
+                            "subsets": {}}
+
+            for subset_name in subsets:
+                species_subset = _SUBSETS.get(subset_name, None)
+                if species_subset is not None:
+                    n_runs = df_scored_L["species"].isin(species_subset).sum()
+                    if n_runs == 0:
+                        continue
+
+                print(f"\n  ─── lvl{lvl} subset: {subset_name} ───")
+                roi_report_path = _pL("00_missing_rois_per_file.csv", subset_name)
+                common_rois = compute_subset_common_rois(
+                    df_scored_L, species_subset=species_subset,
+                    report_csv_path=roi_report_path, verbose=verbose)
+                if not common_rois:
+                    print(f"  [skip lvl{lvl}/{subset_name}] no common ROIs")
+                    continue
+
+                print(f"  [Fig 04] lvl{lvl} matrices by category...")
+                plot_fc_matrices_by_category(
+                    df_scored_L, cats_L,
+                    bids_root_template=bids_root_template,
+                    atlas_name=atlas_name, atlas_level=lvl, use_lr=use_lr,
+                    group_by="species", species_subset=species_subset,
+                    common_rois=common_rois,
+                    output_path=_pL("04_fc_matrices_by_category_species.png",
+                                    subset_name))
+                plot_fc_matrices_by_category(
+                    df_scored_L, cats_L,
+                    bids_root_template=bids_root_template,
+                    atlas_name=atlas_name, atlas_level=lvl, use_lr=use_lr,
+                    group_by="bids_dir", species_subset=species_subset,
+                    common_rois=common_rois,
+                    output_path=_pL("04_fc_matrices_by_category_bids.png",
+                                    subset_name))
+
+                print(f"  [Fig 05] lvl{lvl} fingerprint...")
+                try:
+                    sp_mats, fp = build_fingerprint_from_specific(
+                        df_scored_L, cats_L,
+                        bids_root_template=bids_root_template,
+                        atlas_name=atlas_name, atlas_level=lvl, use_lr=use_lr,
+                        n_top=n_top, species_subset=species_subset,
+                        common_rois=common_rois,
+                        fp_test=fp_test, fdr_alpha=fdr_alpha, verbose=verbose)
+                    plot_fingerprint_connections(
+                        fp, output_path=_pL("05_fingerprint_connections.png",
+                                             subset_name))
+                    # also fig 06 at other levels — cheap and useful
+                    plot_fingerprint_heatmap(
+                        df_scored_L, fp, cats_L,
+                        bids_root_template=bids_root_template,
+                        atlas_name=atlas_name, atlas_level=lvl, use_lr=use_lr,
+                        species_subset=species_subset,
+                        output_path=_pL("06_fingerprint_heatmap_by_bids.png",
+                                         subset_name))
+                    results[lvl]["subsets"][subset_name] = dict(
+                        sp_mats=sp_mats, fp=fp, common_rois=common_rois)
+                except ValueError as e:
+                    print(f"  [skip fingerprint lvl{lvl}/{subset_name}] {e}")
         except Exception as e:
             print(f"  [skip lvl{lvl}] {e}")
+
     return results
 
 # =============================================================================

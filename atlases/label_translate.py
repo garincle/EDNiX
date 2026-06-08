@@ -15,8 +15,6 @@ ope = os.path.exists
 opi = os.path.isfile
 spgo = subprocess.getoutput
 
-from anat.connectomeWB import WB_label
-
 EDNIX_removelist = [0,1,2,3,4,5,6,13,33,34,35]
 
 Atlaspath = opj('/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/')

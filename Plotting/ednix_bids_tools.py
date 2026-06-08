@@ -582,7 +582,7 @@ def extract_volume_paths(bids_dir, atlas_name, list_to_keep=None,
     return out
 
 
-def extract_qc_paths(bids_dir, list_to_keep=None, list_to_remove=None,
+def extract_qc_paths(bids_dir, list_to_keep=None, list_to_remove=None, fit_kind='correlation',
                      func_qc_suffix="*_QC_values.json",
                      anat_qc_suffix="*_QC_values.json",
                      full_results_suffix="*_full_results.json",
@@ -622,10 +622,11 @@ def extract_qc_paths(bids_dir, list_to_keep=None, list_to_remove=None,
         ses_dir_c = opj(bids_dir, f"sub-{sub}", f"ses-{ses}")
         ses_dir   = ses_dir_c if os.path.exists(ses_dir_c) else opj(bids_dir, f"sub-{sub}")
         qc_dir    = opj(ses_dir, "func", "QC")
-        corr_dir  = opj(ses_dir, "func", "acpc-func", "Stats", "Correl_matrix")
+        fk_re = re.escape(fit_kind)
+        corr_dir  = opj(ses_dir, "func", "acpc-func", "Stats", "Correl_matrix", f"{atlas_name}{suffix_lr}", fk_re)
         func_m    = glob.glob(opj(qc_dir, func_qc_suffix))
         full_m    = glob.glob(opj(qc_dir, full_results_suffix))
-        anat_m    = glob.glob(opj(ses_dir, "anat", "native", "volumes",
+        anat_m    = glob.glob(opj(ses_dir, "anat",
                                   "QC_anat", anat_qc_suffix))
         # Best corr matrix: prefer run_0, exclude check_fit
         corr_m    = sorted([f for f in glob.glob(opj(corr_dir, corr_pattern))
@@ -643,8 +644,9 @@ def extract_qc_paths(bids_dir, list_to_keep=None, list_to_remove=None,
     return out
 
 
-def extract_corr_matrix_paths(bids_dir, atlas_name="EDNIxCSC", atlas_level=3,
+def extract_corr_matrix_paths(bids_dir, atlas_name="EDNIxCSC", atlas_level=3, fit_kind='correlation',
                                use_lr=False, list_to_keep=None, list_to_remove=None):
+    fk_re = re.escape(fit_kind)
     list_to_keep   = list_to_keep   or []
     list_to_remove = list_to_remove or []
     suffix       = "LR" if use_lr else ""
@@ -652,7 +654,7 @@ def extract_corr_matrix_paths(bids_dir, atlas_name="EDNIxCSC", atlas_level=3,
     records = []
     for f in sorted(glob.glob(
         opj(bids_dir, "sub-*", "ses-*", "func", "acpc-func",
-            "Stats", "Correl_matrix", pattern_name)
+            "Stats", "Correl_matrix", f"{atlas_name}{suffix}", fk_re, pattern_name)
     )):
         bn = os.path.basename(f)
         if any(x in bn for x in ("check_fit", "flattened", "pval", "tstat")):
@@ -1710,7 +1712,7 @@ def process_qc(qc_paths_dict,
 
 def collect_multi_species(species_config, regions_of_interest=None,
                            extract=("surface","volume","thickness","qc"),
-                           atlas_name="EDNIxCSC", atlas_label_paths=None,
+                           atlas_name="EDNIxCSC", atlas_label_paths=None, fit_kind='correlation',
                            atlas_library_root=None, species_atlas_fragments=None):
     atlas_label_paths       = atlas_label_paths       or {}
     species_atlas_fragments = species_atlas_fragments or {}
@@ -1770,7 +1772,7 @@ def collect_multi_species(species_config, regions_of_interest=None,
                 warnings.warn(f"No label file for {species} → volume skipped.")
 
             if "qc" in extract:
-                qp = extract_qc_paths(bids_dir, lk, lr)
+                qp = extract_qc_paths(bids_dir, lk, lr, fit_kind)
                 df = process_qc(qp)
                 if not df.empty:
                     df.insert(0, "bids_dir", bids_lbl)
@@ -1786,7 +1788,7 @@ def collect_multi_species(species_config, regions_of_interest=None,
     return result
 
 
-def collect_corr_matrices(species_config, atlas_name="EDNIxCSC", atlas_level=3,
+def collect_corr_matrices(species_config, atlas_name="EDNIxCSC", atlas_level=3, fit_kind='correlation',
                            use_lr=False, save_csv_dir=None):
     from scipy import stats as _stats
     species_stacks, species_rois = {}, {}
@@ -1796,7 +1798,7 @@ def collect_corr_matrices(species_config, atlas_name="EDNIxCSC", atlas_level=3,
         lk, lr = cfg.get("list_to_keep", []), cfg.get("list_to_remove", [])
         sub_ses_runs = {}; rois_ref = None; n_loaded = n_skipped = 0
         for bids_dir in bids_dirs:
-            for rec in extract_corr_matrix_paths(bids_dir, atlas_name, atlas_level, use_lr, lk, lr):
+            for rec in extract_corr_matrix_paths(bids_dir, atlas_name, atlas_level, fit_kind, use_lr, lk, lr):
                 try:
                     rois, mat = load_corr_matrix(rec["path"])
                     valid = mat[~np.isnan(mat)]
@@ -1851,7 +1853,7 @@ def collect_corr_matrices(species_config, atlas_name="EDNIxCSC", atlas_level=3,
     return result
 
 
-def collect_corr_matrices_per_bids(species_config, atlas_name="EDNIxCSC",
+def collect_corr_matrices_per_bids(species_config, atlas_name="EDNIxCSC", fit_kind='correlation',
                                     atlas_level=3, use_lr=False, save_csv_dir=None):
     from scipy import stats as _stats
     bids_stacks = {}
@@ -1861,7 +1863,7 @@ def collect_corr_matrices_per_bids(species_config, atlas_name="EDNIxCSC",
         lk, lr = cfg.get("list_to_keep", []), cfg.get("list_to_remove", [])
         for bids_dir in bids_dirs:
             bids_lbl = _bids_label(bids_dir)
-            recs = extract_corr_matrix_paths(bids_dir, atlas_name, atlas_level, use_lr, lk, lr)
+            recs = extract_corr_matrix_paths(bids_dir, atlas_name, atlas_level, fit_kind, use_lr, lk, lr)
             sub_ses_runs = {}; rois_ref = None; n_loaded = n_skipped = 0
             for rec in recs:
                 try:

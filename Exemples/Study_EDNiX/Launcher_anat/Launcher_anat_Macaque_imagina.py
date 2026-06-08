@@ -1,7 +1,5 @@
 import os
 import sys
-from bids import BIDSLayout
-from bids.reports import BIDSReport
 
 opj = os.path.join
 opb = os.path.basename
@@ -10,10 +8,9 @@ MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS, load_bids
-from anat import _0_Pipeline_launcher
-from anat.load_transfo_parameters import build_transfos
-from Tools import Load_EDNiX_requirement
-from Plotting import Plot_BIDS_surface_for_QC
+from modalities.anat import _0_Pipeline_launcher
+from modalities.anat.load_transfo_parameters import build_transfos
+
 ########################################################################################################################
 #                                       Set the pipeline parameters (see manual.....)                                  #
 ########################################################################################################################
@@ -96,23 +93,23 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = ['itk_1','itk_2','itk_3','itk_final','flat_map', 'Clean']
+Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
 
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################
 
 _0_Pipeline_launcher.preprocess_anat(Skip_step,
-                     MAIN_PATH, bids_dir, BIDStype, species,
-                     allinfo_study_c, list_to_keep, list_to_remove,
-                     type_norm, otheranat, masking_img,
-                     orientation, animalPosition, humanPosition,
-                     coregistration_longitudinal, creat_study_template, which_on,
-                     brain_skullstrip_1, brain_skullstrip_2, template_skullstrip,
-                     list_transfo, Align_img_to_template, MNIBcorrect_indiv,
-                     fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
-                     transfo_message='do_as_I_said', force_myelin_same_space=False,
-                     check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
+                                     MAIN_PATH, bids_dir, BIDStype, species,
+                                     allinfo_study_c, list_to_keep, list_to_remove,
+                                     type_norm, otheranat, masking_img,
+                                     orientation, animalPosition, humanPosition,
+                                     coregistration_longitudinal, creat_study_template, which_on,
+                                     brain_skullstrip_1, brain_skullstrip_2, template_skullstrip,
+                                     list_transfo, Align_img_to_template, MNIBcorrect_indiv,
+                                     fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
+                                     transfo_message='do_as_I_said', force_myelin_same_space=False,
+                                     check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
 
 '''
 ### Surface QC summary creation --------------------------------------------------------------------------------

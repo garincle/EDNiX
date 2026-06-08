@@ -1,8 +1,8 @@
 import os
 import sys
 import Tools.Read_atlas
-import fMRI._0_Pipeline_launcher
 from Tools import Load_subject_with_BIDS, load_bids
+from modalities.fMRI import _0_Pipeline_launcher
 opn = os.path.normpath
 opj = os.path.join
 
@@ -42,8 +42,8 @@ Method_mask_func = '3dSkullStrip_dog' # string 3dAllineate or nilearn or creat a
 IhaveanANAT = True # True or False
 anat_func_same_space = False # True or False
 type_of_transform = 'BOLDAffine'
-aff_metric_ants_Transl = 'MI' # string
-aff_metric_ants = 'MI'
+aff_metric_ants_Transl = 'GC' # string
+aff_metric_ants = 'GC'
 do_anat_to_func = True # True or False
 Slice_timing_info = 'Auto'
 ##### if you don't have an anat then template will be the same as anat...
@@ -60,8 +60,8 @@ selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = 'header'
 resting_or_task = 'resting'  # 'resting' or 'task'
 extra_erode = 2
-Skip_step = ['itk_1', 'itk_2','Clean']
-fMRI._0_Pipeline_launcher.preprocess_data(
+Skip_step = ['itk_1','itk_2','itk_3','Clean']
+_0_Pipeline_launcher.preprocess_data(
                     Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
                     animalPosition, humanPosition, orientation,
@@ -73,12 +73,12 @@ fMRI._0_Pipeline_launcher.preprocess_data(
                     DwellT='Auto', SED='Auto', TR='Auto', TRT='Auto',
                     nb_ICA_run=20, ICA_cleaning='Skip',
                     costAllin='lpa',
-                    doWARPonfunc=doWARPonfunc, registration_fast=False, type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
+                    doWARPonfunc=doWARPonfunc, registration_type='V2', type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
                     list_to_keep=list_to_keep, list_to_remove=list_to_remove, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
-                    reference='EDNiX', post_treatment_method='Grandjean',
+                    reference='EDNiX', post_treatment_method='fMRIPrep_style',
                     band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
                     use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
-                    selected_atlases_matrix='all', wanted_level_matrix='all', matrix_fit=['covariance', 'correlation', 'partial correlation'],
+                    selected_atlases_matrix='all', wanted_level_matrix='all', matrix_fit=['correlation', 'partial correlation'],
                     selected_atlases_SBA='default', panda_files_SBA='default',
                     SBAspace=['atlas'], erod_seed=True, smoothSBA=smoothSBA,
                     intra_thresh=0.240, delta_thresh=0.1,

@@ -12,8 +12,8 @@ ope = os.path.exists
 
 from Tools import run_cmd, Load_EDNiX_requirement,get_orientation
 from atlases import templatefeat
-from anat.freesurfer import smallbrain, preFS, FS_surf,  FS_2_WB_short, FS_flat
-
+from modalities.anat.freesurfer import FS_flat
+from modalities.anat.freesurfer import smallbrain, preFS, FS_surf, FS_2_WB_short
 
 Hmin    = ['l','r']
 
@@ -186,5 +186,5 @@ def modif(smallbrainspecieslist, species,reference,atlas_followers,MAIN_PATH,bid
         run_cmd.run(cmd,diary_file)
 
     FS_2_WB_short.WB_prep(cmd_mris, FS_dir, FS_refs, species, species, BASE_SS, DATfile, reference, list_atlas, balsa_folder,
-            BALSAname,
-            path_label_code, template_dir, proj, diary_file, sing_fs, sing_wb, export_fs)
+                          BALSAname,
+                          path_label_code, template_dir, proj, diary_file, sing_fs, sing_wb, export_fs)
