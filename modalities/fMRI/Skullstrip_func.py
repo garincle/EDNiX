@@ -437,7 +437,7 @@ def Skullstrip_func(MAIN_PATH, Method_mask_func, input_for_msk, output_for_mask,
                                 reg_iterations=(1000, 500, 250, 100),
                                 reg_smoothing_sigmas=(3, 2, 1, 0),
                                 reg_shrink_factors=(8, 4, 2, 1),
-                                verbose=True)
+                                verbose=False)
 
         REF_MASK = ants.image_read(maskDilatfunc)
         tmp_mask1 = ants.apply_transforms(fixed=IMG, moving=REF_MASK,

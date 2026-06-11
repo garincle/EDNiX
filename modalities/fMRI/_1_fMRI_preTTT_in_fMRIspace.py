@@ -246,8 +246,8 @@ def _adaptive_n4_correction(input_image, output_path, mask=None,
             spline_param, shrink_factor = 200, 4
             convergence_iters = [50, 50, 50, 50]
             species_category  = "very large (≥100 000 mm³, e.g. human)"
-        print(f"[INFO] N4 auto-tuned: {species_category}  "
-              f"spline={spline_param}  shrink={shrink_factor}")
+        #print(f"[INFO] N4 auto-tuned: {species_category}  "
+        #      f"spline={spline_param}  shrink={shrink_factor}")
     else:
         spline_param, shrink_factor = 100, 3
         convergence_iters = [50, 50, 40, 30]
@@ -260,7 +260,7 @@ def _adaptive_n4_correction(input_image, output_path, mask=None,
         shrink_factor=shrink_factor,
         convergence={'iters': convergence_iters, 'tol': 1e-07},
         spline_param=spline_param,
-        verbose=True)
+        verbose=False)
 
     ants.image_write(N4, output_path, ri=False)
 
@@ -451,7 +451,7 @@ def preprocess_data(dir_prepro_raw_process, RS, list_RS, nb_run, T1_eq, TR,
         motion_result = ants.motion_correction(
             image=ants.image_read(fMRI_SliceT),
             fixed=ants.image_read(fMRI_runMean),
-            verbose=True,
+            verbose=False,
             type_of_transform='BOLDRigid',
             interpolator=n_for_ANTS,
             outprefix=outpuprefix_motion)

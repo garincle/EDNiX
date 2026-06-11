@@ -80,7 +80,7 @@ def apply_motion_correction_and_transforms(input_4d, reference_image, output_4d,
         transform_cmd = f"ants.apply_transforms with {len(transform_list)} transformations"
         commands_executed.append(transform_cmd)
 
-        print(f"Transformed volume {j + 1}/{len(WW)} with {os.path.basename(mat_file)}")
+        #print(f"Transformed volume {j + 1}/{len(WW)} with {os.path.basename(mat_file)}")
         transformed_files.append(output_temp)
 
     # 5. Recréer le 4D avec AFNI

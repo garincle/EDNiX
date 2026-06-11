@@ -12,6 +12,7 @@ from modalities.anat import _0_Pipeline_launcher
 from modalities.anat.load_transfo_parameters import build_transfos
 from Tools import Load_EDNiX_requirement
 from Plotting import Plot_BIDS_surface_for_QC
+from Tools.ednix_checkpoint import anat_resume_groups
 ########################################################################################################################
 #                                       Set the pipeline parameters (see manual.....)                                  #
 ########################################################################################################################
@@ -29,7 +30,7 @@ allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], s
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 
 # choose if you want to select or remove ID from you analysis:
-list_to_keep   = []
+list_to_keep   = [('Oliver', '6'),('Oliver', '5'), ('Oliver', '4'), ('Oliver', '3'), ('Oliver', '2'), ('Oliver', '1'), ('Pickle', '11'), ('Pickle', '10'), ('Pickle', '9'), ('Pickle', '8'), ('Pickle', '7'), ('Pickle', '6'), ('Pickle', '5'), ('Pickle', '4'), ('Pickle', '3'), ('Pickle', '2'), ('Pickle', '1'), ('Quantum', '7'), ('Quantum', '6'), ('Quantum', '5'), ('Quantum', '4'), ('Quantum', '3'), ('Quantum', '2'), ('Quantum', '1'), ('Roshan', '11'), ('Roshan', '10'), ('Roshan', '9'), ('Roshan', '8'), ('Roshan', '7'), ('Roshan', '6'), ('Roshan', '5'), ('Roshan', '4'), ('Roshan', '3'), ('Roshan', '2'), ('Roshan', '1'), ('Sonic', '11'), ('Sonic', '10'), ('Sonic', '9'), ('Sonic', '8'), ('Sonic', '7'), ('Sonic', '6'), ('Sonic', '5'), ('Sonic', '4'), ('Sonic', '3'), ('Sonic', '2'), ('Sonic', '1'), ('Trinity', '11'), ('Trinity', '10'), ('Trinity', '9'), ('Trinity', '8'), ('Trinity', '7'), ('Trinity', '6'), ('Trinity', '5'), ('Trinity', '4'), ('Trinity', '3'), ('Trinity', '2'), ('Trinity', '1'), ('Unity', '11'), ('Unity', '10'), ('Unity', '9'), ('Unity', '8'), ('Unity', '7'), ('Unity', '6'), ('Unity', '4'), ('Unity', '3'), ('Unity', '2'), ('Unity', '1'), ('Viking', '11'), ('Viking', '10'), ('Viking', '9'), ('Viking', '8'), ('Viking', '7'), ('Viking', '6'), ('Viking', '5'), ('Viking', '4'), ('Viking', '3'), ('Viking', '2'), ('Viking', '1')]
 list_to_remove = []
 species    = 'Macaque'
 # is it a longitudinal study ?
@@ -98,18 +99,29 @@ Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################
+groups = anat_resume_groups(
+    allinfo_study_c, bids_dir,
+    reference='EDNiX',
+    type_norm='T1w',
+    species=species,
+    Skip_step=Skip_step,
+    list_to_remove=list_to_remove,
+    creat_study_template=creat_study_template)
 
-_0_Pipeline_launcher.preprocess_anat(Skip_step,
-                                     MAIN_PATH, bids_dir, BIDStype, species,
-                                     allinfo_study_c, list_to_keep, list_to_remove,
-                                     type_norm, otheranat, masking_img,
-                                     orientation, animalPosition, humanPosition,
-                                     coregistration_longitudinal, creat_study_template, which_on,
-                                     brain_skullstrip_1, brain_skullstrip_2, template_skullstrip,
-                                     list_transfo, Align_img_to_template, MNIBcorrect_indiv,
-                                     fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
-                                     transfo_message='do_as_I_said', force_myelin_same_space=False,
-                                     check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
+
+# ---- Run each group with the launcher — signature unchanged --------------
+for list_to_keep, Skip_step in groups:
+    _0_Pipeline_launcher.preprocess_anat(Skip_step,
+                                         MAIN_PATH, bids_dir, BIDStype, species,
+                                         allinfo_study_c, list_to_keep, list_to_remove,
+                                         type_norm, otheranat, masking_img,
+                                         orientation, animalPosition, humanPosition,
+                                         coregistration_longitudinal, creat_study_template, which_on,
+                                         brain_skullstrip_1, brain_skullstrip_2, template_skullstrip,
+                                         list_transfo, Align_img_to_template, MNIBcorrect_indiv,
+                                         fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
+                                         transfo_message='do_as_I_said', force_myelin_same_space=False,
+                                         check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
 
 ### Surface QC summary creation --------------------------------------------------------------------------------
 # Function 1: Load EDNiX requirements

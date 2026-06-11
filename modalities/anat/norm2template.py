@@ -80,7 +80,7 @@ def norm(targetname,target_anatfile,masktarget,target_vol,
                                  aff_smoothing_sigmas=(3, 2, 1, 0),
                                  reg_iterations=(1000, 500, 250, 100),reg_smoothing_sigmas=(3, 2, 1, 0),
                                  reg_shrink_factors=(8, 4, 2, 1),
-                                 verbose=True)
+                                 verbose=False)
 
     Norm = ants.apply_transforms(fixed=SOURCE, moving=TARGET, transformlist=mTx2['fwdtransforms'],
                                  interpolator=interpol)
@@ -180,10 +180,6 @@ def apply(template_name,template_file,destination,targetname,file,transfolist,w2
 
     IMG    = ants.image_read(file)
     SOURCE = ants.image_read(template_file)
-    print(transfolist)
-    print(w2inv_inv)
-    print(file)
-    print(template_file)
 
     A = ants.apply_transforms(fixed=SOURCE, moving=IMG,
                               transformlist=transfolist,

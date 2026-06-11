@@ -86,28 +86,16 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
         MEAN_tr = ants.apply_transforms(fixed=ANAT, moving=MEAN, whichtoinvert=[False],
                                         transformlist=matrix, interpolator=n_for_ANTS)
     else:
-        # Debug prints avant centrage
-        print(f"[TRANSL] aff_metric_ants_Transl : {aff_metric_ants_Transl}")
-        print(f"[TRANSL] n_for_ANTS             : {n_for_ANTS}")
-        print(f"[TRANSL] ANAT origin/spacing    : {ANAT.origin} / {ANAT.spacing} / {ANAT.shape}")
-        print(f"[TRANSL] MEAN origin/spacing    : {MEAN.origin} / {MEAN.spacing} / {MEAN.shape}")
-        print(f"[TRANSL] ANAT direction         :\n{ANAT.direction}")
-        print(f"[TRANSL] MEAN direction         :\n{MEAN.direction}")
-
         matrix = Mean_Image_acpc.replace('.nii.gz', '_0GenericAffine.mat')
         ants.registration(fixed=ANAT, moving=MEAN,
                           type_of_transform='Rigid',
                           aff_metric=aff_metric_ants_Transl,
                           outprefix=Mean_Image_acpc.replace('.nii.gz', '_'),
-                          verbose=True)
-        print(f"[TRANSL] matrix path exists     : {os.path.exists(matrix)}")
-        print(f"[TRANSL] matrix path            : {matrix}")
+                          verbose=False)
+
 
         MEAN_tr = ants.apply_transforms(fixed=ANAT, moving=MEAN,
                                         transformlist=matrix, interpolator=n_for_ANTS)
-
-        print(f"[TRANSL] MEAN_tr origin/spacing : {MEAN_tr.origin} / {MEAN_tr.spacing} / {MEAN_tr.shape}")
-        print(f"[TRANSL] MEAN_tr direction      :\n{MEAN_tr.direction}")
 
     print("moving func image to acpc anat space")
     ants.image_write(MEAN_tr, Mean_Image_acpc, ri=False)
@@ -140,7 +128,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                                      reg_iterations=(1000, 500, 250, 100),
                                      reg_smoothing_sigmas=(3, 2, 1, 0),
                                      reg_shrink_factors=(8, 4, 2, 1),
-                                     verbose=True,
+                                     verbose=False,
                                      aff_metric=aff_metric_ants,
                                      restrict_transformation=restrict)
     
@@ -160,21 +148,12 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                                      aff_smoothing_sigmas=(3, 2, 1, 0),  # Smoothing sigmas
                                      aff_metric_params=(ANAT, MEAN, 1, 32, 'Regular', 0.25),  # Metric parameters
                                      convergence=(1e-6, 10),  # Convergence criteria
-                                     verbose=True,
+                                     verbose=False,
                                      aff_metric=aff_metric_ants,
                                      restrict_transformation=restrict)
         elif registration_type == 'V2':
             nl = "registration V2 selected"
             run_cmd.msg(nl, diary_file, 'OKGREEN')
-
-            # Debug prints
-            print(f"[V2] type_of_transform     : {type_of_transform}")
-            print(f"[V2] aff_metric_ants       : {aff_metric_ants}")
-            print(f"[V2] restrict              : {restrict}")
-            print(f"[V2] ANAT origin/spacing   : {ANAT.origin} / {ANAT.spacing} / {ANAT.shape}")
-            print(f"[V2] MEAN origin/spacing   : {MEAN.origin} / {MEAN.spacing} / {MEAN.shape}")
-            print(f"[V2] ANAT direction        :\n{ANAT.direction}")
-            print(f"[V2] MEAN direction        :\n{MEAN.direction}")
 
             mTx2 = ants.registration(
                 fixed=ANAT, moving=MEAN,
@@ -191,7 +170,7 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                 reg_iterations=(1000, 500, 250, 100),
                 reg_smoothing_sigmas=(3, 2, 1, 0),
                 reg_shrink_factors=(8, 4, 2, 1),
-                verbose=True,
+                verbose=False,
                 aff_metric=aff_metric_ants,
                 restrict_transformation=restrict)
         else:

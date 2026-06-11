@@ -71,7 +71,7 @@ def create(input_for_msk,process_dir,masking_img,
                           reg_iterations=(1000, 500, 250, 100),
                           reg_smoothing_sigmas=(3, 2, 1, 0),
                           reg_shrink_factors=(8, 4, 2, 1),
-                          verbose=True)
+                          verbose=False)
 
         transfo_concat = mTx['fwdtransforms']
         run_cmd.msg(mTx, diary_file, 'ENDC')

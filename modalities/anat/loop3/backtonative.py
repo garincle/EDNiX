@@ -466,12 +466,8 @@ def apply(ID, volumes_dir, masks_dir, labels_dir, bids_dir, info, listTimage,
 
                 # backward normalisation (template → ACPC)
                 oldname = opb(info[i][1]).split('_')
-                print('oldname=' + str(oldname))
 
                 newname = opj(opd(info[i][1]), '_'.join(oldname[0:-1] + [Timage]) + '.nii.gz')
-                print('newname=' + str(newname))
-                print('ope newname = ' + str(ope(newname)))
-
                 if ope(newname):
                     norm2template.apply(
                         'acpc', img_ref, info[i][4], info[i][0], newname,
