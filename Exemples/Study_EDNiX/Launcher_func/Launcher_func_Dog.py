@@ -18,7 +18,7 @@ allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['func'], s
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
-list_to_keep = []
+list_to_keep = [('23', '1')]
 list_to_remove = []
 
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
@@ -61,7 +61,7 @@ selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = 'header'
 resting_or_task = 'resting'  # 'resting' or 'task'
 extra_erode = 2
-Skip_step = ['itk_1','itk_2','itk_3','Clean']
+Skip_step = [1,2,3,4,5,6,7,8,9,'itk_1','itk_2','itk_3','Clean']
 
 groups = fmri_resume_groups(
     allinfo_study_c, bids_dir,

@@ -3,6 +3,7 @@ import sys
 import Tools.Read_atlas
 from Tools import Load_subject_with_BIDS, load_bids
 from modalities.fMRI import _0_Pipeline_launcher
+from Tools.ednix_checkpoint import fmri_resume_groups
 opn = os.path.normpath
 opj = os.path.join
 
@@ -63,25 +64,38 @@ doWARPonfunc = 'WARP'
 resting_or_task = 'resting'  # 'resting' or 'task'
 
 Skip_step = ['itk_1','itk_2','itk_3','Clean']
-_0_Pipeline_launcher.preprocess_data(
-                    Skip_step, MAIN_PATH, bids_dir,
-                    species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
-                    animalPosition, humanPosition, orientation,
-                    Slice_timing_info,
-                    TfMRI, type_norm, creat_study_template,
-                    anat_func_same_space, coregistration_longitudinal,
-                    Method_mask_func, extra_erode=4, do_anat_to_func=do_anat_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
-                    ntimepoint_treshold=100, REF_int=0, T1_eq=5, correction_direction='Auto', overwrite_option=True,
-                    DwellT='Auto', SED='Auto', TR='Auto', TRT='Auto',
-                    nb_ICA_run=20, ICA_cleaning='Skip',
-                    costAllin='lpa',
-                    doWARPonfunc=doWARPonfunc, registration_fast=False, type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
-                    list_to_keep=list_to_keep, list_to_remove=list_to_remove, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
-                    reference='EDNiX', post_treatment_method='Grandjean',
-                    band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
-                    use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
-                    selected_atlases_matrix='all', wanted_level_matrix='all', matrix_fit=['correlation', 'partial correlation'],
-                    selected_atlases_SBA='default', panda_files_SBA='default',
-                    SBAspace=['atlas'], erod_seed=True, smoothSBA=smoothSBA,
-                    intra_thresh=0.240, delta_thresh=0.1,
-                    oversample_map=False, use_cortical_mask_func=False, n_cut=10, threshold_val=10)
+
+groups = fmri_resume_groups(
+    allinfo_study_c, bids_dir,
+    reference       = 'EDNiX',
+    resting_or_task = resting_or_task,
+    type_norm       = 'T2w',
+    ICA_cleaning    = 'Skip',
+    endfmri         = endfmri,
+    Skip_step       = Skip_step,
+    list_to_remove  = list_to_remove,
+    verbose         = True)   # prints report + group summary
+
+for list_to_keep, Skip_step in groups:
+    _0_Pipeline_launcher.preprocess_data(
+                        Skip_step, MAIN_PATH, bids_dir,
+                        species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
+                        animalPosition, humanPosition, orientation,
+                        Slice_timing_info,
+                        TfMRI, type_norm, creat_study_template,
+                        anat_func_same_space, coregistration_longitudinal,
+                        Method_mask_func, extra_erode=4, do_anat_to_func=do_anat_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
+                        ntimepoint_treshold=100, REF_int=0, T1_eq=5, correction_direction='Auto', overwrite_option=True,
+                        DwellT='Auto', SED='Auto', TR='Auto', TRT='Auto',
+                        nb_ICA_run=20, ICA_cleaning='Skip',
+                        costAllin='lpa',
+                        doWARPonfunc=doWARPonfunc, registration_fast=False, type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
+                        list_to_keep=list_to_keep, list_to_remove=list_to_remove, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
+                        reference='EDNiX', post_treatment_method='Grandjean',
+                        band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = False, extract_GS = False,
+                        use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
+                        selected_atlases_matrix='all', wanted_level_matrix='all', matrix_fit=['correlation', 'partial correlation'],
+                        selected_atlases_SBA='default', panda_files_SBA='default',
+                        SBAspace=['atlas'], erod_seed=True, smoothSBA=smoothSBA,
+                        intra_thresh=0.240, delta_thresh=0.1,
+                        oversample_map=False, use_cortical_mask_func=False, n_cut=10, threshold_val=10)

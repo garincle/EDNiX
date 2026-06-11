@@ -128,7 +128,7 @@ def correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_ma
                 label_to_region = filtered_labels.set_index('label')['region'].to_dict()
                 # Step 3: Order the regions according to atlas_flat
                 atlas_filtered_list = [label_to_region[label] for label in atlas_flat if label in label_to_region]
-
+                '''
                 nl =  "INFO: label that you provided"
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
                 nl =  str(panda_file)
@@ -149,7 +149,7 @@ def correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_ma
                        "for fMRI? error in the labeling? error in the coregistration?, this is not always " + \
                        "a big dill but you should know what happend!!"
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
-
+                '''
                 ### create a new list of label with zero if not in the new label list (for 3dcalc)
                 filtered_labels_list = list(filtered_labels['label'])
                 list_old_label = []
@@ -290,13 +290,14 @@ def correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_ma
                     # The labels we have start with the background (0), hence we skip the
                     # first label
                     # matrices are ordered for block-like representation
+                    '''
                     nl = str(correlation_matrix.shape)
                     run_cmd.msg(nl, diary_file, 'OKGREEN')
                     nl = str(len(panda_file['region']))
                     run_cmd.msg(nl, diary_file, 'OKGREEN')
                     nl = str(correlation_matrix)
                     run_cmd.msg(nl, diary_file, 'OKGREEN')
-
+                    '''
                     plotting.plot_matrix(
                         correlation_matrix,
                         labels=atlas_filtered_list,
@@ -339,7 +340,7 @@ def correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_ma
                         for num2 in range(num + 1, len(atlas_filtered_list)):
                             connection.append(f"{atlas_filtered_list[num]} to {atlas_filtered_list[num2]}")
                             value.append(correlation_matrix[num, num2])
-
+                    '''
                     nl = str(connection)
                     run_cmd.msg(nl, diary_file, 'OKGREEN')
                     nl = str(value)
@@ -348,7 +349,7 @@ def correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_ma
                     run_cmd.msg(nl, diary_file, 'OKGREEN')
                     nl = str(len(value))
                     run_cmd.msg(nl, diary_file, 'OKGREEN')
-
+                    '''
                     # Create DataFrame from the list
                     flattened_df = pd.DataFrame([value], columns=connection)
                     flattened_df['ID'] = ID

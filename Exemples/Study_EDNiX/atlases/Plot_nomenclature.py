@@ -1,15 +1,18 @@
 """
 EDNiX Comparative Surface Atlas — Dual Hierarchical Sunburst (matplotlib)
-Run:  python ednix_sunburst_matplotlib.py
-Out:  ednix_sunburst.png  /  ednix_sunburst.svg
+Outputs:
+  ednix_sunburst.png        — combined figure (original)
+  ednix_sunburst.svg        — combined SVG
+  ednix_sunburst_cortical.png      — cortical sunburst alone
+  ednix_sunburst_subcortical.png   — subcortical sunburst alone
+  ednix_sunburst_legend.png        — abbreviation legend alone
 """
 import numpy as np
 import pandas as pd
 import matplotlib; matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.patches import Wedge
-import matplotlib.patheffects as pe
-# Color data from EDNIxCSCLR_l.ctab
+
 color_data = [
     # Level 2
     ["Frontal_lobe",          2, "Frontal lobe",         220,  50,  50, "", "cortical"],
@@ -22,29 +25,24 @@ color_data = [
     ["Parietal_lobe",         2, "Parietal lobe",        255, 215,   0, "", "cortical"],
     ["Occipital_lobe",        2, "Occipital lobe",        50, 180,  50, "", "cortical"],
     ["Cerebral_nuclei",       2, "Cerebral nuclei",      140,  70, 140, "", "subcortical"],
-    ["Diencephalon",          2, "Diencephalon",          38,  72,  67, "", "subcortical"],  # Changed to 3V green
-    ["Brainstem",             2, "Brainstem",            255, 215,   0, "", "subcortical"],  # Changed to yellow
+    ["Diencephalon",          2, "Diencephalon",          38,  72,  67, "", "subcortical"],
+    ["Brainstem",             2, "Brainstem",            255, 215,   0, "", "subcortical"],
     ["Cerebellum", 2, "Cerebellum", 162, 167, 169, "", "subcortical"],
-    ["Cerebellum_White", 2, "Cerebellum White", 160, 160, 160, "", "subcortical"],  # Changed to gray
-    ["White_matter",          2, "White matter",         192, 192, 192, "", "subcortical"],  # Changed to light gray
-    ["Lateral_ventricules",   2, "Lateral ventricules",  128, 128, 128, "", "subcortical"],  # Changed to medium gray
-    ["3rde_ventricules",      2, "3rde ventricules",     150, 150, 150, "", "subcortical"], # Changed to medium gray
+    ["Cerebellum_White", 2, "Cerebellum White", 160, 160, 160, "", "subcortical"],
+    ["White_matter",          2, "White matter",         192, 192, 192, "", "subcortical"],
+    ["Lateral_ventricules",   2, "Lateral ventricules",  128, 128, 128, "", "subcortical"],
+    ["3rde_ventricules",      2, "3rde ventricules",     150, 150, 150, "", "subcortical"],
     ["CSF",                   2, "CSF",                   98,   0, 103, "", "subcortical"],
-
     # Level 3
     ["oFC",              3, "oFC (orb. frontal Cx)",     200,  40,  40, "Frontal_lobe", "cortical"],
     ["PFC",             3, "Prefrontal Cx",              190,  45,  45, "Frontal_lobe", "cortical"],
-    #["oPFC",             3, "oPFC (orb. PFC)",           190,  45,  45, "Frontal_lobe", "cortical"],
-    #["dlPFC",            3, "dlPFC",                     210,  50,  50, "Frontal_lobe", "cortical"],
-    #["mPFC",             3, "mPFC",                      180,  55,  55, "Frontal_lobe", "cortical"],
     ["Motor_premotor",   3, "Motor/premotor",            170,  60,  60, "Frontal_lobe", "cortical"],
-    #["vlPFC",            3, "vlPFC",                     160,  65,  65, "Frontal_lobe", "cortical"],
     ["Somatosensory_Cx", 3, "Somatosensory Cx",         240, 200,  30, "Parietal_lobe", "cortical"],
     ["Post_parietal_Cx", 3, "Post. parietal Cx",        245, 190,  20, "Parietal_lobe", "cortical"],
     ["PMC",              3, "PMC",                       250, 180,  10, "Parietal_lobe", "cortical"],
-    ["Striate_Cx",       3, "Visual striate Cx",          30, 150,  30, "Occipital_lobe", "cortical"],  # Updated to match reference
+    ["Striate_Cx",       3, "Visual striate Cx",          30, 150,  30, "Occipital_lobe", "cortical"],
     ["Extra_striate_Cx", 3, "Visual extra-striate Cx",   60, 170,  60, "Occipital_lobe", "cortical"],
-    ["Auditory_Cx",      3, "Auditory Cx",                30,  85, 235, "Temporal_lobe", "cortical"],  # Updated to match reference
+    ["Auditory_Cx",      3, "Auditory Cx",                30,  85, 235, "Temporal_lobe", "cortical"],
     ["MIPT",             3, "MIPT",                       50, 110, 230, "Temporal_lobe", "cortical"],
     ["Vent_temporal",    3, "Vent. temporal",             60, 130, 220, "Temporal_lobe", "cortical"],
     ["Insula",           3, "Insula & lat. sulcus",      170,  90, 210, "Insular_lobe", "cortical"],
@@ -59,17 +57,16 @@ color_data = [
     ["Pallidum",         3, "Pallidum",                  125,  80, 125, "Cerebral_nuclei", "subcortical"],
     ["Claustrum",        3, "Claustrum",                 195, 145,  95, "Cortical_subplate", "cortical"],
     ["Amygdala",         3, "Amygdala",                  190, 140, 110, "Cortical_subplate", "cortical"],
-    ["Hypothalamus",     3, "Hypothalamus",               38,  72,  67, "Diencephalon", "subcortical"],  # Changed to 3V green
-    ["Thalamus",         3, "Thalamus",                   70, 100,  80, "Diencephalon", "subcortical"],  # Lighter green gradient
-    ["Epithalamus",      3, "Epithalamus",                90, 120,  90, "Diencephalon", "subcortical"],  # Lighter green gradient
-    ["Subthalamus",      3, "Subthalamus",               110, 140, 100, "Diencephalon", "subcortical"],  # Lighter green gradient
-    ["Tectum",           3, "Tectum",                    255, 215,   0, "Brainstem", "subcortical"],  # Yellow
-    ["Tegmentum",        3, "Tegmentum",                 255, 200,  50, "Brainstem", "subcortical"],  # Yellow-orange gradient
-    ["Cerebral_ped",     3, "Cerebral ped.",             255, 185,  75, "Brainstem", "subcortical"],  # Yellow-orange gradient
-    ["Pons",             3, "Pons",                      255, 170, 100, "Brainstem", "subcortical"],  # Yellow-orange gradient
-    ["Medulla",          3, "Medulla",                   245, 155, 125, "Brainstem", "subcortical"],  # Yellow-orange gradient
-    ["Colliculus",       3, "Colliculus",                255, 200,  25, "Brainstem", "subcortical"],  # Yellow
-
+    ["Hypothalamus",     3, "Hypothalamus",               38,  72,  67, "Diencephalon", "subcortical"],
+    ["Thalamus",         3, "Thalamus",                   70, 100,  80, "Diencephalon", "subcortical"],
+    ["Epithalamus",      3, "Epithalamus",                90, 120,  90, "Diencephalon", "subcortical"],
+    ["Subthalamus",      3, "Subthalamus",               110, 140, 100, "Diencephalon", "subcortical"],
+    ["Tectum",           3, "Tectum",                    255, 215,   0, "Brainstem", "subcortical"],
+    ["Tegmentum",        3, "Tegmentum",                 255, 200,  50, "Brainstem", "subcortical"],
+    ["Cerebral_ped",     3, "Cerebral ped.",             255, 185,  75, "Brainstem", "subcortical"],
+    ["Pons",             3, "Pons",                      255, 170, 100, "Brainstem", "subcortical"],
+    ["Medulla",          3, "Medulla",                   245, 155, 125, "Brainstem", "subcortical"],
+    ["Colliculus",       3, "Colliculus",                255, 200,  25, "Brainstem", "subcortical"],
     # Level 4 - cortical
     ["Gustatory_Cx",    4, "Gustatory Cx",              195,  50, 40, "oFC", "cortical"],
     ["oProiso",         4, "oProiso",                   180,  40,  40, "oFC", "cortical"],
@@ -128,22 +125,21 @@ color_data = [
     ["BA_35_36",        4, "BA 35/36",                  135, 165, 135, "Periarchicortex_L3", "cortical"],
     ["Presubiculum",    4, "Presubiculum",              130, 160, 130, "Periarchicortex_L3", "cortical"],
     ["BA_26_29_30",     4, "BA 26/29/30",               135, 155, 145, "Periarchicortex_L3", "cortical"],
-
     # Level 4 - subcortical
     ["Caudate",         4, "Caudate",                   150,  65, 150, "Striatum", "subcortical"],
     ["Putamen",         4, "Putamen",                   145,  70, 145, "Striatum", "subcortical"],
     ["N_accumbens",     4, "N. accumbens",              140,  75, 140, "Striatum", "subcortical"],
     ["Globus_pallidus", 4, "Globus pallidus",           115,  80, 115, "Pallidum", "subcortical"],
-    ["Bed_n_ST",        4, "Bed n. ST",                 200, 160,  100, "Amygdala", "cortical"],  # Updated to match reference
-    ["Pulvinar",        4, "Pulvinar",                   90, 120,  90, "Thalamus", "subcortical"],  # Green gradient
-    ["Geniculate_n",    4, "Geniculate n.",             110, 140, 100, "Thalamus", "subcortical"],  # Green gradient
-    ["Thalamic_nuclei", 4, "Thalamic nuclei",           130, 160, 110, "Thalamus", "subcortical"],  # Green gradient
-    ["Sup_colliculus",  4, "Sup. colliculus",           255, 215,   0, "Tectum", "subcortical"],  # Yellow
-    ["Inf_colliculus",  4, "Inf. colliculus",           255, 200,  50, "Tectum", "subcortical"],  # Yellow-orange
-    ["PAG",             4, "PAG",                       255, 185,  75, "Tegmentum", "subcortical"],  # Yellow-orange
-    ["Red_n",           4, "Red n.",                    255, 170, 100, "Tegmentum", "subcortical"],  # Yellow-orange
-    ["Subst_nigra",     4, "Subst. nigra",              245, 155, 125, "Tegmentum", "subcortical"],  # Yellow-orange
-    ["Crus_cerebri",    4, "Crus cerebri",              255, 185,  75, "Cerebral_ped", "subcortical"],  # Yellow-orange
+    ["Bed_n_ST",        4, "Bed n. ST",                 200, 160, 100, "Amygdala", "cortical"],
+    ["Pulvinar",        4, "Pulvinar",                   90, 120,  90, "Thalamus", "subcortical"],
+    ["Geniculate_n",    4, "Geniculate n.",             110, 140, 100, "Thalamus", "subcortical"],
+    ["Thalamic_nuclei", 4, "Thalamic nuclei",           130, 160, 110, "Thalamus", "subcortical"],
+    ["Sup_colliculus",  4, "Sup. colliculus",           255, 215,   0, "Tectum", "subcortical"],
+    ["Inf_colliculus",  4, "Inf. colliculus",           255, 200,  50, "Tectum", "subcortical"],
+    ["PAG",             4, "PAG",                       255, 185,  75, "Tegmentum", "subcortical"],
+    ["Red_n",           4, "Red n.",                    255, 170, 100, "Tegmentum", "subcortical"],
+    ["Subst_nigra",     4, "Subst. nigra",              245, 155, 125, "Tegmentum", "subcortical"],
+    ["Crus_cerebri",    4, "Crus cerebri",              255, 185,  75, "Cerebral_ped", "subcortical"],
 ]
 
 ABBREV = {
@@ -197,8 +193,7 @@ def propagate_missing(df):
 df = propagate_missing(df)
 df = propagate_missing(df)
 
-# Split into cortical and subcortical
-df_cortical = df[df['Type'] == 'cortical'].copy()
+df_cortical    = df[df['Type'] == 'cortical'].copy()
 df_subcortical = df[df['Type'] == 'subcortical'].copy()
 
 def build_tree(df_subset):
@@ -219,31 +214,18 @@ def build_tree(df_subset):
     return nodes, roots
 
 nodes_cort, roots_cort = build_tree(df_cortical)
-nodes_sub, roots_sub = build_tree(df_subcortical)
+nodes_sub,  roots_sub  = build_tree(df_subcortical)
 
-R_BANDS = {2: (0.22, 0.52), 3: (0.54, 0.80), 4: (0.82, 1.13)}
-def lum(r, g, b): return (0.299*r + 0.587*g + 0.114*b) / 255
+R_BANDS  = {2: (0.22, 0.52), 3: (0.54, 0.80), 4: (0.82, 1.13)}
+FS       = {2: 13, 3: 13, 4: 12}
+MIN_DA   = {2: 0.00, 3: 0.04, 4: 0.055}
 
-# Create dual sunburst figure
-fig = plt.figure(figsize=(32, 18), facecolor='white')
+def lum(r, g, b):
+    return (0.299*r + 0.587*g + 0.114*b) / 255
 
-# Left sunburst (cortical)
-ax1 = fig.add_axes([0.02, 0.12, 0.5, 0.8])
-ax1.set_aspect('equal'); ax1.axis('off')
-ax1.set_xlim(-1.2, 1.2); ax1.set_ylim(-1.2, 1.2)
-
-# Right sunburst (subcortical)
-ax2 = fig.add_axes([0.5, 0.12, 0.5, 0.8])
-ax2.set_aspect('equal'); ax2.axis('off')
-ax2.set_xlim(-1.2, 1.2); ax2.set_ylim(-1.2, 1.2)
-
-FS = {2: 13, 3: 13, 4: 12}
-MIN_DA = {2: 0.00, 3: 0.04, 4: 0.055}
-used_abbrevs = {}
-
-def draw_sunburst(ax, nodes, roots, title):
+def collect_wedges(nodes, roots):
     wedge_data = []
-    def collect(nid_list, level, a0, a_total):
+    def _collect(nid_list, level, a0, a_total):
         tot = sum(nodes[n]['leaves'] for n in nid_list)
         a = a0
         for nid in nid_list:
@@ -252,21 +234,21 @@ def draw_sunburst(ax, nodes, roots, title):
             wedge_data.append({'nid': nid, 'level': level,
                                'a0': a, 'a1': a+da, 'amid': a+da/2, 'da': da})
             if n['children'] and level < 4:
-                collect(n['children'], level+1, a, da)
+                _collect(n['children'], level+1, a, da)
             a += da
-    collect(roots, 2, np.pi/2, 2*np.pi)
+    _collect(roots, 2, np.pi/2, 2*np.pi)
+    return wedge_data
 
-    # Draw wedges
+def draw_sunburst_on_ax(ax, nodes, roots, title, used_abbrevs):
+    wedge_data = collect_wedges(nodes, roots)
     for w in wedge_data:
         r, g, b = nodes[w['nid']]['rgb']
         r0, r1 = R_BANDS[w['level']]
         ax.add_patch(Wedge((0,0), r1, np.degrees(w['a0']), np.degrees(w['a1']),
                            width=r1-r0, facecolor=(r/255, g/255, b/255),
                            edgecolor='white', linewidth=0.7, zorder=w['level']))
-
-    # Draw labels
     for w in wedge_data:
-        n = nodes[w['nid']]
+        n   = nodes[w['nid']]
         lv, da, mid = w['level'], w['da'], w['amid']
         r, g, b = n['rgb']
         fg = 'white' if lum(r, g, b) < 0.35 else '#111111'
@@ -281,45 +263,109 @@ def draw_sunburst(ax, nodes, roots, title):
             disp = label
         else:
             disp = abbr
-            if abbr != label: used_abbrevs[abbr] = label
-        txt = ax.text(wx, wy, disp, ha='center', va='center',
-                      fontsize=FS[lv], color=fg, fontweight='bold',
-                      fontfamily='DejaVu Sans', zorder=lv+10)
+            if abbr != label:
+                used_abbrevs[abbr] = label
+        ax.text(wx, wy, disp, ha='center', va='center',
+                fontsize=FS[lv], color=fg, fontweight='bold',
+                fontfamily='DejaVu Sans', zorder=lv+10)
+    ax.add_patch(plt.Circle((0,0), 0.23, color='white', zorder=30))
+    ax.text(0, 0, title, ha='center', va='center', fontsize=22,
+            fontweight='bold', color='#222', zorder=35, linespacing=1.3)
 
-    # Center
-    ax.add_patch(plt.Circle((0,0), 0.21, color='white', zorder=30))
-    ax.text(0, 0, title, ha='center', va='center', fontsize=25,
-            fontweight='bold', color='#222', zorder=35)
+def draw_legend_on_ax(ax, used_abbrevs, n_cols=6):
+    ax.axis('off'); ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+    ax.text(0.02, 0.95, 'Abbreviations', fontsize=18, fontweight='bold',
+            color='#111', va='top')
+    ax.plot([0.0, 1.0], [0.85, 0.85], color='#bbb', lw=2)
+    entries = sorted(used_abbrevs.items())
+    if not entries:
+        return
+    n_rows = (len(entries) + n_cols - 1) // n_cols
+    col_w  = 1.0 / n_cols
+    row_h  = 0.80 / max(n_rows, 1)  # tighter: single row per entry
+    for i, (abbr, full) in enumerate(entries):
+        col = i // n_rows
+        row = i % n_rows
+        x = 0.005 + col * col_w
+        y = 0.82 - row * row_h
+        # abbr + full on same baseline, separated by a small gap
+        ax.text(x,         y, abbr, fontsize=14, fontweight='bold',
+                color='#222', ha='left', va='top')
+        ax.text(x + 0.030, y, full, fontsize=13, color='#555',
+                ha='left', va='top')
 
-draw_sunburst(ax1, nodes_cort, roots_cort, 'Cortical\nareas')
-draw_sunburst(ax2, nodes_sub, roots_sub, 'Non-cortical\nareas')
+# ── shared abbreviation dict (populated during draws) ──────────────────────
+used_abbrevs = {}
 
-# Main title
-fig.text(0.5, 0.9, 'EDNiX Comparative Surface Atlas — Hierarchical Parcellation',
+# ═══════════════════════════════════════════════════════════════════════════
+# 1. Combined figure (original layout)
+# ═══════════════════════════════════════════════════════════════════════════
+fig = plt.figure(figsize=(32, 18), facecolor='white')
+ax1 = fig.add_axes([0.02, 0.12, 0.5, 0.8])
+ax2 = fig.add_axes([0.5,  0.12, 0.5, 0.8])
+for ax in (ax1, ax2):
+    ax.set_aspect('equal'); ax.axis('off')
+    ax.set_xlim(-1.2, 1.2);  ax.set_ylim(-1.2, 1.2)
+
+draw_sunburst_on_ax(ax1, nodes_cort, roots_cort, 'Cortical\nareas',    used_abbrevs)
+draw_sunburst_on_ax(ax2, nodes_sub,  roots_sub,  'Non-cortical\nareas', used_abbrevs)
+
+fig.text(0.5, 0.94, 'EDNiX Comparative Surface Atlas — Hierarchical Parcellation',
          ha='center', fontsize=18, fontweight='bold', color='#111')
-fig.text(0.5, 0.88, 'LVL2: Lobar territories  ·  LVL3: Functional areas  ·  LVL4: Cytoarchitectonic areas',
+fig.text(0.5, 0.92, 'LVL2: Lobar territories  ·  LVL3: Functional areas  ·  LVL4: Cytoarchitectonic areas',
          ha='center', fontsize=14, color='#555', fontstyle='italic', fontweight='bold')
 
-# Legend
 ax_leg = fig.add_axes([0.02, 0.02, 0.98, 0.10])
-ax_leg.axis('off'); ax_leg.set_xlim(0, 1); ax_leg.set_ylim(0, 1)
-ax_leg.text(0.02, 0.9, 'Abbreviations', fontsize=16, fontweight='bold',
-            color='#111', va='top')
-ax_leg.plot([0.15, 0.98], [0.85, 0.85], color='#bbb', lw=2)
-entries = sorted(used_abbrevs.items())
-if entries:
-    n_cols, n_rows = 6, (len(entries) + 5) // 6
-    col_width, row_height = 0.15, 0.10
-    for i, (abbr, full) in enumerate(entries):
-        col, row = i // n_rows, i % n_rows
-        x_pos, y_pos = 0.05 + col * col_width, 0.62 - row * row_height
-        ax_leg.text(x_pos, y_pos+0.02, abbr, fontsize=13, fontweight='bold',
-                    color='#222', ha='left', va='center')
-        ax_leg.text(x_pos+0.05, y_pos-0.02, full, fontsize=13, color='#444',
-                    ha='left', va='center')
+draw_legend_on_ax(ax_leg, used_abbrevs)
 
-plt.savefig('ednix_sunburst.png', dpi=200, bbox_inches='tight',
-            facecolor='white', pad_inches=0.15)
-plt.savefig('ednix_sunburst.svg', format='svg', bbox_inches='tight',
-            facecolor='white', pad_inches=0.15)
-print(f"Saved! {len(used_abbrevs)} abbreviations in legend.")
+fig.savefig('/home/cgarin/Documents/Figures/EDNiX/ednix_sunburst.png',
+            dpi=200, bbox_inches='tight', facecolor='white', pad_inches=0.15)
+fig.savefig('/home/cgarin/Documents/Figures/EDNiX/ednix_sunburst.svg',
+            format='svg', bbox_inches='tight', facecolor='white', pad_inches=0.15)
+plt.close(fig)
+print("Combined figure saved.")
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. Cortical sunburst alone
+# ═══════════════════════════════════════════════════════════════════════════
+used_cort = {}
+fig_c, ax_c = plt.subplots(figsize=(16, 16), facecolor='white')
+ax_c.set_aspect('equal'); ax_c.axis('off')
+ax_c.set_xlim(-1.2, 1.2); ax_c.set_ylim(-1.2, 1.2)
+draw_sunburst_on_ax(ax_c, nodes_cort, roots_cort, 'Cortical\nareas', used_cort)
+used_abbrevs.update(used_cort)
+fig_c.savefig('/home/cgarin/Documents/Figures/EDNiX/ednix_sunburst_cortical.png',
+              dpi=200, bbox_inches='tight', facecolor='white', pad_inches=0.2)
+plt.close(fig_c)
+print("Cortical figure saved.")
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. Subcortical sunburst alone
+# ═══════════════════════════════════════════════════════════════════════════
+used_sub = {}
+fig_s, ax_s = plt.subplots(figsize=(16, 16), facecolor='white')
+ax_s.set_aspect('equal'); ax_s.axis('off')
+ax_s.set_xlim(-1.2, 1.2); ax_s.set_ylim(-1.2, 1.2)
+draw_sunburst_on_ax(ax_s, nodes_sub, roots_sub, 'Non-cortical\nareas', used_sub)
+used_abbrevs.update(used_sub)
+fig_s.savefig('/home/cgarin/Documents/Figures/EDNiX/ednix_sunburst_subcortical.png',
+              dpi=200, bbox_inches='tight', facecolor='white', pad_inches=0.2)
+plt.close(fig_s)
+print("Subcortical figure saved.")
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. Legend alone
+# ═══════════════════════════════════════════════════════════════════════════
+n_entries = len(used_abbrevs)
+n_cols    = 10
+n_rows    = (n_entries + n_cols - 1) // n_cols
+fig_h     = max(2.0, 0.8 + n_rows * 0.55)
+
+fig_l = plt.figure(figsize=(28, fig_h), facecolor='white')
+ax_l  = fig_l.add_axes([0.01, 0.01, 0.98, 0.98])
+draw_legend_on_ax(ax_l, used_abbrevs, n_cols=10)
+fig_l.savefig('/home/cgarin/Documents/Figures/EDNiX/ednix_sunburst_legend.png',
+              dpi=200, bbox_inches='tight', facecolor='white', pad_inches=0.15)
+plt.close(fig_l)
+print(f"Legend saved ({n_entries} abbreviations).")
+print("All done.")
