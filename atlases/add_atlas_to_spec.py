@@ -12,7 +12,7 @@ ope = os.path.exists
 opi = os.path.isfile
 
 from Tools import run_cmd
-from anat.connectomeWB import WB_label
+from modalities.anat.connectomeWB import WB_label
 from atlases import templatefeat
 
 T1interp    = 'hammingWindowedSinc'
@@ -23,7 +23,7 @@ antswarp    = '1Warp.nii.gz'
 antsinvwarp = '1InverseWarp.nii.gz'
 
 
-def add(specie,animal,newAtlasfile,newAtlasAnatfile,labelname,sameAnimal,doT,wFS,LR,diary_name,path_ATLAS, fs_tools,cmd_mris,path_code_label,sing_afni,sing_fs,export_fs,sing_wb):
+def add(specie,doBALSAspace,animal,newAtlasfile,newAtlasAnatfile,labelname,sameAnimal,doT,wFS,LR,diary_name,path_ATLAS, fs_tools,cmd_mris,path_code_label,sing_afni,sing_fs,export_fs,sing_wb):
 
     '''
     add_atlas_to_spec takes a labelled volume file fr oma an atlas and create a new volume file readable for WB and the corresponding labelled surfaces
@@ -45,7 +45,7 @@ def add(specie,animal,newAtlasfile,newAtlasAnatfile,labelname,sameAnimal,doT,wFS
     run_cmd.msg(nl, diary_name)
 
     [refDir,refile ] = templatefeat.get(specie, path_ATLAS, fs_tools,
-                                         animal, '', '', 'wb_atlas', 'anat')
+                                         animal, '', '', 'wb_atlas', 'anat', doBALSAspace=doBALSAspace)
 
 
     # Targetparams:

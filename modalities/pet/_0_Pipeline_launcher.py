@@ -6,7 +6,7 @@ import json
 import nibabel as nib
 import numpy as np
 import pandas as pd
-from anat import set_launcher
+from modalities.anat import set_launcher
 from atlases import atlas4func
 import inspect
 
@@ -19,10 +19,10 @@ ops = os.path.splitext
 opi = os.path.isfile
 
 spgo = subprocess.getoutput
-
+'''
 from Tools import run_cmd, getpath, diaryfile, Load_EDNiX_requirement, check_nii
-from anat.loop3 import backtonative
-from fMRI import chooseanat
+from modalities.anat.loop3 import backtonative
+from modalities.fMRI import chooseanat
 ##### from pet import
 
 def preprocess_data(
@@ -38,7 +38,7 @@ def preprocess_data(
                     reference='EDNiX', use_erode_WM_func_masks = True, use_erode_V_func_masks=True,
                     blur=0,
                     selected_atlases_matrix='all', wanted_level_matrix='all',
-                    selected_atlases_SBA='default', panda_files_SBA='default'):
+                    selected_atlases_SBA='default', panda_files_SBA='default', doBALSAspace=False):
 
 
     (FS_refs, template_dir, reference, balsa_folder, BALSAname, balsa_brainT1, BASE_atlas_folder, BASE_template, BASE_SS,
@@ -47,7 +47,7 @@ def preprocess_data(
     fs_tools, reftemplate_path, MNIBcorrect_indiv, masking_img) = set_launcher.get(MAIN_PATH, bids_dir, allinfo_study_c,
                                                                                    species, list_to_keep,
                                                                                    list_to_remove, reference, type_norm,
-                                                                                   '', '', atlas_followers)
+                                                                                   '', '', atlas_followers, doBALSAspace)
 
     sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _, sing_synstrip, Unetpath = Load_EDNiX_requirement.load_requirement(
         MAIN_PATH, reftemplate_path, bids_dir, 'yes')
@@ -167,3 +167,4 @@ def preprocess_data(
                 run_cmd.msg(nl, diary_file, 'OKGREEN')
 
             else:
+'''

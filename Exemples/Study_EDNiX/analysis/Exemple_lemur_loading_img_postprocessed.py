@@ -7,7 +7,7 @@ Copy/adapt the relevant block for your analysis.
 
 import os, sys
 sys.path.insert(0, '//')
-from Plotting.ednix_bids_tools import (
+from Exemples.Study_EDNiX.analysis.ednix_bids_tools import (
     # Part 0 – label parsing
     parse_label_file, get_atlas_label_path,
     # Part 1 – path extractors
@@ -18,14 +18,9 @@ from Plotting.ednix_bids_tools import (
     process_volumes_and_save, process_qc,
     extract_and_process_surfaces_wb, extract_and_process_thickness_wb,
     # Part 3 – multi-species collector
-    collect_multi_species,
     # Part 4 – export
-    export_to_excel, export_to_csv, export_summary_stats,
     # Part 5 – plots
-    plot_morphometry_intra_bids, plot_morphometry_inter_species,
-    plot_multi_bids_comparison, plot_qc_dashboard,
     # pipeline wrapper
-    run_full_pipeline,
 )
 
 opj = os.path.join

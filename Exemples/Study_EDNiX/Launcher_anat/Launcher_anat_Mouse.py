@@ -111,7 +111,7 @@ Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
 groups = anat_resume_groups(
     allinfo_study_c, bids_dir,
     reference='EDNiX',
-    type_norm='T1w',
+    type_norm='T2w',
     species=species,
     Skip_step=Skip_step,
     list_to_remove=list_to_remove,

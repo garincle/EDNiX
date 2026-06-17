@@ -61,7 +61,7 @@ selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = 'header'
 resting_or_task = 'resting'  # 'resting' or 'task'
 extra_erode = 2
-Skip_step = [1,2,3,4,5,6,7,8,9,'itk_1','itk_2','itk_3','Clean']
+Skip_step = ['itk_1','itk_2','itk_3','Clean']
 
 groups = fmri_resume_groups(
     allinfo_study_c, bids_dir,

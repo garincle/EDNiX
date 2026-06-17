@@ -464,35 +464,120 @@ def compute_snr_brain_mask(gray_mask_path, anat_data_path, output_path, root_nam
                 diary_file, 'OKGREEN')
     return snr
 
-def fwhm(anat_file, mask_file, dir,diary_file, sing_afni):
+def fwhm(anat_file, mask_file, dir, diary_file, sing_afni, timeout=180):
+    """
+    Estimate image smoothness (FWHM in mm) using AFNI 3dFWHMx.
 
-    # Calculate the FWHM of the input image using AFNI's 3dFWHMx.
+    Parameters
+    ----------
+    anat_file : str
+        Path to the 3D anatomical NIfTI to measure.
+    mask_file : str
+        Path to a binary brain mask NIfTI.
+        Must be binary — do NOT pass a multi-label atlas here.
+    dir : str
+        Working directory (3dFWHMx writes side-car files there).
+    diary_file : str
+        EDNiX diary log path.
+    sing_afni : str
+        Singularity exec prefix for the AFNI container, including trailing space
+        (e.g. "singularity exec /path/afni.sif ").
+    timeout : int, optional
+        Hard time limit in seconds (default 180). Prevents the step from
+        hanging on a loaded server regardless of input size.
+
+    Returns
+    -------
+    fwhm_val : float or None
+        Mean FWHM across X/Y/Z axes in mm, or None if the call failed or
+        timed out (the pipeline continues normally in either case).
+
+    Notes
+    -----
+    Recent AFNI builds (post ~2021) default to the ACF non-linear fit even
+    without an explicit -acf flag. For QC purposes the fast Gaussian
+    estimator (-2difMAD) is sufficient and takes ~1-2 s regardless of brain
+    size or species, vs minutes for the ACF mode on large anatomicals.
+    """
+    import subprocess
 
     original_dir = os.getcwd()
     os.chdir(dir)
 
     try:
-        command = (sing_afni+ '3dFWHMx -overwrite -mask ' + mask_file + ' -input ' + anat_file)
-        out,err = run_cmd.get(command, diary_file)
+        command = (sing_afni +
+                   '3dFWHMx -overwrite -2difMAD'
+                   ' -mask '  + mask_file +
+                   ' -input ' + anat_file)
 
-        if out:
-            info = out.decode("utf-8").split('\n')
-            vals = info[-2].split(' ')[-1]
-            return vals
-        else:
-            nl = "Could not parse FWHM output from AFNI"
-            raise ValueError(run_cmd.error(nl, diary_file))
+        run_cmd.msg('FWHM command: ' + command, diary_file, 'OKBLUE')
 
-    except Exception as e:
-        nl = 'WARNING: FWHM calculation failed - ' + str(e)
-        run_cmd.msg(nl, diary_file,'WARNING')
+        try:
+            proc = subprocess.run(
+                command.split(),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=timeout
+            )
+        except subprocess.TimeoutExpired:
+            run_cmd.msg(
+                f'WARNING: 3dFWHMx timed out ({timeout} s) — FWHM set to None.',
+                diary_file, 'WARNING')
+            return None
+
+        stdout = proc.stdout.decode('utf-8', errors='replace').strip()
+        stderr = proc.stderr.decode('utf-8', errors='replace').strip()
+
+        if proc.returncode != 0:
+            run_cmd.msg(
+                f'WARNING: 3dFWHMx returned exit code {proc.returncode}.\n'
+                f'  stderr: {stderr}',
+                diary_file, 'WARNING')
+            return None
+
+        if not stdout:
+            run_cmd.msg(
+                'WARNING: 3dFWHMx produced no output — FWHM set to None.',
+                diary_file, 'WARNING')
+            return None
+
+        # 3dFWHMx prints one line of whitespace-separated values:
+        #   fx  fy  fz  [combined]
+        # Take the last non-empty line and average the first three tokens.
+        lines  = [l for l in stdout.splitlines() if l.strip()]
+        tokens = lines[-1].split()
+
+        try:
+            xyz = [float(t) for t in tokens[:3] if t not in ('', 'N/A')]
+            if not xyz:
+                raise ValueError('no numeric tokens found')
+            fwhm_val = float(np.mean(xyz))
+        except (ValueError, IndexError) as parse_err:
+            run_cmd.msg(
+                f'WARNING: could not parse 3dFWHMx output '
+                f'("{lines[-1]}") — {parse_err}.',
+                diary_file, 'WARNING')
+            return None
+
+        run_cmd.msg(
+            f'INFO: FWHM = {fwhm_val:.2f} mm  (x/y/z: {xyz})',
+            diary_file, 'OKGREEN')
+        return fwhm_val
+
+    except Exception as exc:
+        run_cmd.msg(
+            f'WARNING: FWHM calculation failed unexpectedly — {exc}',
+            diary_file, 'WARNING')
         return None
-    finally:
-        if opi('3dFWHMx.1D'):
-            os.remove('3dFWHMx.1D')
-            os.remove('3dFWHMx.1D.png')
-        os.chdir(original_dir)
 
+    finally:
+        os.chdir(original_dir)
+        for tmp in ['3dFWHMx.1D', '3dFWHMx.1D.png']:
+            if opi(tmp):
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
 
 def anat_QC(info, type_norm, ID, volumes_dir,path_anat, masks_dir,labels_dir,targetsuffix,listTimage,
             sing_afni, diary_file):
@@ -556,8 +641,8 @@ def anat_QC(info, type_norm, ID, volumes_dir,path_anat, masks_dir,labels_dir,tar
                         #################### QC that doesn't require atlaslvl1 ####################
                         line_QC_func = []
                         try:
-                            fwhm_val = fwhm(anat_filename, atlas_filename, volumes_dir, diary_file, sing_afni)
-                            run_cmd.msg(fwhm_val, diary_file, 'ENDC')
+                            fwhm_val = fwhm(anat_filename, brain_mask, volumes_dir, diary_file, sing_afni)
+                            run_cmd.msg(f'{fwhm_val:.2f}', diary_file, 'ENDC')
 
                             line_QC_func.append(f"  fwhm_val: {fwhm_val}")
                         except Exception as e:

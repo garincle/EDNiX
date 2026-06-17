@@ -39,21 +39,18 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-import matplotlib.lines as mlines
 import matplotlib.ticker as ticker
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as _cm
 from matplotlib.colors import TwoSlopeNorm, Normalize
 
-from Plotting.ednix_bids_tools import (
+from Exemples.Study_EDNiX.analysis.ednix_bids_tools import (
     PAPER_RC, PALETTE,
-    AWAKE_MARKER, ANESTH_MARKER,
     _bids_label, _bids_offsets, _phylo_sort,
-    _anesthesia_marker, _anesthesia_legend_handles,
+    _anesthesia_legend_handles,
     _violin_strip_quartiles, _scatter_with_anesth,
     _df_region_mask, _filter_atlas_level, _hemis_for,
     collect_corr_matrices, collect_corr_matrices_per_bids,
-    extract_corr_matrix_paths, load_corr_matrix,
     plot_morphometry_intra_bids, plot_qc_dashboard,
     _AWAKE_KEYWORDS,
 )
@@ -1455,7 +1452,6 @@ def plot_trimouse_anesthesia(
     n_top_connections : int
         Number of most-affected ROI connections to highlight in bar plots.
     """
-    from scipy import stats as _stats
 
     # ── Load anesthesia assignments from xlsx ──────────────────────────────────
     try:

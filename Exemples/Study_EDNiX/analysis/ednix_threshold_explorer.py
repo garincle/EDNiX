@@ -44,9 +44,27 @@ _CAT_COLORS = {"Specific": "#009E73", "Unspecific": "#E69F00",
                "No": "#D55E00", "Spurious": "#CC79A7"}
 _PHYLO = ["Mouse", "Rat", "Mouselemur", "Bat", "Marmoset",
           "Macaque", "Human", "Dog", "Cat", "Pig"]
-_PALETTE = ["#0072B2", "#E69F00", "#009E73", "#F0E442", "#56B4E9",
-            "#D55E00", "#CC79A7", "#999999", "#332288", "#44AA99",
-            "#117733", "#882255", "#DDCC77", "#88CCEE", "#AA4499"]
+
+# Phylogenetic color gradient: closely related species share similar hues.
+#   Rodentia (blue):      Mouse #1B4F72, Rat #2980B9
+#   Primates (green):     Mouselemur #1D6B3F, Marmoset #27AE60,
+#                         Macaque #82E0AA, Human #D4EFDF
+#   Carnivora (orange):   Dog #E67E22, Cat #F39C12
+#   Chiroptera (purple):  Bat #8E44AD
+#   Artiodactyla (brown): Pig #A04000
+_SPECIES_COLORS = {
+    "Mouse":      "#1B4F72",   # dark blue
+    "Rat":        "#2980B9",   # medium blue
+    "Mouselemur": "#1D6B3F",   # dark green
+    "Marmoset":   "#27AE60",   # green
+    "Macaque":    "#82E0AA",   # light green
+    "Human":      "#196F3D",   # forest green (distinct from macaque)
+    "Dog":        "#E67E22",   # orange
+    "Cat":        "#F39C12",   # golden
+    "Bat":        "#8E44AD",   # purple
+    "Pig":        "#A04000",   # brown
+}
+_PALETTE = list(_SPECIES_COLORS.values())
 _GOLD = "#FFD700"
 _GOLD_EDGE = "#B8860B"
 CATS = ["Specific", "Unspecific", "No", "Spurious"]
@@ -76,7 +94,9 @@ def _sp_order(df):
     return [s for s in _PHYLO if s in vals] + [s for s in vals if s not in _PHYLO]
 
 def _gcolors(groups):
-    return {g: _PALETTE[i % len(_PALETTE)] for i, g in enumerate(groups)}
+    """Use phylogenetic colors when available, fall back to palette index."""
+    return {g: _SPECIES_COLORS.get(g, _PALETTE[i % len(_PALETTE)])
+            for i, g in enumerate(groups)}
 
 def _save_or_show(fig, path):
     if path:
@@ -1049,6 +1069,15 @@ def plot_category_proportions(df_scored, cats, group_by="species", output_path=N
     if group_by == "bids_dir" and "bids_dir" in df.columns:
         group_vals = sorted(df["bids_dir"].dropna().unique())
         col_src = df["bids_dir"]
+        # Build display labels with species in parentheses
+        if "species" in df.columns:
+            _bids_sp_map = {}
+            for bd in group_vals:
+                sp_counts = df.loc[df["bids_dir"] == bd, "species"].value_counts()
+                _bids_sp_map[bd] = sp_counts.index[0] if len(sp_counts) else ""
+            _bids_display = {bd: f"{bd} ({_bids_sp_map[bd]})" for bd in group_vals}
+        else:
+            _bids_display = {bd: bd for bd in group_vals}
     elif group_by == "subject" and "subject" in df.columns:
         df["_subj_lbl"] = df.get("species", "").astype(str) + "/" + df["subject"].astype(str)
         group_vals = []
@@ -1084,7 +1113,10 @@ def plot_category_proportions(df_scored, cats, group_by="species", output_path=N
                         fontsize=7, color="white", fontweight="bold")
         bottoms += vals
     ax.set_xticks(x)
-    ax.set_xticklabels(group_vals, rotation=35, ha="right", fontsize=9)
+    display_labels = ([_bids_display.get(g, g) for g in group_vals]
+                      if group_by == "bids_dir" and "_bids_display" in dir()
+                      else group_vals)
+    ax.set_xticklabels(display_labels, rotation=35, ha="right", fontsize=9)
     ax.set_ylabel("% runs", fontsize=10)
     ax.set_ylim(0, 105)
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22),
@@ -1384,6 +1416,7 @@ def build_fc_fingerprint(sp_mats, n_top=10, fp_test="species_mean",
     stack = np.stack(run_arrs, 0)   # (n_runs, n_roi, n_roi)
 
     effect = np.full((n_roi, n_roi), np.nan)
+    se_mat = np.full((n_roi, n_roi), np.nan)   # standard error across species means
     pval = np.full((n_roi, n_roi), np.nan)
 
     triu = np.triu(np.ones((n_roi, n_roi), bool), k=1)
@@ -1397,6 +1430,18 @@ def build_fc_fingerprint(sp_mats, n_top=10, fp_test="species_mean",
             e, p, _ = _edge_test_species_mean(vals, run_sp)
         effect[i, j] = effect[j, i] = e
         pval[i, j] = pval[j, i] = p
+        # SE across species means (for error bars in fig 05)
+        d = pd.DataFrame({"v": vals, "sp": run_sp}).dropna()
+        if not d.empty:
+            g = d.groupby("sp")["v"].mean().values
+            g = g[np.isfinite(g)]
+            if len(g) >= 2:
+                se = float(np.std(g, ddof=1) / np.sqrt(len(g)))
+            else:
+                se = np.nan
+        else:
+            se = np.nan
+        se_mat[i, j] = se_mat[j, i] = se
 
     # BH-FDR across all tested edges (upper triangle only - lower triangle
     # is the symmetric mirror and is NEVER tested or counted separately).
@@ -1456,7 +1501,9 @@ def build_fc_fingerprint(sp_mats, n_top=10, fp_test="species_mean",
         q = qval[i, j]
         connections.append(dict(
             i=int(i), j=int(j), roi_i=rois[i], roi_j=rois[j],
-            effect=float(effect[i, j]), pval=float(pval[i, j]),
+            effect=float(effect[i, j]),
+            se=float(se_mat[i, j]) if np.isfinite(se_mat[i, j]) else np.nan,
+            pval=float(pval[i, j]),
             qval=float(q) if np.isfinite(q) else np.nan,
             type=_ctype(i, j),
             survived=bool(np.isfinite(q) and q < fdr_alpha),
@@ -1491,7 +1538,7 @@ def build_fc_fingerprint(sp_mats, n_top=10, fp_test="species_mean",
 
     return dict(
         rois=rois, n_species=sp_names, n_roi=n_roi,
-        effect_mat=effect, pval_mat=pval, qval_mat=qval,
+        effect_mat=effect, se_mat=se_mat, pval_mat=pval, qval_mat=qval,
         homo_mask=homo_mask, cross_mask=cross_mask,
         connections=connections, display=display,
         fingerprint_indices=fp_idx, fingerprint_pattern=fp_pattern,
@@ -1582,11 +1629,15 @@ def plot_fingerprint_connections(fp, n_top_per_type=5, output_path=None):
             continue
         y_pos = np.arange(len(conns))
         e_vals = [c["effect"] for c in conns]
+        se_vals = [c.get("se", np.nan) for c in conns]
         q_vals = [c["qval"] for c in conns]
         p_vals = [c["pval"] for c in conns]
+        # Error bars = standard error across species means
+        xerr = [s if np.isfinite(s) else 0 for s in se_vals]
         ax.barh(y_pos, e_vals, color=[cmap_r(norm_r(e)) if np.isfinite(e) else "#ccc"
                                        for e in e_vals],
-                edgecolor="white", lw=0.5, height=0.7)
+                edgecolor="white", lw=0.5, height=0.7,
+                xerr=xerr, ecolor="#444444", capsize=2, error_kw={"lw": 0.8})
         for yi, (e, q, p) in enumerate(zip(e_vals, q_vals, p_vals)):
             # Significance stars based on FDR-CORRECTED q
             if np.isnan(q):
@@ -2151,7 +2202,8 @@ def run_pipeline(df_qc, fit_kind="correlation",
                  n_top=10, atlas_name="EDNIxCSC", atlas_level=2, use_lr=True,
                  subsets=("all", "primates", "primates_rodents"),
                  fp_test="species_mean", fdr_alpha=0.05,
-                 make_human_figs=True, fig_dir=None, verbose=True):
+                 make_human_figs=True, make_all_species_sweeps=True,
+                 fig_dir=None, verbose=True):
     """
     Full pipeline for ONE atlas level. Within a single call:
 
@@ -2274,6 +2326,13 @@ def run_pipeline(df_qc, fit_kind="correlation",
                                           common_rois=common_rois)
 
     # ── human-specific figures (rendered once, under subset=all) ─────────────
+    # ── per-species threshold sweeps (all species, one folder each) ──────────
+    if make_all_species_sweeps and fig_dir:
+        print("\n[11b] Per-species threshold sweeps...")
+        plot_all_species_threshold_sweeps(
+            df_scored, t_in, t_de,
+            fig_dir=os.path.join(fig_dir, f"lvl{atlas_level}", "all"))
+
     if (make_human_figs and "species" in df_scored.columns
             and (df_scored["species"] == "Human").any()):
         print("\n[11] Fig 07 human threshold sweeps (intra / Δ / both)...")
@@ -2477,6 +2536,47 @@ def run_pipeline_multilevel(df_qc, fit_kind="correlation",
 
     return results
 
+
+
+# =============================================================================
+# FIGURE 07-ALL — THRESHOLD SWEEP FOR EVERY SPECIES (one folder per species)
+# =============================================================================
+
+def plot_all_species_threshold_sweeps(df_scored, thresh_intra, thresh_delta,
+                                      factors=(0.4, 0.7, 1.0, 1.3, 1.6),
+                                      fig_dir=None):
+    """
+    Run the three-panel threshold sweep for EVERY species that has runs,
+    saving each species in its own subfolder: fig_dir/sweep_{species}/07a_...
+
+    Usage:
+        plot_all_species_threshold_sweeps(df_scored, t_in, t_de,
+            fig_dir="figures/fc_explorer/lvl2/all")
+    """
+    if "species" not in df_scored.columns:
+        print("  [sweep-all] no species column")
+        return {}
+    sp_list = _sp_order(df_scored)
+    all_figs = {}
+    for sp in sp_list:
+        n_runs = (df_scored["species"] == sp).sum()
+        if n_runs == 0:
+            continue
+        sp_dir = os.path.join(fig_dir, f"sweep_{sp}") if fig_dir else None
+        if sp_dir:
+            os.makedirs(sp_dir, exist_ok=True)
+        print(f"\n  [sweep] {sp} ({n_runs} runs)")
+        figs = plot_human_threshold_sweeps(
+            df_scored, thresh_intra, thresh_delta,
+            species=sp, factors=factors,
+            output_paths={
+                "intra": os.path.join(sp_dir, "07a_sweep_intra_only.png") if sp_dir else None,
+                "delta": os.path.join(sp_dir, "07b_sweep_delta_only.png") if sp_dir else None,
+                "both":  os.path.join(sp_dir, "07c_sweep_both.png") if sp_dir else None,
+            } if sp_dir else None)
+        all_figs[sp] = figs
+    return all_figs
+
 # =============================================================================
 # CLI
 # =============================================================================
@@ -2505,5 +2605,3 @@ def main():
         stringency=args.stringency, n_top=args.n_top,
         fp_test=args.fp_test, fdr_alpha=args.fdr_alpha, fig_dir=args.output)
 
-if __name__ == "__main__":
-    main()

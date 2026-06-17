@@ -17,7 +17,7 @@ from modalities.anat.freesurfer import smallbrain, preFS, FS_surf, FS_2_WB_short
 
 Hmin    = ['l','r']
 
-def modif(smallbrainspecieslist, species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='ribbon',doflat=0):
+def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='ribbon',doflat=0):
 
     # reference templates
     if reference == '':
@@ -36,7 +36,7 @@ def modif(smallbrainspecieslist, species,reference,atlas_followers,MAIN_PATH,bid
      BASE_folder,BASE_atlas_folder, BASE_template, BASE_SS, BASE_mask, BASE_Gmask, BASE_WBGmask, BASE_Wmask, BASE_Vmask,
      CSF, GM, WM, Aseg_ref,
      list_atlas, path_label_code) = templatefeat.get(species, reftemplate_path, fs_tools, path_BALSA, reference,
-                                                     '', '','T1w','anat', atlas_followers)
+                                                     '', '','T1w','anat', atlas_followers, doBALSAspace=doBALSAspace)
 
     FS_dir     = opj(template_dir,reference,'freesurfer')
     if not ope(opj(FS_dir,species)):

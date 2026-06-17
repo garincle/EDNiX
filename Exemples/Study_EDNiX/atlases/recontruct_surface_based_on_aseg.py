@@ -9,7 +9,7 @@ opb = os.path.basename
 opd = os.path.dirname
 ope = os.path.exists
 
-
+doBALSAspace=True
 atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]]
 MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 Hmin    = ['l','r']
@@ -24,4 +24,4 @@ for species in ['Mouse','Rat','Mouselemur', 'Marmoset']:
     bids_dir = path_ref
     diary_file = path_ref + '/diary.txt'
     p = Path(diary_file); p.parent.mkdir(parents=True, exist_ok=True); p.touch()
-    template.modif(smallbrainspecieslist, species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='ribbon',doflat=0)
+    template.modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='ribbon',doflat=0)

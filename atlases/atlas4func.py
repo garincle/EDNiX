@@ -1,18 +1,13 @@
 import os
-import pandas as pd
 
 opj = os.path.join
-
-from Tools import Load_subject_with_BIDS,Read_atlas
-from Plotting.ednix_bids_tools import parse_label_file, get_atlas_label_path, find_species_path
 
 import os
 import pandas as pd
 
 opj = os.path.join
 
-from Tools import Load_subject_with_BIDS
-from Plotting.ednix_bids_tools import parse_label_file, get_atlas_label_path, find_species_path
+from Exemples.Study_EDNiX.analysis.ednix_bids_tools import parse_label_file, get_atlas_label_path, find_species_path
 
 
 def setup(MAIN_PATH, species, reference, selected_atlases_matrix, wanted_level,

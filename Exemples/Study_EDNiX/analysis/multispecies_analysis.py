@@ -17,28 +17,20 @@ FIXES vs previous version
 
 import os
 import sys
-import warnings
 
-import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 
 sys.path.insert(0, '/home/cgarin/PycharmProjects/EDNiX/')
 
-from Plotting.ednix_bids_tools import (
-    PAPER_RC, PALETTE,
+from Exemples.Study_EDNiX.analysis.ednix_bids_tools import (
+    PALETTE,
     get_atlas_label_path, find_species_path,
-    extract_corr_matrix_paths, load_corr_matrix,
     collect_multi_species,
-    run_wb_extraction,
-    extract_and_process_surfaces_from_rois,
-    extract_and_process_thickness_from_rois,
-    extract_regions_from_legend,
     export_to_excel, export_to_csv, export_summary_stats,
-    _bids_label,
 )
-from Plotting.EDNiX_figures import make_all_figures
+from Exemples.Study_EDNiX.analysis.EDNiX_figures import make_all_figures
 
 opj = os.path.join
 
@@ -342,7 +334,8 @@ print("""
       └── <species>_<bids>/    (surface|volume|thickness × hemi + QC_dashboard)
 """)
 
-from Plotting.ednix_threshold_explorer import run_pipeline_multilevel, run_pipeline
+from Exemples.Study_EDNiX.analysis.ednix_threshold_explorer import run_pipeline_multilevel
+
 '''
 result = run_pipeline(
     data["qc"],

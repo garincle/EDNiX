@@ -32,7 +32,7 @@ RibbonValue = [[2, 3], [41, 42]]
 
 def WB_prep(cmd_mris_convert, FS_dir, FS_refs, dir_path, animal, species, spacing, resamp, datfile, reference,
             list_atlas, balsa_folder, BALSAname, balsa_brainT1,
-            path_label_code, targetsuffix, listTimage, do_Nu, diary_name, sing_fs, sing_wb, sing_afni, export_fs,
+            path_label_code, targetsuffix, listTimage, doBALSAspace, diary_name, sing_fs, sing_wb, sing_afni, export_fs,
             list_transfo, type_norm, iso):
     #  spec file used by Workbench %
     #  inspired from FreeSurfer2CaretConvertAndRegisterNonlinear.sh within the HCP pipeline and the NHP pipeline
@@ -537,7 +537,7 @@ def WB_prep(cmd_mris_convert, FS_dir, FS_refs, dir_path, animal, species, spacin
 
     # extras ###########################################################################################
 
-    if species == 'Macaque':
+    if species == 'Macaque' and doBALSAspace==True:
         # parcellation from template surfaces to native space volume
         nl = 'Create ' + BALSAname + ' volumetric atlas'
         run_cmd.msg(nl, diary_name, 'OKGREEN')

@@ -28,7 +28,7 @@ turku_sif = 'tpcclib.sif'
 
 
 def orga(study,Major_path,path_ATLAS,singularity,Subject_Dir,Sess_to_process,Sess_anat,anat_ref,specie,
-         template,atlas_name,
+         template,atlas_name, doBALSAspace,
          tracor,im_type,to_remove,Do_cut,duration,
          Bq_inj,
          weight,
@@ -97,7 +97,7 @@ def orga(study,Major_path,path_ATLAS,singularity,Subject_Dir,Sess_to_process,Ses
   
 
   [_, templatemask, REF,atlas, atlas_label,surf_dir,LRside,roi] = templatefeat.get(specie, path_ATLAS, '',template,
-  atlas_name, REF_name,opj(path_anat, 'templates',template),BASE_ref, 'pet')
+  atlas_name, REF_name,opj(path_anat, 'templates',template),BASE_ref, 'pet', doBALSAspace=doBALSAspace)
   
 
   if ope(pet_dir) == False:

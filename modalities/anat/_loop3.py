@@ -15,10 +15,10 @@ from modalities.anat.freesurfer import FS_finalise, FS_flat
 from modalities.anat.freesurfer import smallbrain, preFS, FS_surf, FS_2_WB, FS_freeview
 
 
-def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat_study_template,study_template_atlas_folder,BASE_SS,BASE_mask,BASE_atlas_folder,
+def run(ID, Session, data_path, max_ses,creat_study_template,study_template_atlas_folder,BASE_SS,BASE_mask,BASE_atlas_folder,
         coregistration_longitudinal,bids_dir,type_norm,Skip_step,check_visualy_each_img,do_fMRImasks, n_for_ANTS,
         fs_tools,sing_afni, sing_itk,sing_fs,sing_wb,fMRImasks,list_atlas,listTimage,species,
-        path_label_code,FS_refs,reference,balsa_folder,BALSAname,balsa_brainT1,do_Nu,addatlas, list_transfo):
+        path_label_code,FS_refs,reference,balsa_folder,BALSAname,balsa_brainT1,doBALSAspace,addatlas, list_transfo):
 
 
     nl = '###################################################### work on subject: ' + str(ID) + ' Session ' + str(
@@ -361,7 +361,7 @@ def run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat
 
         FS_2_WB.WB_prep(cmd_mris, FS_dir, FS_refs, data_path, ID, species, scaling, resamp, DATfile,
                         reference, list_atlas, balsa_folder, BALSAname, balsa_brainT1,
-                        path_label_code, targetsuffix, listTimage, do_Nu,
+                        path_label_code, targetsuffix, listTimage, doBALSAspace,
                         diary_file, sing_fs, sing_wb, sing_afni, export_fs, list_transfo, type_norm, iso)
 
     # ...................................................................................................................

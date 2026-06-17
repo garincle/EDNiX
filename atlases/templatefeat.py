@@ -5,7 +5,7 @@ opj = os.path.join
 opd = os.path.dirname
 opb = os.path.basename
 
-def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_norm,kind, list_atlas):
+def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_norm,kind, list_atlas, doBALSAspace):
 
     # by default variables
     FS_refs       = opj(FS_tools, 'standard_mesh_atlases_macaque')
@@ -51,88 +51,89 @@ def get(specie,path_ATLAS,FS_tools,path_BALSA,reference,atlasname, REFname,type_
     WM                 = opj(BASE_priors_folder, specie + '_label-WM_probseg.nii.gz')
     Aseg_ref           = opj(BASE_atlas_folder,  specie + '_seg-4FS_dseg.nii.gz')
 
-    if specie == 'Human':
-        FS_refs          = opj(FS_tools, 'standard_mesh_atlases')
-        BALSAname        = 'S1200'
-        balsa_folder     = opj(path_BALSA, BALSAname, 'modified')
-        balsa_templateT1 = opj(balsa_folder, 'volumes', 'S1200_AverageT1w_restore.nii.gz')
-        balsa_templateT2 = opj(balsa_folder, 'volumes', 'S1200_AverageT2w_restore.nii.gz')
-        balsa_brainT1    = opj(balsa_folder, 'volumes', 'S1200_desc-SS_T1w.nii.gz')
-        balsa_gray       = opj(balsa_folder, 'volumes', 'masks', 'S1200_desc-dilat-Gray_mask.nii.gz') # doesn't exist yet
-        balsa_label      = opj(balsa_folder, 'volumes', 'labels')
+    if doBALSAspace==True:
+        if specie == 'Human':
+            FS_refs          = opj(FS_tools, 'standard_mesh_atlases')
+            BALSAname        = 'S1200'
+            balsa_folder     = opj(path_BALSA, BALSAname, 'modified')
+            balsa_templateT1 = opj(balsa_folder, 'volumes', 'S1200_AverageT1w_restore.nii.gz')
+            balsa_templateT2 = opj(balsa_folder, 'volumes', 'S1200_AverageT2w_restore.nii.gz')
+            balsa_brainT1    = opj(balsa_folder, 'volumes', 'S1200_desc-SS_T1w.nii.gz')
+            balsa_gray       = opj(balsa_folder, 'volumes', 'masks', 'S1200_desc-dilat-Gray_mask.nii.gz') # doesn't exist yet
+            balsa_label      = opj(balsa_folder, 'volumes', 'labels')
 
-        if reference == '':
-            reference = BALSAname
-            BASE_folder        = opj(balsa_folder, 'volumes')
-            BASE_atlas_folder  = opj(BASE_folder, 'labels')
-            BASE_masks_folder  = opj(BASE_folder, 'masks')
-            BASE_priors_folder = opj(BASE_folder, 'priors')
-            BASE_SS = balsa_brainT1
-            BASE_mask = opj(BASE_masks_folder, BALSAname + '_mask.nii.gz')
-            BASE_Gmask = opj(BASE_masks_folder, BALSAname + '_desc-Cerebral_Gray_mask.nii.gz')
-            BASE_WBGmask = opj(BASE_masks_folder, BALSAname + '_desc-Whole_Brain_Gray_mask.nii.gz')
-            BASE_Wmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-White_mask.nii.gz')
-            BASE_Vmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-Vent_mask.nii.gz')
-            CSF = opj(BASE_priors_folder, BALSAname + '_label-CSF_probseg.nii.gz')
-            GM = opj(BASE_priors_folder, BALSAname + '_label-GM_probseg.nii.gz')
-            WM = opj(BASE_priors_folder, BALSAname + '_label-WM_probseg.nii.gz')
-            Aseg_ref = opj(BASE_atlas_folder, BALSAname + '_seg-4FS_dseg.nii.gz')
+            if reference == '':
+                reference = BALSAname
+                BASE_folder        = opj(balsa_folder, 'volumes')
+                BASE_atlas_folder  = opj(BASE_folder, 'labels')
+                BASE_masks_folder  = opj(BASE_folder, 'masks')
+                BASE_priors_folder = opj(BASE_folder, 'priors')
+                BASE_SS = balsa_brainT1
+                BASE_mask = opj(BASE_masks_folder, BALSAname + '_mask.nii.gz')
+                BASE_Gmask = opj(BASE_masks_folder, BALSAname + '_desc-Cerebral_Gray_mask.nii.gz')
+                BASE_WBGmask = opj(BASE_masks_folder, BALSAname + '_desc-Whole_Brain_Gray_mask.nii.gz')
+                BASE_Wmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-White_mask.nii.gz')
+                BASE_Vmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-Vent_mask.nii.gz')
+                CSF = opj(BASE_priors_folder, BALSAname + '_label-CSF_probseg.nii.gz')
+                GM = opj(BASE_priors_folder, BALSAname + '_label-GM_probseg.nii.gz')
+                WM = opj(BASE_priors_folder, BALSAname + '_label-WM_probseg.nii.gz')
+                Aseg_ref = opj(BASE_atlas_folder, BALSAname + '_seg-4FS_dseg.nii.gz')
 
 
-    elif specie == 'Chimpanzee':
-        FS_refs          = opj(FS_tools, 'standard_mesh_atlases_chimp')
-        BALSAname        = 'CY29'
-        balsa_folder     = opj(path_BALSA, BALSAname, 'modified')
-        balsa_templateT1 = opj(balsa_folder, 'volumes', 'CY29_res-0.8_desc-template_T1w.nii.gz')
-        balsa_templateT2 = opj(balsa_folder, 'volumes', 'CY29_res-0.8_desc-template_T2w.nii.gz')
-        balsa_brainT1    = opj(balsa_folder, 'volumes', 'CY29_res-0.8_desc-SS_T1w.nii.gz')
-        balsa_gray       = opj(balsa_folder, 'volumes', 'masks', 'CY29_desc-dilat-Gray_mask.nii.gz')  # doesn't exist yet
-        balsa_label      = opj(balsa_folder, 'volumes', 'labels')
+        elif specie == 'Chimpanzee':
+            FS_refs          = opj(FS_tools, 'standard_mesh_atlases_chimp')
+            BALSAname        = 'CY29'
+            balsa_folder     = opj(path_BALSA, BALSAname, 'modified')
+            balsa_templateT1 = opj(balsa_folder, 'volumes', 'CY29_res-0.8_desc-template_T1w.nii.gz')
+            balsa_templateT2 = opj(balsa_folder, 'volumes', 'CY29_res-0.8_desc-template_T2w.nii.gz')
+            balsa_brainT1    = opj(balsa_folder, 'volumes', 'CY29_res-0.8_desc-SS_T1w.nii.gz')
+            balsa_gray       = opj(balsa_folder, 'volumes', 'masks', 'CY29_desc-dilat-Gray_mask.nii.gz')  # doesn't exist yet
+            balsa_label      = opj(balsa_folder, 'volumes', 'labels')
 
-        if reference == '':
-            reference = BALSAname
-            BASE_folder = opj(balsa_folder, 'volumes')
-            BASE_atlas_folder = opj(BASE_folder, 'labels')
-            BASE_masks_folder = opj(BASE_folder, 'masks')
-            BASE_priors_folder = opj(BASE_folder, 'priors')
-            BASE_SS = balsa_brainT1
-            BASE_mask = opj(BASE_masks_folder, BALSAname + '_mask.nii.gz')
-            BASE_Gmask = opj(BASE_masks_folder, BALSAname + '_desc-Cerebral_Gray_mask.nii.gz')
-            BASE_WBGmask = opj(BASE_masks_folder, BALSAname + '_desc-Whole_Brain_Gray_mask.nii.gz')
-            BASE_Wmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-White_mask.nii.gz')
-            BASE_Vmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-Vent_mask.nii.gz')
-            CSF = opj(BASE_priors_folder, BALSAname + '_label-CSF_probseg.nii.gz')
-            GM = opj(BASE_priors_folder, BALSAname + '_label-GM_probseg.nii.gz')
-            WM = opj(BASE_priors_folder, BALSAname + '_label-WM_probseg.nii.gz')
-            Aseg_ref = opj(BASE_atlas_folder, BALSAname + '_seg-4FS_dseg.nii.gz')
+            if reference == '':
+                reference = BALSAname
+                BASE_folder = opj(balsa_folder, 'volumes')
+                BASE_atlas_folder = opj(BASE_folder, 'labels')
+                BASE_masks_folder = opj(BASE_folder, 'masks')
+                BASE_priors_folder = opj(BASE_folder, 'priors')
+                BASE_SS = balsa_brainT1
+                BASE_mask = opj(BASE_masks_folder, BALSAname + '_mask.nii.gz')
+                BASE_Gmask = opj(BASE_masks_folder, BALSAname + '_desc-Cerebral_Gray_mask.nii.gz')
+                BASE_WBGmask = opj(BASE_masks_folder, BALSAname + '_desc-Whole_Brain_Gray_mask.nii.gz')
+                BASE_Wmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-White_mask.nii.gz')
+                BASE_Vmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-Vent_mask.nii.gz')
+                CSF = opj(BASE_priors_folder, BALSAname + '_label-CSF_probseg.nii.gz')
+                GM = opj(BASE_priors_folder, BALSAname + '_label-GM_probseg.nii.gz')
+                WM = opj(BASE_priors_folder, BALSAname + '_label-WM_probseg.nii.gz')
+                Aseg_ref = opj(BASE_atlas_folder, BALSAname + '_seg-4FS_dseg.nii.gz')
 
-    elif specie == 'Macaque':
-        FS_refs          = opj(FS_tools, 'standard_mesh_atlases_macaque')
-        BALSAname        = 'MY19'
-        balsa_folder     = opj(path_BALSA, BALSAname,'modified')
-        balsa_templateT1 = opj(balsa_folder, 'volumes', 'MY19_res-0.5mm_template_T1w.nii.gz')
-        balsa_templateT2 = opj(balsa_folder, 'volumes', 'MY19_res-0.5mm_template_T2w.nii.gz')
-        balsa_brainT1    = opj(balsa_folder, 'volumes', 'MY19_desc-SS_T1w.nii.gz')
-        #ref_imc         = opj(balsa_folder, 'MY19_desc-crop_T1w.nii.gz')
-        balsa_gray       = opj(balsa_folder, 'volumes', 'masks', 'MY19_desc-dilat-Gray_mask.nii.gz')
-        balsa_label      = opj(balsa_folder, 'volumes', 'labels')
+        elif specie == 'Macaque':
+            FS_refs          = opj(FS_tools, 'standard_mesh_atlases_macaque')
+            BALSAname        = 'MY19'
+            balsa_folder     = opj(path_BALSA, BALSAname,'modified')
+            balsa_templateT1 = opj(balsa_folder, 'volumes', 'MY19_res-0.5mm_template_T1w.nii.gz')
+            balsa_templateT2 = opj(balsa_folder, 'volumes', 'MY19_res-0.5mm_template_T2w.nii.gz')
+            balsa_brainT1    = opj(balsa_folder, 'volumes', 'MY19_desc-SS_T1w.nii.gz')
+            #ref_imc         = opj(balsa_folder, 'MY19_desc-crop_T1w.nii.gz')
+            balsa_gray       = opj(balsa_folder, 'volumes', 'masks', 'MY19_desc-dilat-Gray_mask.nii.gz')
+            balsa_label      = opj(balsa_folder, 'volumes', 'labels')
 
-        if reference == '':
-            reference = BALSAname
-            BASE_folder = opj(balsa_folder, 'volumes')
-            BASE_atlas_folder = opj(BASE_folder, 'labels')
-            BASE_masks_folder = opj(BASE_folder, 'masks')
-            BASE_priors_folder = opj(BASE_folder, 'priors')
-            BASE_SS = balsa_brainT1
-            BASE_mask = opj(BASE_masks_folder, BALSAname + '_mask.nii.gz')
-            BASE_Gmask = opj(BASE_masks_folder, BALSAname + '_desc-Cerebral_Gray_mask.nii.gz')
-            BASE_WBGmask = opj(BASE_masks_folder, BALSAname + '_desc-Whole_Brain_Gray_mask.nii.gz')
-            BASE_Wmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-White_mask.nii.gz')
-            BASE_Vmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-Vent_mask.nii.gz')
-            CSF = opj(BASE_priors_folder, BALSAname + '_label-CSF_probseg.nii.gz')
-            GM = opj(BASE_priors_folder, BALSAname + '_label-GM_probseg.nii.gz')
-            WM = opj(BASE_priors_folder, BALSAname + '_label-WM_probseg.nii.gz')
-            Aseg_ref = opj(BASE_atlas_folder, BALSAname + '_seg-4FS_dseg.nii.gz')
+            if reference == '':
+                reference = BALSAname
+                BASE_folder = opj(balsa_folder, 'volumes')
+                BASE_atlas_folder = opj(BASE_folder, 'labels')
+                BASE_masks_folder = opj(BASE_folder, 'masks')
+                BASE_priors_folder = opj(BASE_folder, 'priors')
+                BASE_SS = balsa_brainT1
+                BASE_mask = opj(BASE_masks_folder, BALSAname + '_mask.nii.gz')
+                BASE_Gmask = opj(BASE_masks_folder, BALSAname + '_desc-Cerebral_Gray_mask.nii.gz')
+                BASE_WBGmask = opj(BASE_masks_folder, BALSAname + '_desc-Whole_Brain_Gray_mask.nii.gz')
+                BASE_Wmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-White_mask.nii.gz')
+                BASE_Vmask = opj(BASE_masks_folder, BALSAname + '_desc-erod-Vent_mask.nii.gz')
+                CSF = opj(BASE_priors_folder, BALSAname + '_label-CSF_probseg.nii.gz')
+                GM = opj(BASE_priors_folder, BALSAname + '_label-GM_probseg.nii.gz')
+                WM = opj(BASE_priors_folder, BALSAname + '_label-WM_probseg.nii.gz')
+                Aseg_ref = opj(BASE_atlas_folder, BALSAname + '_seg-4FS_dseg.nii.gz')
 
     # for projection of volumetric results into template surfaces
 

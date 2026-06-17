@@ -49,7 +49,7 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
                     selected_atlases_SBA='default', panda_files_SBA='default',
                     SBAspace=['func', 'anat', 'atlas'], erod_seed=True, smoothSBA=False,
                     intra_thresh=0.240, delta_thresh=0.05,
-                    oversample_map=False, use_cortical_mask_func=False, n_cut=10, threshold_val=10, **kwargs):
+                    oversample_map=False, use_cortical_mask_func=False, n_cut=10, threshold_val=10,doBALSAspace=False, **kwargs):
 
     """
     Preprocess functional MRI data within a BIDS-compliant study, integrating anat
@@ -200,7 +200,7 @@ def preprocess_data(Skip_step, MAIN_PATH, bids_dir,
     fs_tools, reftemplate_path, MNIBcorrect_indiv, masking_img) = set_launcher.get(MAIN_PATH, bids_dir, allinfo_study_c,
                                                                                    species, list_to_keep,
                                                                                    list_to_remove, reference, type_norm,
-                                                                                   '', '', atlas_followers)
+                                                                                   '', '', atlas_followers, doBALSAspace)
 
     sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _, sing_synstrip, Unetpath = Load_EDNiX_requirement.load_requirement(
         MAIN_PATH, reftemplate_path, bids_dir, 'yes')

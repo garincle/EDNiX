@@ -38,7 +38,7 @@ def preprocess_anat(Skip_step,
                      list_transfo, Align_img_to_template, MNIBcorrect_indiv,
                      fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[[], [], [], []], addatlas='',
                      transfo_message='do_as_I_said', force_myelin_same_space=False,
-                     check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK'):
+                     check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK', doBALSAspace=False):
 
     """
     Preprocess anatomical MRI data for BIDS-compliant studies, supporting human and non-human datasets.
@@ -123,7 +123,7 @@ def preprocess_anat(Skip_step,
      BASE_mask, BASE_Gmask, BASE_WBGmask, BASE_Wmask, BASE_Vmask,CSF, GM, WM, Aseg_ref,list_atlases, path_label_code,all_ID,
      all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max,
      fs_tools,reftemplate_path,MNIBcorrect_indiv, masking_img) = set_launcher.get(MAIN_PATH,bids_dir,allinfo_study_c,species,list_to_keep,
-                                                                   list_to_remove,reference,type_norm,MNIBcorrect_indiv, masking_img, atlas_followers)
+                                                                   list_to_remove,reference,type_norm,MNIBcorrect_indiv, masking_img, atlas_followers, doBALSAspace)
     ### singularity set up
     sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb, _,sing_synstrip,Unetpath =  Load_EDNiX_requirement.load_requirement(MAIN_PATH,reftemplate_path,bids_dir,'yes')
 
@@ -225,10 +225,10 @@ def preprocess_anat(Skip_step,
         for i, j in enumerate(list_transfo):
             if list_transfo[i]["name"] == 'coreg':
                 refnb = i
-        _loop3.run(all_ID, all_Session, all_data_path,ID, Session, data_path, max_ses,creat_study_template,
+        _loop3.run(ID, Session, data_path, max_ses,creat_study_template,
                    study_template_atlas_folder,BASE_SS,BASE_mask,BASE_atlas_folder,coregistration_longitudinal,
                    bids_dir,type_norm,Skip_step,check_visualy_each_img,do_fMRImasks,
                    list_transfo[refnb]["interpol"], fs_tools,sing_afni, sing_itk,sing_fs,sing_wb,
                    fMRImasks,list_atlases,listTimage,species,path_label_code,FS_refs,reference,
-        balsa_folder,BALSAname,balsa_brainT1,[0, 0],addatlas, list_transfo)
+        balsa_folder,BALSAname,balsa_brainT1,doBALSAspace,addatlas, list_transfo)
 

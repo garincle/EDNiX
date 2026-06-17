@@ -10,7 +10,7 @@ sys.path.insert(1, opj(MAIN_PATH))
 from Tools import Load_subject_with_BIDS, load_bids
 from modalities.anat import _0_Pipeline_launcher
 from modalities.anat.load_transfo_parameters import build_transfos
-
+from Tools.ednix_checkpoint import anat_resume_groups
 ########################################################################################################################
 #                                       Set the pipeline parameters (see manual.....)                                  #
 ########################################################################################################################
@@ -98,18 +98,28 @@ Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################
+groups = anat_resume_groups(
+    allinfo_study_c, bids_dir,
+    reference='EDNiX',
+    type_norm='T1w',
+    species=species,
+    Skip_step=Skip_step,
+    list_to_remove=list_to_remove,
+    creat_study_template=creat_study_template)
 
-_0_Pipeline_launcher.preprocess_anat(Skip_step,
-                                     MAIN_PATH, bids_dir, BIDStype, species,
-                                     allinfo_study_c, list_to_keep, list_to_remove,
-                                     type_norm, otheranat, masking_img,
-                                     orientation, animalPosition, humanPosition,
-                                     coregistration_longitudinal, creat_study_template, which_on,
-                                     brain_skullstrip_1, brain_skullstrip_2, template_skullstrip,
-                                     list_transfo, Align_img_to_template, MNIBcorrect_indiv,
-                                     fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
-                                     transfo_message='do_as_I_said', force_myelin_same_space=False,
-                                     check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
+# ---- Run each group with the launcher — signature unchanged --------------
+for list_to_keep, Skip_step in groups:
+    _0_Pipeline_launcher.preprocess_anat(Skip_step,
+                                         MAIN_PATH, bids_dir, BIDStype, species,
+                                         allinfo_study_c, list_to_keep, list_to_remove,
+                                         type_norm, otheranat, masking_img,
+                                         orientation, animalPosition, humanPosition,
+                                         coregistration_longitudinal, creat_study_template, which_on,
+                                         brain_skullstrip_1, brain_skullstrip_2, template_skullstrip,
+                                         list_transfo, Align_img_to_template, MNIBcorrect_indiv,
+                                         fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
+                                         transfo_message='do_as_I_said', force_myelin_same_space=False,
+                                         check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
 
 '''
 ### Surface QC summary creation --------------------------------------------------------------------------------

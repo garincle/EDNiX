@@ -644,6 +644,48 @@ def extract_qc_paths(bids_dir, list_to_keep=None, list_to_remove=None, fit_kind=
     return out
 
 
+
+def extract_bold_paths(
+    bids_dir,
+    list_to_keep=None,
+    list_to_remove=None,
+    bold_pattern="*_space-template_desc-fMRI_residual.nii.gz",
+    task="rest",
+):
+    list_to_keep   = list_to_keep   or []
+    list_to_remove = list_to_remove or []
+
+    pattern = opj(bids_dir, "sub-*", "ses-*", "func", "**", bold_pattern)
+    files   = glob.glob(pattern, recursive=True)
+    if not files:
+        pattern = opj(bids_dir, "sub-*", "func", "**", bold_pattern)
+        files   = glob.glob(pattern, recursive=True)
+
+    subjects, sessions, runs, paths = [], [], [], []
+    for f in sorted(files):
+        f   = _linux_path(f)
+        sub = _parse_bids_entity(f, "sub")
+        ses = _parse_bids_entity(f, "ses") or "1"
+        if sub is None:
+            continue
+        bn = os.path.basename(f)
+        if task and f"task-{task}" not in bn and "task-" in bn:
+            continue
+        run = _parse_run(f)
+        subjects.append(sub); sessions.append(ses)
+        runs.append(run); paths.append(f)
+
+    keep = _subject_session_filter(subjects, sessions, list_to_keep, list_to_remove)
+    out  = {"subject": [], "session": [], "run": [], "bold_path": []}
+    for sub, ses, run, p in zip(subjects, sessions, runs, paths):
+        if (sub, ses) in keep:
+            out["subject"].append(sub); out["session"].append(ses)
+            out["run"].append(run); out["bold_path"].append(p)
+
+    print(f"  [bold]      {len(out['bold_path'])} files  ? {bids_dir}")
+    return out
+
+
 def extract_corr_matrix_paths(bids_dir, atlas_name="EDNIxCSC", atlas_level=3, fit_kind='correlation',
                                use_lr=False, list_to_keep=None, list_to_remove=None):
     fk_re = re.escape(fit_kind)

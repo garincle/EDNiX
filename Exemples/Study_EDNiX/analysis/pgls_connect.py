@@ -46,9 +46,8 @@ from PIL import Image
 # ?? project imports ???????????????????????????????????????????????????????????
 sys.path.insert(0, "/home/cgarin/PycharmProjects/EDNiX")
 
-from Plotting.ednix_bids_tools import (
-    PAPER_RC, PALETTE,
-    collect_multi_species,
+from Exemples.Study_EDNiX.analysis.ednix_bids_tools import (
+    PAPER_RC, collect_multi_species,
     get_atlas_label_path,
     find_species_path,
     extract_corr_matrix_paths,
@@ -61,7 +60,6 @@ from Statistics.Evo.PGLS import (
     pgls_on_ax,
     _species_colors,
     _phylo_sort,
-    PHYLO_ORDER,
 )
 
 opj = os.path.join
