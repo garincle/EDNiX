@@ -133,19 +133,19 @@ def surfFS(volume, ctab, change_hd, diary_name, sing_fs, path_code_label, export
     else:
         preFS.toannot(volume, ref, change_hd, spacing, new_size, FS_dir, diary_name, sing_fs)
 
-    for H in range(2):
-        if ctab == 'txt':
-            ext = '_StatsLUT.txt'
-        elif ctab == 'ctab':
-            ext = '_' + Hmin[H] + '.ctab'
+        for H in range(2):
+            if ctab == 'txt':
+                ext = '_StatsLUT.txt'
+            elif ctab == 'ctab':
+                ext = '_' + Hmin[H] + '.ctab'
 
-        cmd = (export_fs + 'mris_sample_parc -ct ' + opj(path_code_label, name) + ext +
-               ' -surf mid -projfrac 0.01 ' + animal + ' ' + Hmin[H] + 'h ' + animal + '_' + name + '.mgz ' +
-               Hmin[H] + 'h.' + animal + '_' + name + '.annot')
-        run_cmd.do(cmd, diary_name)
+            cmd = (export_fs + 'mris_sample_parc -ct ' + opj(path_code_label, name) + ext +
+                   ' -surf mid -projfrac 0.01 ' + animal + ' ' + Hmin[H] + 'h ' + animal + '_' + name + '.mgz ' +
+                   Hmin[H] + 'h.' + animal + '_' + name + '.annot')
+            run_cmd.do(cmd, diary_name)
 
-        nl = surface[H] + ' surface done!'
-        run_cmd.msg(nl, diary_name, 'OKGREEN')
+            nl = surface[H] + ' surface done!'
+            run_cmd.msg(nl, diary_name, 'OKGREEN')
 
 
 def surfWB(cmd_mris_convert, FS_dir, animal, label, WB_dir, surftype, h, diary_name, sing_fs, sing_wb):
