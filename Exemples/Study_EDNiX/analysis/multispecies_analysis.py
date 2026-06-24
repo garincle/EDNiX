@@ -25,12 +25,12 @@ matplotlib.use("Agg")
 sys.path.insert(0, '/home/cgarin/PycharmProjects/EDNiX/')
 
 from Exemples.Study_EDNiX.analysis.ednix_bids_tools import (
-    PALETTE,
+    PALETTE, run_wb_extraction,
     get_atlas_label_path, find_species_path,
     collect_multi_species,
     export_to_excel, export_to_csv, export_summary_stats,
 )
-from Exemples.Study_EDNiX.analysis.EDNiX_figures import make_all_figures
+from Exemples.Study_EDNiX.analysis.Archives.EDNiX_figures import make_all_figures
 
 opj = os.path.join
 
@@ -41,9 +41,9 @@ opj = os.path.join
 ATLAS_LIB      = '/home/cgarin/PycharmProjects/EDNiX/Atlases_library'
 ATLAS_NAME     = 'EDNIxCSC'
 ATLAS_LEVEL    = 1   # hierarchy level shown in figures (1–4)
-N_ATLAS_LEVELS = 1   # how many levels Stage 0 extracts — must be >= 1
+N_ATLAS_LEVELS = 4   # how many levels Stage 0 extracts — must be >= 1
 
-OUT_DIR = '/scratch2/EDNiX/results/multispecies_analysis'
+OUT_DIR = '/scratch2/EDNiX3/results/multispecies_analysis'
 FIG_DIR = opj(OUT_DIR, 'figures')
 
 SING_WB = (
@@ -53,7 +53,7 @@ SING_WB = (
     'connectome_workbench_1.5.0-freesurfer-update.sif'
 )
 
-PLOT_REGIONS        = ['Isocortex', 'Allocortex', 'Periallocortex']
+PLOT_REGIONS        = []
 REGIONS_OF_INTEREST = PLOT_REGIONS
 
 CORR_ATLAS_LEVEL = 2
@@ -64,22 +64,22 @@ CORR_USE_LR      = True
 # ═══════════════════════════════════════════════════════════════════════════════
 
 species_bids_dict = {
-    'Rat':        '/scratch2/EDNiX/Rat/BIDS_Grandjean',
-    'Mouse':      '/scratch2/EDNiX/Mouse/BIDS_Grandjean2',
-    'Dog':        '/scratch2/EDNiX/Dog/BIDS_Boch_K9',
-    'Marmoset':   '/scratch2/EDNiX/Marmoset/BIDS_Tian',
-    'Mouselemur': '/scratch2/EDNiX/Mouselemur/BIDS_Garin',
+    'Rat':        '/scratch2/EDNiX3/Rat/BIDS_Grandjean',
+    'Mouse':      '/scratch2/EDNiX3/Mouse/BIDS_Grandjean2',
+    'Dog':        '/scratch2/EDNiX3/Dog/BIDS_Boch_K9',
+    'Marmoset':   '/scratch2/EDNiX3/Marmoset/BIDS_Tian',
+    'Mouselemur': '/scratch2/EDNiX3/Mouselemur/BIDS_Garin',
 }
 species_multi_bids = {
     'Macaque': [
 
-        '/scratch2/EDNiX/Macaque/BIDS_BenHamed',
-        '/scratch2/EDNiX/Macaque/BIDS_Zhu_Garin',
+        '/scratch2/EDNiX3/Macaque/BIDS_BenHamed',
+        '/scratch2/EDNiX3/Macaque/BIDS_Zhu_Garin',
     ],
     'Human': [
-        '/scratch2/EDNiX/Human/BIDS_Merida',
-        '/scratch2/EDNiX/Human/BIDS_Park',
-        '/scratch2/EDNiX/Human/BIDS_Castrillon',
+        '/scratch2/EDNiX3/Human/BIDS_Merida',
+        '/scratch2/EDNiX3/Human/BIDS_Park',
+        '/scratch2/EDNiX3/Human/BIDS_Castrillon',
     ],
 }
 
@@ -305,7 +305,26 @@ print(f"\n  Global BIDS colour map: {GLOBAL_BIDS_COL}")
 # ═══════════════════════════════════════════════════════════════════════════════
 # STEP 6  —  Generate all figures (per-subject averaged data)
 # ═══════════════════════════════════════════════════════════════════════════════
+PLOT_REGIONS        = ['Isocortex', 'Allocortex', 'Periallocortex']
+ATLAS_LEVEL = 1
+make_all_figures(
+    data             = data_plot,
+    species_config   = species_config,
+    all_bids         = ALL_BIDS,
+    fig_dir          = FIG_DIR,
+    plot_regions     = PLOT_REGIONS,
+    atlas_level      = ATLAS_LEVEL,
+    atlas_name       = ATLAS_NAME,
+    corr_atlas_level = CORR_ATLAS_LEVEL,
+    corr_use_lr      = CORR_USE_LR,
+    anesth_map       = anesth_map,
+    global_bids_col  = GLOBAL_BIDS_COL,
+    trimouse_xlsx='/home/common/benhalab/CASCAD/EDNiX/Mouse/BIDS_Grandjean/Trimouse-Grandjean.xlsx'
+)
 
+
+PLOT_REGIONS        = []
+ATLAS_LEVEL = 1
 make_all_figures(
     data             = data_plot,
     species_config   = species_config,
@@ -345,7 +364,7 @@ result = run_pipeline(
     fig_dir  = "/scratch2/EDNiX/results/cross_species/qc_recap")
 '''
 result = run_pipeline_multilevel(data["qc"], fit_kind="correlation",
-                            bids_root_template="/scratch2/EDNiX/{species}/{bids_dir}",
+                            bids_root_template="/scratch2/EDNiX3/{species}/{bids_dir}",
                             atlas_levels=(2, 3, 4),
                             subsets=("all", "primates", "primates_rodents"),
                             thresh_intra=None, thresh_delta=None, stringency=0.0,

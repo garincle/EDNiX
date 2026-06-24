@@ -31,7 +31,7 @@ opj = os.path.join
 
 # Parse a label file directly
 label_df = parse_label_file(
-    '/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/mammals/primates/Mouselemur/label_code/EDNIxCSC_label.txt')
+    '/Atlases_library/atlas/mammals/primates/Mouselemur/label_code/EDNIxCSC_label.txt')
 print(label_df.head(10))
 
 # Auto-locate label file from the library

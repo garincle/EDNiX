@@ -30,7 +30,7 @@ allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], s
 Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 
 # choose if you want to select or remove ID from you analysis:
-list_to_keep   = [('Oliver', '6'),('Oliver', '5'), ('Oliver', '4'), ('Oliver', '3'), ('Oliver', '2'), ('Oliver', '1'), ('Pickle', '11'), ('Pickle', '10'), ('Pickle', '9'), ('Pickle', '8'), ('Pickle', '7'), ('Pickle', '6'), ('Pickle', '5'), ('Pickle', '4'), ('Pickle', '3'), ('Pickle', '2'), ('Pickle', '1'), ('Quantum', '7'), ('Quantum', '6'), ('Quantum', '5'), ('Quantum', '4'), ('Quantum', '3'), ('Quantum', '2'), ('Quantum', '1'), ('Roshan', '11'), ('Roshan', '10'), ('Roshan', '9'), ('Roshan', '8'), ('Roshan', '7'), ('Roshan', '6'), ('Roshan', '5'), ('Roshan', '4'), ('Roshan', '3'), ('Roshan', '2'), ('Roshan', '1'), ('Sonic', '11'), ('Sonic', '10'), ('Sonic', '9'), ('Sonic', '8'), ('Sonic', '7'), ('Sonic', '6'), ('Sonic', '5'), ('Sonic', '4'), ('Sonic', '3'), ('Sonic', '2'), ('Sonic', '1'), ('Trinity', '11'), ('Trinity', '10'), ('Trinity', '9'), ('Trinity', '8'), ('Trinity', '7'), ('Trinity', '6'), ('Trinity', '5'), ('Trinity', '4'), ('Trinity', '3'), ('Trinity', '2'), ('Trinity', '1'), ('Unity', '11'), ('Unity', '10'), ('Unity', '9'), ('Unity', '8'), ('Unity', '7'), ('Unity', '6'), ('Unity', '4'), ('Unity', '3'), ('Unity', '2'), ('Unity', '1'), ('Viking', '11'), ('Viking', '10'), ('Viking', '9'), ('Viking', '8'), ('Viking', '7'), ('Viking', '6'), ('Viking', '5'), ('Viking', '4'), ('Viking', '3'), ('Viking', '2'), ('Viking', '1')]
+list_to_keep   = []
 list_to_remove = []
 species    = 'Macaque'
 # is it a longitudinal study ?

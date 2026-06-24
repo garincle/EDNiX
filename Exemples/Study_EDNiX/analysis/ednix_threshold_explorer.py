@@ -703,8 +703,8 @@ def suggest_thresholds(df_scored, method="auto",
     else:
         s = np.clip(stringency, -1.0, 1.0)
         # base = median (P50). symmetric anchors: P75 strict, P25 lenient.
-        base_intra = np.percentile(intra_vals, 33)
-        base_delta = np.percentile(delta_vals, 33)
+        base_intra = np.percentile(intra_vals, 25)
+        base_delta = np.percentile(delta_vals, 25)
         if s >= 0:
             auto_intra = base_intra + s * (np.percentile(intra_vals, 75) - base_intra)
             auto_delta = base_delta + s * (np.percentile(delta_vals, 75) - base_delta)

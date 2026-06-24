@@ -49,7 +49,7 @@ except ImportError:
     warnings.warn("pygam not found — GAMM replaced by cubic LME. pip install pygam")
 
 sys.path.insert(0, '/home/cgarin/PycharmProjects/EDNiX/')
-from Plotting.ednix_bids_tools import PAPER_RC
+from Exemples.Study_EDNiX.analysis.ednix_bids_tools import PAPER_RC
 
 opj = os.path.join
 
@@ -57,7 +57,10 @@ opj = os.path.join
 # CONFIG (can be overridden at call site)
 # ─────────────────────────────────────────────────────────────────────────────
 MIN_SESSIONS  = 3    # minimum sessions per subject to include in model
-GAM_N_SPLINES = None  # None = automatic
+GAM_N_SPLINES = None      # None = automatic (capped at 8 for short series)
+GAM_LAM       = 5.0       # base penalty (higher = smoother)
+import numpy as _np
+GAM_LAM_GRID  = _np.logspace(0.5, 3.5, 12)  # search 3.2 … 3162 (smoother end)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -125,9 +128,16 @@ def fit_gamm(df: pd.DataFrame,
 
     # ── pygam path ───────────────────────────────────────────────────────────
     if _HAS_GAM:
-        n_sp = GAM_N_SPLINES or max(10, len(sub) // 10)
-        print("splin is equal to "  + str(n_sp))
-        gam  = LinearGAM(s(0, n_splines=n_sp)).fit(age.reshape(-1, 1), y)
+        # Smoother fit: cap splines for short series + strong penalty (lam).
+        # Fewer knots + larger lam → gentle developmental curve, no overfitting.
+        n_sp = GAM_N_SPLINES or min(8, max(4, len(sub) // 12))
+        gam  = LinearGAM(s(0, n_splines=n_sp, lam=GAM_LAM))
+        # optimise penalty over a grid biased toward heavier smoothing
+        try:
+            gam.gridsearch(age.reshape(-1, 1), y,
+                           lam=GAM_LAM_GRID, progress=False)
+        except Exception:
+            gam.fit(age.reshape(-1, 1), y)
 
         grid = np.linspace(age.min(), age.max(), 200)
         pred = gam.predict(grid.reshape(-1, 1))

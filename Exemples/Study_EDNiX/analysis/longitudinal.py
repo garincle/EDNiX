@@ -24,7 +24,7 @@ import pandas as pd
 import numpy as np
 
 sys.path.insert(0, '/home/cgarin/PycharmProjects/EDNiX/')
-from Plotting.ednix_bids_tools import (
+from Exemples.Study_EDNiX.analysis.ednix_bids_tools import (
     collect_multi_species,
     get_atlas_label_path,
     find_species_path,
@@ -45,12 +45,12 @@ REGIONS     = ['Isocortex', 'Allocortex', 'Periallocortex']
 MIN_SESSIONS = 3
 
 MACAQUE_BIDS_DIRS = [
-    '/scratch2/EDNiX/Macaque/BIDS_Cdt_Garin',
+    '/scratch2/EDNiX3/Macaque/BIDS_Cdt_Garin',
 ]
-MACAQUE_EXCEL = '/scratch2/EDNiX/Macaque/BIDS_Cdt_Garin/Garin_macaque.xlsx'
+MACAQUE_EXCEL = '/scratch2/EDNiX3/Macaque/BIDS_Cdt_Garin/Garin_macaque.xlsx'
 
 HUMAN_BIDS_DIRS = [
-    '/scratch2/EDNiX/Human/ds004856/',
+    '/scratch2/EDNiX3/Human/BIDS_Park',
 ]
 
 # participants.tsv column that contains age at each wave
