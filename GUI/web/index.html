@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EDNiX</title>
+<link rel="icon" href="icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<nav class="rail" aria-label="Sections">
+  <div class="brand">EDNiX</div>
+  <button class="nav on" data-view="atlas">Atlases</button>
+  <div class="nav-group">Launchers</div>
+  <button class="nav" data-view="launcher" data-pipe="anat">Anatomy</button>
+  <button class="nav" data-view="launcher" data-pipe="func">Functional</button>
+  <button class="nav" data-view="launcher" data-pipe="pet">PET</button>
+  <div class="nav-group"></div>
+  <button class="nav" data-view="runs">Runs <span id="run-badge" class="badge" hidden></span></button>
+  <button class="nav" data-view="qc">Quality control</button>
+  <div class="rail-foot"><div id="env"></div><button id="btn-quit" class="link">Quit</button></div>
+</nav>
+
+<main>
+  <div id="banner" class="banner" hidden></div>
+
+  <!-- ============================== ATLASES ============================== -->
+  <section id="view-atlas" class="view on">
+    <header class="bar">
+      <label>Species <select id="sel-species"></select></label>
+      <label>Reference <select id="sel-ref"></select></label>
+      <label>Source <select id="sel-source"><option value="volume">Volume atlas</option><option value="surface">Cortical surface</option></select></label>
+      <label>Atlas <select id="sel-atlas"></select></label>
+      <label class="vol-only">Level <select id="sel-level"></select></label>
+      <label class="vol-only">Background <select id="sel-template"></select></label>
+      <label class="surf-only" hidden>Surface <select id="sel-surface"></select></label>
+      <button id="btn-add" class="primary">Add to view</button>
+    </header>
+    <div class="atlas-body">
+      <div class="stage" id="stage">
+        <div class="empty" id="stage-empty">
+          <p class="big">Pick a species and an atlas, then <b>Add to view</b>.</p>
+          <p>Add several layers to compare atlases, levels, surfaces or species. The first display of a volume atlas builds its surfaces (a few seconds to a minute); later displays are instant.</p>
+        </div>
+        <div class="loading" id="stage-loading" hidden><div class="spinner"></div><p id="loading-text">Building surfaces</p></div>
+        <div class="tip" id="tip" hidden></div>
+
+        <div class="layers" id="layers-box" hidden>
+          <div class="box-title">Layers</div>
+          <ul id="layer-list"></ul>
+          <div class="seg" role="group" aria-label="Layout">
+            <button class="segb on" data-layout="overlay">Overlay</button>
+            <button class="segb" data-layout="side">Side by side</button>
+          </div>
+          <label class="check"><input type="checkbox" id="chk-samesize"> Same size (compare species)</label>
+          <label class="linkrow">Link selections
+            <select id="sel-link">
+              <option value="off">off</option>
+              <option value="name">same region name</option>
+              <option value="id">same label ID</option>
+            </select></label>
+        </div>
+
+        <div class="views">
+          <span class="box-title">View</span>
+          <button data-view3d="left">Left</button><button data-view3d="right">Right</button>
+          <button data-view3d="top">Top</button><button data-view3d="bottom">Bottom</button>
+          <button data-view3d="front">Front</button><button data-view3d="back">Back</button>
+          <span class="sep"></span>
+          <span class="box-title">Fix orientation</span>
+          <button data-rot="x">Rotate X 90°</button><button data-rot="y">Rotate Y 90°</button><button data-rot="z">Rotate Z 90°</button>
+          <button id="btn-rot-reset" class="link">reset</button>
+        </div>
+
+        <div class="stage-tools">
+          <label>Opacity <input type="range" id="rng-opacity" min="0.15" max="1" step="0.05" value="0.92"></label>
+          <label class="vol-tool">Explode <input type="range" id="rng-explode" min="0" max="1.5" step="0.05" value="0"></label>
+          <label class="check vol-tool"><input type="checkbox" id="chk-shell" checked> Brain outline</label>
+          <label class="check"><input type="checkbox" id="chk-isolate"> Show the selection only</label>
+        </div>
+        <button id="btn-quiz" class="quiz-btn">Challenge: find the regions</button>
+        <div class="quiz" id="quiz" hidden>
+          <div class="quiz-q" id="quiz-q"></div>
+          <div class="quiz-meta"><span id="quiz-round"></span><span id="quiz-score"></span><span id="quiz-streak"></span></div>
+          <button id="quiz-stop">Stop the challenge</button>
+        </div>
+      </div>
+      <aside class="panel">
+        <div class="active-layer" id="active-layer">No layer yet</div>
+        <input id="region-search" type="search" placeholder="Search a region name or ID" aria-label="Search a region">
+        <div class="chips" role="group" aria-label="Hemisphere">
+          <button class="chip on" data-hemi="all">All</button>
+          <button class="chip" data-hemi="left">Left</button>
+          <button class="chip" data-hemi="right">Right</button>
+          <button class="chip" data-hemi="bilateral">Bilateral</button>
+        </div>
+        <div class="count" id="region-count"></div>
+        <ul class="regions" id="region-list"></ul>
+        <div class="basket">
+          <div class="basket-head"><b id="basket-n">0 regions selected</b><button id="btn-clear" class="link">Clear selection</button></div>
+          <div class="basket-list" id="basket-list"></div>
+          <div class="basket-actions">
+            <button id="btn-to-sba" class="primary">Use as seeds</button>
+            <button id="btn-to-matrix">Add atlas to matrices</button>
+            <button id="btn-copy">Copy list</button>
+          </div>
+          <p class="hint" id="basket-msg"></p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============================== LAUNCHERS ============================== -->
+  <section id="view-launcher" class="view">
+    <header class="bar">
+      <div class="pipe-title" id="pipe-title"></div>
+      <label class="grow">Example launcher <select id="sel-launcher"></select></label>
+      <label class="grow">or path to your launcher <input id="launcher-path" type="text" placeholder="/path/to/my_launcher.py"></label>
+      <button id="btn-open" class="primary">Open</button>
+    </header>
+    <div class="launcher-body">
+      <div class="form" id="form"></div>
+      <aside class="panel actions">
+        <h3>Save and run</h3>
+        <label>Save as <input id="out-path" type="text"></label>
+        <button id="btn-mainpath" class="link">Use this EDNiX folder as MAIN_PATH</button>
+        <div class="row"><button id="btn-check">Check</button><button id="btn-save" class="primary">Save</button></div>
+        <label class="check"><input type="checkbox" id="chk-strict" checked> Stop at the first failing command</label>
+        <button id="btn-run" class="go">Run in the background</button>
+        <div id="launcher-msg" class="msgs"></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============================== QUALITY CONTROL ============================== -->
+  <section id="view-qc" class="view">
+    <header class="bar">
+      <label class="grow">Dataset (BIDS folder of an example launcher) <select id="sel-qc-bids"></select></label>
+      <label class="grow">or BIDS folder <input id="qc-path" type="text" placeholder="/path/to/BIDS"></label>
+      <button id="btn-qc-scan" class="primary">Show QC</button>
+    </header>
+    <div class="qc-body">
+      <aside class="qc-side">
+        <div class="box-title">Images</div>
+        <ul id="qc-steps"></ul>
+        <div class="box-title" style="margin-top:12px">Tables</div>
+        <ul id="qc-tables"></ul>
+        <div class="box-title" style="margin-top:12px">Processing logs</div>
+        <ul id="qc-logs"></ul>
+      </aside>
+      <div class="qc-main">
+        <div class="qc-tools"><input id="qc-filter" type="search" placeholder="Filter by subject or file name"><span id="qc-count" class="count"></span></div>
+        <div id="qc-grid" class="qc-grid"><div class="empty" style="position:static"><p class="big">Pick a dataset and press <b>Show QC</b>.</p><p>Images of &lt;BIDS&gt;/QC, functional and anatomical reports of every subject, QC metrics of all runs in one table (values more than 3.5 robust standard deviations from the median highlighted), and the errors and warnings of the processing logs.</p></div></div>
+      </div>
+    </div>
+    <div class="lightbox" id="lightbox" hidden><img id="lb-img" alt=""><div id="lb-cap"></div></div>
+  </section>
+
+  <!-- ============================== RUNS ============================== -->
+  <section id="view-runs" class="view">
+    <div class="runs-body">
+      <div class="runs-list"><table><thead><tr><th>Launcher</th><th>Started</th><th>Status</th><th>Current step</th></tr></thead><tbody id="runs-tbody"></tbody></table>
+        <div class="empty" id="runs-empty"><p>No run yet. Start one from a launcher tab.</p></div></div>
+      <div class="log-pane">
+        <div class="log-head"><b id="log-title">Log</b><span id="log-counts" class="log-counts"></span>
+          <label class="check"><input type="checkbox" id="chk-log-issues"> errors and warnings only</label>
+          <button id="btn-next-error">Next error</button><button id="btn-stop">Stop this run</button></div>
+        <pre id="log" class="log"></pre>
+      </div>
+    </div>
+  </section>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

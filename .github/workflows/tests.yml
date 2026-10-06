@@ -1,0 +1,20 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    # Pure-Python tests: every module imports and compiles, and the corrected geometry,
+    # statistics, SDC and launcher logic behave as expected on synthetic data.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt pytest pytest-xdist
+      - run: pytest -n auto -p no:cacheprovider

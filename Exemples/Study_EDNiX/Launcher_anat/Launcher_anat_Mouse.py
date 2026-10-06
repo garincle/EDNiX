@@ -1,0 +1,127 @@
+import os
+import sys
+
+opj = os.path.join
+opb = os.path.basename
+
+MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+sys.path.insert(1, opj(MAIN_PATH))
+
+from modalities.anat import _0_Pipeline_launcher
+from modalities.anat.load_transfo_parameters import build_transfos
+from Tools import Load_subject_with_BIDS, load_bids
+from Tools.ednix_checkpoint import anat_resume_groups
+########################################################################################################################
+#                                       Set the pipeline parameters (see manual.....)                                  #
+########################################################################################################################
+
+# Where are the data
+
+# Override os.path.join to always return Linux-style paths
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouse/BIDS_Grandjean2/'))
+
+# which format ?
+BIDStype = 1
+
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
+### select the subject, session to process
+Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
+
+
+# choose if you want to select or remove ID from you analysis:
+list_to_keep   = []
+list_to_remove = []
+species    = 'Mouse'
+
+# is it a longitudinal study ?
+coregistration_longitudinal = False
+#do you want to use all the data or only the last one of each subject
+which_on  = 'all'                       # "all" or "max"
+
+# create  a study template
+creat_study_template  = False
+
+#### Choose to normalize using T1 or T2
+
+type_norm = 'acq-RARE_T2w'                   # T1w or T2w
+otheranat = ''                         # '' if none otherwise T1w or T2w
+masking_img = 'acq-RARE_T2w'  # could be T1w or T2w (if left empty it will be set to "type_norm")
+
+# to get the correct header orientation (valid only with non-human studies) --------------------------------------------
+
+# if you don't know anything about it : leave it empty
+# "AHF" stands for "Animal Head First",  "AFF" stands for "Animal Feet First", "humanlike" means no change to be done.
+humanPosition     = ['humanlike']
+orientation       = '' # "LPI" or ''
+animalPosition    = ['humanlike'] # valid only for species smaller than humans
+
+### masking and skull stripping ----------------------------------------------------------------------------------------
+# step 1 : coarse method (use for cropping and acpc setting)
+brain_skullstrip_1  = 'Custum_mouse'            # bet2_ANTS or MachinL see skullstrip method script for mmore information
+# step 2 : precise method
+brain_skullstrip_2  = 'NoSkullStrip'            # bet2_ANTS or MachinL
+# step 3 : valid only for study or session template :
+template_skullstrip = 'Manual'
+
+
+# valid for resting-state Statistics -------------------------------------------------------------------------------------
+do_fMRImasks  = True
+fMRImasks     = 'aseg' # must be aseg or custom
+                       # if custom  please add a ventricle and white matter mask in the template space
+                       # named such as Vmask and Wmask
+
+
+### Coregistration parameters    ---------------------------------------------------------------------------------------
+#
+Align_img_to_template = 'Ants'
+MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
+
+### Coregistration parameters    ---------------------------------------------------------------------------------------
+#
+Align_img_to_template = 'Ants'
+list_transfo = build_transfos(
+    align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
+    coreg={'type_of_transform': 'SyNCC', 'affmetric': 'MI', 'affmetricT': 'MI'},
+    stdyT={'type_of_transform': 'SyNCC', 'affmetric': '', 'affmetricT': ''})
+
+########################################################################################################################
+#                                                                                                                      #
+#                                       Select the preprocessing steps                                                 #
+#                                                                                                                      #
+#   Block1: step 1,2 (orienting, cleaning images)                                                                      #
+#   Block1: step 3 (study template)                                                                                    #
+#   Block2: step 4 (study template mask QC itksnap)                                                                    #
+#   Block2: step 5 (template brain)                                                                                    #
+#   Block2: step 6 (registration stdy template)                                                                        #
+#   Block2: step 7 (registration anat to template)                                                                     #
+#   Block3: step 8,9 (atlases, masks, fmri masks)                                                                      #
+#   Block3: step 10,11,12,13,14,15 (surfaces)                                                                          #
+#   Block3: step 16 (QC)                                                                                               #
+#   Block3: step 100 (Clean)                                                                                           #
+#   Block3: step 200 (QC itksnap)                                                                                      #
+#                                                                                                                      #
+########################################################################################################################
+
+########################################################################################################################
+
+Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
+########################################################################################################################
+#                                       Run the preprocessing steps                                                    #
+########################################################################################################################
+
+# ---- Run each group with the launcher — signature unchanged --------------
+
+_0_Pipeline_launcher.preprocess_anat(Skip_step,
+                                     MAIN_PATH, bids_dir, BIDStype, species,
+                                     allinfo_study_c, list_to_keep, list_to_remove,
+                                     type_norm, otheranat, masking_img,
+                                     orientation, animalPosition, humanPosition,
+                                     coregistration_longitudinal, creat_study_template, which_on,
+                                     brain_skullstrip_1, brain_skullstrip_2, template_skullstrip,
+                                     list_transfo, Align_img_to_template, MNIBcorrect_indiv,
+                                     fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
+                                     transfo_message='do_as_I_said', force_myelin_same_space=False,
+                                     check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
+
+
+

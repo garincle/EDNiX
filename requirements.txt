@@ -1,0 +1,25 @@
+# Python dependencies of EDNiX (imported by the pipeline, statistics and interface code).
+# Neuroimaging programs (AFNI, ANTs, FSL, FreeSurfer, Connectome Workbench, ITK-SNAP)
+# are provided by the Singularity containers, not by pip.
+# Versions are not pinned here: record the versions of your validated environment with
+#   pip freeze > requirements-lock.txt
+numpy
+scipy
+pandas
+openpyxl
+nibabel
+nilearn>=0.9        # nilearn.maskers
+antspyx             # import ants
+scikit-image        # import skimage
+scikit-learn        # import sklearn
+statsmodels
+patsy
+pygam
+matplotlib
+seaborn
+pybids              # import bids
+nipype
+nitime
+pydicom
+joblib
+tqdm

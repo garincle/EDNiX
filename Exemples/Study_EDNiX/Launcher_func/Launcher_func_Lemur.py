@@ -1,0 +1,82 @@
+import os
+import Tools.Load_subject_with_BIDS
+import Tools.Read_atlas
+from Tools import Load_subject_with_BIDS, load_bids
+from modalities.fMRI import _0_Pipeline_launcher
+from Tools.ednix_checkpoint import fmri_resume_groups
+opn = os.path.normpath
+opj = os.path.join
+
+MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouselemur/BIDS_Garin/'))
+# which format ?
+BIDStype = 1
+#### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
+### select the subject, session to process
+Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
+
+species    = 'Mouselemur'
+reference  = 'EDNiX'
+addatlas   = ''
+# choose if you want to select or remove ID from you analysis
+list_to_keep = []
+list_to_remove = []
+all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
+
+#### functional images paramters definition
+Slice_timing_info = '-tpattern alt+z'
+ntimepoint_treshold = 100
+endfmri = '*_task-rest_*.nii.gz' # string
+endjson = '*_task-rest_*.json' # string
+endmap = '*_map.nii.gz' # string
+humanPosition     = ['']
+animalPosition    = [''] # valid only for species smaller than humans
+orientation = 'LIA' # string
+## prior anat processing
+coregistration_longitudinal = False #True or False
+type_norm = 'T2w' # T1 or T2
+TfMRI = 'T2w' # string
+
+## masking
+Method_mask_func = 'muSkullStrip_cross_species' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+creat_study_template = True # True or False
+
+doWARPonfunc = 'header'
+resting_or_task = 'resting'  # 'resting' or 'task'
+anat_func_same_space = False # True or False
+type_of_transform = 'BOLDAffine'
+aff_metric_ants_Transl = 'mattes' # string
+aff_metric_ants = 'meansquares'
+do_anat_to_func = True # True or False
+dilate_mask=0
+selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
+smoothSBA =0.7
+
+#from modalities.fMRI import _000_Data_Reset
+#_000_Data_Reset.reset_all(allinfo_study_c, bids_dir, list_to_keep=None, list_to_remove=None, dry_run=False)
+Skip_step = ['itk_1','itk_2','itk_3','Clean']
+
+
+_0_Pipeline_launcher.preprocess_fmri(
+                    Skip_step, MAIN_PATH, bids_dir,
+                    species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
+                    animalPosition, humanPosition, orientation,
+                    Slice_timing_info,
+                    TfMRI, type_norm, creat_study_template,
+                    anat_func_same_space, coregistration_longitudinal,
+                    Method_mask_func, extra_erode=0, do_anat_to_func=do_anat_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
+                    ntimepoint_treshold=100, REF_int=0, T1_eq=5, correction_direction='Auto', overwrite_option=True,
+                    DwellT='Auto', SED='Auto', TR='Auto', TRT='Auto',
+                    nb_ICA_run=20, ICA_cleaning='Skip',
+                    costAllin='lpa',
+                    doWARPonfunc=doWARPonfunc, registration_type='origin', type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
+                    list_to_keep=list_to_keep, list_to_remove=list_to_remove, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
+                    reference='EDNiX', post_treatment_method='fMRIPrep_style',
+                    band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_WM=True, extract_Vc = True, extract_GS = False,
+                    use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
+                    selected_atlases_matrix='all', wanted_level_matrix='all', matrix_fit=['correlation', 'partial correlation'],
+                    selected_atlases_SBA=[['EDNIxCSCLR', 3], ['EDNIxCSC', 3]], panda_files_SBA=[[162, 1162], [162, 164]],
+                    SBAspace=['atlas'], erod_seed=True, smoothSBA=smoothSBA,
+                    intra_thresh=0.240, delta_thresh=0.1,
+                    oversample_map=False, use_cortical_mask_func=False, n_cut=10, threshold_val=10)

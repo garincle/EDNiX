@@ -1,0 +1,25 @@
+name: end-to-end smoke test
+
+# Runs the example launchers on a reduced copy of one subject per dataset, with the
+# Singularity containers of the pipeline. GitHub-hosted runners have neither the data nor
+# the containers: this job runs on a self-hosted runner registered on the lab server
+# (label "ednix"), and only when started by hand from the Actions tab.
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'anat, func or all'
+        default: 'all'
+
+jobs:
+  smoke:
+    runs-on: [self-hosted, ednix]
+    timeout-minutes: 1440
+    steps:
+      - uses: actions/checkout@v4
+      - run: python tests/e2e/run_smoke.py --only "${{ github.event.inputs.only }}" --workdir "$RUNNER_TEMP/ednix_smoke"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-report
+          path: ${{ runner.temp }}/ednix_smoke/smoke_report.md

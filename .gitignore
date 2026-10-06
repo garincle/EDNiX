@@ -1,0 +1,45 @@
+# ===================================================
+# DOSSIERS À NE PAS VERSIONNER
+# ===================================================
+Singularity_library/
+Tool_library/
+Atlases_library/
+venvEDNiX/
+Exemple_perso/
+
+# ===================================================
+# PYTHON / NEUROIMAGING
+# ===================================================
+*.img
+*.hdr
+*.mgz
+*.mgh
+
+*.tmp
+*.temp
+*~
+*.bak
+.DS_Store
+
+*.log
+*.out
+*.o
+
+config_local.json
+settings_local.py
+.env
+
+venv/
+.venv/
+env/
+ENV/
+
+.idea/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+.ipynb_checkpoints/
+.ednix_review/
+GUI/**/__pycache__/

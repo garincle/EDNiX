@@ -1,0 +1,88 @@
+import os
+import sys
+import Tools.Read_atlas
+from Tools import Load_subject_with_BIDS, load_bids
+from modalities.fMRI import _0_Pipeline_launcher
+from Tools.ednix_checkpoint import fmri_resume_groups
+opn = os.path.normpath
+opj = os.path.join
+
+MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+sys.path.insert(1, opj(MAIN_PATH))
+
+species    = 'Rat'
+# Override os.path.join to always return Linux-style paths
+bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Rat/BIDS_Grandjean/'))
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['anat'], suffixes= ['T2w'], extensions=['.nii.gz'])
+
+### select the subject, session to process
+Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
+# choose if you want to select or remove ID from you analysis
+list_to_keep = []
+list_to_remove = []
+#(300406,1), (301100,1), (301101,1), (301101,1), (301102,1), (301103,1), (301104,1)
+all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
+#### fMRI pre-treatment
+T1_eq = 5 # int
+REF_int = 0 # int
+ntimepoint_treshold = 100
+endfmri = '*_task-rest_bold.nii.gz' # string
+endjson = '*_task-rest_bold.json' # string
+endmap = '*_map.nii.gz' # string
+humanPosition     = ['humanlike']
+orientation       = '' # "LPI" or ''
+animalPosition    = ['humanlike'] # valid only for species smaller than humans
+## prior anat processing
+coregistration_longitudinal = False #True or False
+type_norm = 'T2w' # T1 or T2
+### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
+TfMRI = 'T2w' # string
+### if you don't have any anat image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
+Method_mask_func = 'nilearn' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
+#### ANTs function of the co-registration HammingWindowedSinc is advised
+IhaveanANAT = True # True or False
+anat_func_same_space = True # True or False
+type_of_transform = 'BOLDRigid'
+aff_metric_ants_Transl = 'mattes' # string
+aff_metric_ants = 'mattes'
+do_anat_to_func = True # True or False
+Slice_timing_info = 'Auto'
+##### if you don't have an anat then template will be the same as anat...
+#creat_study_template was created with the anat type_norm img, and you want to use it as standart space
+creat_study_template = False # True or Fals
+blur = 0.5 # float
+#Dilate the functional brain mask by n layers
+dilate_mask = 2 # int
+smoothSBA = 0.5
+# for the seed base analysis, you need to provide the names and the labels of the regions you want to use as "seeds"
+selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
+############ Right in a list format the steps that you want to skip
+doWARPonfunc = 'WARP'
+resting_or_task = 'resting'  # 'resting' or 'task'
+
+#from modalities.fMRI import _000_Data_Reset
+#_000_Data_Reset.reset_all(allinfo_study_c, bids_dir, list_to_keep=None, list_to_remove=None, dry_run=False)
+Skip_step = ['itk_1','itk_2','itk_3','Clean']
+
+_0_Pipeline_launcher.preprocess_fmri(
+                    Skip_step, MAIN_PATH, bids_dir,
+                    species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
+                    animalPosition, humanPosition, orientation,
+                    Slice_timing_info,
+                    TfMRI, type_norm, creat_study_template,
+                    anat_func_same_space, coregistration_longitudinal,
+                    Method_mask_func, extra_erode=0, do_anat_to_func=do_anat_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
+                    ntimepoint_treshold=100, REF_int=0, T1_eq=5, correction_direction='Auto', overwrite_option=True,
+                    DwellT='Auto', SED='Auto', TR='Auto', TRT='Auto',
+                    nb_ICA_run=20, ICA_cleaning='Skip',
+                    costAllin='lpa',
+                    doWARPonfunc=doWARPonfunc, registration_type='origin', type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
+                    list_to_keep=list_to_keep, list_to_remove=list_to_remove, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
+                    reference='EDNiX', post_treatment_method='fMRIPrep_style',
+                    band='0.01', blur=0, do_not_correct_signal = False, extract_WM=True, extract_Vc = True, extract_GS = False,
+                    use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
+                    selected_atlases_matrix='all', wanted_level_matrix='all', matrix_fit=['correlation', 'partial correlation'],
+                    selected_atlases_SBA=[['EDNIxCSCLR', 3], ['EDNIxCSC', 3]], panda_files_SBA=[[162, 1162], [162, 164]],
+                    SBAspace=['atlas'], erod_seed=True, smoothSBA=smoothSBA,
+                    intra_thresh=0.240, delta_thresh=0.1,
+                    oversample_map=False, use_cortical_mask_func=False, n_cut=10, threshold_val=10)
