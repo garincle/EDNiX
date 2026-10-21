@@ -152,6 +152,15 @@ def dynamic(img, out_dir, formc_dir, timing, nb_void, crop_mask, Need_check, dia
     return mc4D
 
 
+def _grid4d(g3, like4d):
+    """Empty 4D image with the spatial grid of g3 and the frames of like4d (template of list_to_ndimage)."""
+    n = like4d.shape[3]
+    d = np.eye(4)
+    d[:3, :3] = g3.direction
+    return ants.from_numpy(np.zeros(tuple(g3.shape) + (n,), np.float32), origin=tuple(g3.origin) + (0.0,),
+                           spacing=tuple(g3.spacing) + (like4d.spacing[3],), direction=d)
+
+
 def static(list_img, list_mean, list_timing, list_sif, session, out_dir, formc_dir, crop_mask, diary_name,
            transform='Rigid', metric='mattes'):
     """
@@ -196,12 +205,28 @@ def static(list_img, list_mean, list_timing, list_sif, session, out_dir, formc_d
         mv_crop = ants.crop_image(mv, label_image=ants.resample_image_to_target(cmask, mv, interp_type='nearestNeighbor'),
                                   label=1) if cmask is not None else mv
         mat = _register(ref_crop, mv_crop, opj(formc_dir, base + '_between_'), transform, metric)
-        full = ants.image_read(img)
-        moved = ants.apply_transforms(fixed=first, moving=full, transformlist=[mat], interpolator=petinterp,
-                                      imagetype=3 if full.dimension == 4 else 0)
+        side = pu.read_json(pu.sidecar(img))
+        src = side.get('Sources', [None])[0] if isinstance(side.get('Sources'), list) else None
+        if side.get('Matrices') and src and opi(src):
+            # dynamic run corrected at step 4: the frames of the reoriented run are resampled once, with the
+            # between-runs and the per-frame transforms composed (no second interpolation)
+            raw4d = ants.image_read(src)
+            frames_raw = ants.ndimage_to_list(raw4d)
+            if len(frames_raw) != len(side['Matrices']):
+                raise ValueError(f'{img}: {len(side["Matrices"])} frame matrices for {len(frames_raw)} frames')
+            moved_frames = [ants.apply_transforms(fixed=first, moving=fr, interpolator=petinterp,
+                                                  transformlist=[mat, opj(formc_dir, m)])
+                            for fr, m in zip(frames_raw, side['Matrices'])]
+            moved = ants.list_to_ndimage(_grid4d(first, raw4d), moved_frames)
+            how = 'per-frame and between-runs transforms composed, one resampling of the reoriented frames'
+        else:
+            full = ants.image_read(img)
+            moved = ants.apply_transforms(fixed=first, moving=full, transformlist=[mat], interpolator=petinterp,
+                                          imagetype=3 if full.dimension == 4 else 0)
+            how = 'one resampling'
         ants.image_write(moved, out, ri=False)
         pu.write_json(out, [img, ref_file], f'Between-runs motion correction ({transform}, {metric}, ANTsPy) on the '
-                      'grid of the first run; linear interpolation.', Matrix=opb(mat))
+                      f'grid of the first run; linear interpolation; {how}.', Matrix=opb(mat))
         sifFile.copy(sif, out)
         mean_out = pu.out_name(out_dir, base, desc='MoCo-between-mean')
         if pu.is_dynamic(out):

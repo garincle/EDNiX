@@ -35,15 +35,20 @@ def suv(file, paths, timing, pet_info, values, isotope, masks, atlases, label_ta
 
     # 1. activity image (decay-corrected to the injection time when the data are not decay-corrected)
     src = file
-    if dynamic and pet_info.get('ImageDecayCorrected') is False:
-        if isotope in pu.HALF_LIFE_S and pet_info.get('InjectionStart') is not None:
+    if pet_info.get('ImageDecayCorrected') is False:
+        if timing is not None and isotope in pu.HALF_LIFE_S and pet_info.get('InjectionStart') is not None:
             img, d = pu.load(file)
+            d4 = d if d.ndim == 4 else d[..., None]
+            dc = pu.decay_correct_frames(d4, timing, isotope, float(pet_info['InjectionStart']))
             src = pu.out_name(post, base, desc='decaycorr')
-            pu.save_like(pu.decay_correct_frames(d, timing, isotope, float(pet_info['InjectionStart'])), img, src)
-            pu.write_json(src, file, f'Decay correction to the injection time ({isotope}).')
+            pu.save_like(dc if d.ndim == 4 else dc[..., 0], img, src)
+            pu.write_json(src, file, f'Decay correction to the injection time ({isotope}, frame-averaged factor).')
         else:
-            run_cmd.msg('WARNING: data not decay-corrected and isotope / injection time unknown: the SUV is biased',
-                        diary_name, 'WARNING')
+            run_cmd.msg('WARNING: data not decay-corrected and frame timing / isotope / injection time unknown: '
+                        'the SUV is biased', diary_name, 'WARNING')
+    if dynamic and SUV_window in (None, 'all', ''):
+        run_cmd.msg('INFO: SUV / ratio images of the mean of ALL the frames; give SUV_window (e.g. [40, 60] min for '
+                    'FDG) for the usual late static image', diary_name, 'OKGREEN')
     if dynamic:
         act = pu.out_name(post, base, desc='activity-mean')
         pu.write_mean(src, act, timing, SUV_window,

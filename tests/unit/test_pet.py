@@ -476,3 +476,30 @@ def test_ct_template_without_anatomy_2v1(tmp_path, monkeypatch):
                      selected_atlases=[['TEST', 'all']], atlas_followers=[['TEST'], ['txt'], [2], [1]])
     rec = transfo.read_record(coreg2anat.record_path(getpath.pet(s['01']['dp'], 'EDNiX'), 'sub-01_ses-1_trc-FDG'))
     assert rec['scenario'] == '2v1' and list(rec['targets']) == ['EDNiX'] and rec['pet_space']['atlases']
+
+
+@pytest.mark.slow
+def test_between_runs_correction_aligns_the_runs_with_one_resampling(tmp_path, monkeypatch):
+    P.patch_run_cmd(monkeypatch)
+    from Tools import getpath
+    dp = str(tmp_path / 'sub-01' / 'ses-1')
+    R0, t0 = np.eye(3), np.zeros(3)
+    raw1, A, _ = P.dynamic_pet(opj(dp, 'pet', 'sub-01_ses-1_trc-FDG_run-1_pet.nii.gz'), R0, t0)
+    m = (P.pose((5, -4, 6), (4, -3, 2))[0], np.array([4.0, -3.0, 2.0]))
+    raw2, _, _ = P.dynamic_pet(opj(dp, 'pet', 'sub-01_ses-1_trc-FDG_run-2_pet.nii.gz'), R0, t0, motions=[m] * 8)
+    paths = getpath.pet(dp, 'EDNiX')
+    diary = str(tmp_path / 'd.txt')
+    reor = loop1.run([raw1, raw2], paths, [''], [''], '', '', '', False, False, 'WARP', 'F-18', False, ('', ''), [],
+                     diary, '', '', '')
+    opts = dict(Skip_step=[6, 7, 8, 9, 10], nb_void=2, crop_for_MoCo='none', redo_crop=False, MoCo_transform='Rigid',
+                coreg_metric='mattes', Need_check_MC=False, srtm=False, pvc_fwhm=None, do_pet_to_func=False)
+    loop2.run('01', '1', dp, str(tmp_path), paths, 'sub-01_ses-1_trc-FDG', reor, [raw1, raw2], opts, dict(), diary,
+              '', '', '', '')
+    b1 = nib.load(pu.out_name(paths['orig_process'], 'sub-01_ses-1_trc-FDG_run-1', desc='MoCo-between-mean')).get_fdata()
+    b2 = nib.load(pu.out_name(paths['orig_process'], 'sub-01_ses-1_trc-FDG_run-2', desc='MoCo-between-mean')).get_fdata()
+    r1 = nib.load(pu.out_name(paths['orig_process'], 'sub-01_ses-1_trc-FDG_run-1', desc='MoCo-within-mean')).get_fdata()
+    r2 = nib.load(pu.out_name(paths['orig_process'], 'sub-01_ses-1_trc-FDG_run-2', desc='MoCo-within-mean')).get_fdata()
+    assert np.corrcoef(b1.ravel(), b2.ravel())[0, 1] > 0.995 > np.corrcoef(r1.ravel(), r2.ravel())[0, 1]
+    side = json.load(open(pu.sidecar(pu.out_name(paths['orig_process'], 'sub-01_ses-1_trc-FDG_run-2', desc='MoCo-between'))))
+    assert 'composed' in side['Description']
+    assert os.path.isfile(pu.out_name(paths['orig_process'], 'sub-01_ses-1_trc-FDG', desc='MoCo-between-mean'))

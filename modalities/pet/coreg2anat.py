@@ -103,11 +103,12 @@ def manual_correction(pet_mean, fixed_file, chain, prefix, pet_in_fixed, imgtype
 
 def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_template, reference,
              study_template, T_PET, ct_pet_same_space, coreg_metric, type_of_transform_template, do_manual,
-             Need_check_coreg, bids_dir, diary_name, sing_fs):
+             Need_check_coreg, bids_dir, diary_name, sing_fs, template_mask=''):
     """
     Registration of the session (scenario `sc`); writes and returns the registration record.
-    anat: dict of the anatomical files in AC-PC space (see _0_Pipeline_launcher.anat_files) or None.
+    anat: dict of the anatomical files in AC-PC space (see _0_Pipeline_launcher._anat_files) or None.
     packages: output of backtonative.get (or None without anatomy).
+    template_mask: brain mask of the reference template (target mask of the scenarios 2v1 and 3v1).
     """
     nl = 'Registration of the PET session ' + session + ' (scenario ' + sc + ' of pet4.svg)'
     run_cmd.msg(nl, diary_name, 'HEADER')
@@ -147,15 +148,15 @@ def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_te
         to_ct = pet_to_ct()
         for name, t in ct_record['targets'].items():
             chain = transfo.compose(to_ct, {'to': t['to'], 'from': t['from']})
-            targets[name] = dict(image=t['image'], brain=t.get('brain', t['image']), mask=t.get('mask', ''), **chain)
+            mask = t.get('mask') or (template_mask if name == reference else '')
+            targets[name] = dict(image=t['image'], brain=t.get('brain', t['image']), mask=mask, **chain)
     elif sc == '3v1':
         prefix = opj(mat_dir, session + '_to_' + reference + '_')
         ants.registration(fixed=ants.image_read(pet_template), moving=ants.image_read(session_mean),
                           type_of_transform=type_of_transform_template, aff_metric=coreg_metric, outprefix=prefix)
+        own = pet_template.replace('.nii.gz', '_mask.nii.gz')
         targets[reference] = dict(image=pet_template, brain=pet_template,
-                                  mask=pet_template.replace('.nii.gz', '_mask.nii.gz')
-                                  if opi(pet_template.replace('.nii.gz', '_mask.nii.gz')) else '',
-                                  **transfo.registration(prefix))
+                                  mask=own if opi(own) else template_mask, **transfo.registration(prefix))
     elif sc == '3v2':
         prefix = opj(mat_dir, session + '_to_studyTemplate_')
         targets['studyTemplate'] = dict(image=study_template, brain=study_template, mask='',

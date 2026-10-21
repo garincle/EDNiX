@@ -53,6 +53,7 @@ Legend: **[blocking]** the code stopped there; **[results]** the code would have
 - `if i > nb_void`: one frame more than asked left out; these frames were not corrected. Now `>=`, and they receive the transform of the first registered frame (nearest in time) **[results]**.
 - single pass on the mean of uncorrected frames (blurred reference): two passes **[results]**.
 - `static()` called with 4 arguments for 8 **[blocking]**; 3dMean of 4D runs of different lengths **[blocking]**; crop file name built two different ways (file not found) **[blocking]**; 4D images resampled without `imagetype=3` **[blocking]**; outputs written in `orig/` and read from `orig/preprocessing/` **[blocking]**; SIF copied without checking that it exists **[blocking]**.
+- between runs, a dynamic run was resampled twice (step 4, then step 5): the per-frame and between-runs transforms are now composed and the reoriented frames resampled once **[results]**.
 - added: motion parameters and mean displacement per frame (`forMC/*_motion.tsv`, `.png`).
 
 ### `studyT.py` (steps 2, 3)
@@ -75,7 +76,7 @@ Legend: **[blocking]** the code stopped there; **[results]** the code would have
 ### `preproPET.py`, `paramImg.py`, `cut_image.py` (step 7)
 - implicit relative imports (`import roi_signal, ...`) and `Tools.filename` **[blocking]**; brain mask searched as `*desc-coreg_mask.nii.gz`, never written **[blocking]**.
 - time means: `nii = nii / len(...)` **inside** the loop (wrong average) **[results]**; unweighted averages of frames of different durations **[results]**: now duration-weighted, with `SUV_window` for dynamic acquisitions.
-- SUV: image units assumed Bq/mL (now read from `Units`; an image already in SUV is kept), injected dose not decayed to the decay-correction time of the image, no decay correction of non-decay-corrected data **[results]**.
+- SUV: image units assumed Bq/mL (now read from `Units`; an image already in SUV is kept), injected dose not decayed to the decay-correction time of the image, no decay correction of non-decay-corrected data (static or dynamic) **[results]**; injected radioactivity read for every run (two injections in one session).
 - glucose: the SUV was multiplied by the glycaemia in g/L without reference value **[results]**; now `SUVglu = SUV x glucose / 5.0 mmol/L`, kept apart from the SUV.
 - time blocks: frames assigned with indices shifted by one, divided by a "brain mean" that included the zeros outside the brain (`ants.mask_image(...).mean()`) **[results]**.
 - `srtm`: `run_cmd(cmd, ...)` (calling the module) **[blocking]**; `'-expr "a*b"'` glued to the prefix **[blocking]**; `white+csf` = product of the masks (intersection: empty) **[results]**, now their union; `selectmsk['white+csf']` was a folder.

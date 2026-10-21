@@ -79,9 +79,8 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
         if crop is None:
             crop = crop_for_session(opts['crop_for_MoCo'], reg.get('study_crop'), session, paths, first_mean,
                                     diary_file, sing_fs, opts['redo_crop']) or ''
-        run_crop = studyT.crop_mask(crop, _mean_of(img, 'reorient-mean'),
-                                    opj(paths['orig_formc'], base + '_desc-cropbox_mask.nii.gz')) if crop else None
-        MoCo.dynamic(img, paths['orig_process'], paths['orig_formc'], timing, opts['nb_void'], run_crop,
+        # the box of the session (first run) is resampled on the grid of each run by MoCo (world coordinates)
+        MoCo.dynamic(img, paths['orig_process'], paths['orig_formc'], timing, opts['nb_void'], crop or None,
                      opts['Need_check_MC'], diary_file, sing_fs, opts['MoCo_transform'], opts['coreg_metric'],
                      sif=img.replace('.nii.gz', '.sif'))
 
@@ -116,7 +115,8 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
                             reg['ct_record'], reg['template_PET'], reg['reference'], study_template,
                             opts['T_PET'], opts['ct_pet_same_space'], opts['coreg_metric'],
                             opts['type_of_transform_template'], opts['do_manual'], opts['Need_check_coreg'],
-                            bids_dir, diary_file, sing_fs)
+                            bids_dir, diary_file, sing_fs,
+                            template_mask=(reg.get('template_files') or {}).get('brain', ''))
         record = transfo.read_record(rec_file)
         record['pet_space'] = coreg2anat.to_pet_space(record, session, paths, reg['anat'], reg['template_files'],
                                                       reg['list_atlas'], diary_file, opts['T_PET'])
@@ -126,11 +126,15 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
     atlases, masks = pet_space['atlases'], pet_space['masks']
 
     # ---------------------------------------------------------------------------------------- 7 parametric images
-    values = pu.subject_values(bids_dir, ID, Session, infos[0])
+    missing = [b for b in between if not opi(b)]
     if not _skip(7, Skip_step, diary_file):
-        run_cmd.msg('INFO: subject data for the SUV: ' + json.dumps({k: v for k, v in values.items()}, default=str),
-                    diary_file, 'OKGREEN')
+        if missing:
+            raise FileNotFoundError(f'{missing[0]} not found: run steps 4 and 5 first')
         for img, timing, info in zip(between, timings, infos):
+            # injected radioactivity of this run (sidecar), body weight / glucose of the session
+            values = pu.subject_values(bids_dir, ID, Session, info)
+            run_cmd.msg('INFO: ' + opb(img) + ': subject data for the SUV: ' + json.dumps(values, default=str),
+                        diary_file, 'OKGREEN')
             preproPET.suv(img, paths, timing, info, values, opts['isotope'], masks, atlases, reg['label_tables'],
                           reg['levels'], opts['SUV'], opts['bratio'], opts['SUV_window'], opts['Do_cut'],
                           opts['duration'], diary_file)
@@ -191,7 +195,9 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
             for f in sorted(glob.glob(opj(paths['orig_post'], base + '_desc-*_pet.nii.gz'))):
                 if pu.is_dynamic(f) and not opts['export_dynamic']:
                     continue
-                if '-SS_' in opb(f) or 'desc-decaycorr' in opb(f) or 'seg4D' in opb(f):
+                # PET-space skull-stripped images (redone with the mask of each target), working files and
+                # integer QC maps (fit at a bound, number of Logan points: not interpolated)
+                if any(k in opb(f) for k in ('-SS_', 'desc-decaycorr', 'seg4D', '-err_', '-npoints_')):
                     continue
                 images.append(f)
             if opts['export_dynamic']:

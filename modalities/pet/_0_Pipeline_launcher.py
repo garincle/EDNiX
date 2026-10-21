@@ -319,7 +319,8 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
                 isotope=isotope)
 
     frame = inspect.currentframe()
-    args_dict = inspect.getargvalues(frame).locals.copy()
+    _loc = inspect.getargvalues(frame).locals
+    args_dict = {k: _loc[k] for k in inspect.signature(preprocess_pet).parameters if k in _loc}
 
     # ======================================================================================== block 1 (step 1)
     sessions = []

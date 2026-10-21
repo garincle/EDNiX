@@ -128,7 +128,8 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
         raise ValueError('no anatomy, no CT template and no CT study template: nothing to register the CT to')
 
     frame = inspect.currentframe()
-    args_dict = inspect.getargvalues(frame).locals.copy()
+    _loc = inspect.getargvalues(frame).locals
+    args_dict = {k: _loc[k] for k in inspect.signature(preprocess_ct).parameters if k in _loc}
     study_dir = opj(bids_dir, 'sty_template', 'ct')
     study_template = studyT.template_name(study_dir, '', 'ct')
 
