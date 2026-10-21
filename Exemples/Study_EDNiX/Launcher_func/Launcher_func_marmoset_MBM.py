@@ -49,7 +49,7 @@ aff_metric_ants = 'MI'
 aff_metric_ants_Transl = 'mattes' # string
 aff_metric_ants = 'CC'"""
 do_anat_to_func = True # True or False
-Slice_timing_info = 'Auto'
+Slice_timing_info = '-tpattern alt+z'
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
 creat_study_template = False # True or Fals
@@ -67,6 +67,9 @@ resting_or_task = 'resting'  # 'resting' or 'task'
 #from modalities.fMRI import _000_Data_Reset
 #_000_Data_Reset.reset_all(allinfo_study_c, bids_dir, list_to_keep=None, list_to_remove=None, dry_run=False)
 Skip_step = ['itk_1','itk_2','itk_3','Clean']
+
+from modalities.fMRI import _000_Data_Reset
+_000_Data_Reset.reset_all(allinfo_study_c, bids_dir, list_to_keep=None, list_to_remove=None, dry_run=False)
 
 _0_Pipeline_launcher.preprocess_fmri(
                     Skip_step, MAIN_PATH, bids_dir,
@@ -90,3 +93,5 @@ _0_Pipeline_launcher.preprocess_fmri(
                     SBAspace=['atlas'], erod_seed=True, smoothSBA=smoothSBA,
                     intra_thresh=0.240, delta_thresh=0.1,
                     oversample_map=False, use_cortical_mask_func=False, n_cut=10, threshold_val=10)
+
+

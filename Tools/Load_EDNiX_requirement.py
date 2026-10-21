@@ -15,6 +15,9 @@ turku_sif    = 'tpcclib.sif'
 synStrip_sif = 'synthstrip.1.5.sif'
 
 def load_requirement(MAIN_PATH,reftemplate_path,bids_dir,singularity):
+    # AFNI appends every command to ~/.afni.log (1.4 GB here): switch it off, natively and in the container
+    os.environ.setdefault('AFNI_DONT_LOGFILE', 'YES')
+    os.environ.setdefault('SINGULARITYENV_AFNI_DONT_LOGFILE', 'YES')
 
     if singularity == 'no':
         sing_afni     = ''

@@ -366,8 +366,6 @@ def toannot(file,ref, change_hd,scaling,new_size,FS_dir, diary_name,sing_fs):
     nl = 'Convert the volume for FS to get a annot surface file'
     run_cmd.msg(nl, diary_name,'HEADER')
 
-    [_, _, fwdFS_cmd, _] = get_orientation.use_ants(ref)
-
     name   = opb(file).split('.')[0]
     animal = name.split('_')[0]
     label  = name.split('_')[-2].split('-')[-1]
@@ -400,9 +398,15 @@ def toannot(file,ref, change_hd,scaling,new_size,FS_dir, diary_name,sing_fs):
 
     else :
         file_name = file
-    
+
+    # --in_orientation tells mri_convert how the voxels of the file it reads are stored: it must come from that
+    # file. It was taken from `ref` (desc-norm T1w); when the label volume is stored with another axis order
+    # (e.g. the res-iso copy written by 3dresample -orient in surfFS), the .mgz was mirrored relative to the
+    # FreeSurfer volumes and every surface label was sampled at the mirrored position.
+    [_, _, fwdFS_cmd, _] = get_orientation.use_ants(file_name)
+
     cmd = sing_fs + 'mri_convert ' + fwdFS_cmd + file_name + ' ' + opj(FS_dir, animal, 'mri', animal + '_' + label + '.mgz')
-    
+
     run_cmd.run(cmd,diary_name)
 
 

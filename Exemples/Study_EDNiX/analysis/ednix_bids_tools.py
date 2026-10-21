@@ -97,8 +97,31 @@ PAPER_RC = {
 }
 
 PALETTE = [
-    "#0072B2", "#E69F00", "#009E73", "#CC79A7",
-    "#56B4E9", "#D55E00", "#F0E442", "#000000",
+    # Base Okabe-Ito
+    "#0072B2",  # bleu
+    "#E69F00",  # orange
+    "#009E73",  # vert
+    "#CC79A7",  # rose/mauve
+    "#56B4E9",  # bleu ciel
+    "#D55E00",  # vermillon
+    "#F0E442",  # jaune
+    "#000000",  # noir
+    "#E6194B",  # rouge
+    "#911EB4",  # violet
+    "#46F0F0",  # cyan
+    "#F032E6",  # magenta
+    "#BCF60C",  # lime
+    "#008080",  # teal
+    "#9A6324",  # brun
+    "#800000",  # marron foncé
+    "#808000",  # olive
+    "#000075",  # bleu marine
+    "#808080",  # gris
+    "#FABEBE",  # rose clair
+    "#E6BEFF",  # lavande
+    "#AAFFC3",  # menthe
+    "#FFFAC8",  # beige
+    "#FFD8B1",  # abricot
 ]
 
 AWAKE_MARKER  = "o"
@@ -2584,7 +2607,8 @@ def _violin_strip_quartiles(ax, data, x_pos, color, width=0.4):
     ax.plot(x_pos-dens, y_g, color=color, lw=0.8, alpha=0.5)
     ax.plot(x_pos+dens, y_g, color=color, lw=0.8, alpha=0.5)
     for q, lw in zip(np.percentile(data, [25,50,75]), [1,2,1]):
-        dq = float(kde(q)) / kde(y_g).max() * (width/2)
+        kq = np.atleast_1d(kde(q)).ravel()
+        dq = float(kq[0]) / kde(y_g).max() * (width / 2)
         ax.hlines(q, x_pos-dq, x_pos+dq, colors=color, linewidths=lw, zorder=3)
 
 

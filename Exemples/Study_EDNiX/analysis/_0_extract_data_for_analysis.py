@@ -25,11 +25,8 @@ matplotlib.use("Agg")
 sys.path.insert(0, '/home/cgarin/PycharmProjects/EDNiX/')
 
 from Exemples.Study_EDNiX.analysis.ednix_bids_tools import (
-    PALETTE, get_atlas_label_path, find_species_path,
-    collect_multi_species,
-    export_to_excel, export_to_csv, export_summary_stats, run_wb_extraction,
+    PALETTE, get_atlas_label_path, find_species_path, run_wb_extraction,
 )
-from Exemples.Study_EDNiX.analysis.EDNiX_figures import make_all_figures
 
 opj = os.path.join
 
@@ -136,12 +133,11 @@ species_bids_dict = {
     'Rat':        '/scratch2/EDNiX/Rat/BIDS_Grandjean',
     'Mouse':      '/scratch2/EDNiX/Mouse/BIDS_Grandjean2',
     'Dog':        '/scratch2/EDNiX/Dog/BIDS_Boch_K9',
-    'Marmoset':   '/scratch2/EDNiX/Marmoset/BIDS_Tian',
     'Mouselemur': '/scratch2/EDNiX/Mouselemur/BIDS_Garin',
 }
 species_multi_bids = {
     'Macaque': [
-        '/scratch2/EDNiX/Macaque/BIDS_Tremblay/'
+        '/scratch2/EDNiX/Macaque/BIDS_Tremblay',
         '/scratch2/EDNiX/Macaque/BIDS_BenHamed',
         '/scratch2/EDNiX/Macaque/BIDS_Zhu_Garin',
     ],
@@ -149,6 +145,11 @@ species_multi_bids = {
         '/scratch2/EDNiX/Human/BIDS_Merida',
         '/scratch2/EDNiX/Human/BIDS_Park',
         '/scratch2/EDNiX/Human/BIDS_Castrillon',
+        '/scratch2/EDNiX/Human/BIDS_Babayan',
+    ],
+    'Marmoset': [
+        '/scratch2/EDNiX/Marmoset/BIDS_Tian',
+        '/scratch2/EDNiX/Marmoset/BIDS_Hori',
     ],
 }
 

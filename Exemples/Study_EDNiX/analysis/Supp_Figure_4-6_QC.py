@@ -157,10 +157,9 @@ NET_METRICS = [
 # ═══════════════════════════════════════════════════════════════════════════════
 
 species_bids_dict = {
-    'Rat': '/scratch2/EDNiX/Rat/BIDS_Grandjean',
-    'Mouse': '/scratch2/EDNiX/Mouse/BIDS_Grandjean2',
-    'Dog': '/scratch2/EDNiX/Dog/BIDS_Boch_K9',
-    'Marmoset': '/scratch2/EDNiX/Marmoset/BIDS_Tian',
+    'Rat':        '/scratch2/EDNiX/Rat/BIDS_Grandjean',
+    'Mouse':      '/scratch2/EDNiX/Mouse/BIDS_Grandjean2',
+    'Dog':        '/scratch2/EDNiX/Dog/BIDS_Boch_K9',
     'Mouselemur': '/scratch2/EDNiX/Mouselemur/BIDS_Garin',
 }
 species_multi_bids = {
@@ -170,9 +169,12 @@ species_multi_bids = {
         '/scratch2/EDNiX/Macaque/BIDS_Zhu_Garin',
     ],
     'Human': [
-        '/scratch2/EDNiX/Human/BIDS_Merida',
-        '/scratch2/EDNiX/Human/BIDS_Park',
         '/scratch2/EDNiX/Human/BIDS_Castrillon',
+        '/scratch2/EDNiX/Human/BIDS_Babayan',
+    ],
+    'Marmoset': [
+        '/scratch2/EDNiX/Marmoset/BIDS_Tian',
+        '/scratch2/EDNiX/Marmoset/BIDS_Hori',
     ],
 }
 
@@ -569,7 +571,14 @@ def plot_partial_correlation_dashboard(df, target_col="sp_specificity_index_EDNi
                     try:
                         # For within-BIDS, we can't control for BIDS (only one BIDS)
                         # So we use regular correlation within BIDS
-                        r_sp, p_sp = _stats.spearmanr(bd_df[metric].values, bd_df[target_col].values)
+                        x_sp = bd_df[metric].values
+                        y_sp = bd_df[target_col].values
+                        # Both must have variance, otherwise spearmanr returns nan (and warns)
+                        if np.ptp(x_sp) == 0 or np.ptp(y_sp) == 0:
+                            continue
+                        r_sp, p_sp = _stats.spearmanr(x_sp, y_sp)
+                        if np.isnan(r_sp):
+                            continue
                         r2 = r_sp ** 2
 
                         bids_partial_data[metric][bd] = {
@@ -648,11 +657,14 @@ def plot_partial_correlation_dashboard(df, target_col="sp_specificity_index_EDNi
                        color=color, s=40, alpha=0.8, label=sp, edgecolors='k', linewidths=0.5)
 
         # Overall regression line (for visualization)
-        if len(x) > 2:
+        x = bd_df[metric].values
+        y = bd_df[target_col].values
+        # Need at least 3 distinct x values and some y variance for a regression line
+        if len(x) > 2 and np.ptp(x) > 0 and np.ptp(y) > 0:
             slope, intercept, r_val, p_val, se = _stats.linregress(x, y)
             x_line = np.linspace(x.min(), x.max(), 100)
             y_line = intercept + slope * x_line
-            ax.plot(x_line, y_line, 'k--', lw=1.5, alpha=0.6)
+            ax.plot(x_line, y_line, '-', color=color, lw=1.5, alpha=0.6)
 
         # Title with partial correlation stats (R and R²)
         signif = '***' if p_partial < 0.001 else '**' if p_partial < 0.01 else '*' if p_partial < 0.05 else ''
@@ -709,7 +721,7 @@ def plot_partial_correlation_dashboard(df, target_col="sp_specificity_index_EDNi
                 # Per-BIDS regression line
                 x = bd_df[metric].values
                 y = bd_df[target_col].values
-                if len(x) > 2:
+                if len(x) > 2 and np.ptp(x) > 0 and np.ptp(y) > 0:
                     slope, intercept, r_val, p_val, se = _stats.linregress(x, y)
                     x_line = np.linspace(x.min(), x.max(), 100)
                     y_line = intercept + slope * x_line

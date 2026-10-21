@@ -96,10 +96,11 @@ species_multi_bids = {
         '/scratch2/EDNiX/Human/BIDS_Merida',
         '/scratch2/EDNiX/Human/BIDS_Park',
         '/scratch2/EDNiX/Human/BIDS_Castrillon',
+        '/scratch2/EDNiX/Human/BIDS_Babayan',
     ],
     'Marmoset': [
-    '/scratch2/EDNiX/Marmoset/BIDS_Tian',
-    '/scratch2/EDNiX/Marmoset/BIDS_Hori',
+        '/scratch2/EDNiX/Marmoset/BIDS_Tian',
+        '/scratch2/EDNiX/Marmoset/BIDS_Hori',
     ],
 }
 

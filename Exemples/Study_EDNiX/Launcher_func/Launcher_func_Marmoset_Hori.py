@@ -18,7 +18,7 @@ allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['func'], s
 ### select the subject, session to process
 Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 # choose if you want to select or remove ID from you analysis
-list_to_remove = [('01', '01')]
+list_to_remove = []
 list_to_keep = []
 
 all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
@@ -49,7 +49,7 @@ aff_metric_ants = 'MI'
 aff_metric_ants_Transl = 'mattes' # string
 aff_metric_ants = 'CC'"""
 do_anat_to_func = True # True or False
-Slice_timing_info = 'Auto'
+Slice_timing_info = '-tpattern alt+z'
 ##### if you don't have an anat then template will be the same as anat...
 #creat_study_template was created with the anat type_norm img, and you want to use it as standart space
 creat_study_template = False # True or Fals
@@ -64,6 +64,8 @@ selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = 'header'
 resting_or_task = 'resting'  # 'resting' or 'task'
 
+from modalities.fMRI import _000_Data_Reset
+_000_Data_Reset.reset_all(allinfo_study_c, bids_dir, list_to_keep=None, list_to_remove=None, dry_run=False)
 
 Skip_step = ['itk_1','itk_2','itk_3','Clean']
 

@@ -89,6 +89,8 @@ import pandas as pd
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_analysis as fa   # pure numpy/pandas/matplotlib
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_units as fu      # unit aggregation + step-1 figure
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_phylo as fp      # Mantel / Blomberg K / PGLS
+import Exemples.Study_EDNiX.analysis.Fig5.fig5_fingerprints as ff  # F6ab, fingerprints, F15-F18
+import Exemples.Study_EDNiX.analysis.Fig5.fig5_paper as fpp         # panels of Figures 5 and 6
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIG -- everything controllable lives here
@@ -127,6 +129,24 @@ CONFIG = dict(
     ATLAS_LEVEL=2,          # THE atlas level knob: 2 or 3. Used everywhere.
     VALUE_COL="median_r",
     METRIC="correlation",
+    PROFILE_METHOD="percentiles",  # comment le profil d'une carte est construit :
+        # "percentiles"     : (défaut) 2 valeurs par région, en r : percentile haut et
+        #   percentile bas de ses voxels, fixés par TAIL_Q (0.2 -> P80 / P20 ;
+        #   0.1 -> P90 / P10 ; 0.25 -> P75 / P25). VALUE_COL devient q20q80_r
+        #   (automatique). Ancien nom accepté : "quantile_posneg" ;
+        # "median_r"        : 1 valeur par région = médiane des voxels ;
+        # "fraction_posneg" : 2 valeurs par région, en % des voxels de la région :
+        #     <région>|pos = % dans les TAIL_Q supérieurs de la carte,
+        #     <région>|neg = % dans les TAIL_Q inférieurs ;
+        #   percentiles de la carte pris sur les voxels des régions communes.
+        #   VALUE_COL devient pct_tail20 (automatique).
+        #   G et D poolés par nombre de voxels. Tout le reste de l'analyse est
+        #   inchangé (normalisation ZSCORE comprise).
+    TAIL_Q=0.2,                 # taille des queues : 0.2 ou "quintile" (P80/P20, 20 %),
+        # 0.1 ou "decile" (P90/P10, 10 %), 0.25 ou "quartile" (P75/P25, 25 %)
+    RUN_PROFILE_RELIABILITY=True,  # F22 : fiabilité des 3 constructions de profil sur
+        # tous les runs, avant sélection (discriminabilité, Bridgeford et al. 2021),
+        # dans le même run quel que soit PROFILE_METHOD -- critère de choix du profil
 
     # --- THE UNIT OF ANALYSIS --------------------------------------------
     # "subject" (default): one animal = one sample, everywhere. Runs are
@@ -235,9 +255,54 @@ CONFIG = dict(
                          "Mouselemur": "Microcebus_murinus",
                          "Rat": "Rattus_norvegicus", "Mouse": "Mus_musculus",
                          "Dog": "Canis_lupus"},
-    RUN_PHYLO_COMPARATIVE=True,   # Mantel exact + K de Blomberg + PGLS,
-        # Python seul (quelques secondes). Principal test phylo, remplace
-        # la régression 1-D "distance vs divergence depuis l'humain".
+    RUN_PHYLO_COMPARATIVE=False,  # Mantel exact + K de Blomberg + PGLS (F11-F13).
+        # Désactivé par défaut : la phylogénie de la Figure 5 se limite à F6
+        # (F6 d'origine + F6ab). Code conservé, remettre True pour le relancer.
+
+    # --- figures d'interprétation (fig5_fingerprints.py) --------------------
+    RUN_FINGERPRINTS=True,   # F6ab (deux références), F1/F1c en fingerprints,
+        # F15 (fingerprint vs référence), F16 (proximité entre datasets),
+        # F17 (avant/après sélection), F18 (état d'éveil). Python seul.
+    REFERENCE_SPECIES="Human",   # référence de F6b/F15b/F18
+    SEED_REGION_EXCLUDE="auto",  # région du niveau ATLAS_LEVEL qui contient le seed,
+        # retirée des régions communes PARTOUT (sélection, consensus, similarités,
+        # figures) : sa valeur reflète l'autocorrélation du seed, pas le couplage.
+        # "auto" = trouvée dans l'atlas de chaque dataset (voxels du label du seed,
+        # niveau ATLAS_LEVEL) ; liste de noms = imposée ; None = rien retiré.
+    PROFILE_KIND="seed",     # "seed" (cartes SBA) | "matrix" (fig5_matrices) :
+        # change seulement le rendu des fingerprints (polaire vs matrice).
+
+    # --- panneaux du papier (fig5_paper.py) -------------------------------------
+    RUN_PAPER_FIGURES=True,  # 06_figures/Fig5, 06_figures/Fig6 (un fichier par panneau,
+        # sans titre, n et p seulement) ; toutes les autres figures sont
+        # déplacées dans 06_figures/supplementary/ en fin de run.
+    BRAIN_MASS_XLSX="/scratch2/EDNiX/Herculano-Houzel_mammalian_brain_dataset_complete.xlsx",
+    BRAIN_MASS_G=None,       # {espèce: g} -- remplace le xlsx si donné
+    SURFACE_COMMON_SCALE=True,   # 5a : re-rendu wb_command de toutes les cartes d'un
+        # dataset (tous les runs, gardés, non gardés) avec UNE échelle de couleur fixe
+    SURFACE_COMMON_PCT=90.0,     # échelle = +/- ce percentile de |z| sur ces cartes
+    FIG6D=dict(  # 6d (et S6d) : valeur de chaque région, run par run sur les runs
+        # sélectionnés, Human + Macaque contre les 5 autres espèces (espèce = unité du
+        # test, un test exact par région, non corrigé). Unité = celle de PROFILE_METHOD
+        # (percentiles : P80 en 6d, P20 en 6d' ; fraction_posneg : % dans la queue
+        # haute / basse ; median_r : r médian) ; les autres indices en supplémentaire.
+        regions=("posterior_parietal_cortex", "prefrontal_cortex_(pfc)",
+                 "somatosensory_cortex", "visual_striate_cortex", "striatum",
+                 "motor_and_premotor"),
+        group=("Human", "Macaque")),
+    WITHIN_ACROSS_TEST="wilcoxon",  # 5b : test affiché sur la figure, intra- vs
+        # inter-espèce. "wilcoxon" = Wilcoxon rank-sum (Mann-Whitney) sur les paires de
+        # runs, unilatéral, non corrigé : les paires partagent des runs, le p est donc
+        # optimiste. "permutation" = espèces permutées entre datasets (respecte la
+        # dépendance). Les deux sont toujours dans le .txt.
+    SURFACE_ZOOM={"Human": 1.0, "Macaque": 1.0, "Dog": 1.0, "Marmoset": 0.9,
+                  "Mouselemur": 0.9, "Rat": 0.9, "Mouse": 0.9},  # 5a/S5a : taille relative
+        # des cerveaux par espèce (1 = remplit la case), après réduction automatique
+        # des blancs entre les vues
+    SURFACE_DATASETS_PER_ROW=2,  # 5a (gardés | non gardés, en miroir) et S5a (tous |
+                                 # gardés | non gardés) : datasets par ligne ; 1 = un par ligne
+    COMMON_REGIONS_OVERRIDE=None,  # liste de régions communes imposée (run de
+        # contrôle sans cartes AFNI : reprendre celles du run principal)
     PGLS_QC_COVARIATES=("func_TSNR", "func_mean_fd"),  # médiane par espèce
         # tirée de df_qc_by_label ; ignoré si pas de table QC.
     SPECIES_COVARIATES={},        # covariables espèce additionnelles, ex.
@@ -293,6 +358,7 @@ def _tree(root):
         surfaces=os.path.join(root, "05_surfaces"),
         surfaces_final=os.path.join(root, "05b_surfaces_final"),
         figures=os.path.join(root, "06_figures"),
+        state=os.path.join(root, "07_state"),
     )
     for v in p.values():
         os.makedirs(v, exist_ok=True)
@@ -343,6 +409,37 @@ def _write_methods(cfg, paths, bids_labels, n_common, unit_counts, final_round=N
                     f"of one animal are not treated as independent observations.")
 
     thr = cfg["STAT_MAP_USE_THRESHOLDED"]
+    if cfg.get("PROFILE_METHOD") == "percentiles":
+        q = 100 * float(cfg["TAIL_Q"])
+        profile_par = (
+            f"profile with two values per atlas region at level {cfg['ATLAS_LEVEL']}, in the "
+            f"units of the map: the {100 - q:g}th and the {q:g}th percentiles of the region's "
+            f"valid voxel values ({cfg['VALUE_COL']}), left and right voxels pooled. With the "
+            f"median they describe the location, spread and asymmetry of the region's "
+            f"distribution; a global offset or gain of the map moves every value alike, so "
+            f"the Pearson similarity between profiles ignores it. Each channel was "
+            f"standardised over the common regions, so that the Pearson r between two "
+            f"profiles is the mean of the two channel correlations.")
+    elif cfg.get("PROFILE_METHOD") == "fraction_posneg":
+        q = 100 * float(cfg["TAIL_Q"])
+        profile_par = (
+            f"profile with two values per atlas region at level {cfg['ATLAS_LEVEL']}, both in "
+            f"% of the region's valid voxels: the share of its voxels in the top {q:g} % of "
+            f"the map ('pos') and in the bottom {q:g} % ('neg') ({cfg['VALUE_COL']}). The two "
+            f"percentiles of each map were taken over the voxels of the common regions only "
+            f"(both hemispheres), and left and right were pooled by voxel count. The profile "
+            f"is rank-based, hence invariant to any monotonic change of the map (global "
+            f"offset, gain); without spatial structure every region would score {q:g} % in "
+            f"both tails. Each channel was standardised over the common regions, so that the "
+            f"Pearson r between two profiles is the mean of the two channel correlations.")
+    else:
+        profile_par = (f"profile: the median correlation ({cfg['VALUE_COL']}) within each "
+                       f"atlas region at level {cfg['ATLAS_LEVEL']}.")
+    if cfg.get("_seed_regions_excluded"):
+        profile_par += (f" The region that contains the seed "
+                        f"({', '.join(cfg['_seed_regions_excluded'])}, found from the seed's "
+                        f"voxels in each atlas) was removed from every profile: its value "
+                        f"reflects the seed's own autocorrelation, not coupling.")
     maps_par = (f"Group maps were computed with AFNI 3dttest++ (one Fisher-z map per "
                 f"{unit}). Regional group values were taken from the "
                 f"{'THRESHOLDED (|z| >= 1.96, other voxels set to 0 and excluded)' if thr else 'unthresholded'} "
@@ -415,8 +512,7 @@ Unit of analysis
 Regional profiles and group maps
 --------------------------------
 For each run, the seed-based correlation map was summarised into a regional
-profile: the median correlation ({cfg['VALUE_COL']}) within each atlas region
-at level {cfg['ATLAS_LEVEL']}. {maps_par} The set of regions common to every
+{profile_par} {maps_par} The set of regions common to every
 dataset (regions sampled by every dataset's all-{unit}s group map) was fixed
 ONCE ({n_common} regions) and used unchanged for every subsequent step.
 
@@ -470,6 +566,137 @@ def _vec_to_profile(common, vec, value_col):
 LEGACY_CONFIG_KEYS = {"PHYLOGENY_USE_ROUND2": "PHYLOGENY_USE_FINAL_ROUND"}
 
 
+def _run_region_indices(sri, runs_by_label, common, cfg, species_of_label):
+    """Long table: one row per run x common region, every regional index
+    (sri.region_indices) at q = TAIL_Q. Empty when the profiles carry no voxel
+    values (matrix profiles)."""
+    if cfg.get("PROFILE_KIND", "seed") != "seed" or not hasattr(sri, "region_indices"):
+        return pd.DataFrame()
+    print(f"\n{'=' * 70}\n  Regional indices of every run (6d, S6d)\n{'=' * 70}")
+    rows, n_skip = [], 0
+    for lab, profs in runs_by_label.items():
+        for key, prof in profs.items():
+            if prof is None or "_sketch" not in prof.columns:
+                n_skip += 1
+                continue
+            try:
+                t = sri.region_indices(prof, common, q=cfg["TAIL_Q"])
+            except Exception as e:
+                print(f"  [WARN] {lab} {key}: regional indices failed ({e})")
+                continue
+            if t.empty:
+                continue
+            t = t[t["region"].isin(common)]
+            k = tuple(str(x) for x in key)
+            rows.append(t.assign(label=lab, species=species_of_label.get(lab), subject=k[0],
+                                 session=k[1] if len(k) > 1 else "",
+                                 run=k[2] if len(k) > 2 else "",
+                                 seed=k[3] if len(k) > 3 else ""))
+    if n_skip:
+        print(f"  [WARN] {n_skip} run profile(s) without voxel values -- no regional indices")
+    if not rows:
+        return pd.DataFrame()
+    tab = pd.concat(rows, ignore_index=True)
+    print(f"  {tab[['label', 'subject', 'session', 'run']].drop_duplicates().shape[0]} run(s) "
+          f"x {tab['region'].nunique()} region(s), q = {cfg['TAIL_Q']:g}")
+    return tab
+
+
+def _seed_regions_to_exclude(sri, cfg, bids_configs, profiles_by_label, common, paths):
+    """Common regions to drop because they contain the seed (see
+    SEED_REGION_EXCLUDE). 'auto': for every dataset, the ATLAS_LEVEL region
+    under the seed's voxels in a representative atlas volume; the union is
+    removed. Writes 02_selection/seed_region_exclusion.xlsx."""
+    rule = cfg.get("SEED_REGION_EXCLUDE", "auto")
+    if not rule or cfg.get("PROFILE_KIND", "seed") != "seed":
+        return []
+    if not isinstance(rule, str):
+        wanted = {str(r).lower().strip() for r in rule}
+        absent = sorted(wanted - set(common))
+        if absent:
+            print(f"  [seed region] [WARN] SEED_REGION_EXCLUDE {absent} not among the common "
+                  f"regions -- ignored")
+        return sorted(wanted & set(common))
+    if rule != "auto":
+        raise ValueError(f"SEED_REGION_EXCLUDE must be 'auto', a list of regions or None, "
+                         f"got {rule!r}")
+    rows = []
+    for c in bids_configs:
+        if c["label"] not in profiles_by_label:
+            continue
+        try:
+            atlas = sri.pick_representative_atlas_volume(c["bids_dir"])
+            if not atlas:
+                rows.append(dict(label=c["label"], parent=None,
+                                 reason=f"no atlas volume under {c['bids_dir']}"))
+                continue
+            ldf = sri.parse_itk_snap_label_file(c["label_path"])
+            res = sri.find_seed_parent_region(atlas, ldf, cfg["SEED"], cfg["ATLAS_LEVEL"])
+            rows.append(dict(label=c["label"], atlas=atlas, **{k: (str(v) if k == "per_parent"
+                                                                  else v)
+                                                              for k, v in res.items()}))
+        except Exception as e:
+            rows.append(dict(label=c["label"], parent=None, reason=f"failed: {e}"))
+    tab = pd.DataFrame(rows)
+    found = tab[tab["parent"].notna()] if not tab.empty else tab
+    for r in tab.itertuples():
+        if getattr(r, "parent", None):
+            print(f"  [seed region] {r.label}: seed labels {r.seed_labels} "
+                  f"({r.n_seed_voxels} voxels) lie in '{r.parent}' at level "
+                  f"{cfg['ATLAS_LEVEL']} ({100 * r.share:.0f} % of them)")
+        else:
+            print(f"  [seed region] [WARN] {r.label}: {getattr(r, 'reason', '')}")
+    parents = sorted(set(found["parent"]) & set(common)) if not found.empty else []
+    if not found.empty:
+        outside = sorted(set(found["parent"]) - set(common))
+        if outside:
+            print(f"  [seed region] {outside} contain the seed but are not common regions")
+    if tab.empty or found.empty:
+        print("  [seed region] [WARN] seed region not found in any atlas -- nothing removed; "
+              "set SEED_REGION_EXCLUDE to the region name to remove it")
+    tab.assign(excluded=tab.get("parent", pd.Series(dtype=object)).isin(parents)).to_excel(
+        os.path.join(paths["selection"], "seed_region_exclusion.xlsx"), index=False)
+    return parents
+
+
+def _write_profile_reliability_legend(png, rel, tests, cfg):
+    lines = []
+    for r in rel.sort_values(["label", "method"]).itertuples():
+        lines.append(f"{r.label} / {r.method}: discriminability {r.discriminability:.3f} "
+                     f"(p vs chance {r.p_discriminability:.3f}); r inter-run "
+                     f"{r.r_inter_run:.3f}, same animal {r.r_same_animal:.3f}, different "
+                     f"animals {r.r_inter_animal:.3f} (gap {r.gap_animal:+.3f}); "
+                     f"{r.n_runs} runs, {r.n_animals} animals, {r.n_values} values")
+    for k, d in tests.items():
+        for m, t in d.items():
+            lines.append(f"PAIRED {k}: {m} - median_r = {t['mean_diff']:+.4f}, higher in "
+                         f"{t['n_better']}/{t['n']} datasets, p = {t['p']:.3f} (exact sign-flip, "
+                         f"two-sided)")
+    _write_legend(
+        os.path.splitext(png)[0] + ".txt",
+        "F22 -- Which construction of the profile is the most reliable?",
+        "Every run of every dataset with several runs per animal, BEFORE any selection. For "
+        "each profile method: left, the discriminability (Bridgeford et al. 2021 PLoS Comput "
+        "Biol 17:e1009279) = probability that a run is closer (1 - r between profiles) to "
+        "another run of the same animal than to a run of another animal, 0.5 = chance; right, "
+        "median r between runs of the same animal minus median r between runs of different "
+        "animals. One line per dataset, black = mean. Methods: median_r (median of the "
+        f"region's voxels); fraction_posneg (% of the region's voxels in the top / bottom "
+        f"{100 * cfg['TAIL_Q']:g} % of the map, percentiles over the common regions); "
+        f"percentiles ({100 - 100 * cfg['TAIL_Q']:g}th / {100 * cfg['TAIL_Q']:g}th "
+        f"percentile of the region's voxels). All three are computed from the same voxels "
+        f"of the same runs and normalised as in the analysis (ZSCORE={cfg['ZSCORE']!r}).",
+        "p of a dataset: animal labels shuffled across its runs (500 permutations, "
+        "one-sided). Method comparison: difference with median_r per dataset, exact sign-flip "
+        "over datasets (2^n), two-sided. The criterion was fixed before looking at the "
+        "cross-species results and does not involve them.\n" + "\n".join(lines),
+        "Discriminability is rank-based, hence comparable between profiles of different "
+        "length (16 values for median_r, 32 for the two-channel methods); the r values "
+        "themselves are not. A method that is more discriminable measures the animal more "
+        "reliably from one run. For Mouse and Marmoset_Hori, runs of one animal span arousal "
+        "states, which lowers every method alike.")
+
+
 def _validate_config(cfg, user_config):
     """
     Fails loudly on what used to fail silently. Confirmed real cases:
@@ -515,6 +742,50 @@ def _validate_config(cfg, user_config):
         warns.append("PHYLOGENY_USE_FINAL_ROUND=True: kept maps carry a pool-size "
                      "(winner's-curse) bias confounded with clade -- keep the all-units "
                      "result as the primary phylogenetic test")
+    methods = ("median_r", "fraction_posneg", "percentiles")
+    if cfg["PROFILE_METHOD"] == "quantile_posneg":
+        cfg["PROFILE_METHOD"] = "percentiles"
+        warns.append("PROFILE_METHOD 'quantile_posneg' is now called 'percentiles' -- same "
+                     "profile")
+    if cfg["PROFILE_METHOD"] not in methods:
+        raise ValueError(f"PROFILE_METHOD must be one of {methods}, "
+                         f"got {cfg['PROFILE_METHOD']!r}")
+    names = {"decile": 0.1, "deciles": 0.1, "quintile": 0.2, "quintiles": 0.2,
+             "quartile": 0.25, "quartiles": 0.25}
+    tq = cfg["TAIL_Q"]
+    tq = names.get(tq.strip().lower(), tq) if isinstance(tq, str) else tq
+    try:
+        tq = float(tq)
+    except (TypeError, ValueError):
+        raise ValueError(f"TAIL_Q must be a number in (0, 0.5) or one of {sorted(names)}, "
+                         f"got {cfg['TAIL_Q']!r}") from None
+    if not 0.0 < tq < 0.5:
+        raise ValueError(f"TAIL_Q must be in (0, 0.5), got {cfg['TAIL_Q']!r}")
+    cfg["TAIL_Q"] = tq
+    if cfg.get("WITHIN_ACROSS_TEST", "wilcoxon") not in ("wilcoxon", "permutation"):
+        raise ValueError(f"WITHIN_ACROSS_TEST must be 'wilcoxon' or 'permutation', got "
+                         f"{cfg['WITHIN_ACROSS_TEST']!r}")
+    if cfg.get("PROFILE_KIND", "seed") != "seed":
+        # matrix profiles are edge values, not voxel maps
+        if cfg["PROFILE_METHOD"] != "median_r":
+            warns.append(f"PROFILE_METHOD={cfg['PROFILE_METHOD']!r} ignored for PROFILE_KIND="
+                         f"{cfg.get('PROFILE_KIND')!r} (edge profiles): median_r used")
+            cfg["PROFILE_METHOD"] = "median_r"
+        cfg["RUN_PROFILE_RELIABILITY"] = False
+    elif cfg["PROFILE_METHOD"] != "median_r":
+        q = float(cfg["TAIL_Q"])
+        lo, hi = int(round(100 * q)), int(round(100 * (1 - q)))
+        cfg["VALUE_COL"] = (f"pct_tail{lo}" if cfg["PROFILE_METHOD"] == "fraction_posneg"
+                            else f"q{lo}q{hi}_r")
+        if cfg["RUN_MULTILEVEL_F6"]:
+            warns.append(f"RUN_MULTILEVEL_F6 switched off: with PROFILE_METHOD="
+                         f"{cfg['PROFILE_METHOD']!r} the profiles are converted on the common "
+                         f"regions of ATLAS_LEVEL only")
+            cfg["RUN_MULTILEVEL_F6"] = False
+        if cfg["THRESHOLD_ABS"] is not None:
+            warns.append(f"THRESHOLD_ABS={cfg['THRESHOLD_ABS']} is in median_r units -- "
+                         f"set to None with PROFILE_METHOD={cfg['PROFILE_METHOD']!r}")
+            cfg["THRESHOLD_ABS"] = None
     return warns
 
 
@@ -1336,48 +1607,10 @@ def step6_multilevel_f6(sri, fa, fu, cfg, paths, bids_configs, all_units_index,
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# STEP 8 -- reference profile from each BIDS' "kept" (or other) group map,
-# for scoring every run's distance to it
-# ═══════════════════════════════════════════════════════════════════════════
-
-def step_build_reference_profiles(sri, fu, cfg, bids_configs, map_index, members_by_label,
-                                  ref_group="kept"):
-    """
-    Builds {label: (species, profile_df)} from map_index's `ref_group`
-    rows (default "kept"), reusing the same grid-matching atlas picker
-    as step 1b/F6 (fu.find_matching_atlas_volume) rather than blindly
-    taking the first candidate -- same fix as the Rat grid-mismatch bug.
-    """
-    cfg_by_label = {c["label"]: c for c in bids_configs}
-    out = {}
-    ref_rows = map_index[(map_index.group == ref_group) & map_index.found]
-    for r in ref_rows.itertuples():
-        cb = cfg_by_label.get(r.label)
-        if cb is None:
-            continue
-        try:
-            run_keys = []
-            if r.label in members_by_label:
-                for rks in members_by_label[r.label].values():
-                    run_keys.extend(rks)
-            atlas = fu.find_matching_atlas_volume(
-                sri, cb, run_keys, r.map_path, verbose=True, label=f"ref/{r.label}")
-            atlas = atlas or sri.pick_representative_atlas_volume(cb["bids_dir"])
-            ldf = sri.parse_itk_snap_label_file(cb["label_path"])
-            prof = sri.compute_region_profile(r.map_path, atlas, ldf,
-                                              atlas_level=cfg["ATLAS_LEVEL"])
-            out[r.label] = (r.species, prof)
-            print(f"  [{r.label}] {ref_group} reference profile OK")
-        except Exception as e:
-            print(f"  [WARN] {r.label}: could not build {ref_group} reference profile: {e}")
-    return out
-
-
-# ═══════════════════════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _archive_previous_outputs(paths):
+def _archive_previous_outputs(paths, figures_only=False):
     """
     Move (never delete) the result files of a previous run in the same
     OUTPUT_ROOT into <root>/_previous_runs/<timestamp>/, BEFORE this run
@@ -1385,22 +1618,28 @@ def _archive_previous_outputs(paths):
     leaves the previous run's figures, tables, methods.txt and log in place,
     looking current. AFNI maps and their balance records (*.json) stay where
     they are so OVERWRITE_MAPS=False can still reuse them after the
-    input_runs/ provenance check. Returns the archive folder or None.
+    input_runs/ provenance check. The saved part-1 state (07_state) is moved
+    too, so a part 1 that stops early cannot leave an older selection behind
+    for part 2. figures_only=True (part 2 alone): only 06_figures and the
+    part-2 log. Returns the archive folder or None.
     """
     import datetime
     root = paths["root"]
     cand = []
-    for f in ("00_log.txt", "methods.txt"):
+    logs = ("00_log_figures.txt",) if figures_only else ("00_log.txt", "00_log_figures.txt",
+                                                          "methods.txt", "Methods_article.txt")
+    for f in logs:
         if os.path.isfile(os.path.join(root, f)):
             cand.append(os.path.join(root, f))
-    for key in ("figures", "selection"):
+    for key in (("figures",) if figures_only else ("figures", "selection", "state")):
         d = paths[key]
         cand += [os.path.join(d, f) for f in os.listdir(d)] if os.path.isdir(d) else []
-    for key in ("all_units", "group_maps", "group_maps_final"):
-        d = paths[key]
-        if os.path.isdir(d):
-            cand += [os.path.join(d, f) for f in os.listdir(d)
-                     if os.path.isfile(os.path.join(d, f)) and not f.endswith(".json")]
+    if not figures_only:
+        for key in ("all_units", "group_maps", "group_maps_final"):
+            d = paths[key]
+            if os.path.isdir(d):
+                cand += [os.path.join(d, f) for f in os.listdir(d)
+                         if os.path.isfile(os.path.join(d, f)) and not f.endswith(".json")]
     if not cand:
         return None
     dest_root = os.path.join(root, "_previous_runs",
@@ -1464,17 +1703,175 @@ def _load_time_tree(cfg, bids_configs):
               f"{old.get(sp, float('nan'))})")
 
 
-def run(sri, bids_configs, config=None, df_qc_by_label=None):
-    """Run the whole Figure 5 pipeline.
+# ═══════════════════════════════════════════════════════════════════════════
+# The two parts: SELECTION (part 1) and FIGURES (part 2)
+# ═══════════════════════════════════════════════════════════════════════════
+# Part 1 = everything that depends on the data and on the selection settings:
+# run profiles, run QC, AFNI all-units maps, common regions, regional indices of
+# every run, F22 table, selection rounds, AFNI kept / not-kept maps, jpgs,
+# surface renders, profiles of every group map. It ends by writing
+# <OUTPUT_ROOT>/07_state/selection_state.pkl.
+# Part 2 = every statistic and figure, from that file only (no AFNI, no NIfTI
+# read except STEP 7, which is off by default): it can be rerun as often as
+# needed, with other figure settings, in minutes.
+# run(..., part="both") does both in one go (the default).
+
+PARTS = ("both", "selection", "figures")
+STATE_FILE = "selection_state.pkl"
+
+# Keys that only change part 2: they can differ between the selection run and a
+# later run(part="figures"). Every other key changes the selection (or the
+# maps): giving it a different value with part="figures" is an error.
+FIGURE_KEYS = frozenset({
+    "MAKE_FIGURES", "RUN_FINGERPRINTS", "REFERENCE_SPECIES", "RUN_PAPER_FIGURES",
+    "BRAIN_MASS_XLSX", "BRAIN_MASS_G", "SURFACE_ZOOM", "SURFACE_DATASETS_PER_ROW",
+    "FIG6D", "WITHIN_ACROSS_TEST", "N_PERM_PHYLOGENY", "RUN_PHYLO_COMPARATIVE",
+    "TREE_PATH", "SPECIES_TO_TREE_TIP", "PGLS_QC_COVARIATES", "SPECIES_COVARIATES",
+    "RUN_MULTILEVEL_F6", "MULTILEVEL_F6_LEVELS", "RUN_DISTANCE_TO_REF",
+    "DISTANCE_REF_GROUP", "QC_METRICS_FOR_CORRELATION", "QC_META_MIN_BIDS",
+    "QC_META_ALPHA", "PHYLOGENY_USE_FINAL_ROUND"})
+# derived automatically in part 1: None / absent in the launcher means "as saved"
+_DERIVED_KEYS = frozenset({"MAP_TAG", "RESULTS_BASE_DIR", "VALUE_COL"})
+
+
+def _state_path(root):
+    return os.path.join(root, "07_state", STATE_FILE)
+
+
+def save_state(state):
+    """Write the part-1 state (pickle) and a readable summary next to it."""
+    import pickle
+    import datetime
+    path = _state_path(state["cfg"]["OUTPUT_ROOT"])
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    state = dict(state, saved=datetime.datetime.now().isoformat(timespec="seconds"),
+                 versions=dict(python=sys.version.split()[0], numpy=np.__version__,
+                               pandas=pd.__version__))
+    tmp = path + ".tmp"
+    with open(tmp, "wb") as f:
+        pickle.dump(state, f, protocol=4)
+    os.replace(tmp, path)
+    with open(os.path.splitext(path)[0] + ".txt", "w", encoding="utf-8") as f:
+        f.write(f"Part-1 state of {state['cfg']['OUTPUT_ROOT']}\nsaved {state['saved']} "
+                f"(python {state['versions']['python']}, numpy {state['versions']['numpy']}, "
+                f"pandas {state['versions']['pandas']})\n\n")
+        f.write(f"datasets: {sorted(state['profiles_by_label'])}\n")
+        f.write(f"final round: {state['final_round']}\n")
+        f.write(f"common regions ({len(state['anat_common'])}): {state['anat_common']}\n")
+        f.write(f"kept per dataset: " + ", ".join(
+            f"{k} {len(v)}" for k, v in sorted(state["selections_final"].items())) + "\n\n")
+        f.write("Selection settings (part 2 refuses another value for these):\n")
+        for k, v in sorted(state["cfg"].items()):
+            if k not in FIGURE_KEYS:
+                f.write(f"  {k} = {v!r}\n")
+    print(f"  [saved] 07_state/{STATE_FILE} (+ .txt summary) -- part 2 can now be rerun "
+          f"alone with run(..., part='figures')")
+    return path
+
+
+def load_state(root):
+    import pickle
+    path = _state_path(root)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(
+            f"{path} not found: run part 1 first (run(..., part='selection') or "
+            f"part='both') with OUTPUT_ROOT={root!r}")
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+
+def _merge_figure_config(saved_cfg, user_config):
+    """Saved part-1 config + the part-2 keys of `user_config`. A selection key
+    with another value than the one the selection was made with raises."""
+    cfg = dict(saved_cfg)
+    user_config = dict(user_config or {})
+    unknown = sorted(set(user_config) - set(CONFIG) - set(LEGACY_CONFIG_KEYS))
+    if unknown:
+        raise KeyError(f"Unknown CONFIG key(s): {unknown} -- typo? Valid keys: {sorted(CONFIG)}")
+    if user_config.get("PROFILE_METHOD") == "quantile_posneg":
+        user_config["PROFILE_METHOD"] = "percentiles"
+    if isinstance(user_config.get("TAIL_Q"), str):
+        names = {"decile": 0.1, "deciles": 0.1, "quintile": 0.2, "quintiles": 0.2,
+                 "quartile": 0.25, "quartiles": 0.25}
+        user_config["TAIL_Q"] = names.get(user_config["TAIL_Q"].strip().lower(),
+                                          user_config["TAIL_Q"])
+    changed = []
+    for k, v in user_config.items():
+        if k in FIGURE_KEYS:
+            cfg[k] = v
+        elif k in _DERIVED_KEYS and v is None:
+            continue
+        elif k in LEGACY_CONFIG_KEYS:
+            continue
+        elif saved_cfg.get(k, CONFIG.get(k)) != v:
+            changed.append(f"{k}: selection made with {saved_cfg.get(k, CONFIG.get(k))!r}, "
+                           f"now {v!r}")
+    if changed:
+        raise ValueError(
+            "part='figures' reuses the saved selection, but these settings change the "
+            "selection or the maps -- rerun part 1 (part='selection' or 'both'), or put them "
+            "back:\n  " + "\n  ".join(changed))
+    return cfg
+
+
+def _open_log(paths, name):
+    old_cwd = os.getcwd()
+    os.chdir(paths["root"])
+    tee = _Tee(os.path.join(paths["root"], name))
+    sys.stdout = tee
+    return tee, old_cwd
+
+
+def _close_log(tee, old_cwd, paths, name):
+    sys.stdout = tee.stdout
+    tee.close()
+    try:
+        os.chdir(old_cwd)
+    except OSError:
+        pass
+    print(f"\n[log] {os.path.join(paths['root'], name)}")
+
+
+def run(sri, bids_configs, config=None, df_qc_by_label=None, part="both"):
+    """Run the Figure 5 pipeline.
 
     sri          : SBA_Region_Profile_Index module -- the only external
                    dependency (AFNI / nibabel / atlas work). Must be the
                    version patched by patch_SBA_unit_level.py.
     bids_configs : list of per-dataset dicts (label, species, bids_dir,
-                   label_path, seeds, optional exclude_lateralized).
+                   label_path, seeds, optional exclude_lateralized, state).
     config       : dict overriding CONFIG entries
     df_qc_by_label : {label: df_qc slice} to enable the external QC check
+    part         : "both" (default) = selection then figures;
+                   "selection" = part 1 only (ends with 07_state/selection_state.pkl);
+                   "figures" = part 2 only, from that file (only FIGURE_KEYS may
+                   differ from the selection run; bids_configs and df_qc_by_label
+                   are then taken from the file).
     """
+    if part not in PARTS:
+        raise ValueError(f"part must be one of {PARTS}, got {part!r}")
+    if part == "figures":
+        root = (config or {}).get("OUTPUT_ROOT", CONFIG["OUTPUT_ROOT"])
+        state = load_state(root)
+        cfg = _merge_figure_config(state["cfg"], config)
+        paths = _tree(root)
+        archived = _archive_previous_outputs(paths, figures_only=True)
+        tee, old_cwd = _open_log(paths, "00_log_figures.txt")
+        if archived:
+            print(f"  Previous figures moved to {archived}")
+        print(f"  part 2 (figures) from {_state_path(root)} (saved {state.get('saved')})")
+        _load_time_tree(cfg, state["bids_configs"])
+        if hasattr(sri, "set_profile_method"):
+            sri.set_profile_method(cfg["PROFILE_METHOD"], cfg["TAIL_Q"], keep_sketch=False)
+            if cfg["PROFILE_METHOD"] != "median_r":
+                sri.set_tail_reference(state["anat_common"])
+        try:
+            return _run_figures(sri, dict(state, cfg=cfg, paths=paths))
+        finally:
+            if hasattr(sri, "set_profile_method"):
+                sri.set_profile_method("median_r")
+            _close_log(tee, old_cwd, paths, "00_log_figures.txt")
+
     cfg = dict(CONFIG)
     if config:
         cfg.update(config)
@@ -1493,13 +1890,11 @@ def run(sri, bids_configs, config=None, df_qc_by_label=None):
     # deleted under them (seen in the real log): start from a directory this
     # run owns. All pipeline paths are absolute, so this changes nothing else.
     archived = _archive_previous_outputs(paths)
-    old_cwd = os.getcwd()
-    os.chdir(paths["root"])
-    tee = _Tee(os.path.join(paths["root"], "00_log.txt"))
-    sys.stdout = tee
+    tee, old_cwd = _open_log(paths, "00_log.txt")
     if archived:
         print(f"  Previous run's figures/tables/log moved to {archived} "
               f"(AFNI maps and *.json balance records left in place for reuse)")
+    print(f"  part = {part!r}")
     print(f"  AFNI statmaps stored under RESULTS_BASE_DIR={cfg['RESULTS_BASE_DIR']!r}, "
           f"suffix tag MAP_TAG={cfg['MAP_TAG']!r}, "
           f"{'THRESHOLDED' if cfg['STAT_MAP_USE_THRESHOLDED'] else 'unthresholded'} "
@@ -1507,21 +1902,44 @@ def run(sri, bids_configs, config=None, df_qc_by_label=None):
     for w in config_warnings:
         print(f"  [CONFIG WARNING] {w}")
     _load_time_tree(cfg, bids_configs)
+    # The profile method is a module-level setting of sri: set it for this run
+    # and put it back afterwards, so the next run of the same process (control,
+    # matrix) starts clean. The voxel values of every region are kept until the
+    # regional indices of every run (6d) and F22 are computed.
+    if hasattr(sri, "set_profile_method"):
+        sri.set_profile_method(cfg["PROFILE_METHOD"], cfg["TAIL_Q"],
+                               keep_sketch=cfg.get("PROFILE_KIND", "seed") == "seed")
+    print(f"  Profile method: {cfg['PROFILE_METHOD']}"
+          + (f" (q = {cfg['TAIL_Q']:g}, value column {cfg['VALUE_COL']})"
+             if cfg["PROFILE_METHOD"] != "median_r" else ""))
     try:
-        return _run(sri, cfg, paths, bids_configs, df_qc_by_label)
+        state = _run_selection(sri, cfg, paths, bids_configs, df_qc_by_label)
+        save_state(state)
+        if part == "selection":
+            _write_methods(cfg, paths, sorted(state["profiles_by_label"]),
+                           state["n_regions"], state["unit_counts"],
+                           final_round=state["final_round"])
+            print(f"\n{'#' * 70}\n  PART 1 DONE -- {paths['root']}\n  figures: "
+                  f"run(..., part='figures')\n{'#' * 70}")
+            return state
+        return _run_figures(sri, state)
     finally:
-        sys.stdout = tee.stdout
-        tee.close()
-        try:
-            os.chdir(old_cwd)
-        except OSError:
-            pass
-        print(f"\n[log] {os.path.join(paths['root'], '00_log.txt')}")
+        if hasattr(sri, "set_profile_method"):
+            sri.set_profile_method("median_r")
+        _close_log(tee, old_cwd, paths, "00_log.txt")
 
 
-def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
+def _run_selection(sri, cfg, paths, bids_configs, df_qc_by_label):
+    """Part 1. Returns the state dict that part 2 (_run_figures) needs."""
 
     unit = cfg["UNIT"]
+    two_ch = cfg["PROFILE_METHOD"] != "median_r"
+    # Until the common regions are known the profiles are the usual median_r
+    # ones (carrying, in addition, each region's voxel values when a
+    # two-channel method or F22 needs them): run-level QC and the common-region
+    # search use median_r, then every profile is converted (see "two-channel
+    # profiles" below).
+    pre_vc = "median_r" if two_ch else cfg["VALUE_COL"]
     print(f"\n{'#' * 70}\n  FIGURE 5 PIPELINE  (atlas level {cfg['ATLAS_LEVEL']}, "
           f"seed {cfg['SEED']}, unit of analysis: {unit})\n{'#' * 70}")
 
@@ -1545,7 +1963,7 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
             if cfg["RUN_QC_ENABLE"]:
                 profs, df_qc_runs = fu.reject_bad_runs(
                     sri, fa, profs, method=cfg["REFERENCE_METHOD"], k=cfg["K_REF"],
-                    value_col=cfg["VALUE_COL"], metric=cfg["METRIC"],
+                    value_col=pre_vc, metric=cfg["METRIC"],
                     mad_threshold=cfg["RUN_QC_MAD_THRESHOLD"], label=c["label"])
                 run_qc_by_label[c["label"]] = df_qc_runs
                 if not profs:
@@ -1647,23 +2065,127 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
     print(f"\n{'=' * 70}\n  Common regions\n{'=' * 70}")
     if afni_profiles:
         common = fa.get_common_regions_from_group_maps(
-            afni_profiles, value_col=cfg["VALUE_COL"])
+            afni_profiles, value_col=pre_vc)
         common_source = "group maps (atlas level + presence in the z-map)"
     else:
         # No group map available (STEP 1 skipped or every map failed):
         # fall back to the per-run profiles so the pipeline still runs.
         common = fa.get_common_regions_from_profiles(
-            profiles_by_label, value_col=cfg["VALUE_COL"],
+            profiles_by_label, value_col=pre_vc,
             require_nonnan=cfg["COMMON_REGIONS_REQUIRE_NONNAN"])
         common_source = (f"per-run profiles, fallback "
                          f"(require_nonnan={cfg['COMMON_REGIONS_REQUIRE_NONNAN']})")
+    if cfg["COMMON_REGIONS_OVERRIDE"]:
+        wanted = [str(c).lower().strip() for c in cfg["COMMON_REGIONS_OVERRIDE"]]
+        present = set(fa.get_common_regions_from_profiles(
+            profiles_by_label, value_col=pre_vc, require_nonnan=False, verbose=False))
+        absent = [c for c in wanted if c not in present]
+        if absent:
+            print(f"  [WARN] COMMON_REGIONS_OVERRIDE: {absent} absent from the profiles -- dropped")
+        common = [c for c in wanted if c in present]
+        common_source = "COMMON_REGIONS_OVERRIDE (regions of the main run)"
     print(f"  {len(common)} common region(s) -- source: {common_source}")
     if not common:
         raise ValueError("No common region survived -- nothing can be compared. "
                          "Check ATLAS_LEVEL and the group maps' coverage.")
-    pd.DataFrame({"common_region": common, "source": common_source}).to_excel(
+    # ---- the region that contains the seed ---------------------------------
+    # Its value is the seed's autocorrelation (a peak whose size depends on
+    # resolution, smoothing and on how much of the region the seed fills),
+    # not coupling: it is removed from the common regions before anything is
+    # computed on them. common_regions.xlsx keeps every region with a flag,
+    # so the matrix analysis (no seed) keeps it as a node.
+    all_common = list(common)
+    seed_regions = _seed_regions_to_exclude(sri, cfg, bids_configs, profiles_by_label,
+                                            all_common, paths)
+    common = [c for c in common if c not in seed_regions]
+    cfg["_seed_regions_excluded"] = list(seed_regions)
+    if seed_regions:
+        print(f"  seed region(s) removed from the profiles: {seed_regions} -> "
+              f"{len(common)} region(s) analysed")
+    pd.DataFrame({"common_region": all_common, "source": common_source,
+                  "seed_region_excluded": [c in seed_regions for c in all_common]}).to_excel(
         os.path.join(paths["selection"], "common_regions.xlsx"), index=False)
-    _write_methods(cfg, paths, sorted(profiles_by_label), len(common), unit_counts)
+
+    # ---- regional indices of every run (6d, S6d) ---------------------------
+    # While every profile still carries its voxel values: median, upper / lower
+    # percentile, % in the top / bottom tail of the map, share > 0 / < 0, per
+    # region, both hemispheres pooled. Part 2 draws 6d in the unit of any profile
+    # method from this table, without the voxel values.
+    run_index = _run_region_indices(sri, runs_by_label, common, cfg, species_of_label)
+
+    # ---- F22: reliability of the three profile constructions ---------------
+    # On EVERY run, before any selection, whatever PROFILE_METHOD: the
+    # criterion that decides which profile to use, independent of the
+    # cross-species questions.
+    reliability = None
+    if cfg["RUN_PROFILE_RELIABILITY"]:
+        print(f"\n{'=' * 70}\n  F22: profile reliability by method (every run)\n{'=' * 70}")
+        try:
+            resolvers = {c["label"]: ff.StateResolver(c) for c in bids_configs}
+            rel = ff.profile_reliability(sri, runs_by_label, common, resolvers,
+                                         cfg["ZSCORE"], q=cfg["TAIL_Q"])
+            if not rel.empty:
+                tests = {m: ff.compare_methods(rel, m) for m in
+                         ("discriminability", "gap_animal", "r_inter_run")}
+                with pd.ExcelWriter(os.path.join(paths["selection"],
+                                                 "profile_reliability.xlsx")) as xw:
+                    rel.to_excel(xw, sheet_name="per_dataset", index=False)
+                    pd.DataFrame([dict(measure=k, method=m, **t) for k, d in tests.items()
+                                  for m, t in d.items()]).to_excel(
+                        xw, sheet_name="method_vs_median_r", index=False)
+                reliability = dict(rel=rel, tests=tests)
+                for k, d in tests.items():
+                    for m, t in d.items():
+                        print(f"  {k}: {m} - median_r = {t['mean_diff']:+.3f} "
+                              f"({t['n_better']}/{t['n']} datasets higher), p = {t['p']:.3f}")
+            else:
+                print("  [F22] no dataset with several runs per animal -- skipped")
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"  [F22] [WARN] failed: {e}")
+    # the voxel values are no longer needed by median_r
+    if not two_ch:
+        sri.set_profile_method("median_r", cfg["TAIL_Q"], keep_sketch=False)
+        for profs in runs_by_label.values():
+            for k in list(profs):
+                if "_sketch" in profs[k].columns:
+                    profs[k] = profs[k].drop(columns="_sketch")
+        for lab in list(profiles_by_label):
+            profiles_by_label[lab], members_by_label[lab] = fu.aggregate_profiles_to_unit(
+                sri, runs_by_label[lab], unit=unit, label=lab, verbose=False)
+        afni_profiles = {lab: (sp_, p.drop(columns="_sketch") if "_sketch" in p else p)
+                         for lab, (sp_, p) in afni_profiles.items()}
+
+    # ---- two-channel profiles ---------------------------------------------
+    # fraction_posneg takes the map percentiles over the voxels of the common
+    # regions: only now can the profiles be built (percentiles follows the
+    # same path). Every profile computed so far is converted; every profile
+    # computed from here on (group maps of STEP 3, 3b, 8) comes out converted
+    # from sri.compute_region_profile. common_regions.xlsx keeps the
+    # anatomical names (nodes of the matrix analysis, COMMON_REGIONS_OVERRIDE
+    # of the control run).
+    if two_ch:
+        print(f"\n{'=' * 70}\n  {cfg['PROFILE_METHOD']} profiles (q = {cfg['TAIL_Q']:g}, "
+              f"{len(common)} common regions)\n{'=' * 70}")
+        sri.set_profile_method(cfg["PROFILE_METHOD"], cfg["TAIL_Q"], keep_sketch=False)
+        sri.set_tail_reference(common)
+        runs_by_label = {lab: {k: sri.to_channel_profile(p) for k, p in profs.items()}
+                         for lab, profs in runs_by_label.items()}
+        for lab in list(profiles_by_label):
+            profiles_by_label[lab], members_by_label[lab] = fu.aggregate_profiles_to_unit(
+                sri, runs_by_label[lab], unit=unit, label=lab, verbose=False)
+        afni_profiles = {lab: (sp_, sri.to_channel_profile(p))
+                         for lab, (sp_, p) in afni_profiles.items()}
+        anat = list(common)
+        common = sri.channel_names(anat)
+        n_runs = sum(len(v) for v in runs_by_label.values())
+        print(f"  {n_runs} run profile(s) and {len(afni_profiles)} group-map profile(s) "
+              f"converted: {len(common)} values per profile ({len(anat)} regions x "
+              f"{'/'.join(sri.channel_suffixes())}), column {cfg['VALUE_COL']}")
+    anat_common = list(anat) if two_ch else list(common)
+    n_regions = len(anat_common)
+    _write_methods(cfg, paths, sorted(profiles_by_label), n_regions, unit_counts)
 
     # ---- invariance -----------------------------------------------------
     # With INVARIANCE_VALUE=1.0 (the default) every common region is kept
@@ -1688,12 +2210,6 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
     pd.DataFrame({"region": common, "invariance": invariance,
                   "used_for_selection": region_mask}).to_excel(
         os.path.join(paths["selection"], "region_invariance.xlsx"), index=False)
-
-    # ---- F0 figures: per BIDS, then per species -------------------------
-    if afni_profiles and cfg["MAKE_FIGURES"]:
-        print(f"\n{'=' * 70}\n  F0 figures (per BIDS, then per species)\n{'=' * 70}")
-        step1b_species_profiles_figure(sri, cfg, paths, afni_profiles,
-                                       common, region_mask, invariance)
 
     # ---- STEP 2: selection ---------------------------------------------
     print(f"\n{'=' * 70}\n  STEP 2: consensus selection ({unit} level)\n{'=' * 70}")
@@ -1732,6 +2248,7 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
     final_criterion = {lab: _vec_to_profile(common, vec, cfg["VALUE_COL"])
                        for lab, vec in sel["consensus_by_label"].items()}
     selections_round2 = {}
+    overlap_df = pd.DataFrame()
     if cfg["RUN_ROUND2_SELECTION"]:
         print(f"\n{'=' * 70}\n  STEP 2b: round-2 selection (species-anchored)\n{'=' * 70}")
         r2 = fa.run_round2_selection(
@@ -1770,9 +2287,6 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
                 overlap_df.drop(columns=["kcore_only", "uniform_only"]).to_excel(
                     os.path.join(paths["selection"], "reference_method_overlap.xlsx"),
                     index=False)
-                fa.plot_reference_method_overlap(
-                    overlap_df, output_path=os.path.join(
-                        paths["figures"], "F1d_reference_method_effect.png"))
 
     start_round = max(all_round_selections)
     if cfg["RUN_ITERATIVE_SELECTION"] and cfg["N_ITERATIVE_ROUNDS"] > start_round:
@@ -1798,6 +2312,7 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
           f"{final_round}" + ("" if final_round > 1 else " (no refinement round ran)"))
 
     # Convergence across the WHOLE chain (round r vs r-1, r >= 2) + per-round table
+    conv_df = pd.DataFrame()
     if final_round >= 2:
         conv_rows, rows_iter = [], []
         for r in range(2, final_round + 1):
@@ -1817,9 +2332,6 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
                          index=False)
         pd.DataFrame(rows_iter).to_excel(
             os.path.join(paths["selection"], "selection_by_round.xlsx"), index=False)
-        fa.plot_iterative_selection_convergence(
-            conv_df, output_path=os.path.join(
-                paths["figures"], "F1e_selection_convergence.png"))
         print(f"  [saved] 02_selection/selection_by_round.xlsx, selection_convergence.xlsx")
 
     balanced = fa.balanced_kept_vs_notkept(
@@ -1889,6 +2401,237 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
         step5_collect_surfaces(map_index_final,
                                {**paths, "surfaces": paths["surfaces_final"]}, cfg)
 
+    # ---- profiles of every group map (part 2 reads no NIfTI) ---------------
+    # Every group of 03_group_maps and 03b_group_maps_final ('kept', 'not_kept',
+    # 'kept_final', 'not_kept_final'), plus the all-units maps ('all'): they feed
+    # the phylogenetic sensitivity (PHYLOGENY_USE_FINAL_ROUND), F17 and 5d
+    # (before / after), STEP 8 (distance to the kept map) -- whichever part 2 uses.
+    group_map_profiles = {"all": dict(afni_profiles)}
+    for idx in (map_index, map_index_final):
+        if idx is None or idx.empty:
+            continue
+        for g in sorted(set(idx["group"])):
+            sub = idx[(idx["group"] == g) & idx["found"]]
+            if sub.empty:
+                continue
+            print(f"\n  profiles of the '{g}' group maps ({len(sub)} dataset(s))")
+            group_map_profiles[g] = fu.profiles_from_group_maps(
+                sri, sub, bids_configs, None, atlas_level=cfg["ATLAS_LEVEL"],
+                members_by_label=members_by_label, verbose=False)
+
+    # ---- 5a / S5a: surface renders with one colour range per dataset --------
+    surface_pics, surface_ranges = {}, {}
+    if (cfg["RENDER_SURFACE"] and cfg.get("SURFACE_COMMON_SCALE", True)
+            and cfg.get("PROFILE_KIND", "seed") == "seed"):
+        maps_5a = fpp.surface_maps_for_5a(all_units_index, map_index_final)
+        if maps_5a:
+            print(f"\n{'=' * 70}\n  5a / S5a: surface renders, one colour range per "
+                  f"dataset\n{'=' * 70}")
+            try:
+                surface_pics, surface_ranges = fpp.render_common_scale(
+                    sri, os.path.join(paths["surfaces_final"], "common_scale"), maps_5a,
+                    species_of_label, pct=cfg.get("SURFACE_COMMON_PCT", 90.0))
+            except Exception as e:      # 5a then falls back to the per-map renders
+                import traceback
+                traceback.print_exc()
+                print(f"  [5a] [WARN] common-scale rendering failed ({e}) -- per-map renders "
+                      f"will be used")
+
+    return dict(
+        cfg=cfg, paths=paths, bids_configs=bids_configs, species_of_label=species_of_label,
+        profiles_by_label=profiles_by_label, members_by_label=members_by_label,
+        runs_by_label=runs_by_label, unit_counts=unit_counts, df_qc_by_label=df_qc_by_label,
+        all_units_index=all_units_index, afni_profiles=afni_profiles, common=common,
+        anat_common=anat_common, all_common=all_common, common_source=common_source,
+        n_regions=n_regions, species_profs=species_profs, invariance=invariance,
+        region_mask=region_mask, sel=sel, selections=selections,
+        all_round_selections=all_round_selections, final_round=final_round,
+        selections_final=selections_final, final_criterion=final_criterion,
+        conv_df=conv_df, overlap_df=overlap_df, map_index=map_index,
+        map_index_final=map_index_final, group_map_profiles=group_map_profiles,
+        surface_pics=surface_pics, surface_ranges=surface_ranges, run_index=run_index,
+        reliability=reliability)
+
+
+def _write_methods_article(st, cfg, paths, phylo_source=None):
+    """Methods_article.txt: the Methods of Figures 5-6 written as for a
+    manuscript, with the numbers of this run (datasets, runs, animals,
+    regions, selection, tests), followed by the references cited. Rewritten
+    at the end of every part 2."""
+    import scipy
+    import matplotlib
+    unit = cfg["UNIT"]
+    labels = sorted(st["profiles_by_label"])
+    species_of = st["species_of_label"]
+    cfg_by = {c["label"]: c for c in st["bids_configs"]}
+    rows = []
+    for lab in labels:
+        res = ff.StateResolver(cfg_by.get(lab, {}))
+        keys = list(st["runs_by_label"].get(lab, {}))
+        animals = {res.animal(tuple(str(x) for x in k)) for k in keys}
+        try:
+            state = ff.dataset_state(res, keys)
+        except Exception:
+            state = "unknown"
+        rows.append((lab, species_of.get(lab), len(keys), len(animals), state))
+    n_species = len({r[1] for r in rows})
+    n_runs = sum(r[2] for r in rows)
+    n_anim = sum(r[3] for r in rows)
+    ds_txt = "; ".join(f"{ff.pretty_label(lab)} ({sp}, {nr} runs, {na} animals, {state})"
+                       for lab, sp, nr, na, state in rows)
+    method = cfg["PROFILE_METHOD"]
+    q = float(cfg["TAIL_Q"])
+    lo, hi = int(round(100 * q)), int(round(100 * (1 - q)))
+    anat = st.get("anat_common") or st["common"]
+    seed_out = cfg.get("_seed_regions_excluded") or []
+    n_inv = int(np.asarray(st["region_mask"], bool).sum()) if st.get("region_mask") is not None \
+        else len(st["common"])
+    n_val = len(st["common"])
+    inv_txt = (f"{n_inv} of the {n_val} profile values ({len(anat)} regions x 2 channels)"
+               if n_val != len(anat) else f"{n_inv} of the {n_val} regions")
+    n_kept = {lab: len(v) for lab, v in st["selections_final"].items()}
+    if method == "percentiles":
+        prof = (f"two values per region: the {hi}th and the {lo}th percentiles of the "
+                f"region's voxel values (its most and least coupled {lo} %), left and right "
+                f"hemispheres pooled by voxel count. Each of the two channels was standardised "
+                f"across the common regions (mean 0, s.d. 1), so that the Pearson correlation "
+                f"between two profiles is the mean of the two channel correlations and a global "
+                f"offset between channels cannot create similarity")
+    elif method == "fraction_posneg":
+        prof = (f"two values per region: the percentage of the region's voxels in the top "
+                f"{lo} % and in the bottom {lo} % of the map, the map percentiles being taken "
+                f"over the voxels of the common regions (both hemispheres); rank-based, hence "
+                f"invariant to any monotonic transform of the map. Each channel was standardised "
+                f"across the common regions")
+    else:
+        prof = "the median of the region's voxel values"
+    norm = {True: "z-scored across regions", "zscore": "z-scored across regions",
+            "scale": "divided by their root mean square across regions (sign preserved)",
+            False: "left on their raw scale", None: "left on their raw scale",
+            "none": "left on their raw scale"}.get(cfg["ZSCORE"], str(cfg["ZSCORE"]))
+    rounds = st["final_round"]
+    chain = (f"Round 1 ranked the {unit}s of each dataset by the Pearson correlation of their "
+             f"profile with the leave-one-species-out consensus (median across the other "
+             f"species of the species profiles; datasets of one species first collapsed by "
+             f"median, so that each species counts once)"
+             + ("; round 2 re-ranked each dataset against the median of its own round-1 "
+                "selection" if cfg["RUN_ROUND2_SELECTION"] else "")
+             + ((f"; round 3 rebuilt" if rounds == 3 else f"; rounds 3 to {rounds} each rebuilt")
+                + f" the cross-species consensus from the previous round's selected {unit}s and "
+                  f"re-ranked the whole pool" if rounds >= 3 else "")
+             + f". The {cfg['N_SELECT']} best-ranked {unit}s of each dataset were kept at every "
+             f"round (final selection: round {rounds}).")
+    versions = (f"Python {sys.version.split()[0]}, NumPy {np.__version__}, pandas "
+                f"{pd.__version__}, SciPy {scipy.__version__}, Matplotlib "
+                f"{matplotlib.__version__}")
+    g6 = " and ".join((cfg.get("FIG6D") or {}).get("group", ("Human", "Macaque")))
+    regs6 = ", ".join(ff.short_region(r) for r in (cfg.get("FIG6D") or {}).get(
+        "regions", ()))
+    test5b = ("one-sided Wilcoxon rank-sum test on the pairs, not corrected for multiple "
+              "comparisons (single primary hypothesis); because every run enters many pairs, "
+              "the pairs are not independent and this test is liberal, so a permutation test "
+              "of the species labels across datasets (each dataset keeping its runs; 2,000 "
+              "permutations; statistic, difference between the intra- and inter-species "
+              "medians), which respects that dependence, is reported with it"
+              if cfg.get("WITHIN_ACROSS_TEST", "wilcoxon") == "wilcoxon" else
+              "permutation test of the species labels across datasets (each dataset keeping its "
+              "runs; 2,000 permutations; statistic, difference between the intra- and "
+              "inter-species medians), one-sided; a Wilcoxon rank-sum test on the pairs is "
+              "reported for comparison")
+    txt = f"""METHODS -- Cross-species retrosplenial connectivity profiles (Figures 5 and 6)
+(written by fig5_pipeline from the run in {paths['root']}; numbers are those of this run)
+
+Datasets
+{len(labels)} resting-state fMRI datasets from {n_species} species ({n_runs} runs, {n_anim} animals) were analysed: {ds_txt}. Every run was preprocessed and registered to its species template with EDNiX, and a seed-based correlation map (Pearson r) of the retrosplenial seed ({cfg['SEED']}) was computed in template space.
+
+Regional profiles
+Each run's map was summarised over the regions of the EDNiX atlas at level {cfg['ATLAS_LEVEL']} into a regional profile: {prof}. Only regions present in the atlas of every dataset and sampled by every dataset's group map were kept ({len(anat)} common regions){'; the region containing the seed (' + ', '.join(seed_out) + '), found from the seed voxels in each atlas, was removed from every profile because its value reflects the autocorrelation of the seed rather than coupling' if seed_out else ''}. {'Runs were screened beforehand by their distance to the most central run of their dataset (median absolute deviation threshold ' + str(cfg['RUN_QC_MAD_THRESHOLD']) + ').' if cfg['RUN_QC_ENABLE'] else 'No run was excluded before the selection.'} Profiles were {norm} before any comparison. The unit of the selection and of the group maps was the {unit}.
+
+Consensus-based selection
+{chain} The score was computed on the {inv_txt} that were the most invariant across species (top fraction {cfg['INVARIANCE_VALUE']:g}, ranked by the median absolute deviation of the species values); every common region was used everywhere else. Leave-one-species-out ensured that no dataset contributed to the criterion that selected its own runs. Selected per dataset: {', '.join(f'{ff.pretty_label(k)} {v}' for k, v in sorted(n_kept.items()))}.
+
+Group maps and surfaces
+For each dataset, group maps were computed with AFNI 3dttest++ (Cox 1996) on the Fisher-z transformed run maps of (i) every {unit}, (ii) the {unit}s of the final selection and (iii) the same number of {unit}s drawn at random among those not selected. They were rendered on each species' inflated cortical surface with Connectome Workbench (wb_command; Marcus et al. 2011), with one symmetric colour range per dataset shared by its three maps (± the {cfg.get('SURFACE_COMMON_PCT', 90):g}th percentile of |z| over their non-zero voxels).
+
+Reliability of the profile constructions
+The three constructions of the profile (median; upper and lower percentiles; tail fractions) were compared on every run before the selection, within the datasets holding several runs per animal, by their discriminability (Bridgeford et al. 2021): the probability that a run is closer (1 − r) to another run of the same animal than to a run of a different animal (0.5, chance). Its significance against chance was assessed by permuting the animal labels across runs (500 permutations), and the methods were compared with an exact paired sign-flip test across datasets. The criterion was fixed before, and independently of, the cross-species analyses.
+
+Statistics
+Figure 5b. Pearson correlations between the profiles of every pair of {unit}s were split into intra-species pairs (same species, same or another dataset) and inter-species pairs, among every {unit} and among the selected {unit}s; the two distributions were compared with a {test5b}.
+Figure 5c. The agreement between species profiles was the mean Pearson r over all pairs of species, tested against {10000:,} permutations of the region labels within each species (one-sided); this permutation ignores the spatial autocorrelation between neighbouring regions and is therefore liberal.
+Figure 5d. Whether the selection reorders the datasets was tested by the Spearman correlation between the dataset-to-consensus correlations before and after selection ({10000:,} permutations, two-sided).
+Figure 6a. Pearson correlations between the species-mean similarity to the leave-one-species-out consensus (or to Human) and divergence time (time-calibrated tree{': ' + os.path.basename(cfg['TREE_PATH']) if cfg.get('TREE_PATH') else ''}) or log10 brain mass (Herculano-Houzel et al. 2015; Jardim-Messeder et al. 2017) were tested exactly over all assignments of the x values to the species (two-sided), with and without Human. Profiles: {phylo_source or 'group maps'}.
+Figure 6c. Within the datasets holding both arousal states in the same animals, the per-run correlation with the selection criterion was compared between anaesthetised and awake runs by the mean over animals of the per-animal difference, tested with an exact sign-flip of the animals (2^n assignments).
+Figure 6d. For each of six regions ({regs6}), the regional value of every selected run (unit of the profile method; supplementary panels for the other indices) was averaged over the runs of each animal, then over the animals of each dataset, then over the datasets of each species, so that neither an animal with more runs nor a dataset with more animals weighs more. The species is the unit of inference -- runs of one species share its brain, protocol and scanner, and testing runs would be pseudoreplication (Hurlbert 1984; Lazic 2010; Aarts et al. 2014). The difference between the mean of {g6} and the mean of the other species was tested exactly over every assignment of 2 of the 7 species to the group (21 assignments; two-sided; smallest possible P = 1/21 = 0.048), one test per region, not corrected for the number of regions. Robustness: the same test with one dataset per species, for every combination of the datasets of the species that have two. Region size: the group difference of each region was compared with the linear fit, across the other common regions, of the group difference against the group difference in log10 relative region size.
+Significance marks on the figures: *** P < 0.001, ** P < 0.01, * P < 0.05, n.s. not significant; exact P values, n and statistics are given in the .txt file of each panel. Permutation P values are (1 + number of null statistics at least as extreme) / (1 + number of permutations) except for exact enumerations.
+
+Software
+{versions}; AFNI (3dttest++, 3dMean); Connectome Workbench (wb_command); nibabel.
+
+References
+Aarts E, Verhage M, Veenvliet JV, Dolan CV, van der Sluis S (2014) A solution to dependency: using multilevel analysis to accommodate nested data. Nat Neurosci 17:491-496.
+Bridgeford EW, et al. (2021) Eliminating accidental deviations to minimize generalization error and maximize replicability: applications in connectomics and genomics. PLoS Comput Biol 17:e1009279.
+Cox RW (1996) AFNI: software for analysis and visualization of functional magnetic resonance neuroimages. Comput Biomed Res 29:162-173.
+Herculano-Houzel S, Catania K, Manger PR, Kaas JH (2015) Mammalian brains are made of these: a dataset of the numbers and densities of neuronal and nonneuronal cells in the brain of glires, primates, scandentia, eulipotyphlans, afrotherians and artiodactyls, and their relationship with body mass. Brain Behav Evol 86:145-163.
+Hurlbert SH (1984) Pseudoreplication and the design of ecological field experiments. Ecol Monogr 54:187-211.
+Jardim-Messeder D, et al. (2017) Dogs have the most neurons, though not the largest brain: trade-off between body mass and number of neurons in the cerebral cortex of large carnivoran species. Front Neuroanat 11:118.
+Lazic SE (2010) The problem of pseudoreplication in neuroscientific studies: is it affecting your analysis? BMC Neurosci 11:5.
+Mantel N (1967) The detection of disease clustering and a generalized regression approach. Cancer Res 27:209-220.
+Marcus DS, et al. (2011) Informatics and data mining tools and strategies for the Human Connectome Project. Front Neuroinform 5:4.
+Nili H, et al. (2014) A toolbox for representational similarity analysis. PLoS Comput Biol 10:e1003553.
+"""
+    path = os.path.join(paths["root"], "Methods_article.txt")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(txt)
+    print(f"  [saved] Methods_article.txt")
+    return path
+
+
+def _run_figures(sri, st):
+    """Part 2: every statistic and figure, from the part-1 state `st` only."""
+    cfg, paths, bids_configs = st["cfg"], st["paths"], st["bids_configs"]
+    unit = cfg["UNIT"]
+    species_of_label = st["species_of_label"]
+    profiles_by_label, members_by_label = st["profiles_by_label"], st["members_by_label"]
+    runs_by_label, unit_counts = st["runs_by_label"], st["unit_counts"]
+    df_qc_by_label = st["df_qc_by_label"]
+    all_units_index, afni_profiles = st["all_units_index"], st["afni_profiles"]
+    common, n_regions = st["common"], st["n_regions"]
+    species_profs, invariance, region_mask = (st["species_profs"], st["invariance"],
+                                              st["region_mask"])
+    sel, selections = st["sel"], st["selections"]
+    all_round_selections, final_round = st["all_round_selections"], st["final_round"]
+    selections_final, final_criterion = st["selections_final"], st["final_criterion"]
+    map_index, map_index_final = st["map_index"], st["map_index_final"]
+    group_map_profiles = st["group_map_profiles"]
+    # selections are unit keys; every run-level step needs the RUN keys behind
+    # them (with UNIT="subject" a unit key (subject, 'ALL', 'ALL', seed) never
+    # equals a run key, so kept flags of runs were all False before)
+    kept_runs_final = fpp.selected_run_keys(selections_final, members_by_label)
+    kept_runs_r1 = fpp.selected_run_keys(selections, members_by_label)
+    print(f"\n{'#' * 70}\n  PART 2: statistics and figures\n{'#' * 70}")
+
+    # ---- figures computed in part 1, drawn here ------------------------------
+    if cfg["MAKE_FIGURES"]:
+        if afni_profiles:
+            print(f"\n{'=' * 70}\n  F0 figures (per BIDS, then per species)\n{'=' * 70}")
+            step1b_species_profiles_figure(sri, cfg, paths, afni_profiles,
+                                           common, region_mask, invariance)
+        if st["overlap_df"] is not None and not st["overlap_df"].empty:
+            fa.plot_reference_method_overlap(
+                st["overlap_df"], output_path=os.path.join(
+                    paths["figures"], "F1d_reference_method_effect.png"))
+        if st["conv_df"] is not None and not st["conv_df"].empty:
+            fa.plot_iterative_selection_convergence(
+                st["conv_df"], output_path=os.path.join(
+                    paths["figures"], "F1e_selection_convergence.png"))
+        rel = st.get("reliability")
+        if rel and not rel["rel"].empty:
+            png = os.path.join(paths["figures"], "F22_profile_reliability_by_method.png")
+            ff.plot_profile_reliability(rel["rel"], species_of_label, png,
+                                        current_method=cfg["PROFILE_METHOD"])
+            _write_profile_reliability_legend(png, rel["rel"], rel["tests"], cfg)
+
     # ---- phylogeny source (F6, F7, F11-F13, STEP 7) -----------------------
     # Resolved ONCE here so every phylogenetic output uses the same maps.
     # Confirmed bugs this replaces: the switch used to live inside the
@@ -1914,9 +2657,8 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
                   f"{final_round} kept map for {missing} -- keeping all-{unit}s maps "
                   f"(mixing sources across species would bias F6)")
         else:
-            cand = fu.profiles_from_group_maps(
-                sri, kf, bids_configs, None, atlas_level=cfg["ATLAS_LEVEL"],
-                members_by_label=members_by_label)
+            cand = {lab: v for lab, v in group_map_profiles.get("kept_final", {}).items()
+                    if lab in expected}
             not_profiled = sorted(expected - set(cand))
             if not_profiled:
                 print(f"  [PHYLO] [WARN] could not profile round-{final_round} kept maps "
@@ -1924,12 +2666,23 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
             else:
                 phylo_profiles, phylo_index = cand, kf
                 phylo_source = f"round-{final_round} KEPT group maps (selection applied)"
+    phylo_kind = "afni_kept_final" if phylo_profiles is not afni_profiles else "afni_all"
+    if not phylo_profiles:
+        # No AFNI group map at all (RUN_ALL_UNITS_MAPS=False, e.g. the matrix
+        # analysis of fig5_matrices): fall back to the median over every unit
+        # of each dataset -- still no selection, only a different estimator.
+        phylo_profiles = {
+            lab: (species_of_label.get(lab), sri.compute_group_median_profile(profs, set(profs)))
+            for lab, profs in profiles_by_label.items()}
+        phylo_source = f"median of all {unit} profiles (no AFNI group map, no selection)"
+        phylo_kind = "python_all"
     if set(phylo_profiles) != expected:
         print(f"  [PHYLO] [WARN] phylogenetic analyses cover {len(phylo_profiles)}/"
               f"{len(expected)} datasets -- missing {sorted(expected - set(phylo_profiles))}")
     print(f"\n  [PHYLO] phylogenetic analyses use: {phylo_source}")
 
     # ---- STEP 6: figures + legends --------------------------------------
+    fingerprints = {}
     if cfg["MAKE_FIGURES"]:
         print(f"\n{'=' * 70}\n  STEP 6: figures\n{'=' * 70}")
         fd = paths["figures"]
@@ -2325,7 +3078,9 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
                     (f"Group maps from {unit}-level 3dttest on EVERY {unit}, with no "
                      f"selection -- deliberately not the kept maps, whose selection "
                      f"pressure varies with pool size across datasets and would bias "
-                     f"the slope. " if phylo_profiles is afni_profiles else
+                     f"the slope. " if phylo_kind == "afni_all" else
+                     f"Median over EVERY {unit} profile of each dataset, no selection "
+                     f"(no AFNI group map in this run). " if phylo_kind == "python_all" else
                      f"SENSITIVITY ANALYSIS: round-{final_round} KEPT maps "
                      f"(PHYLOGENY_USE_FINAL_ROUND=True). Selection pressure varies with "
                      f"pool size, which is confounded with clade (winner's curse); "
@@ -2343,6 +3098,75 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
             else:
                 print(f"  [SKIP] phylogeny figures: only {len(ddf_bids)} usable "
                       f"group-map profile(s), need >= 3")
+
+        # ---- F6ab, fingerprints, F15-F18 (fig5_fingerprints) ------------
+        if cfg["RUN_FINGERPRINTS"] and phylo_profiles:
+            print(f"\n{'=' * 70}\n  Fingerprints, two-reference F6, proximity, "
+                  f"before/after, arousal state\n{'=' * 70}")
+            # Before/after needs the SAME estimator on both sides: AFNI
+            # all-units vs AFNI kept-final maps when every dataset has both,
+            # otherwise the median of all vs kept unit profiles.
+            kept_final_keys = {lab: {tuple(str(x) for x in k)
+                                     for k in selections_final.get(lab, [])}
+                               for lab in profiles_by_label}
+            py_all = {lab: (species_of_label.get(lab),
+                            sri.compute_group_median_profile(profs, set(profs)))
+                      for lab, profs in profiles_by_label.items()}
+            py_sel = {}
+            for lab, profs in profiles_by_label.items():
+                keys = {k for k in profs if tuple(str(x) for x in k) in kept_final_keys[lab]}
+                if keys:
+                    py_sel[lab] = (species_of_label.get(lab),
+                                   sri.compute_group_median_profile(profs, keys))
+            ba_all, ba_sel = py_all, py_sel
+            ba_source = (f"median of {unit} profiles: all vs round-{final_round} kept")
+            if (afni_profiles and set(afni_profiles) == expected and final_round >= 2
+                    and not map_index_final.empty):
+                kf = map_index_final[(map_index_final.group == "kept_final")
+                                     & map_index_final.found]
+                if set(kf["label"]) >= expected:
+                    afni_sel = {lab: v for lab, v in
+                                group_map_profiles.get("kept_final", {}).items()
+                                if lab in expected}
+                    if set(afni_sel) == expected:
+                        ba_all, ba_sel = afni_profiles, afni_sel
+                        ba_source = (f"AFNI group maps: all {unit}s vs round-{final_round} "
+                                     f"kept")
+            fingerprints = ff.make_fingerprint_figures(
+                group_all=phylo_profiles, group_all_source=phylo_source,
+                ba_all=ba_all, ba_sel=ba_sel, ba_source=ba_source,
+                f1_all=sel["species_profiles"],
+                f1_sel=kept_ref_final_by_label or kept_ref_by_label,
+                common=common, region_mask=region_mask, species_of_label=species_of_label,
+                bids_configs=bids_configs, runs_by_label=runs_by_label,
+                selections_final=kept_runs_final, final_round=final_round, cfg=cfg,
+                fig_dir=fd, table_dir=paths["group_maps"],
+                divergence=dict(fa.DIVERGENCE_TIME_MYA),
+                ref_species=cfg["REFERENCE_SPECIES"], n_perm=cfg["N_PERM_PHYLOGENY"])
+
+            if cfg["RUN_PAPER_FIGURES"]:
+                print(f"\n{'=' * 70}\n  Paper panels: Figures 5 and 6\n{'=' * 70}")
+                try:
+                    fingerprints["paper"] = fpp.make_paper_figures(
+                        sri=sri, fu=fu, cfg=cfg, paths=paths, bids_configs=bids_configs,
+                        species_of_label=species_of_label, common=common,
+                        region_mask=region_mask, final_round=final_round,
+                        profiles_by_label=profiles_by_label, runs_by_label=runs_by_label,
+                        members_by_label=members_by_label, selections_final=selections_final,
+                        rankings=sel["rankings"], selections_r1=selections,
+                        f1_all=sel["species_profiles"],
+                        f1_sel=kept_ref_final_by_label or kept_ref_by_label,
+                        group_all=phylo_profiles, group_all_source=phylo_source,
+                        fingerprints=fingerprints, all_units_index=all_units_index,
+                        map_index_final=map_index_final, phylo_index=phylo_index,
+                        df_qc_by_label=df_qc_by_label,
+                        divergence=dict(fa.DIVERGENCE_TIME_MYA),
+                        surface_pics=st["surface_pics"], surface_ranges=st["surface_ranges"],
+                        run_index=st["run_index"], anat_common=st["anat_common"])
+                except Exception as e:
+                    import traceback
+                    traceback.print_exc()
+                    print(f"  [WARN] paper panels failed: {e}")
 
         # ---- F11-F13: comparative phylogenetic tests on the full tree ----
         if cfg["RUN_PHYLO_COMPARATIVE"] and phylo_profiles:
@@ -2453,16 +3277,17 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
         # winner's-curse issue of the cross-species phylogenetic tests.
         use_final = (final_round >= 2 and not map_index_final.empty
                      and cfg["DISTANCE_REF_GROUP"] == "kept")
-        ref_map_index = map_index_final if use_final else map_index
         ref_group = "kept_final" if use_final else cfg["DISTANCE_REF_GROUP"]
-        ref_selections = selections_final if use_final else selections
+        ref_selections = kept_runs_final if use_final else kept_runs_r1
         ref_name = (f"round-{final_round} kept" if use_final
                     else f"round-1 {cfg['DISTANCE_REF_GROUP']}")
         print(f"\n{'=' * 70}\n  STEP 8: per-run distance to each BIDS' "
               f"{ref_name} group-map reference\n{'=' * 70}")
-        ref_profiles = step_build_reference_profiles(
-            sri, fu, cfg, bids_configs, ref_map_index, members_by_label,
-            ref_group=ref_group)
+        # profiles of these maps were read in part 1 (07_state)
+        ref_profiles = dict(group_map_profiles.get(ref_group, {}))
+        if not ref_profiles:
+            print(f"  [STEP 8] [WARN] no '{ref_group}' group-map profile in the saved state "
+                  f"(groups: {sorted(group_map_profiles)})")
         dist_df = fa.compute_run_distance_to_reference(
             runs_by_label, ref_profiles, common, value_col=cfg["VALUE_COL"],
             kept_keys_by_label=ref_selections)
@@ -2477,29 +3302,6 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
             fa.plot_run_distance_std_by_bids(
                 dist_df, output_path=os.path.join(
                     paths["figures"], "F9_run_distance_std_by_bids.png"))
-
-            # ---- F8b: distance to the FINAL round's selection criterion ----
-            # The exact profile the final round scored each BIDS's runs
-            # against (round 1: LOO/non-LOO consensus; round 2: the BIDS's
-            # own round-1 kept mean; round >= 3: the consensus rebuilt from
-            # the previous round's kept means). Crosses MUST sit at the top
-            # by construction -- this checks the implementation, it is not
-            # a finding. F8 (AFNI kept map) is the independent check.
-            ref_profiles_criterion = {
-                label: (species_of_label.get(label), ref)
-                for label, ref in final_criterion.items() if ref is not None}
-            dist_df_b = fa.compute_run_distance_to_reference(
-                runs_by_label, ref_profiles_criterion, common,
-                value_col=cfg["VALUE_COL"], kept_keys_by_label=selections_final)
-            if not dist_df_b.empty:
-                dist_df_b.to_excel(os.path.join(
-                    paths["group_maps"], "run_distance_to_selection_criterion.xlsx"),
-                    index=False)
-                fa.plot_run_distance_distribution(
-                    dist_df_b, output_path=os.path.join(
-                        paths["figures"], "F8b_run_distance_to_selection_criterion.png"),
-                    title=f"Per-run correlation to the round-{final_round} SELECTION "
-                          f"CRITERION (what the ranking used, not the AFNI map)")
 
             # ---- STEP 9: correlate against external QC metrics ------------
             if df_qc_by_label:
@@ -2523,9 +3325,50 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
                 print("  [SKIP] STEP 9: no df_qc_by_label given to run() -- "
                       "pass QC data to correlate it against the per-run distances")
 
-    _write_methods(cfg, paths, sorted(profiles_by_label), len(common), unit_counts,
+    if cfg["RUN_DISTANCE_TO_REF"]:
+        # ---- F8b: distance to the FINAL round's selection criterion ----
+        # The exact profile the final round scored each BIDS's runs
+        # against (round 1: LOO/non-LOO consensus; round 2: the BIDS's
+        # own round-1 kept mean; round >= 3: the consensus rebuilt from
+        # the previous round's kept means). Crosses MUST sit at the top
+        # by construction -- this checks the implementation, it is not
+        # a finding. F8 (AFNI kept map) is the independent check.
+        ref_profiles_criterion = {
+            label: (species_of_label.get(label), ref)
+            for label, ref in final_criterion.items() if ref is not None}
+        dist_df_b = fa.compute_run_distance_to_reference(
+            runs_by_label, ref_profiles_criterion, common,
+            value_col=cfg["VALUE_COL"], kept_keys_by_label=kept_runs_final)
+        if not dist_df_b.empty:
+            dist_df_b.to_excel(os.path.join(
+                paths["group_maps"], "run_distance_to_selection_criterion.xlsx"),
+                index=False)
+            # F8b with the arousal state of every run (circles awake,
+            # triangles anaesthetised; Mouse and Marmoset_Hori split and
+            # tested within animal); the same figure is paper panel 6c.
+            try:
+                fpp.fig6c_f8b(paths, dist_df_b, bids_configs, final_round,
+                              n_perm=cfg["N_PERM_PHYLOGENY"],
+                              paper=cfg.get("RUN_PAPER_FIGURES", True))
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                print(f"  [F8b] [WARN] state version failed ({e}) -- plain F8b drawn")
+                fa.plot_run_distance_distribution(
+                    dist_df_b, output_path=os.path.join(
+                        paths["figures"], "F8b_run_distance_to_selection_criterion.png"),
+                    title=f"Per-run correlation to the round-{final_round} SELECTION "
+                          f"CRITERION (what the ranking used, not the AFNI map)")
+
+    if cfg["MAKE_FIGURES"] and cfg["RUN_PAPER_FIGURES"]:
+        fpp.organise_figures(paths["figures"])
+    _write_methods(cfg, paths, sorted(profiles_by_label), n_regions, unit_counts,
                    final_round=final_round, phylo_source=phylo_source,
                    n_species=len({species_of_label.get(l) for l in phylo_profiles}))
+    try:
+        _write_methods_article(st, cfg, paths, phylo_source=phylo_source)
+    except Exception as e:
+        print(f"  [WARN] Methods_article.txt failed: {e}")
     print(f"\n{'#' * 70}\n  DONE -- {paths['root']}\n{'#' * 70}")
     return dict(config=cfg, paths=paths, common_regions=common,
                 multilevel_f6=multilevel_results,
@@ -2535,4 +3378,8 @@ def _run(sri, cfg, paths, bids_configs, df_qc_by_label):
                 runs_by_label=runs_by_label,
                 unit_counts=unit_counts,
                 selection=sel, invariance=invariance, region_mask=region_mask,
-                all_units_index=all_units_index, map_index=map_index)
+                all_units_index=all_units_index, map_index=map_index,
+                all_round_selections=all_round_selections, final_round=final_round,
+                selections_final=selections_final, phylo_profiles=phylo_profiles,
+                phylo_source=phylo_source, fingerprints=fingerprints,
+                run_index=st["run_index"])

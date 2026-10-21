@@ -404,6 +404,406 @@ _REGION_STATS = {
 DEFAULT_REGION_STATS = ("median_r", "std_r", "frac_positive", "frac_negative")
 
 
+# =============================================================================
+# Profile methods: how one map becomes a regional profile
+# =============================================================================
+# "median_r"        : one value per region, the median of its voxel values.
+# "fraction_posneg" : two values per region, in % of the region's valid voxels:
+#     <region>|pos  = % of its voxels in the TOP    TAIL_Q of the map,
+#     <region>|neg  = % of its voxels in the BOTTOM TAIL_Q of the map.
+#   The two percentiles of the map (TAIL_Q and 1 - TAIL_Q) are taken over the
+#   voxels of the COMMON regions only, both hemispheres pooled, so that the
+#   regions each atlas has on its own (white matter, ventricles, ...) do not
+#   move the thresholds. Without spatial structure every region has
+#   P = N = 100 * TAIL_Q. Rank-based: ignores any monotonic change of the map
+#   (global offset, gain, saturation); "neg" means "among the least coupled
+#   voxels of the map", not necessarily anticorrelated.
+# "percentiles" : two values per region, in the units of the map (r): the
+#     upper and lower percentiles of its voxel values, set by TAIL_Q --
+#     TAIL_Q = 0.2 (quintiles): <region>|q80 = 80th percentile (its most
+#     coupled fifth), <region>|q20 = 20th percentile (its least coupled fifth);
+#     TAIL_Q = 0.1 (deciles): q90 / q10; TAIL_Q = 0.25 (quartiles): q75 / q25.
+#   No threshold, no missing value; like median_r, a global offset or gain of
+#   the map moves every value alike, so the Pearson similarity between profiles
+#   ignores it. Together with the median they describe the location, spread and
+#   asymmetry of the region's distribution. ("quantile_posneg" is the former
+#   name, still accepted.)
+# In both two-channel methods left and right are pooled by voxel count (the %
+# or the percentile of the bilateral region, written on both hemisphere rows,
+# so averaging the two rows returns it unchanged; the per-hemisphere value is
+# kept in <value column>_hemi). Each channel is then standardised over the
+# common regions (mean 0, SD 1; raw value in <value column>_raw), so that the
+# Pearson r between two profiles is exactly the mean of the two channel
+# correlations -- otherwise the offset between the channels (q80 > q20)
+# would make every pair of profiles look alike.
+# One pass over the data: compute_region_profile keeps, per region, its voxel
+# values (column "_sketch": all of them, sorted, up to 2000 voxels -- exact --,
+# their 2001 percentiles above that -- error < 0.05 point); once the common
+# regions are known (set_tail_reference), to_channel_profile turns the sketch
+# into the two channels, and every later compute_region_profile call returns
+# the converted profile directly.
+PROFILE_METHODS = ("median_r", "fraction_posneg", "percentiles")
+METHOD_ALIASES = {"quantile_posneg": "percentiles"}
+TAIL_Q_NAMES = {"decile": 0.1, "deciles": 0.1, "quintile": 0.2, "quintiles": 0.2,
+                "quartile": 0.25, "quartiles": 0.25}
+PROFILE_METHOD = "median_r"
+TAIL_Q = 0.2
+TAIL_CHANNELS = ("pos", "neg")
+KEEP_SKETCH = False             # keep the voxel values even with median_r (F22, 6d)
+_TAIL_REFERENCE = None
+
+
+def canonical_method(method):
+    """'quantile_posneg' (former name) -> 'percentiles'; other names unchanged."""
+    return METHOD_ALIASES.get(method, method)
+
+
+def canonical_tail_q(q):
+    """0.2, '0.2', 'quintile' -> 0.2; 'decile' -> 0.1; 'quartile' -> 0.25."""
+    if isinstance(q, str):
+        key = q.strip().lower()
+        if key in TAIL_Q_NAMES:
+            return TAIL_Q_NAMES[key]
+        q = float(key)
+    q = float(q)
+    if not 0.0 < q < 0.5:
+        raise ValueError(f"TAIL_Q must be in (0, 0.5) or one of {sorted(TAIL_Q_NAMES)}, "
+                         f"got {q!r}")
+    return q
+
+
+def tail_value_col(q=None):
+    """Name of the value column of a fraction_posneg profile, e.g. pct_tail20."""
+    q = TAIL_Q if q is None else q
+    return f"pct_tail{int(round(100 * q))}"
+
+
+def quantile_value_col(q=None):
+    """Name of the value column of a percentiles profile, e.g. q20q80_r."""
+    q = TAIL_Q if q is None else q
+    return f"q{int(round(100 * q))}q{int(round(100 * (1 - q)))}_r"
+
+
+def profile_value_col(method=None, q=None):
+    method = canonical_method(PROFILE_METHOD if method is None else method)
+    if method == "fraction_posneg":
+        return tail_value_col(q)
+    if method == "percentiles":
+        return quantile_value_col(q)
+    return "median_r"
+
+
+def channel_suffixes(method=None, q=None):
+    """The two channels of a two-channel method, the 'high' one first."""
+    method = canonical_method(PROFILE_METHOD if method is None else method)
+    q = TAIL_Q if q is None else q
+    if method == "fraction_posneg":
+        return TAIL_CHANNELS
+    if method == "percentiles":
+        return (f"q{int(round(100 * (1 - q)))}", f"q{int(round(100 * q))}")
+    return ()
+
+
+def set_profile_method(method="median_r", q=0.2, keep_sketch=False):
+    """Choose how compute_region_profile builds a profile; resets the tail
+    reference (call at the start of every pipeline run). keep_sketch: keep the
+    voxel values with median_r too (profile reliability, F22)."""
+    global PROFILE_METHOD, TAIL_Q, _TAIL_REFERENCE, KEEP_SKETCH
+    method = canonical_method(method)
+    if method not in PROFILE_METHODS:
+        raise ValueError(f"PROFILE_METHOD must be one of {PROFILE_METHODS}, got {method!r}")
+    PROFILE_METHOD, TAIL_Q, _TAIL_REFERENCE = method, canonical_tail_q(q), None
+    KEEP_SKETCH = bool(keep_sketch)
+
+
+def set_tail_reference(regions):
+    """Common base regions (over which fraction_posneg takes the map
+    percentiles). Once set, compute_region_profile returns the two-channel
+    profile of the current method directly."""
+    global _TAIL_REFERENCE
+    _TAIL_REFERENCE = (None if regions is None
+                       else [str(r).lower().strip() for r in regions])
+
+
+def channel_names(regions, method=None, q=None):
+    """['a|<high>', 'b|<high>', ..., 'a|<low>', 'b|<low>', ...]"""
+    regs = [str(r).lower().strip() for r in regions]
+    return [f"{r}|{c}" for c in channel_suffixes(method, q) for r in regs]
+
+
+def tail_channel_names(regions):
+    """['a|pos', 'b|pos', ..., 'a|neg', 'b|neg', ...]"""
+    return channel_names(regions, "fraction_posneg")
+
+
+_CHANNEL_RE = re.compile(r"^(pos|neg|q\d{1,2})$")
+
+
+def split_channel(name):
+    """'x|pos' -> ('x', 'pos'), 'x|q80' -> ('x', 'q80'); any other name ->
+    (name, None)."""
+    s = str(name)
+    base, sep, ch = s.rpartition("|")
+    if sep and _CHANNEL_RE.match(ch):
+        return base, ch
+    return s, None
+
+
+class _Sketch:
+    """A region's voxel values: all of them, sorted, when the region has
+    <= _SKETCH_EXACT_MAX valid voxels (exact), otherwise their 2001
+    percentiles (error < 0.05 point on a fraction)."""
+    __slots__ = ("values", "exact")
+
+    def __init__(self, vals):
+        v = np.sort(np.asarray(vals, float)[np.isfinite(vals)])
+        self.exact = v.size <= _SKETCH_EXACT_MAX
+        self.values = (v if self.exact else np.percentile(v, _SKETCH_LEVELS)).astype(np.float32)
+
+    @property
+    def n(self):
+        return int(self.values.size)
+
+    def cdf(self, t):
+        """Fraction of the region's voxels <= t."""
+        if self.values.size == 0:
+            return np.full(np.shape(t), np.nan)
+        if self.exact:
+            return np.searchsorted(self.values, t, side="right") / self.values.size
+        qv = self.values.astype(float)
+        lv = _SKETCH_LEVELS / 100.0
+        # ties: a value repeated over several percentiles has the HIGHEST level
+        u, idx = np.unique(qv[::-1], return_index=True)
+        return np.interp(t, u, lv[::-1][idx], left=0.0, right=1.0)
+
+    def quantile(self, p):
+        """p-quantile of the region's voxel values (np.percentile convention)."""
+        if self.values.size == 0:
+            return np.nan
+        if self.exact:
+            return float(np.percentile(self.values.astype(float), 100.0 * p))
+        return float(np.interp(100.0 * p, _SKETCH_LEVELS, self.values.astype(float)))
+
+    def __repr__(self):
+        return f"_Sketch({'exact' if self.exact else 'percentiles'}, {self.values.size})"
+
+
+_SKETCH_EXACT_MAX = 2000
+_SKETCH_LEVELS = np.linspace(0.0, 100.0, 2001)
+
+
+def _mixture_threshold(sketches, weights, p):
+    """Value t such that a fraction p of the pooled voxels of these regions is
+    <= t, each region weighted by its voxel count. When every sketch is exact
+    this is np.percentile of the pooled voxels (linear interpolation)."""
+    if len(sketches) == 1:
+        return sketches[0].quantile(p)
+    if all(s.exact for s in sketches):
+        return float(np.percentile(np.concatenate([s.values.astype(float) for s in sketches]),
+                                   100.0 * p))
+    grid = np.unique(np.concatenate([s.values.astype(float) for s in sketches]))
+    F = np.zeros(grid.size)
+    for s, w in zip(sketches, weights):
+        F += w * s.cdf(grid)
+    F /= float(np.sum(weights))
+    Fu, idx = np.unique(F, return_index=True)
+    return float(np.interp(p, Fu, grid[idx]))
+
+
+def _sketch_table(profile):
+    if "_sketch" not in profile.columns:
+        raise ValueError("the profile carries no '_sketch' column -- it was computed with "
+                         "PROFILE_METHOD='median_r' and KEEP_SKETCH=False")
+    p = profile.reset_index(drop=True).copy()
+    bases = p["base_name"].astype(str).str.lower().str.strip().values
+    n = (p["n_voxels_valid"].astype(float).values if "n_voxels_valid" in p
+         else np.ones(len(p)))
+    sk = [s if isinstance(s, _Sketch) else None for s in p["_sketch"]]
+    has = np.array([s is not None and s.n > 0 for s in sk], dtype=bool) & (n > 0)
+    return p, bases, n, sk, has
+
+
+def _two_channel_rows(p, bases, n, chans, vcol, values, bilateral):
+    """Two rows per input row: '<region>|<chan>' with the hemisphere value in
+    <vcol>_hemi and the bilateral value in <vcol>."""
+    keep = [c for c in p.columns if c != "_sketch"]
+    out = []
+    for ch, val, bil in zip(chans, values, bilateral):
+        d = p[keep].copy()
+        d[vcol + "_hemi"] = val
+        d[vcol] = bil
+        d["region_name"] = d["region_name"].astype(str) + f"|{ch}"
+        d["base_name"] = d["base_name"].astype(str) + f"|{ch}"
+        d["tail_channel"] = ch
+        out.append(d)
+    return pd.concat(out, ignore_index=True)
+
+
+def _standardize_channels(res, vcol, reference):
+    """Per channel, standardise the bilateral values over the common regions
+    (mean 0, SD 1, one value per region). The raw values stay in
+    <vcol>_raw (bilateral) and <vcol>_hemi. Why: the two channels do not
+    share a mean (q80 sits above q20 by the width of the distribution), and
+    a Pearson r over the concatenated 32 values would be driven by that
+    block offset -- every pair of runs would look alike. With each channel
+    standardised, the Pearson r between two profiles is exactly the mean of
+    the two channel correlations, each channel weighing the same."""
+    res[vcol + "_raw"] = res[vcol].astype(float)
+    anat = res["base_name"].astype(str).str.lower().str.strip().str.rpartition("|")[0]
+    z = np.full(len(res), np.nan)
+    for ch in res["tail_channel"].unique():
+        m = (res["tail_channel"] == ch).values
+        ref = m & anat.isin(reference).values
+        per_region = (pd.Series(res.loc[ref, vcol + "_raw"].values, index=anat[ref].values)
+                      .groupby(level=0).first().dropna())
+        sd = float(per_region.std(ddof=0)) if len(per_region) > 1 else np.nan
+        if np.isfinite(sd) and sd > 0:
+            z[m] = (res.loc[m, vcol + "_raw"].values - float(per_region.mean())) / sd
+    res[vcol] = z
+    return res
+
+
+def to_tail_profile(profile, reference=None, q=None):
+    """Sketch-carrying profile (one row per region and hemisphere) ->
+    fraction_posneg profile (two rows per region and hemisphere,
+    '<region>|pos' then '<region>|neg', value column tail_value_col(q))."""
+    if profile is None:
+        return None
+    reference = _TAIL_REFERENCE if reference is None else [str(r).lower().strip()
+                                                            for r in reference]
+    if not reference:
+        raise ValueError("to_tail_profile: no reference regions (set_tail_reference first)")
+    q = TAIL_Q if q is None else float(q)
+    p, bases, n, sk, has = _sketch_table(profile)
+    ref = has & np.isin(bases, reference)
+    if ref.any():
+        ref_sk = [sk[i] for i in np.flatnonzero(ref)]
+        lo = _mixture_threshold(ref_sk, n[ref], q)
+        hi = _mixture_threshold(ref_sk, n[ref], 1.0 - q)
+        f_lo = np.array([sk[i].cdf(lo) if has[i] else np.nan for i in range(len(p))], float)
+        f_hi = np.array([sk[i].cdf(hi) if has[i] else np.nan for i in range(len(p))], float)
+    else:
+        lo = hi = np.nan
+        f_lo = f_hi = np.full(len(p), np.nan)
+    vals = (100.0 * (1.0 - f_hi), 100.0 * f_lo)
+    bil = []
+    for val in vals:
+        w = np.where(np.isfinite(val), n, 0.0)
+        num = pd.Series(np.nan_to_num(val) * w).groupby(bases).transform("sum").values
+        den = pd.Series(w).groupby(bases).transform("sum").values
+        with np.errstate(invalid="ignore", divide="ignore"):
+            bil.append(np.where(den > 0, num / den, np.nan))
+    res = _two_channel_rows(p, bases, n, TAIL_CHANNELS, tail_value_col(q), vals, bil)
+    res["tail_threshold_low"], res["tail_threshold_high"] = lo, hi
+    return _standardize_channels(res, tail_value_col(q), reference)
+
+
+def to_quantile_profile(profile, reference=None, q=None):
+    """Sketch-carrying profile -> percentiles profile (two rows per region
+    and hemisphere, '<region>|q80' then '<region>|q20' for q = 0.2, value
+    column quantile_value_col(q)). The bilateral value is the percentile of
+    the pooled left + right voxels, in the units of the map (<vcol>_raw);
+    <vcol> holds it standardised per channel over the common regions."""
+    if profile is None:
+        return None
+    reference = _TAIL_REFERENCE if reference is None else [str(r).lower().strip()
+                                                            for r in reference]
+    if not reference:
+        raise ValueError("to_quantile_profile: no reference regions (set_tail_reference first)")
+    q = TAIL_Q if q is None else float(q)
+    p, bases, n, sk, has = _sketch_table(profile)
+    vals, bil = [], []
+    for level in (1.0 - q, q):
+        vals.append(np.array([sk[i].quantile(level) if has[i] else np.nan
+                              for i in range(len(p))], float))
+        b = np.full(len(p), np.nan)
+        for base in np.unique(bases):
+            idx = np.flatnonzero((bases == base) & has)
+            if idx.size:
+                b[bases == base] = _mixture_threshold([sk[i] for i in idx], n[idx], level)
+        bil.append(b)
+    res = _two_channel_rows(p, bases, n, channel_suffixes("percentiles", q),
+                            quantile_value_col(q), vals, bil)
+    return _standardize_channels(res, quantile_value_col(q), reference)
+
+
+def to_channel_profile(profile, method=None, reference=None, q=None):
+    """Two-channel profile of `method` (default: the current PROFILE_METHOD)."""
+    method = canonical_method(PROFILE_METHOD if method is None else method)
+    if method == "fraction_posneg":
+        return to_tail_profile(profile, reference=reference, q=q)
+    if method == "percentiles":
+        return to_quantile_profile(profile, reference=reference, q=q)
+    raise ValueError(f"to_channel_profile: {method!r} is not a two-channel method")
+
+
+REGION_INDEX_COLUMNS = ("median_r", "upper_percentile_r", "lower_percentile_r",
+                        "top_tail_pct", "bottom_tail_pct", "frac_positive", "frac_negative")
+
+
+def region_indices(profile, reference, q=None):
+    """Every regional index of ONE sketch-carrying profile, bilateral (left
+    and right voxels pooled), one row per region:
+      n_voxels            valid voxels of the region;
+      median_r            median of its voxel values;
+      upper_percentile_r  its (1 - q) percentile, lower_percentile_r its q
+                          percentile (the 'percentiles' profile, raw);
+      top_tail_pct        % of its voxels in the top q of the map,
+      bottom_tail_pct     % in the bottom q (the 'fraction_posneg' profile, raw;
+                          map percentiles over the voxels of `reference`);
+      frac_positive / frac_negative  share of its voxels > 0 / < 0.
+    Same voxels, same pooling as the profiles, so 6d and its supplementary
+    versions can be drawn in the unit of any profile method without the
+    voxel values (which are not kept after the selection)."""
+    if profile is None:
+        return pd.DataFrame()
+    q = TAIL_Q if q is None else canonical_tail_q(q)
+    reference = [str(r).lower().strip() for r in reference]
+    p, bases, n, sk, has = _sketch_table(profile)
+    tail = to_tail_profile(profile, reference=reference, q=q)
+    quant = to_quantile_profile(profile, reference=reference, q=q)
+    tcol, qcol = tail_value_col(q) + "_raw", quantile_value_col(q) + "_raw"
+    hi, lo = channel_suffixes("percentiles", q)
+
+    def _first(df, name, col):
+        v = df.loc[df["base_name"].astype(str).str.lower().str.strip() == name, col]
+        return float(v.iloc[0]) if len(v) else np.nan
+
+    rows = []
+    for base in dict.fromkeys(bases):
+        idx = np.flatnonzero((bases == base) & has)
+        if not idx.size:
+            continue
+        w = n[idx]
+        row = dict(region=base, n_voxels=float(w.sum()),
+                   median_r=float(_mixture_threshold([sk[i] for i in idx], w, 0.5)),
+                   upper_percentile_r=_first(quant, f"{base}|{hi}", qcol),
+                   lower_percentile_r=_first(quant, f"{base}|{lo}", qcol),
+                   top_tail_pct=_first(tail, f"{base}|pos", tcol),
+                   bottom_tail_pct=_first(tail, f"{base}|neg", tcol))
+        for c in ("frac_positive", "frac_negative"):
+            if c in p:
+                v = p[c].astype(float).values[idx]
+                ok = np.isfinite(v)
+                row[c] = float(np.sum(v[ok] * w[ok]) / np.sum(w[ok])) if ok.any() else np.nan
+        rows.append(row)
+    out = pd.DataFrame(rows)
+    if not out.empty:
+        out["tail_q"] = q
+    return out
+
+
+_CHANNEL_VALUE_RE = re.compile(r"^(pct_tail\d+|q\d+q\d+_r)(_hemi|_raw)?$")
+
+
+def _profile_value_cols(stats, columns):
+    """Stat columns to aggregate: the requested stats plus, for a two-channel
+    profile, its value columns (pct_tail*, q*q*_r)."""
+    cols = [s for s in stats if s in columns]
+    cols += [c for c in columns if _CHANNEL_VALUE_RE.match(str(c)) and c not in cols]
+    return cols
+
+
 def _build_label_to_level_map(atlas_data_4d, label_ids):
     """
     For a 4D atlas volume (x, y, z, n_levels), determine — for EACH
@@ -436,6 +836,64 @@ def _build_label_to_level_map(atlas_data_4d, label_ids):
         else:
             id_to_level[lid] = found[0]
     return id_to_level, multi_level_ids
+
+
+def _name_key(name):
+    """Name comparison key: lower case, every run of non-alphanumeric
+    characters -> '_' ('BA_26/29/30_(retrosplenial)' and the seed name
+    'BA_26_29_30__retrosplenial' give the same key)."""
+    return re.sub(r"[^0-9a-z]+", "_", str(name).lower()).strip("_")
+
+
+def find_seed_parent_region(atlas_vol_path, label_df, seed_name, atlas_level):
+    """Region of `atlas_level` (1-indexed level of the 4D atlas, as
+    ATLAS_LEVEL) that contains the voxels of the seed. The seed label is
+    found in the label file by name (both hemispheres), its voxels are taken
+    at whichever level paints them, and the labels of `atlas_level` under
+    those voxels are counted. Returns dict(seed_labels, n_seed_voxels,
+    parent = base name holding most seed voxels (lower case), share = its
+    fraction of the seed voxels, per_parent = {base: fraction}, reason)."""
+    out = dict(seed_labels=[], n_seed_voxels=0, parent=None, share=np.nan, per_parent={},
+               reason="")
+    key = _name_key(seed_name)
+    names = label_df["base_name"].map(_name_key)
+    hits = label_df[names == key]
+    if hits.empty:
+        hits = label_df[label_df["region_name"].map(_name_key).str.endswith(key)]
+    if hits.empty:
+        out["reason"] = f"no label named like {seed_name!r} in the label file"
+        return out
+    ids = sorted({int(x) for x in hits["label_id"]})
+    out["seed_labels"] = ids
+    data = qc._squeeze_trailing_singleton(nib.load(atlas_vol_path).get_fdata())
+    if data.ndim == 4:
+        idx = int(atlas_level) - 1
+        if not 0 <= idx < data.shape[-1]:
+            out["reason"] = f"atlas_level={atlas_level} out of range ({data.shape[-1]} levels)"
+            return out
+        seed_mask = np.zeros(data.shape[:3], bool)
+        for lvl in range(data.shape[-1]):
+            seed_mask |= np.isin(np.rint(data[..., lvl]).astype(int), ids)
+        target = np.rint(data[..., idx]).astype(int)
+    else:
+        seed_mask = np.isin(np.rint(data).astype(int), ids)
+        target = np.rint(data).astype(int)
+    out["n_seed_voxels"] = int(seed_mask.sum())
+    if not seed_mask.any():
+        out["reason"] = f"seed labels {ids} not painted in {opb(atlas_vol_path)}"
+        return out
+    under = target[seed_mask]
+    under = under[under != 0]
+    if not under.size:
+        out["reason"] = f"no label of level {atlas_level} under the seed voxels"
+        return out
+    lid2base = dict(zip(label_df["label_id"].astype(int),
+                        label_df["base_name"].astype(str).str.lower().str.strip()))
+    share = pd.Series([lid2base.get(int(v), f"label_{int(v)}") for v in under]
+                      ).value_counts(normalize=True)
+    out.update(parent=str(share.index[0]), share=float(share.iloc[0]),
+               per_parent={k: round(float(v), 4) for k, v in share.items()})
+    return out
 
 
 def compute_region_profile(map_path, atlas_vol_path, label_df, stats=DEFAULT_REGION_STATS,
@@ -564,12 +1022,20 @@ def compute_region_profile(map_path, atlas_vol_path, label_df, stats=DEFAULT_REG
             out["n_voxels_valid"] = int(vals.size)
             for stat_name in stats:
                 out[stat_name] = _REGION_STATS[stat_name](vals) if vals.size else np.nan
+            if (PROFILE_METHOD != "median_r" or KEEP_SKETCH) and vals.size:
+                out["_sketch"] = _Sketch(vals)
         rows.append(out)
     profile = pd.DataFrame(rows)
+    if (PROFILE_METHOD != "median_r" or KEEP_SKETCH) and "_sketch" not in profile.columns:
+        profile["_sketch"] = None
     if expected_range is not None:
         for stat_name in stats:
             sanity_check_profile(profile, value_col=stat_name, expected_range=expected_range,
                                  label=opb(map_path))
+    if PROFILE_METHOD != "median_r" and _TAIL_REFERENCE is not None:
+        profile = to_channel_profile(profile)
+    elif "_sketch" in profile.columns and _TAIL_REFERENCE is not None:
+        profile = profile.drop(columns="_sketch")     # median_r: sketch only before
     return profile
 
 
@@ -2003,7 +2469,7 @@ def compute_group_average_profile(profiles, keys, stats=DEFAULT_REGION_STATS):
     if not group_profiles:
         return None
     combined = pd.concat(group_profiles, ignore_index=True)
-    stat_cols = [s for s in stats if s in combined.columns]
+    stat_cols = _profile_value_cols(stats, combined.columns)
     avg = combined.groupby("region_name")[stat_cols].mean().reset_index()
     meta = group_profiles[0][["region_name", "base_name", "hemisphere", "label_id"]].drop_duplicates()
     return meta.merge(avg, on="region_name", how="right")
@@ -2028,7 +2494,7 @@ def compute_group_median_profile(profiles, keys, stats=DEFAULT_REGION_STATS):
     if not group_profiles:
         return None
     combined = pd.concat(group_profiles, ignore_index=True)
-    stat_cols = [s for s in stats if s in combined.columns]
+    stat_cols = _profile_value_cols(stats, combined.columns)
     med = combined.groupby("region_name")[stat_cols].median().reset_index()
     meta = group_profiles[0][["region_name", "base_name", "hemisphere", "label_id"]].drop_duplicates()
     return meta.merge(med, on="region_name", how="right")
@@ -2153,13 +2619,13 @@ def compute_weighted_reference(profiles, keys=None, value_col="median_r",
 
     frames = []
     for w, key in zip(weights, key_list):
-        prof = profiles[key][["region_name"] + [s for s in stats if s in profiles[key].columns]].copy()
-        for s in stats:
-            if s in prof.columns:
-                prof[s] = prof[s] * w
+        cols = _profile_value_cols(stats, profiles[key].columns)
+        prof = profiles[key][["region_name"] + cols].copy()
+        for s in cols:
+            prof[s] = prof[s] * w
         frames.append(prof)
     combined = pd.concat(frames, ignore_index=True)
-    stat_cols = [s for s in stats if s in combined.columns]
+    stat_cols = _profile_value_cols(stats, combined.columns)
     weighted = combined.groupby("region_name")[stat_cols].sum().reset_index()
 
     meta = profiles[key_list[0]][["region_name", "base_name", "hemisphere", "label_id"]].drop_duplicates()

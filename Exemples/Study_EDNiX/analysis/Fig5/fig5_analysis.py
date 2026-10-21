@@ -76,6 +76,153 @@ SPECIES_COLORS = _palette_color_map(
     ["Human", "Macaque", "Marmoset", "Mouselemur", "Rat", "Mouse", "Dog"])
 
 
+# === Publication style of the paper panels (Figures 5, 6, S5a, S6d) ======
+# Drawn at their final printed size: widths of a Nature page (89 mm one
+# column, 120 mm one and a half, 183 mm two columns), text 5-7 pt (Nature:
+# 5-7 pt at final size), lines 0.5-1 pt, fonts embedded as TrueType in the
+# PDF (editable text in Illustrator / Inkscape), PNG at 600 dpi.
+MM = 1.0 / 25.4
+PAPER_WIDTH = dict(single=89 * MM, onehalf=120 * MM, double=183 * MM)
+INTRA_COLOR, INTER_COLOR = "#0072B2", "#D55E00"   # Okabe-Ito blue / vermillion
+
+
+def paper_font():
+    """First available of Arial, Helvetica, Liberation Sans (metric clone of
+    Arial), Nimbus Sans, DejaVu Sans -- asking matplotlib for a missing family
+    prints a warning at every text."""
+    from matplotlib import font_manager
+    have = {f.name for f in font_manager.fontManager.ttflist}
+    for name in ("Arial", "Helvetica", "Liberation Sans", "Nimbus Sans", "DejaVu Sans"):
+        if name in have:
+            return name
+    return "sans-serif"
+
+
+def paper_rc():
+    return {
+        "font.family": [paper_font()], "font.size": 7, "axes.labelsize": 7,
+        "axes.titlesize": 7, "xtick.labelsize": 6, "ytick.labelsize": 6,
+        "legend.fontsize": 6, "legend.title_fontsize": 6, "legend.frameon": False,
+        "legend.handlelength": 1.4, "legend.handletextpad": 0.4, "legend.columnspacing": 1.0,
+        "legend.borderaxespad": 0.2, "axes.linewidth": 0.5, "axes.labelpad": 2.0,
+        "xtick.major.width": 0.5, "ytick.major.width": 0.5, "xtick.major.size": 2.5,
+        "ytick.major.size": 2.5, "xtick.major.pad": 1.5, "ytick.major.pad": 1.5,
+        "xtick.minor.width": 0.4, "ytick.minor.width": 0.4, "lines.linewidth": 0.8,
+        "lines.markersize": 3.5, "patch.linewidth": 0.5, "hatch.linewidth": 0.5,
+        "axes.spines.top": False, "axes.spines.right": False, "axes.titlepad": 3.0,
+        "pdf.fonttype": 42, "ps.fonttype": 42, "svg.fonttype": "none",
+        "savefig.dpi": 600, "figure.dpi": 150, "savefig.pad_inches": 0.02,
+        "mathtext.default": "regular"}
+
+
+def paper_style():
+    """with paper_style(): ...  -- the rcParams of every paper panel."""
+    return plt.rc_context(paper_rc())
+
+
+def stars(p):
+    """Significance marks of the paper panels: *** p < 0.001, ** p < 0.01,
+    * p < 0.05, n.s. otherwise ('' when there is no test). The exact p, the
+    test and n are in the .txt of the panel."""
+    if p is None or not np.isfinite(p):
+        return ""
+    return "***" if p < 0.001 else "**" if p < 0.01 else "*" if p < 0.05 else "n.s."
+
+
+def bracket(ax, x1, x2, y, p=None, text=None, dy=None, fs=6, lw=0.5, color="black",
+            clip=False):
+    """Significance bracket between x1 and x2 (data units) at height y, with
+    the stars of p (or `text`) centred above. dy = arm length (data units,
+    default 2 % of the y range)."""
+    lab = stars(p) if text is None else text
+    if not lab:
+        return
+    if dy is None:
+        lo, hi = ax.get_ylim()
+        dy = 0.02 * (hi - lo)
+    ax.plot([x1, x1, x2, x2], [y, y + dy, y + dy, y], color=color, lw=lw,
+            clip_on=clip, solid_capstyle="butt", zorder=6)
+    ax.text((x1 + x2) / 2, y + dy, lab, ha="center", va="bottom", color=color,
+            fontsize=fs if lab != "n.s." else fs - 0.5, clip_on=clip, zorder=6)
+
+
+def repel_labels(ax, items, fs=5, side="right", pad_pt=2.5, leader=True, obstacles=()):
+    """Labels of points without overlap, placed AFTER the final layout (call
+    just before saving). items = [(x, y, text, color)] in data units. Each
+    label goes to the right of its point (then to the left), shifted
+    vertically by steps of one line until its box overlaps neither another
+    label nor a point (nor an `obstacles` marker: (x, y, radius in pt)) and
+    stays inside the axes; a thin leader joins it to its point when it moved."""
+    fig = ax.figure
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    px = fig.dpi / 72.0
+    axbb = ax.get_window_extent(renderer)
+    pts = [(ax.transData.transform((x, y)), t, c, x, y) for x, y, t, c in items
+           if np.isfinite(x) and np.isfinite(y)]
+    pr = 2.0 * px                                  # half-size of a point's box
+    extra = []
+    for ox, oy, rad_pt in obstacles:               # other markers (x, y, radius in pt)
+        if np.isfinite(ox) and np.isfinite(oy):
+            X, Y = ax.transData.transform((ox, oy))
+            extra.append((X - rad_pt * px, Y - rad_pt * px, X + rad_pt * px, Y + rad_pt * px))
+    obstacles = [(p[0] - pr, p[1] - pr, p[0] + pr, p[1] + pr) for p, *_ in pts] + extra
+    placed = []
+
+    def free(b, X, Y):
+        if b[0] < axbb.x0 or b[2] > axbb.x1 or b[1] < axbb.y0 or b[3] > axbb.y1:
+            return False
+        for o in placed + obstacles:
+            own = o[0] <= X <= o[2] and o[1] <= Y <= o[3]     # the label's own marker / ring
+            if not own and b[0] < o[2] and o[0] < b[2] and b[1] < o[3] and o[1] < b[3]:
+                return False
+        return True
+
+    order = sorted(range(len(pts)), key=lambda i: (pts[i][0][0], pts[i][0][1]))
+    for i in order:
+        (X, Y), txt, col, x, y = pts[i]
+        tmp = ax.text(0, 0, txt, fontsize=fs)
+        bb = tmp.get_window_extent(renderer)
+        tmp.remove()
+        w, h = bb.width, bb.height
+        choice = None
+        sides = (1, -1) if side == "right" else (-1, 1)
+        for k in (0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6):
+            for sgn in sides:
+                x0 = X + pad_pt * px if sgn > 0 else X - pad_pt * px - w
+                yc = Y + k * 1.05 * h
+                b = (x0, yc - h / 2, x0 + w, yc + h / 2)
+                if free(b, X, Y):
+                    choice = (b, sgn, k)
+                    break
+            if choice:
+                break
+        if choice is None:                         # nowhere free: right of the point
+            x0 = X + pad_pt * px
+            choice = ((x0, Y - h / 2, x0 + w, Y + h / 2), 1, 0)
+        b, sgn, k = choice
+        placed.append(b)
+        inv = ax.transData.inverted()
+        xt, yt = inv.transform((b[0] if sgn > 0 else b[2], (b[1] + b[3]) / 2))
+        ax.annotate(txt, (x, y), xytext=(xt, yt), textcoords="data", fontsize=fs, color=col,
+                    va="center", ha="left" if sgn > 0 else "right",
+                    arrowprops=(dict(arrowstyle="-", lw=0.3, color="#AAAAAA", shrinkA=0,
+                                     shrinkB=1.2) if (leader and k != 0) else None))
+
+
+def save_paper(fig, path, svg=False):
+    """Paper panel: .png (600 dpi) and .pdf (TrueType fonts), optional .svg;
+    `path` with or without the .png extension."""
+    base = path[:-4] if path.endswith(".png") else path
+    exts = ("png", "pdf") + (("svg",) if svg else ())
+    with plt.rc_context({"pdf.fonttype": 42, "svg.fonttype": "none",
+                         "image.composite_image": False}):
+        for ext in exts:
+            fig.savefig(f"{base}.{ext}", dpi=600, bbox_inches="tight", pad_inches=0.02)
+    plt.close(fig)
+    print(f"  [saved] {base}." + "/.".join(exts))
+
+
 # Divergence time (Mya) between human and each species = age of their most
 # recent common ancestor. PROVENANCE: entered by hand as approximate TimeTree
 # median estimates (Kumar et al. 2022, TimeTree 5, timetree.org); they were
@@ -178,6 +325,27 @@ def _ordered_common_values(profile, common_base_names, value_col="median_r"):
     return np.array([lut.get(b, np.nan) for b in common_base_names], dtype=float)
 
 
+def _channel_block(name):
+    """0 for a plain region or the 'high' channel of a two-channel profile
+    ('x|pos', 'x|q80'), 1 for the 'low' channel ('x|neg', 'x|q20')."""
+    ch = str(name).rpartition("|")[2]
+    if ch == "neg":
+        return 1
+    if len(ch) > 1 and ch[0] == "q" and ch[1:].isdigit():
+        return 1 if int(ch[1:]) < 50 else 0
+    return 0
+
+
+def _value_order(values, names):
+    """Indices sorting `names` by increasing value (NaN last); with a
+    two-channel profile ('x|pos'/'x|neg' or 'x|q80'/'x|q20'), all 'high'
+    channels first then all 'low' ones, each block sorted -- so a profile
+    curve never jumps between the two channels."""
+    key = np.where(np.isfinite(values), values, np.inf)
+    block = np.array([_channel_block(n) for n in names])
+    return np.lexsort((key, block))
+
+
 def _sort_regions_by_value(reference_profile, common_base_names, value_col="median_r"):
     """
     Order regions by their value in `reference_profile`, ascending
@@ -187,9 +355,7 @@ def _sort_regions_by_value(reference_profile, common_base_names, value_col="medi
     value in the reference keep their original relative order at the end.
     """
     vals = _ordered_common_values(reference_profile, common_base_names, value_col)
-    finite = [(v, n) for v, n in zip(vals, common_base_names) if np.isfinite(v)]
-    missing = [n for v, n in zip(vals, common_base_names) if not np.isfinite(v)]
-    return [n for _, n in sorted(finite, key=lambda t: t[0])] + missing
+    return [common_base_names[i] for i in _value_order(vals, common_base_names)]
 
 
 def _drop_all_nan_regions(profiles_list, common_base_names, value_col="median_r"):
@@ -598,9 +764,12 @@ def compute_loo_species_distances(profiles_by_label, common_base_names, value_co
                       f"vs its leave-one-species-out reference, need >= 3")
             continue
         rr = float(np.corrcoef(v[both], ref_loo[both])[0, 1])
+        # `used` lists the DATASETS behind the reference (the column used to
+        # report that count under the name n_species_in_ref)
         dist_rows.append(dict(label=lab, species=sp, distance_to_human=1 - rr,
                               pearson_r=rr, n_regions=int(both.sum()),
-                              n_species_in_ref=len(used)))
+                              n_species_in_ref=len({species_of_label[u] for u in used}),
+                              n_datasets_in_ref=len(used)))
     return pd.DataFrame(dist_rows)
 
 
@@ -1794,7 +1963,7 @@ def plot_consensus_pattern(consensus_by_label, common_base_names, title=None,
         return None
 
     ref_vec = np.nanmedian(np.vstack(list(consensus_by_label.values())), axis=0)
-    order = np.argsort(np.where(np.isfinite(ref_vec), ref_vec, np.inf))
+    order = _value_order(ref_vec, common_base_names)
     names_sorted = [common_base_names[i] for i in order]
     x = np.arange(len(names_sorted))
 
@@ -1852,7 +2021,7 @@ def plot_consensus_by_bids(species_profiles, common_base_names, species_of_label
         per_species = {sp: np.nanmedian(np.vstack(v), axis=0) for sp, v in by_species.items()}
         consensus = np.nanmedian(np.vstack(list(per_species.values())), axis=0)
 
-    order = np.argsort(np.where(np.isfinite(consensus), consensus, np.inf))
+    order = _value_order(consensus, common_base_names)
     names_sorted = [common_base_names[i] for i in order]
     x = np.arange(len(names_sorted))
     bids_colors = _palette_color_map(per_bids.keys())
@@ -1909,7 +2078,7 @@ def plot_consensus_by_species(species_profiles, common_base_names, species_of_la
         per_species = {sp: np.nanmedian(np.vstack(v), axis=0) for sp, v in by_species.items()}
         consensus = np.nanmedian(np.vstack(list(per_species.values())), axis=0)
 
-    order = np.argsort(np.where(np.isfinite(consensus), consensus, np.inf))
+    order = _value_order(consensus, common_base_names)
     names_sorted = [common_base_names[i] for i in order]
     x = np.arange(len(names_sorted))
 
@@ -2203,7 +2372,8 @@ def plot_score_distributions(rankings, selections, title=None, output_path=None,
             ax.axvline(cutoff, color="#D55E00", lw=2.2)
             ax.text(cutoff, ax.get_ylim()[1] * 0.85, f" cutoff\n n={n_sel}",
                    color="#D55E00", fontsize=7, va="top")
-        ax.set_title(f"{label} (n={len(vals)})", fontsize=9, fontweight="bold")
+        ax.set_title(f"{str(label).replace('_', ' ')} (n={len(vals)})", fontsize=9,
+                     fontweight="bold")
         ax.set_xlabel("score vs consensus", fontsize=7)
         ax.set_ylabel("runs", fontsize=7)
         ax.tick_params(labelsize=6)
@@ -2285,6 +2455,11 @@ def _within_across_stats(pairs, n_perm=2000, random_seed=0):
         return None
     u, _ = _stats.mannwhitneyu(within, across, alternative="two-sided")
     auc = u / (len(within) * len(across))
+    # Wilcoxon rank-sum (Mann-Whitney U), one-sided intra > inter, on the pairs:
+    # requested as the test of the primary hypothesis. Pairs sharing a run are
+    # not independent, so this p is optimistic; p_perm_dataset_level respects
+    # the dependence.
+    _, p_wilcoxon = _stats.mannwhitneyu(within, across, alternative="greater")
     obs = np.median(within) - np.median(across)
     rng = np.random.default_rng(random_seed)
     null = []
@@ -2305,12 +2480,18 @@ def _within_across_stats(pairs, n_perm=2000, random_seed=0):
                                                    if len(cross_ds_same_sp) else np.nan),
                 median_different_species=float(np.median(across)),
                 median_within=float(np.median(within)), median_across=float(np.median(across)),
-                auc=float(auc), p_perm_dataset_level=float(p_perm), n_perm=int(len(null)))
+                auc=float(auc), p_perm_dataset_level=float(p_perm), n_perm=int(len(null)),
+                p_wilcoxon=float(p_wilcoxon), n_within=int(len(within)),
+                n_across=int(len(across)))
 
 
-def _draw_within_across_panel(ax, pairs, title=None):
+def _draw_within_across_panel(ax, pairs, title=None, paper=False, header=None,
+                              n_runs=None, legend=True):
     """Three histograms (same dataset / same species other dataset /
-    different species) + descriptive AUC and dataset-level permutation p."""
+    different species) + descriptive AUC and dataset-level permutation p.
+    paper=True: same drawing, but no bold title and no statistics in the
+    legend; `header` (e.g. 'all runs') at the top left and 'n = .. runs,
+    p = ..' at the top right -- the rest goes to the figure legend (.txt)."""
     st = _within_across_stats(pairs)
     if st is None:
         ax.axis("off")
@@ -2325,15 +2506,25 @@ def _draw_within_across_panel(ax, pairs, title=None):
     for vals, col, lab, med in groups:
         if len(vals):
             ax.hist(vals, bins=bins, alpha=0.55, color=col, density=True,
-                    label=f"{lab} (n={len(vals)}, median={med:.3f})")
+                    label=lab if paper else f"{lab} (n={len(vals)}, median={med:.3f})")
             ax.axvline(med, color=col, lw=2, ls="--")
     ax.set_xlabel("run-to-run profile correlation", fontsize=10)
     ax.set_ylabel("density", fontsize=10)
-    ax.set_title((title + "\n" if title else "") +
-                 f"same vs different species: AUC={st['auc']:.3f}, "
-                 f"dataset-level permutation p={st['p_perm_dataset_level']:.3g}",
-                 fontsize=10, fontweight="bold")
-    ax.legend(fontsize=7)
+    if paper:
+        if header:
+            ax.set_title(header, loc="left", fontsize=10)
+        p = st["p_perm_dataset_level"]
+        p_txt = f"{p:.3f}" if p >= 0.001 else f"{p:.1e}"
+        ax.set_title((f"n = {n_runs} runs, " if n_runs is not None else "") + f"p = {p_txt}",
+                     loc="right", fontsize=10)
+    else:
+        ax.set_title((title + "\n" if title else "") +
+                     f"intra vs inter species: AUC={st['auc']:.3f}, Wilcoxon p="
+                     f"{st['p_wilcoxon']:.3g} (pairs), dataset-level permutation p="
+                     f"{st['p_perm_dataset_level']:.3g}",
+                     fontsize=10, fontweight="bold")
+    if legend:
+        ax.legend(fontsize=8 if paper else 7, loc="upper left", frameon=not paper)
     ax.spines["top"].set_visible(False); ax.spines["right"].set_visible(False)
     return st
 
@@ -2370,21 +2561,71 @@ def plot_intra_vs_inter_species_distance(profiles_by_label, common_base_names,
     return fig, st
 
 
+def _draw_intra_inter_paper(ax, pairs, st, test, header, legend):
+    """Paper 5b: two distributions, intra-species pairs (same species, same or
+    another dataset) and inter-species pairs, dashed = medians, bracket with
+    the stars of `test` ('wilcoxon' or 'permutation') between the medians."""
+    r, da, db, sp = pairs["r"], pairs["da"], pairs["db"], pairs["species_of"]
+    same_sp = sp[da] == sp[db]
+    bins = np.linspace(-1, 1, 41)
+    top = 0.0
+    for vals, col, lab in ((r[~same_sp], INTER_COLOR, "inter-species pairs"),
+                           (r[same_sp], INTRA_COLOR, "intra-species pairs")):
+        h, _, _ = ax.hist(vals, bins=bins, density=True, histtype="stepfilled", color=col,
+                          alpha=0.28, lw=0)
+        ax.hist(vals, bins=bins, density=True, histtype="step", color=col, lw=0.8, label=lab)
+        top = max(top, float(np.max(h)) if len(h) else 0.0)
+    m_in, m_out = st["median_within"], st["median_across"]
+    for m, col in ((m_out, INTER_COLOR), (m_in, INTRA_COLOR)):
+        ax.plot([m, m], [0, top * 1.04], color=col, lw=0.8, ls=(0, (3, 2)))
+    ax.set_ylim(0, top * 1.32)
+    p = st["p_wilcoxon"] if test == "wilcoxon" else st["p_perm_dataset_level"]
+    bracket(ax, min(m_in, m_out), max(m_in, m_out), top * 1.08, p, dy=top * 0.05)
+    ax.set_xlim(-1, 1)
+    ax.set_xlabel("Run-to-run profile correlation (r)")
+    ax.set_ylabel("Density")
+    ax.set_title(header, loc="left", fontweight="bold")
+    if legend:
+        ax.legend(loc="upper left", frameon=False)
+
+
 def plot_within_vs_across_all_vs_selected(all_runs_by_label, selected_by_label,
                                           common_base_names, species_of_label,
                                           value_col="median_r", zscore=True, title=None,
                                           output_path=None, dpi=300, max_pairs=20000,
-                                          random_seed=0, selected_name="Selected runs"):
-    """F2 computed on every run (left) and on the selected runs (right)."""
+                                          random_seed=0, selected_name="Selected runs",
+                                          paper=False, test="wilcoxon"):
+    """F2 computed on every run (left) and on the selected runs (right).
+    paper=True (5b): same pairs and statistics, drawn at print size (120 mm)
+    with two classes only -- intra-species vs inter-species pairs -- and the
+    stars of `test` ('wilcoxon': rank-sum on the pairs, one-sided; or
+    'permutation': species permuted across datasets); also saved as .pdf."""
+    pools = [("All runs", all_runs_by_label), (selected_name, selected_by_label)]
+    stats, pairs_by = {}, {}
+    for name, pbl in pools:
+        pairs_by[name] = _within_across_species_pairs(
+            pbl, common_base_names, species_of_label, value_col=value_col, zscore=zscore,
+            max_pairs=max_pairs, random_seed=random_seed)
+        stats[name] = _within_across_stats(pairs_by[name])
+    if paper:
+        with paper_style():
+            fig, axes = plt.subplots(1, 2, figsize=(PAPER_WIDTH["onehalf"], 46 * MM))
+            for k, (ax, (name, _)) in enumerate(zip(axes, pools)):
+                if stats[name] is None:
+                    ax.axis("off")
+                    continue
+                _draw_intra_inter_paper(ax, pairs_by[name], stats[name], test,
+                                        "all runs" if k == 0 else "selected", legend=k == 0)
+            fig.tight_layout(w_pad=1.5)
+            if output_path:
+                save_paper(fig, output_path)
+            else:
+                plt.close(fig)
+        return None, stats
     fig, axes = plt.subplots(1, 2, figsize=(16, 5.5))
-    stats = {}
-    for ax, (name, pbl) in zip(axes, [("All runs", all_runs_by_label),
-                                      (selected_name, selected_by_label)]):
-        pairs = _within_across_species_pairs(pbl, common_base_names, species_of_label,
-                                             value_col=value_col, zscore=zscore,
-                                             max_pairs=max_pairs, random_seed=random_seed)
+    for ax, (name, pbl) in zip(axes, pools):
         n_runs = sum(len(p) for p in pbl.values())
-        stats[name] = _draw_within_across_panel(ax, pairs, title=f"{name} (n={n_runs} runs)")
+        _draw_within_across_panel(ax, pairs_by[name], title=f"{name} (n={n_runs} runs)")
     fig.suptitle(title or "Within- vs across-species similarity: all runs vs selected",
                  fontsize=12, fontweight="bold")
     plt.tight_layout()
@@ -2394,9 +2635,11 @@ def plot_within_vs_across_all_vs_selected(all_runs_by_label, selected_by_label,
         print(f"  [saved] {output_path}")
     for name, st in stats.items():
         if st:
-            print(f"    [{name}] same species other dataset={st['median_same_species_other_dataset']:.4f}"
-                  f" vs different species={st['median_different_species']:.4f}, "
-                  f"AUC={st['auc']:.3f}, permutation p={st['p_perm_dataset_level']:.3g}")
+            print(f"    [{name}] intra-species={st['median_within']:.4f} vs inter-species="
+                  f"{st['median_across']:.4f} (same species other dataset="
+                  f"{st['median_same_species_other_dataset']:.4f}), AUC={st['auc']:.3f}, "
+                  f"Wilcoxon p={st['p_wilcoxon']:.3g}, permutation p="
+                  f"{st['p_perm_dataset_level']:.3g}")
     return fig, stats
 
 def _draw_distance_divergence_panel(ax, distance_df, test_result=None, divergence_times=None,
@@ -2582,7 +2825,8 @@ def plot_run_distance_distribution(dist_df, value_col="pearson_r", output_path=N
             ax.hlines(np.percentile(vals, q), xi - 0.25, xi + 0.25,
                      color="black", lw=1.4 if q == 50 else 0.8, zorder=4)
     ax.set_xticks(range(len(labels)))
-    ax.set_xticklabels(labels, rotation=35, ha="right", fontsize=8)
+    ax.set_xticklabels([str(l).replace("_", " ") for l in labels], rotation=35, ha="right",
+                       fontsize=8)
     ax.set_ylabel("Pearson r to BIDS reference" if value_col == "pearson_r"
                  else "Distance (1-r) to BIDS reference", fontsize=10)
     ax.set_title(title or "Per-run distance to the kept-group reference map",

@@ -395,50 +395,33 @@ def create_qc_figure(output_results, root_RS, snr_results, fd_jenkinson_array,
         print(f"ERROR in create_qc_figure: {str(e)}")
         raise
 def fd_jenkinson(in_file, rmax=80., out_file=None, out_array=True):
-    """Calculate Jenkinson's Framewise Displacement."""
+    """
+    Jenkinson's framewise displacement (Jenkinson et al. 2002, as in FSL / C-PAC).
+
+    in_file : one row per volume, the 12 values of the affine [R | t] (row-major).
+    For consecutive volumes, M = T_k T_(k-1)^-1 - I, A = M[:3, :3], b = M[:3, 3]:
+    FD_k = sqrt(rmax^2 / 5 * trace(A^T A) + b^T b). FD_0 = 0.
+    """
     if out_file is None:
         fname, ext = ops(opb(in_file))
         out_file = opa('%s_fdfile%s' % (fname, ext))
-
     if 'rel.rms' in in_file:
         copyfile(in_file, out_file)
         return out_file
-
-    try:
-        pm_ = np.genfromtxt(in_file)
-    except:
-        raise Exception('ERROR reading motion file')
-
-    original_shape = pm_.shape
-    pm = np.zeros((pm_.shape[0], pm_.shape[1] + 4))
-    pm[:, :original_shape[1]] = pm_
-    pm[:, original_shape[1]:] = [0.0, 0.0, 0.0, 1.0]
-
-    T_rb_prev = np.matrix(np.eye(4))
-    flag = 0
-    X = [0]
-
-    for i in range(pm.shape[0]):
-        T_rb = np.matrix(pm[i].reshape(4, 4))
-
-        if flag == 0:
-            flag = 1
-        else:
-            M = np.dot(T_rb, T_rb_prev.I) - np.eye(4)
-            A = M[0:3, 0:3]
-            b = M[0:3, 3]
-            FD_J = math.sqrt((rmax * rmax / 5) * np.trace(np.dot(A.T, A)) + np.dot(b.T, b))
-            X.append(FD_J)
-
-        T_rb_prev = T_rb
-
-    try:
-        X = np.array(X).reshape(-1)
-        np.savetxt(out_file, X)
-    except:
-        raise Exception('ERROR saving FD file')
-
-    return np.array(X).reshape(-1) if out_array else out_file
+    pm = np.atleast_2d(np.genfromtxt(in_file))
+    if pm.shape[1] != 12:
+        raise ValueError(f'{opb(in_file)}: expected 12 values per row (affine [R | t]), found {pm.shape[1]}')
+    fd, prev = [0.0], None
+    for row in pm:
+        T = np.vstack([row.reshape(3, 4), [0.0, 0.0, 0.0, 1.0]])
+        if prev is not None:
+            M = T @ np.linalg.inv(prev) - np.eye(4)
+            A, b = M[:3, :3], M[:3, 3]
+            fd.append(float(np.sqrt(rmax ** 2 / 5.0 * np.trace(A.T @ A) + b @ b)))
+        prev = T
+    fd = np.asarray(fd)
+    np.savetxt(out_file, fd)
+    return fd if out_array else out_file
 
 
 def global_correlation(func_reorient, func_mask):
@@ -453,15 +436,14 @@ def global_correlation(func_reorient, func_mask):
 
 
 def load(func_file, mask_file):
-    """Load functional data with mask."""
-    func_img = nib.load(func_file)
-    mask_img = nib.load(mask_file)
-    mask = mask_img.get_fdata()
-    mask_var_filtered = mask
-    func = func_img.get_fdata().astype(float)
-    variance_map = func.var(axis=-1)
-    mask_var_filtered[variance_map < 1e-6] = 0
-    return func[mask_var_filtered.nonzero()].T
+    """Time series (volumes x voxels) of the voxels of the mask whose variance is not zero."""
+    func_img, mask_img = nib.load(func_file), nib.load(mask_file)
+    if mask_img.shape[:3] != func_img.shape[:3] or not np.allclose(mask_img.affine, func_img.affine, atol=1e-2):
+        raise ValueError(f'{opb(mask_file)} {mask_img.shape[:3]} is not on the grid of {opb(func_file)} {func_img.shape[:3]}: '
+                         'the mask was written on another grid (run step 5 again)')
+    func = func_img.get_fdata()
+    mask = (np.asarray(mask_img.dataobj) > 0) & (func.var(axis=-1) >= 1e-6)
+    return func[mask].T
 
 
 def calc_dvars(func_file, mask_file, output_all=False):
@@ -1093,12 +1075,11 @@ def fMRI_QC(correction_direction, path_func, ID, dir_prepro_template_process, di
 
         # Motion metrics
         try:
-
             motion_enorm = np.loadtxt(opj(dir_prepro_raw_process, root_RS + '_space-func_desc-motion_enorm.1D'))
             derivatives = np.loadtxt(opj(dir_prepro_raw_process, root_RS + '_space-func_desc-deriv.1D'))
             censor_1d = np.loadtxt(opj(dir_prepro_raw_process, root_RS + '_space-func_desc-censor.1D'))
-            outcount = np.loadtxt(opj(dir_prepro_raw_process, root_RS + '_space-func_desc-outcount_run' + str(i) + '.1D'),
-                                  skiprows=2)
+            # name written by step 1 (3dToutcount); '#' comment lines are skipped by loadtxt
+            outcount = np.loadtxt(opj(dir_prepro_raw_process, root_RS + '_space-func_desc-outcount.1D'))
 
             qc_values['avg_enorm'] = np.nanmean(motion_enorm) if motion_enorm.size > 0 else np.nan
             qc_values['avg_velocity'] = np.nanmean(np.abs(derivatives), axis=0) if derivatives.size > 0 else np.nan
