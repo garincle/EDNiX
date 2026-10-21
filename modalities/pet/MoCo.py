@@ -1,9 +1,31 @@
-#import
+"""
+Motion correction of the PET images (steps 4 and 5 of the PET pipeline).
+
+dynamic (step 4, within a dynamic run)
+    Reference: duration-weighted mean of the frames from `nb_void` on (the first frames, low in counts
+    and with another distribution of the tracer, are not registered; they receive the transform of the
+    first registered frame, the nearest in time); two passes, the second one registering to the mean of
+    the frames corrected by the first (a mean of misaligned frames is a blurred reference). Every frame is registered rigidly to the reference on
+    images cropped to the head box (crop drawn on the study template, or on the session), and the
+    transform is applied to the full frame (linear interpolation, which preserves the local mean
+    concentration). Motion parameters and mean displacement are written for the quality control.
+static (step 5, between the runs of one session)
+    Every run (its mean) is registered rigidly to the mean of the runs and resampled on the grid of the
+    first run, so that all the runs of the session share one space. With one run, the images are copied.
+
+Outputs (orig/preprocessing): <base>_desc-MoCo-within_pet.nii.gz, <base>_desc-MoCo-between_pet.nii.gz and
+their means (-mean), the session mean <session>_desc-MoCo-between-mean_pet.nii.gz; matrices and motion
+tables in preprocessing/forMC.
+"""
 import os
-import glob
-import json
 import shutil
+
+import numpy as np
+import pandas as pd
 import ants
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 opj = os.path.join
 opd = os.path.dirname
@@ -11,175 +33,188 @@ opb = os.path.basename
 ope = os.path.exists
 opi = os.path.isfile
 
-antsaff     = '0GenericAffine.mat'
-antswarp    = '1Warp.nii.gz'
-antsinvwarp = '1InverseWarp.nii.gz'
+from Tools import run_cmd
+from modalities.pet import petutils as pu
+from modalities.pet import sifFile
 
-resamp_interp = '-rmode Cu'
-petinterp     = 'linear'
+petinterp = 'linear'
 
-from Tools import run_cmd,extract_filename
-from modalities.pet import studyT
 
-def dynamic(img,cropped_3D,nb_void,Need_check,diary_name,sing_afni,sing_fs):
-    
-    nl = 'Motion correction'
+def _register(fixed, moving, prefix, transform, metric):
+    reg = ants.registration(fixed=fixed, moving=moving, type_of_transform=transform, aff_metric=metric,
+                            outprefix=prefix)
+    return reg['fwdtransforms'][-1]
+
+
+def motion_report(mats, timing, radius_mm, tsv, png, title):
+    rows = []
+    for i, m in enumerate(mats):
+        t, r, d = pu.rigid_parameters(m, radius_mm)
+        rows.append(dict(frame=i, start_s=timing['start'][i] if timing else np.nan,
+                         tx_mm=t[0], ty_mm=t[1], tz_mm=t[2], rx_deg=r[0], ry_deg=r[1], rz_deg=r[2],
+                         mean_displacement_mm=d))
+    df = pd.DataFrame(rows)
+    df.to_csv(tsv, sep='\t', index=False, float_format='%.4f')
+    x = df['start_s'] / 60.0 if timing else df['frame']
+    fig, ax = plt.subplots(3, 1, figsize=(7, 6), sharex=True)
+    for c in ('tx_mm', 'ty_mm', 'tz_mm'):
+        ax[0].plot(x, df[c], 'o-', ms=3, label=c[:2])
+    for c in ('rx_deg', 'ry_deg', 'rz_deg'):
+        ax[1].plot(x, df[c], 'o-', ms=3, label=c[:2])
+    ax[2].plot(x, df['mean_displacement_mm'], 'ko-', ms=3)
+    ax[0].set_ylabel('translation (mm)')
+    ax[1].set_ylabel('rotation (deg)')
+    ax[2].set_ylabel(f'mean displ. (mm)\n(sphere r={radius_mm:.0f} mm)')
+    ax[2].set_xlabel('frame start (min)' if timing else 'frame')
+    ax[0].legend(fontsize=7, ncol=3)
+    ax[1].legend(fontsize=7, ncol=3)
+    ax[0].set_title(title, fontsize=8)
+    fig.tight_layout()
+    fig.savefig(png, dpi=120)
+    plt.close(fig)
+    return df
+
+
+def dynamic(img, out_dir, formc_dir, timing, nb_void, crop_mask, Need_check, diary_name, sing_fs,
+            transform='Rigid', metric='mattes', sif='', passes=2):
+    """Within-run motion correction of one dynamic image (see module docstring). Returns the corrected image."""
+    nl = 'Motion correction within the run ' + opb(img)
     run_cmd.msg(nl, diary_name, 'OKGREEN')
+    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(formc_dir, exist_ok=True)
 
-    pet_dir = opd(img)
-    mcdir   = opd(cropped_3D)
+    base = pu.base_name(img)
+    mc4D = pu.out_name(out_dir, base, desc='MoCo-within')
+    mc3D = pu.out_name(out_dir, base, desc='MoCo-within-mean')
+    ref3D = pu.out_name(formc_dir, base, desc='MoCo-ref')
 
-    fname,descname = extract_filename.get_desc(opb(img),'desc')
+    full4d = ants.image_read(img)
+    if full4d.dimension != 4:
+        raise ValueError(f'{img} is not a dynamic image')
+    frames_img = ants.ndimage_to_list(full4d)
+    nfr = len(frames_img)
+    if nb_void >= nfr:
+        raise ValueError(f'nb_void = {nb_void} but the run has only {nfr} frames')
+    frames = np.arange(nb_void, nfr)
+    w = timing['duration'][frames] if timing is not None else np.ones(len(frames))
+    w = w / w.sum()
+    ref_full = frames_img[frames[0]] * float(w[0])
+    for k, i in enumerate(frames[1:], start=1):
+        ref_full = ref_full + frames_img[i] * float(w[k])
+    ants.image_write(ref_full, ref3D, ri=False)
+    pu.write_json(ref3D, img, f'Reference of the motion correction: duration-weighted mean of frames {nb_void}-{nfr - 1}.')
 
-    cropped_4D   = opj(mcdir, '_'.join([fname, 'desc-crop', 'pet.nii.gz']))
-    
-    mc4D   = opj(pet_dir, '_'.join([fname, 'desc-MoCo-within','pet.nii.gz']))
-    mc3D   = opj(pet_dir, '_'.join([fname, 'desc-MoCo-within-mean', 'pet.nii.gz']))
+    if crop_mask:
+        cmask = ants.resample_image_to_target(ants.image_read(crop_mask), ref_full, interp_type='nearestNeighbor')
+        ref_crop = ants.crop_image(ref_full, label_image=cmask, label=1)
+        ants.image_write(ref_crop, pu.out_name(formc_dir, base, desc='crop-mean'), ri=False)
+    else:
+        cmask = None
+        ref_crop = ref_full
 
-    
-    cmd = (sing_afni + '3dresample ' + resamp_interp + ' -overwrite -master ' + cropped_3D +' -prefix ' + cropped_4D + ' -input ' + img)
-    run_cmd.run(cmd,diary_name)
+    mats, corrected = [None] * nfr, [None] * nfr
+    for p in range(passes):
+        # pass 1: reference = mean of the uncorrected frames; pass 2: mean of the frames corrected by pass 1
+        # (sharper reference; two-pass registration to the mean, as SPM realign / AFNI 3dvolreg -base mean)
+        for i in frames:
+            fr = frames_img[i]
+            fr_crop = ants.crop_image(fr, label_image=cmask, label=1) if cmask is not None else fr
+            mats[i] = _register(ref_crop, fr_crop, opj(formc_dir, base + '_mc' + f'{i:03d}' + '_'), transform, metric)
+            corrected[i] = ants.apply_transforms(fixed=ref_full, moving=fr, transformlist=[mats[i]],
+                                                 interpolator=petinterp)
+        if p < passes - 1:
+            ref_full = corrected[frames[0]] * float(w[0])
+            for k, i in enumerate(frames[1:], start=1):
+                ref_full = ref_full + corrected[i] * float(w[k])
+            ants.image_write(ref_full, ref3D, ri=False)
+            ref_crop = ants.crop_image(ref_full, label_image=cmask, label=1) if cmask is not None else ref_full
+    for i in range(nb_void):
+        # nearest registered frame in time (the engineer left these frames uncorrected)
+        dst = opj(formc_dir, base + '_mc' + f'{i:03d}' + '_0GenericAffine.mat')
+        shutil.copyfile(mats[nb_void], dst)
+        mats[i] = dst
+        corrected[i] = ants.apply_transforms(fixed=ref_full, moving=frames_img[i], transformlist=[dst],
+                                             interpolator=petinterp)
+    ants.image_write(ants.list_to_ndimage(full4d, corrected), mc4D, ri=False)
+    pu.write_json(mc4D, [img, ref3D, crop_mask or 'no crop'],
+                  f'Motion correction within the run ({transform}, {metric}, ANTsPy); frames < {nb_void} '
+                  f'received the transform of frame {nb_void}; linear interpolation.',
+                  Matrices=[opb(m) for m in mats])
+    sifFile.copy(sif, mc4D)
+    pu.write_mean(mc4D, mc3D, timing, None, 'Duration-weighted mean of the motion-corrected frames.')
 
-    dictionary = {"Sources": [img,
-                              cropped_3D],
-                  "Description": 'Cropped image (3dresample, AFNI).', }
+    radius = pu.head_radius_mm(ref_full.numpy(), ref_full.spacing)
+    motion_report(mats, timing, radius, opj(formc_dir, base + '_desc-MoCo-within_motion.tsv'),
+                  opj(formc_dir, base + '_desc-MoCo-within_motion.png'), base)
 
-    json_object = json.dumps(dictionary, indent=2)
-    with open(cropped_4D.replace('.nii.gz','.json'), "w") as outfile:
-        outfile.write(json_object)
+    if Need_check:
+        run_cmd.do(sing_fs + 'freeview -v ' + mc4D + ' -subtitle "Check-residual-head-motion!"', diary_name)
+    return mc4D
 
-    ref_img       = ants.image_read(cropped_3D)
-    img_tmp       = ants.image_read(cropped_4D)
-    tmp_unmerged  = ants.ndimage_to_list(img_tmp)
 
-    To_be_corrected  = ants.image_read(img)
-    img_unmerged     = ants.ndimage_to_list(To_be_corrected)
+def static(list_img, list_mean, list_timing, list_sif, session, out_dir, formc_dir, crop_mask, diary_name,
+           transform='Rigid', metric='mattes'):
+    """
+    Between-run motion correction of the runs of one session (images after step 4 for dynamic runs, after
+    step 1 for static ones). list_mean: mean image of every run. Returns (corrected images, session mean).
+    """
+    nl = 'Between-runs motion correction (' + str(len(list_img)) + ' run(s))'
+    run_cmd.msg(nl, diary_name, 'OKGREEN')
+    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(formc_dir, exist_ok=True)
+    session_mean = pu.out_name(out_dir, session, desc='MoCo-between-mean')
+    outs = []
 
-    motion_corrected = list()
-    for i in range(len(img_unmerged)):
-        if i > nb_void:
-            ants.registration(fixed=tmp_unmerged[i], moving=ref_img,
-                                   type_of_transform='Rigid',
-                                   outprefix=opj(mcdir,'_'.join([fname,'mc'+ str(i),''])))
+    if len(list_img) == 1:
+        base = pu.base_name(list_img[0])
+        out = pu.out_name(out_dir, base, desc='MoCo-between')
+        shutil.copyfile(list_img[0], out)
+        pu.write_json(out, list_img[0], 'Single run: no between-runs correction (copy).')
+        sifFile.copy(list_sif[0], out)
+        shutil.copyfile(list_mean[0], session_mean)
+        if pu.is_dynamic(out):
+            shutil.copyfile(list_mean[0], pu.out_name(out_dir, base, desc='MoCo-between-mean'))
+        pu.write_json(session_mean, list_mean[0], 'Mean image of the session (single run).')
+        return [out], session_mean
 
-            moved = ants.apply_transforms(fixed=mcdir, moving=img_unmerged[i],
-                                          transformlist=opj(mcdir,'_'.join([fname,'mc'+ str(i),antsaff])),
-                                          whichtoinvert=[True])
+    first = ants.image_read(list_mean[0])
+    means = [ants.resample_image_to_target(ants.image_read(m), first, interp_type='linear') for m in list_mean]
+    ref = means[0] * 0
+    for m in means:
+        ref = ref + m / len(means)
+    ref_file = pu.out_name(formc_dir, session, desc='between-ref')
+    ants.image_write(ref, ref_file, ri=False)
+    cmask = ants.resample_image_to_target(ants.image_read(crop_mask), first, interp_type='nearestNeighbor') \
+        if crop_mask else None
+    ref_crop = ants.crop_image(ref, label_image=cmask, label=1) if cmask is not None else ref
+
+    corrected_means = []
+    for img, mean, timing, sif in zip(list_img, list_mean, list_timing, list_sif):
+        base = pu.base_name(img)
+        out = pu.out_name(out_dir, base, desc='MoCo-between')
+        mv = ants.image_read(mean)
+        mv_crop = ants.crop_image(mv, label_image=ants.resample_image_to_target(cmask, mv, interp_type='nearestNeighbor'),
+                                  label=1) if cmask is not None else mv
+        mat = _register(ref_crop, mv_crop, opj(formc_dir, base + '_between_'), transform, metric)
+        full = ants.image_read(img)
+        moved = ants.apply_transforms(fixed=first, moving=full, transformlist=[mat], interpolator=petinterp,
+                                      imagetype=3 if full.dimension == 4 else 0)
+        ants.image_write(moved, out, ri=False)
+        pu.write_json(out, [img, ref_file], f'Between-runs motion correction ({transform}, {metric}, ANTsPy) on the '
+                      'grid of the first run; linear interpolation.', Matrix=opb(mat))
+        sifFile.copy(sif, out)
+        mean_out = pu.out_name(out_dir, base, desc='MoCo-between-mean')
+        if pu.is_dynamic(out):
+            pu.write_mean(out, mean_out, timing, None, 'Duration-weighted mean after the between-runs correction.')
         else:
-            moved=img_unmerged[i]
-        motion_corrected.append(moved)
-    
-    motCorr = ants.list_to_ndimage(To_be_corrected, motion_corrected)
-    ants.image_write(motCorr, mc4D, ri=False)
-    shutil.copyfile(img.replace('.nii.gz','.sif'), mc4D.replace('.nii.gz','.sif'))
+            shutil.copyfile(out, mean_out)
+        corrected_means.append(mean_out)
+        outs.append(out)
 
-    dictionary = {"Sources": [img,
-                              cropped_4D,
-                              cropped_3D],
-                  "Description": 'Motion correction (Antspy).', }
-    json_object = json.dumps(dictionary, indent=2)
-    with open(mc4D.replace('.nii.gz','.json'), "w") as outfile:
-        outfile.write(json_object)
-
-    cmd = (sing_afni  + '3dTstat -overwrite -mean -prefix ' + mc3D + ' ' + mc4D)
-    run_cmd.run(cmd,diary_name)
-
-    dictionary = {"Sources": mc4D,
-                  "Description": 'Mean image (3dTstat, AFNI).', }
-    json_object = json.dumps(dictionary, indent=2)
-    with open(mc3D.replace('.nii.gz','.json'), "w") as outfile:
-        outfile.write(json_object)
-
-    if Need_check==1:
-        cmd = (sing_fs + 'freeview -v ' + mc4D + ' -subtitle "Check-residual-head-motion ! "')
-        run_cmd.do(cmd,diary_name)
-
-
-def static(list_img,subname,tracor,dir_prepro_orig,dir_prepro_orig_process,diary_name,sing_afni,sing_fs):
-
-
-    tmp_dir = opj(dir_prepro_orig_process,'forMC')
-
-    mean_img      = opj(dir_prepro_orig_process, '_'.join([subname, 'trc-' + tracor  ,'desc-mean', 'pet.nii.gz']))
-    crop3D        = opj(tmp_dir, '_'.join([subname, 'trc-' + tracor , 'desc-mean-crop', 'pet.nii.gz']))
-    MoCo_mean_img = opj(dir_prepro_orig_process, '_'.join([subname, 'trc-' + tracor , 'desc-MoCo-between-mean', 'pet.nii.gz']))
-
-
-    nl = 'Between-images motion correction'
-    run_cmd.msg(nl, diary_name,'OKGREEN')
-    
-    os.makedirs(tmp_dir,exist_ok=True)
-
-    # Do the mean image
-    mean_list = ' '.join(list_img)
-    print(mean_list)
-
-    cmd = (sing_afni + '3dMean -overwrite -float -prefix ' + mean_img + ' ' + mean_list)
-    run_cmd.run(cmd, diary_name)
-
-    ref_mean = ants.image_read(mean_img)
-
-    # Cropped the mean_image
-    studyT.manual_crop(tmp_dir,mean_img,'desc-mean-crop',diary_name,sing_fs)
-
-    ref_tmp  = ants.image_read(crop3D)
-  
-    for s in range(len(list_img)):
-
-        Name_file = extract_filename.get_runname(opb(list_img[s]))
-
-        cropfile = opj(tmp_dir, '_'.join([Name_file,'desc-crop', 'pet.nii.gz']))
-        MCfile   = opj(dir_prepro_orig, '_'.join([Name_file,  'desc-MoCo-between', 'pet.nii.gz']))
-        allfile  = '_'.join(['*',  'desc-MoCo-between', 'pet.nii.gz'])
-
-        cmd = (sing_afni + '3dresample -overwrite -master ' + crop3D +
-               ' -prefix ' + cropfile +
-               ' -input '  + list_img[s])
-        run_cmd.run(cmd,diary_name)
-
-        dictionary = {"Sources": [list_img[s],
-                                  crop3D],
-                      "Description": 'Cropped image (3dresample, AFNI).', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(cropfile.replace('.nii.gz','.json'), "w") as outfile:
-            outfile.write(json_object)
-
-        img_tmp          = ants.image_read(cropfile)
-        To_be_corrected  = ants.image_read(list_img[s])
-        ants.registration(fixed=ref_tmp, moving=img_tmp, type_of_transform='Translation',
-                          outprefix=opj(tmp_dir, Name_file + '_'))
-        ants.registration(fixed=ref_tmp, moving=img_tmp, type_of_transform = 'Rigid',
-                          initial_transform=opj(tmp_dir, '_'.join([Name_file,antsaff])),
-                          outprefix=opj(tmp_dir, Name_file + '_'))
-
-        moved = ants.apply_transforms(fixed=ref_mean, moving=To_be_corrected,
-                                      transformlist=opj(tmp_dir, '_'.join([Name_file,antsaff])),
-                                      interpolator=petinterp,
-                                      whichtoinvert=[False])
-
-        ants.image_write(moved, MCfile, ri=False)
-        if opi(list_img[s].replace('.nii.gz','.sif')):
-            shutil.copyfile(list_img[s].replace('.nii.gz','.sif'), MCfile.replace('.nii.gz','.sif'))
-
-        dictionary = {"Sources": [list_img[s],
-                                  cropfile,
-                                  crop3D],
-                      "Description": 'Motion correction (Antspy).', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(MCfile.replace('.nii.gz','.json'), "w") as outfile:
-            outfile.write(json_object)
-    
-    list_name = sorted(glob.glob(opj(dir_prepro_orig,allfile)))
-    todolist = ' '.join(list_name)
-  
-    cmd = (sing_afni + '3dMean -overwrite -float -prefix ' + MoCo_mean_img + ' ' + todolist)
-    run_cmd.run(cmd,diary_name)
-
-    dictionary = {"Sources": list_name,
-                  "Description": 'Mean image (3dMean, AFNI).', }
-    json_object = json.dumps(dictionary, indent=2)
-    with open(MoCo_mean_img.replace('.nii.gz','.json'), "w") as outfile:
-        outfile.write(json_object)
-
-
-
+    acc = None
+    for m in corrected_means:
+        a = ants.image_read(m)
+        acc = a / len(corrected_means) if acc is None else acc + a / len(corrected_means)
+    ants.image_write(acc, session_mean, ri=False)
+    pu.write_json(session_mean, corrected_means, 'Mean image of the session (mean of the run means after correction).')
+    return outs, session_mean

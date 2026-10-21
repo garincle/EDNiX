@@ -1,111 +1,50 @@
-#import
-import os
-import json
-import ants
+"""
+Time blocks of a dynamic PET image (Do_cut, step 7): duration-weighted mean of the frames of every block
+of `duration` minutes, divided by its mean over the brain mask.
+
+The PET engineer assigned the frames to the blocks with frame indices shifted by one and averaged the
+frames without weights; here a frame belongs to the block that contains its middle, and the frames are
+weighted by their duration.
+"""
 import numpy as np
 
-opj = os.path.join
-opb = os.path.basename
-opd = os.path.dirname
-opi = os.path.isfile
+from modalities.pet import petutils as pu
+from modalities.pet import paramImg
 
-from Tools import run_cmd,filename
 
-def setTime(file,duration):
+def setTime(timing, duration):
+    """[(t0, t1, frames)] of the blocks of `duration` minutes from the start of the first frame (seconds)."""
+    if timing is None:
+        raise ValueError('time blocks need the frame timing')
+    step = 60.0 * float(duration)
+    t0 = float(timing['start'][0])
+    t_end = float(timing['end'][-1])
+    blocks = []
+    while t0 < t_end - 1e-6:
+        t1 = t0 + step
+        frames = np.where((timing['mid'] >= t0) & (timing['mid'] < t1))[0]
+        if frames.size:
+            blocks.append((t0, t1, frames))
+        t0 = t1
+    return blocks
 
-    steps, frame_stop= [], []
 
-    if opi(file.replace('.nii.gz', '.sif')):
-        f = open(file.replace('.nii.gz', '.sif'), "r")
-        matrix = f.readlines()
-        matrix = matrix[1:]
-        starts = np.zeros(len(matrix))
-        stops = np.zeros(len(matrix))
-        Bq = np.zeros(len(matrix))
-        for q in range(len(matrix)):
-            starts[q] = int(matrix[q].split(' ')[0])
-            stops[q] = int(matrix[q].split(' ')[1])
-            Bq[q] = int(matrix[q].split(' ')[2])
-
-        steps.append(np.arange(starts[0], stops[-1], duration * 60))  # blocks
-        frame_stop.append(stops)
-
-    else:
-        print(file.replace('.nii.gz', '.sif') + " not found")
-
-    return steps, frame_stop
-
-def doit(img,maskfile,steps,stops,duration,ratio,diary_name,sing_afni):
-
-    Dir_pet = opd(img)
-    fname,suffix = filename.get_desc(opb(img), 'desc')
-    info = suffix.split('-')[1:]
-    if len(info)>1:
-        infodesc = '-'.join(info)
-    else:
-        infodesc = info[0]
-
-    for fneeded in [img,maskfile]:
-        if not opi(fneeded):
-            raise FileNotFoundError(f"Input file not found: {fneeded}")
-
-    hd = ants.image_header_info(img)
-    nb_vol = int(hd['dimensions'][3])
-
-    tt = np.zeros(len(steps))
-    for j in range(len(steps)):
-        a = stops-steps[j]
-        diff=np.min(a[a>=0])
-        for index, stop in enumerate(stops):
-            diff0 = stop-steps[j]
-            if diff0==diff:
-                tt[j] = index +1
-    tt = tt.astype(int)
-    print(tt)
-    files=[]
-    for j in range(len(tt)):
-
-        nl = 'Create a mean image per ' + str(duration) + 'min long blocks\n'
-        run_cmd.msg(nl, diary_name,'OKGREEN')
-
-        new_file = opj(Dir_pet, '_'.join([fname,'-'.join(['desc',infodesc,'period',str(int(steps[j] / 60))]),'pet.nii.gz']))
-        files.append(new_file)
-        if j < len(tt)-1:
-            cutting = '[' + str(tt[j]) + '-' +str(tt[j+1]-1) + ']'
+def doit(img, timing, duration, brain_mask, out_dir, base, desc):
+    """Writes <base>_desc-<desc>-period<t0>to<t1>min_pet.nii.gz for every block; returns the files."""
+    nii, d = pu.load(img)
+    brain = pu.mask_bool(brain_mask, img) if brain_mask else None
+    files = []
+    for t0, t1, frames in setTime(timing, duration):
+        m = pu.weighted_mean(d, timing, frames)
+        tag = f'{desc}-period{t0 / 60:g}to{t1 / 60:g}min'
+        out = pu.out_name(out_dir, base, desc=tag)
+        if brain is not None:
+            bm = paramImg.brain_mean(m, brain)
+            m = m / bm
+            descr = f'Duration-weighted mean of frames {frames.tolist()} divided by its brain mean ({bm:.4g}).'
         else:
-            cutting = '[' + str(tt[j]) + '-' + str(nb_vol-1) + ']'
-
-        cmd = (sing_afni + '3dTstat -mean -prefix ' + new_file + ' ' + img+cutting)
-        run_cmd.run(cmd,diary_name)
-
-        IMG = ants.image_read(new_file)
-        new_IMG = ants.image_clone(IMG)
-        msk = ants.image_read(maskfile)
-
-        msk[msk>0]=1
-        mean_brain = ants.mask_image(new_IMG, msk, 1)
-        new_IMG= new_IMG/mean_brain.mean()
-
-        ants.image_write(new_IMG,new_file, ri=False)
-
-        dictionary = {"Sources": [img + cutting,
-                                  str(ratio)],
-                      "Description": 'Mean image (3dTstat, AFNI and ANtspy).', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(new_file.replace('.nii.gz', '.json'), "w") as outfile:
-            outfile.write(json_object)
-
-        nl = ' mean value of ' + opb(new_file) + ': ' + str(new_IMG.mean())
-        run_cmd.msg(nl, diary_name,'OKGREEN')
-
+            descr = f'Duration-weighted mean of frames {frames.tolist()} (no brain mask: not normalised).'
+        pu.save_like(m, nii, out)
+        pu.write_json(out, img, descr, Block_min=[t0 / 60, t1 / 60])
+        files.append(out)
     return files
-
-
-
-
-
-
-
-
-
-

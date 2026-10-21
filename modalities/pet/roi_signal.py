@@ -1,10 +1,23 @@
-#import
+"""
+Regional analysis in the PET space (steps 7 and 8): regional values of the parametric images,
+time-activity curves (TACs) of the dynamic images, and the reference-region kinetic models (Turku tools).
+
+Files (orig/postprocessing/ROI_analysis), for every atlas and level:
+    <base>_seg-<atlas>-lvl<k>_vol_ROIs.tsv            label, region, voxels, volume (mm3)
+    <base>_seg-<atlas>-lvl<k>_desc-<desc>_ROIs.tsv    label, region, voxels, mean, SD, median (3D image)
+    <base>_seg-<atlas>-lvl<k>_desc-Kinetic_ROIs.tsv   frame times + one TAC per region (4D image)
+    .dft versions of the TACs and of the reference TAC (Turku format), BPnd results (bfmsrtm)
+    pictures/<base>_seg-..._time_activity_curve.png/.svg, ..._mean-time_activity_curve.png/.svg
+The PET engineer's version called 3dROIstats and rebuilt the order of the labels; values are now attached
+to their label (Tools/roiStats.py). TAC tables carry the frame times, which the DFT files need.
+"""
 import os
+
 import numpy as np
-import pandas as pd
+import nibabel as nib
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import ants
-import json
 
 opj = os.path.join
 opb = os.path.basename
@@ -12,200 +25,159 @@ opd = os.path.dirname
 ope = os.path.exists
 opi = os.path.isfile
 
-from Tools import run_cmd,roiStats
-import dftFile
-from turkutools import turkubfbp,turkustrm,turkudv
+from Tools import run_cmd, roiStats
+from modalities.pet import petutils as pu
+from modalities.pet import dftFile
+from modalities.pet.turkutools import turkubfbp, turkustrm, turkudv
 
 dftname = 'Kinetic'
 
-def read(img,seg,atlas_ctab,Do_cut,duration,diary_name,sing_afni):
 
-    # check up 
-    for fneeded in [img,seg]:
-        if not opi(fneeded):
-            raise FileNotFoundError(f"Input file not found: {fneeded}")
-
-    nl = 'extract the mean ROIs value '
-    run_cmd.msg(nl, diary_name,'OKGREEN')
-
-    Dir_pet  = opd(img)
-    Roi_dir  = opj(Dir_pet,'ROI_analysis')
-    Pict_dir = opj(Roi_dir,'pictures')
-    
-    pictname = '_'.join(['time','activity','curve'])
-    meanpict = '_'.join(['mean',pictname])
-
-    # Extract the ROIs data ..............................................................................................................................
-
-    if ope(Roi_dir) == False:
-        os.makedirs(Roi_dir)
-
-    for option,source,suffix in zip(['-nzvolume -nomeanout ',''],[seg,img],['vol',dftname]):
-        roiStats.get(source,Roi_dir,seg,atlas_ctab,option,suffix,sing_afni,diary_name)
-
-    im_head = ants.image_header_info(img)
-
-    if len(im_head['dimensions'])>3:
-
-        if ope(Pict_dir) == False:
-            os.makedirs(Pict_dir)
-
-        jsonfile = opj(Dir_pet ,'_'.join(opb(img).split('_')[0:2] + ['desc-frametiming','pet.json']))
-        f = open(jsonfile)
-        info_pet = json.load(f)
-
-        data = pd.read_csv(opj(Roi_dir, opb(img.replace('.nii.gz','_'.join(['',dftname,'ROIs.txt'])))), sep='\t', header=None)
-
-        nii = ants.image_read(seg)
-        dummy = nii.unique()
-        dummy = list(map(int, dummy[1:]))
-
-        ROIS         = pd.read_csv(atlas_ctab, sep='\t')
-        ROIS_present = ROIS[ROIS['ROIs'].isin(dummy)]
-        list_rois    = list(ROIS_present['labels'])
-
-        M = data.mean(axis=1)
-        St = data.std(axis=1)
-        max_val = M.max()+St.max()
-
-        x = np.zeros(len(info_pet["FrameReferenceTime"]))
-        for l in range(len(info_pet["FrameReferenceTime"])):
-            x[l] = info_pet["FrameReferenceTime"][l]/60 # in min
-
-        fig, ax = plt.subplots()
-
-        for i in range(len(list_rois)):
-            y=data[i]
-            ax.plot(x, y, 'o-', linewidth=1, label=list_rois[i])
-        box = ax.get_position()
-        ax.set_position([box.x0, box.y0, box.width * 0.6, box.height])
-
-        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
-        # fig.legend(loc='upper right')
-        
-        for p in ['png','svg']:
-            plt.savefig(opj(Pict_dir, '.'.join([pictname,p])), format=p)
-        plt.close()
-
-        plt.figure()
-        plt.errorbar(x,M,yerr=St,fmt='o-',linewidth=3,color='red')
-
-        if Do_cut==1:
-            for j in duration:
-                x_val = j/60
-                plt.plot([x_val,x_val],[0,max_val],color='black')
-
-        for p in ['png', 'svg']:
-            plt.savefig(opj(Pict_dir, '.'.join([meanpict, p])), format=p)
-        plt.close()
+def atlas_levels(atlas_file):
+    shape = nib.load(atlas_file).shape
+    return shape[3] if len(shape) > 3 else 1
 
 
-def dft(img,seg,Roi_vol,Roi_kin,atlas_ctab,mskfile,
-        REF,DV_time,Study_n,isotope,
-        diary_name,sing_turku):
-
-    # 1 # set up :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    # check up ........................................................................................................
-
-    for fneeded in [img,seg]:
-        if not opi(fneeded):
-            raise FileNotFoundError(f"Input file not found: {fneeded}")
-
-    # get variables ...................................................................................................
-
-    Dir_pet = opd(img)
-    #fname= filename.get_typename(opb(img))
-
-    # new folders .....................................................................................................
-    Roi_dir  = opj(Dir_pet, 'ROI_analysis')
-    pict_dir = opj(Roi_dir, 'pictures')
-    if not ope(Roi_dir):
-        os.makedirs(Roi_dir)
-    if ope(pict_dir) == False:
-        os.makedirs(pict_dir)
-
-    jsonfile = opj(Dir_pet, '_'.join(opb(img).split('_')[0:2] + ['desc-frametiming', 'pet.json']))
-    f = open(jsonfile)
-    info_pet = json.load(f)
-
-    ## files to be created .................................................................................................
-    # configuration files
-    ROIdft     = opj(Roi_dir, '_'.join([opb(img).split('.')[0], dftname,'ROIs','ref.dft']))
-
-    ROIdft_tmp2 = ROIdft.replace('_ref.dft','.dft')
-    ROIdft_tmp1 = ROIdft_tmp2.replace('.dft','.txt')
-
-    Refdft = opj(Roi_dir, '_'.join([opb(img).split('.')[0], REF['name'], dftname + '.dft']))
+def labels_volume(atlas_file, level):
+    return roiStats._labels_volume(atlas_file, level)
 
 
-    nl = 'extract the mean ROIs value'
-    run_cmd.msg(nl, diary_name,'OKGREEN')
-
-    #data,nb_vox,list_rois,list_nb = niiRoi.check3(seg,atlas_ctab,'\t',Roi_vol,'\t',Roi_kin,'\t',diary_name)
-
-    nb_vox = pd.read_csv(Roi_vol, sep='\t',header=None)
-    nb_vox = nb_vox.dropna(axis=1, how="all")
-    data   = pd.read_csv(Roi_kin, sep='\t',header=None)
-    data = data.dropna(axis=1, how="all")
+def prefix(roi_dir, base, atlas, level):
+    return opj(roi_dir, f'{base}_seg-{atlas}-lvl{level}')
 
 
-    nii = ants.image_read(seg)
-    dummy = nii.unique()
-    dummy = list(map(int, dummy[1:]))
+def read(img, atlases, levels, label_tables, roi_dir, pict_dir, desc, diary_name, timing=None, cut_marks=None,
+         n_plot=16):
+    """
+    Regional values of `img` (PET space) for every atlas (dict name -> atlas file in PET space) and level
+    (levels: dict name -> list of levels, or 'all'). Returns {(atlas, level): table file}.
+    """
+    run_cmd.msg('extract the regional values of ' + opb(img), diary_name, 'OKGREEN')
+    os.makedirs(roi_dir, exist_ok=True)
+    nii, data = pu.load(img)
+    vox_mm3 = float(np.prod(nii.header.get_zooms()[:3]))
+    base = pu.base_name(img)
+    out = {}
+    for atlas, afile in atlases.items():
+        if nib.load(afile).shape[:3] != data.shape[:3]:
+            raise ValueError(f'{afile} is not on the grid of {img}')
+        lv = levels.get(atlas, 'all') if isinstance(levels, dict) else levels
+        lv = list(range(atlas_levels(afile))) if lv == 'all' else list(lv)
+        for level in lv:
+            lab = labels_volume(afile, level)
+            pre = prefix(roi_dir, base, atlas, level)
+            vol_file = pre + '_vol_ROIs.tsv'
+            if not opi(vol_file):
+                roiStats.regional_table(lab, label_tables.get(atlas), vox_mm3).to_csv(vol_file, sep='\t', index=False)
+            if data.ndim == 3:
+                tab = roiStats.stats(data, lab, label_tables.get(atlas), vox_mm3)
+                f = pre + f'_desc-{desc}_ROIs.tsv'
+                tab.to_csv(f, sep='\t', index=False, float_format='%.6g')
+            else:
+                tac = roiStats.tacs(data, lab, label_tables.get(atlas), vox_mm3)
+                f = pre + f'_desc-{dftname}_ROIs.tsv'
+                tab = tac.copy()
+                tab.columns = [str(c) for c in tab.columns]
+                if timing is not None:
+                    tab.insert(0, 'frame_end_s', timing['end'])
+                    tab.insert(0, 'frame_start_s', timing['start'])
+                tab.to_csv(f, sep='\t', index=False, float_format='%.6g')
+                with open(f.replace('.tsv', '_names.tsv'), 'w') as fh:
+                    fh.write('label\tregion\tvolume_mm3\n')
+                    for l, n, v in zip(tac.columns, tac.attrs['names'], tac.attrs['volumes_mm3']):
+                        fh.write(f'{l}\t{n}\t{v:.6g}\n')
+                if pict_dir:
+                    plot_tacs(tac, timing, opj(pict_dir, opb(pre)), cut_marks, n_plot)
+            out[(atlas, level)] = f
+    return out
 
-    ROIS = pd.read_csv(atlas_ctab, sep='\t')
-    ROIS_present = ROIS[ROIS['ROIs'].isin(dummy)]
-    list_rois    = list(ROIS_present['labels'])
-    list_nb      = list(ROIS_present['ROIs'])
 
-    # create the ROIs.dtf ..............................................................................................
-    dftFile.roi(ROIdft_tmp1,data,nb_vox,list_rois,list_nb,Study_n,info_pet["FrameTimesStart"],info_pet["FrameDuration"],diary_name)
-
-    # create the ref.dtf
-    if REF['type'] == 'atlas':
-        L_index = []
-        for z in REF["rois"]:
-            L_index.append(list_nb.index(z))
-        dftFile.ref(Refdft.replace('.dft', '.txt'),data,nb_vox,REF['name'],L_index,Study_n,info_pet["FrameTimesStart"],info_pet["FrameDuration"],diary_name)
-    elif REF['type'] == 'mask':
-        dftFile.mask(Refdft.replace('.dft', '.txt'),img,mskfile,REF['name'],Study_n,info_pet["FrameTimesStart"],info_pet["FrameDuration"],diary_name)
-
-    # combine the info from both files
-    lst = []
-    for i in range(len(list_nb) + 2):
-        lst.append(i)
-
-    file1 = pd.read_csv(ROIdft_tmp2, sep='\t', header=None, names=lst)
-    file2 = pd.read_csv(Refdft, sep='\t', header=None, names=['0', '1', '2', '3'])
-
-    file1[len(list_nb) + 3] = file2['2']
-    col = len(list_nb) + 1
-    file1[col] = file1[col].astype(object)
-    file1.loc[0:3, col] = [REF['name'],'.','All',file2['1'][3]]
-
-    file1.to_csv(ROIdft, sep='\t', header=None, index=None)
+def plot_tacs(tac, timing, pre, cut_marks=None, n_plot=16):
+    os.makedirs(opd(pre), exist_ok=True)
+    x = timing['mid'] / 60.0 if timing is not None else np.arange(tac.shape[0])
+    vols = np.asarray(tac.attrs['volumes_mm3'])
+    order = np.argsort(vols)[::-1][:n_plot]
+    fig, ax = plt.subplots(figsize=(8, 5))
+    for i in order:
+        ax.plot(x, tac.iloc[:, i], 'o-', lw=1, ms=3, label=tac.attrs['names'][i])
+    ax.set_xlabel('time (min)')
+    ax.set_ylabel('activity concentration')
+    ax.set_title(f'{len(order)} largest regions of {tac.shape[1]}', fontsize=8)
+    ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=6)
+    fig.tight_layout()
+    for ext in ('png', 'svg'):
+        fig.savefig(pre + '_time_activity_curve.' + ext)
+    plt.close(fig)
+    M, S = tac.mean(axis=1), tac.std(axis=1)
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.errorbar(x, M, yerr=S, fmt='o-', lw=2, color='red', ms=3)
+    for t in (cut_marks or []):
+        ax.axvline(t, color='k', lw=0.8)
+    ax.set_xlabel('time (min)')
+    ax.set_ylabel('mean +- SD across regions')
+    fig.tight_layout()
+    for ext in ('png', 'svg'):
+        fig.savefig(pre + '_mean-time_activity_curve.' + ext)
+    plt.close(fig)
 
 
-    # 2 execution ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+def dft(img, atlases, ref, masks, label_tables, timing, sif, unit, decay_corrected, isotope, DV_time,
+        roi_dir, pict_dir, out_dir, diary_name, sing_turku, levels='all', end_min=None, study='EDNiX'):
+    """
+    Reference-region models of one dynamic image (step 8):
+      regional BPnd (bfmsrtm) for every atlas level, parametric BPnd (imgbfbp, imgsrtm) and DVR (imgdv,
+      if DV_time > 0) images. ref: resolved reference region (atlases.getlabels.resolve).
+    The voxel-wise tools need decay-corrected data: they are skipped otherwise (bfmsrtm then gets -i=).
+    Returns the parametric images written.
+    """
+    nl = 'Reference-region kinetic models of ' + opb(img)
+    run_cmd.msg(nl, diary_name, 'HEADER')
+    os.makedirs(roi_dir, exist_ok=True)
+    nii, data = pu.load(img)
+    if data.ndim != 4:
+        raise ValueError(f'{img} is not dynamic')
+    vox_mm3 = float(np.prod(nii.header.get_zooms()[:3]))
+    base = pu.base_name(img)
 
-    # 2.1 Estimate the binding potential from simplified reference tissue model'.
-    nl = '# Estimate the binding potential from simplified reference tissue model'
-    run_cmd.msg(nl, diary_name,'OKGREEN')
-    turkustrm.bfm(ROIdft, img.replace('.nii.gz', '.sif'), list_rois, isotope, REF['name'], 1, diary_name, sing_turku)
+    # reference TAC
+    ref_dft = opj(roi_dir, f"{base}_{ref['name']}_{dftname}.dft")
+    if ref['type'] == 'atlas':
+        lab = labels_volume(atlases[ref['atlas']], int(ref['level']))
+        _, nvox = dftFile.ref(ref_dft, data, lab, ref['labels'], vox_mm3, timing, unit, ref['name'], study)
+    else:
+        name = ref['name']
+        if name == 'white+csf':
+            msk = pu.mask_bool(masks['white'], img) | pu.mask_bool(masks['csf'], img)   # union (the engineer's a*b was empty)
+        else:
+            msk = pu.mask_bool(masks[name], img)
+        _, nvox = dftFile.mask(ref_dft, data, msk, vox_mm3, timing, unit, name, study)
+    run_cmd.msg(f"INFO: reference region {ref['name']}: {nvox} voxels ({nvox * vox_mm3:.1f} mm3)", diary_name, 'OKGREEN')
 
-    # 2.2 Computation of Parametric Images
-    nl = '# Computation of Parametric Images:'
-    run_cmd.msg(nl, diary_name,'OKGREEN')
+    # regional BPnd
+    for atlas, afile in atlases.items():
+        lv = levels.get(atlas, 'all') if isinstance(levels, dict) else levels
+        lv = list(range(atlas_levels(afile))) if lv == 'all' else list(lv)
+        for level in lv:
+            labv = labels_volume(afile, level)
+            tac = roiStats.tacs(data, labv, label_tables.get(atlas), vox_mm3)
+            pre = prefix(roi_dir, base, atlas, level)
+            ttac = dftFile.roi(pre + f'_desc-{dftname}_ROIs.dft', tac, timing, unit, study)
+            turkustrm.bfm(ttac, ref_dft, sif, pre + f'_desc-{dftname}_ROIs_bp.res',
+                          pre + f'_desc-{dftname}_ROIs_fit.dft', None if decay_corrected else isotope,
+                          opj(pict_dir, opb(pre)) if pict_dir else None, ref['name'], diary_name, sing_turku,
+                          end_min)
 
-    # 2.2.1 Binding potential (BP) using simplified reference tissue model (SRTM)
-    # 2.2.1.1 Basis function approach
-    turkubfbp.run(img, Refdft, diary_name, sing_turku)
-    # 2.2.1.2 Linear approach'
-    turkustrm.img(img, Refdft, diary_name, sing_turku)
-
-    # 2.2.2 Distribution Volume Ratio (DVR)
-    #  applying the multiple time graphical analysis (MTGA) approach for reversible tracer uptake
-    if not DV_time == 0:
-        turkudv.run(img, Refdft, DV_time, diary_name, sing_turku)
-
+    out = []
+    if not decay_corrected:
+        run_cmd.msg('WARNING: the image is not decay-corrected: the parametric images (imgbfbp, imgsrtm, imgdv) '
+                    'need decay-corrected data and are not computed', diary_name, 'WARNING')
+        return out
+    bp = pu.out_name(out_dir, base, desc='BP')
+    out.append(turkubfbp.run(img, ref_dft, sif, bp, pu.out_name(out_dir, base, desc='BP-err'), diary_name,
+                             sing_turku, end_min))
+    out.append(turkustrm.img(img, ref_dft, sif, pu.out_name(out_dir, base, desc='SRTM'), diary_name, sing_turku,
+                             end_min))
+    if DV_time and float(DV_time) > 0:
+        out.append(turkudv.run(img, ref_dft, sif, DV_time, pu.out_name(out_dir, base, desc='DVR'),
+                               pu.out_name(out_dir, base, desc='DVR-npoints'), diary_name, sing_turku, end_min))
+    return out

@@ -1,35 +1,43 @@
+"""PET signal during every fMRI run of the session (step 10, simultaneous PET-MR): see run_cut."""
 import os
-import json
-import numpy as np
+import glob
+
+import nibabel as nib
 
 opj = os.path.join
 opb = os.path.basename
-opd = os.path.dirname
-ope = os.path.exists
 opi = os.path.isfile
 
-
-from Tools import filename
-from pet import run_cut
-
-def cut(func_dir,func_raw_dir,functype,template,petfile,petjson,runlist,atlas,atlas_label,diary_name,sing_afni, sing_wb):
+from Tools import run_cmd
+from modalities.pet import petutils as pu
+from modalities.pet import run_cut
 
 
-    func_data_dir = opj(func_dir,'residuals',template)
-
-    pet_dir = opd(petfile)
-
-    f= open(opj(func_dir,'Settings.json'),'r')
-    info  = json.load(f)
-    T1_eq = int(info["Remove the first n volumes "])
-    Subname = filename.get_subname(petfile)
-
-
-    for i in range(len(runlist)):
-        funcjson = opj(func_raw_dir,'_'.join([Subname,'task-rest','run-0' + str(runlist[i]),'bold.json' ]))
-        runname = '_'.join([Subname,'task-rest','run-0' + str(runlist[i]), 'space-' + template,functype,'bold.nii.gz' ])
-        funcfile = opj(func_data_dir,runname)
-        if opi(funcfile):
-            print(funcfile)
-            start,stop = run_cut.getframes(funcfile,T1_eq,funcjson,petjson)
-            run_cut.cut(opj(pet_dir,'templates',template),funcfile, petfile,atlas,start,stop,atlas_label, diary_name, sing_afni, sing_wb)
+def cut(data_path, endfmri, pet_file, timing, pet_info, T1_eq, brain_mask, out_dir, diary_name):
+    """For every raw BOLD run of <data_path>/func matching endfmri: <pet base>_desc-<task><run>fMRI_pet.nii.gz."""
+    runs = sorted(glob.glob(opj(data_path, 'func', endfmri)))
+    runs = [r for r in runs if r.endswith(('.nii.gz', '.nii'))]
+    if not runs:
+        run_cmd.msg('WARNING: no fMRI run found with ' + opj(data_path, 'func', endfmri), diary_name, 'WARNING')
+        return []
+    base = pu.base_name(pet_file)
+    out = []
+    for r in runs:
+        info = pu.raw_sidecar(r)
+        if 'AcquisitionTime' not in info or 'RepetitionTime' not in info:
+            run_cmd.msg('WARNING: ' + opb(r) + ': no AcquisitionTime / RepetitionTime in its sidecar', diary_name,
+                        'WARNING')
+            continue
+        nvol = nib.load(r).shape[3]
+        ov, (a, b) = run_cut.getframes(pet_info, timing, info, nvol, T1_eq)
+        if ov.sum() <= 0:
+            run_cmd.msg(f'WARNING: {opb(r)} [{a:.0f}, {b:.0f}] s after the PET TimeZero: outside the PET acquisition',
+                        diary_name, 'WARNING')
+            continue
+        ents = {p.split('-')[0]: p.split('-', 1)[1] for p in pu.strip_ext(r).split('_') if '-' in p}
+        tag = ''.join(ents.get(k, '') for k in ('task', 'run')) + 'fMRI'
+        dst = pu.out_name(out_dir, base, desc=tag)
+        run_cut.cut(pet_file, timing, ov, dst, brain_mask)
+        run_cmd.msg(f'INFO: {opb(r)}: PET frames weighted {[round(x, 1) for x in ov[ov > 0]]} s', diary_name, 'OKGREEN')
+        out.append(dst)
+    return out

@@ -1,197 +1,109 @@
-#import
+"""
+Step 3 of the CT pipeline: registration of the CT (scenarios 1v2b, 2v1, 2v2 of Illustration/pet4.svg) and
+registration record read by the PET pipeline (same format as the PET record, modalities/pet/transfo.py).
+
+with an anatomy (1v2b)     rigid CT -> anatomy (AC-PC head image), mutual information on the CT clipped to
+                           [-1000, 2000] HU, restricted to the brain mask dilated by 10 mm (skull included);
+                           anat_ct_same_space=True: the AC-PC matrix of the anatomy (same scanner space).
+CT template (2v1)          affine + SyN CT -> CT template given in the space of the reference template.
+CT study template (2v2)    registration to the study template of the CT images (step 2).
+The PET engineer registered the CT to the raw anatomy and composed the result with 'shift' and 'acpc'
+matrices (the 'shift' matrix is already contained in the AC-PC matrix of the anatomical pipeline).
+"""
 import os
-import json
-import ants
 import shutil
+
+import numpy as np
+import ants
 
 opj = os.path.join
 opb = os.path.basename
-opn = os.path.normpath
 opd = os.path.dirname
-ope = os.path.exists
 opi = os.path.isfile
 
-from Tools import run_cmd,extract_filename
+from Tools import run_cmd, QC_plot
+from modalities.pet import petutils as pu
+from modalities.pet import transfo
+from modalities.pet.coreg2anat import manual_correction
 from modalities.anat.freesurfer import FS_freeview
 
-T1interp    = 'hammingWindowedSinc'
-
-antsaff     = '0GenericAffine.mat'
-antswarp    = '1Warp.nii.gz'
-antsinvwarp = '1InverseWarp.nii.gz'
-
-resamp_interp = 'Cu'
-
-tmp_trans = 'translation'
-transCT   = 'from-ct-to-T1w'
-shiftname = 'shift'
-acpcname  = 'acpc'
+CT_CLIP = (-1000.0, 2000.0)
 
 
+def clipped(ct_file, out):
+    img = ants.image_read(ct_file)
+    arr = np.clip(img.numpy(), *CT_CLIP)
+    ants.image_write(ants.from_numpy(arr, origin=img.origin, spacing=img.spacing, direction=img.direction), out,
+                     ri=False)
+    return out
 
 
-def apply(IMG,Ref_native_raw,ctimg,Ref,Ref_native_template,ct2anat,anat2ct, ct2acpc,fname,dir_prepro_orig_matrices,to_acpc,T_CT):
-    # CT to anat
-    moved1 = ants.apply_transforms(fixed=Ref, moving=ctimg,
-                                   transformlist=opj(dir_prepro_orig_matrices, '_'.join([fname, transCT, antsaff])),
-                                   interpolator=T1interp)
-    ants.image_write(moved1, ct2anat)
-
-    dictionary = {"Sources": [IMG,
-                              Ref_native_raw],
-                  "Description": 'Rigid transformation of ct image to ' + T_CT + ' image (3dresample (AFNI)).', }
-    json_object = json.dumps(dictionary, indent=2)
-    with open(anat2ct.replace('.nii.gz', '.json'), "w") as outfile:
-        outfile.write(json_object)
+def record_path(paths, base):
+    return opj(paths['orig_matrices'], base + '_desc-registration_ct.json')
 
 
-    # anat to ct
-    moved2 = ants.apply_transforms(fixed=ctimg, moving=Ref,
-                                   transformlist=opj(dir_prepro_orig_matrices, '_'.join([fname, transCT, antsaff])),
-                                   whichtoinvert=[True],
-                                   interpolator=T1interp)
-    ants.image_write(moved2, anat2ct)
-    dictionary = {"Sources": [IMG,
-                              Ref_native_raw],
-                  "Description": 'Rigid transformation of ' + T_CT + '  image to ct image (3dresample (AFNI)).', }
-    json_object = json.dumps(dictionary, indent=2)
-    with open(anat2ct.replace('.nii.gz', '.json'), "w") as outfile:
-        outfile.write(json_object)
-
-    # cT to anat in acpc space
-    refacpc = ants.image_read(Ref_native_template)
-    mv = ants.apply_transforms(fixed=refacpc, moving=ctimg,
-                               transformlist=[to_acpc,
-                                              opj(dir_prepro_orig_matrices, '_'.join([fname, transCT, antsaff]))],
-                               interpolator=T1interp)
-    ants.image_write(mv, ct2acpc)
-
-    dictionary = {"Sources": [ct2anat,
-                              Ref_native_template],
-                  "Description": 'Rigid transformation of ct image to ' + T_CT + ' image (3dresample (AFNI)).', }
-    json_object = json.dumps(dictionary, indent=2)
-    with open(anat2ct.replace('.nii.gz', '.json'), "w") as outfile:
-        outfile.write(json_object)
-
-
-def doit(IMG,Ref_native_raw,T_CT,Ref_native_template,
-         dir_transfo,dir_prepro_orig_process,dir_prepro_acpc,
-         dir_prepro_acpc_process,
-         dir_prepro_orig_matrices,same_space,do_manual,
-         Need_check_coreg,diary_name,sing_afni,sing_fs):
-
-
-    to_acpc = opj(dir_transfo,'_'.join([acpcname,antsaff]))
-
-    fname,_ = extract_filename.get_desc(opb(IMG),'desc')
-
-    # ct image in anat space (only for visualization)
-    ct2anat = opj(dir_prepro_orig_process, '_'.join([fname,'space-anat','ct.nii.gz']))
-    ct2anat_tmp = opj(dir_prepro_acpc_process, '_'.join([fname, 'space-acpc','desc-before-manual-correct', 'ct.nii.gz']))
-    ct2acpc = opj(dir_prepro_acpc, '_'.join([fname, 'space-acpc', 'ct.nii.gz']))
-    ct2acpc_tmp = opj(dir_prepro_acpc_process, '_'.join([fname, 'space-acpc', 'ct.nii.gz']))
-    # anat image in pet space (only for visualisation)
-    anat2ct  = opj(dir_prepro_acpc, '_'.join([fname, 'space-orig',T_CT + '.nii.gz']))
-
-
-    list_file = [IMG,Ref_native_raw,Ref_native_template,
-                    opj(dir_transfo,'_'.join([acpcname,antsaff]))]
-
-    for fneeded in list_file:
-        if not opi(fneeded):
-            raise FileNotFoundError(f"Input file not found: {fneeded}")
-
-    # ..........................................................................................................
-
-    nl = 'Co-registration with the MRI anatomy'
-    run_cmd.msg(nl, diary_name,'OkGREEN')
-
-    # from ct to T1w
-    nl = 'Transform the ct image into the MRI anatomy'
-    run_cmd.msg(nl, diary_name,'OKGREEN')
-
-    if same_space:
-        # Resample to other modality resolution
-        cmd=(sing_afni + '3dresample -overwrite -master ' + IMG + ' -rmode ' + resamp_interp +
-             ' -prefix ' + anat2ct + ' -input ' +  Ref_native_raw)
-        run_cmd.run(cmd,diary_name)
-
-        dictionary = {"Sources": [IMG,
-                                  Ref_native_raw],
-                      "Description": 'Resampling ct image to ' + T_CT + ' image (3dresample (AFNI)).', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(anat2ct.replace('.nii.gz', '.json'), "w") as outfile:
-            outfile.write(json_object)
-
-        cmd = (sing_afni + '3dresample -overwrite -master ' + Ref_native_raw + ' -rmode ' + resamp_interp +
-               ' -prefix ' + ct2anat + ' -input ' + IMG)
-        run_cmd.run(cmd, diary_name)
-
-        dictionary = {"Sources": [IMG,
-                                  Ref_native_raw],
-                      "Description": 'Resampling ' + T_CT + ' image to ct image (3dresample (AFNI)).', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(ct2anat.replace('.nii.gz', '.json'), "w") as outfile:
-            outfile.write(json_object)
-
-    else:
-        ctimg = ants.image_read(IMG)
-        Ref   = ants.image_read(Ref_native_raw)
-
-        ants.registration(fixed=Ref, moving=ctimg,
-                          type_of_transform='Translation',
-                          outprefix=opj(dir_prepro_orig_matrices, tmp_trans + '_'))
-        ants.registration(fixed=Ref, moving=ctimg, type_of_transform='Rigid',
-                          initial_transform=opj(dir_prepro_orig_matrices, '_'.join([tmp_trans, antsaff])),
-                          outprefix=opj(dir_prepro_orig_matrices,'_'.join([fname,transCT,''])))
-
-        apply(IMG,Ref_native_raw,ctimg,Ref,Ref_native_template,ct2anat,anat2ct, ct2acpc,fname,dir_prepro_orig_matrices,to_acpc,T_CT)
-
+def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, reference, study_template, T_CT, metric,
+             type_of_transform_template, do_manual, Need_check_coreg, bids_dir, diary_name, sing_fs):
+    nl = 'Registration of the CT ' + base + ' (scenario ' + sc + ')'
+    run_cmd.msg(nl, diary_name, 'HEADER')
+    mat_dir = paths['orig_matrices']
+    os.makedirs(mat_dir, exist_ok=True)
+    os.makedirs(paths['orig_formc'], exist_ok=True)
+    work = clipped(ct_img, opj(paths['orig_formc'], base + '_desc-clipped_ct.nii.gz'))
+    targets = {}
+    if sc == 'anat_same_space':
+        acpc = transfo.check(transfo.affine(opj(anat['dir_transfo'], 'acpc_0GenericAffine.mat')))
+    elif sc == '1v2b':
+        prefix = opj(mat_dir, base + '_from-ct-to-' + T_CT + '_')
+        fixed = ants.image_read(anat['acpc'])
+        m = ants.image_read(anat['mask'])
+        r = max(1, int(round(10.0 / min(m.spacing[:3]))))
+        mask = ants.iMath(ants.threshold_image(m, 0.5, 1e9, 1, 0), 'MD', r)
+        ants.registration(fixed=fixed, moving=ants.image_read(work), type_of_transform='Rigid', aff_metric=metric,
+                          mask=mask, outprefix=prefix)
+        acpc = transfo.registration(prefix)
         if do_manual:
-            if do_manual == 'orig':
-                shutil.copy(ct2anat, ct2anat_tmp)
+            acpc = manual_correction(work, anat['acpc'], acpc, prefix, opj(paths['orig_formc'], 'ct2' + T_CT + '.nii.gz'),
+                                     'ct', diary_name, sing_fs)
+    if sc in ('anat_same_space', '1v2b'):
+        targets['acpc'] = dict(image=anat['acpc'], brain=anat['brain'], mask=anat['mask'], **acpc)
+        for pkg in packages or []:
+            targets[pkg[0]] = dict(image=pkg[1], brain=pkg[1], mask=pkg[2],
+                                   **transfo.compose(acpc, transfo.from_backtonative(pkg)))
+    elif sc == '2v1':
+        prefix = opj(mat_dir, base + '_to_' + reference + '_')
+        ants.registration(fixed=ants.image_read(template_CT), moving=ants.image_read(work),
+                          type_of_transform=type_of_transform_template, aff_metric=metric, outprefix=prefix)
+        targets[reference] = dict(image=template_CT, brain=template_CT, mask='', **transfo.registration(prefix))
+    elif sc == '2v2':
+        prefix = opj(mat_dir, base + '_to_studyTemplate_')
+        targets['studyTemplate'] = dict(image=study_template, brain=study_template, mask='',
+                                        **transfo.registration(prefix))
+    else:
+        raise ValueError(f'unknown CT scenario {sc}')
+    for t in targets.values():
+        transfo.check(t)
+    record = dict(modality='ct', scenario=sc, session=base, reference=ct_img, raw=raw, targets=targets,
+                  created=pu.now())
+    transfo.write_record(record_path(paths, base), record)
 
-                FS_freeview.check_coreg(ct2anat, Ref_native_template, '','','ct', sing_fs)
-
-                newref = ants.image_read(ct2anat)
-                # overwrite the previous matrices
-                ants.registration(fixed=newref, moving=ctimg,
-                                  type_of_transform='Translation',
-                                  outprefix=opj(dir_prepro_orig_matrices, tmp_trans + '_'))
-
-                ants.registration(fixed=newref, moving=ctimg, type_of_transform='Rigid',
-                                  initial_transform=opj(dir_prepro_orig_matrices, '_'.join([tmp_trans, antsaff])),
-                                  outprefix=opj(dir_prepro_orig_matrices, '_'.join([fname, transCT, ''])))
-
-
-                apply(IMG,Ref_native_raw,ctimg,Ref,Ref_native_template,ct2anat,anat2ct, ct2acpc,fname,dir_prepro_orig_matrices,to_acpc,T_CT)
-
-            elif do_manual == 'acpc':
-
-                shutil.copy(ct2acpc,ct2acpc_tmp)
-                # do the manual correction, save it as it is.
-                FS_freeview.check_coreg(ct2acpc,Ref_native_template,'acpc','ct',sing_fs)
-
-                dummy  = ants.image_read(ct2acpc)
-                ct_tmp = ants.image_read(ct2acpc_tmp)
-
-                # go backward
-                mv = ants.apply_transforms(fixed=ct_tmp, moving=dummy,
-                                           transformlist=[to_acpc],
-                                           interpolator=T1interp,whichtoinvert= [True])
-                # overwrite the previous matrices
-                ants.registration(fixed=mv, moving=ctimg,
-                                  type_of_transform='Translation',
-                                  outprefix=opj(dir_prepro_orig_matrices, tmp_trans + '_'))
-
-                ants.registration(fixed=mv, moving=ctimg, type_of_transform='Rigid',
-                                  initial_transform=opj(dir_prepro_orig_matrices, '_'.join([tmp_trans, antsaff])),
-                                  outprefix=opj(dir_prepro_orig_matrices, '_'.join([fname, transCT, ''])))
-
-                apply(IMG,Ref_native_raw,ctimg, Ref, Ref_native_template, ct2anat, anat2ct, ct2acpc, fname, dir_prepro_orig_matrices, to_acpc,T_CT)
-
-    if Need_check_coreg:
-
-        FS_freeview.check_coreg(ct2anat, Ref_native_template, '', '', 'ct', sing_fs)
-
-
+    os.makedirs(paths['qc'], exist_ok=True)
+    for name, t in targets.items():
+        out_dir = paths['acpc'] if name == 'acpc' else opj(paths['templates'], name)
+        os.makedirs(out_dir, exist_ok=True)
+        dst = pu.out_name(out_dir, base, space=name, suffix='ct')
+        transfo.apply(t['image'], ct_img, t, 'to', 'linear', out=dst)
+        pu.write_json(dst, [ct_img, t['image']], f'CT in the {name} space (ANTsPy, linear).', Transforms=t['to'])
+        if t.get('mask') and opi(t['mask']):
+            png = opj(paths['qc'], base + '_space-' + name + '_ct.png')
+            QC_plot.mosaic(dst, t['mask'], png)
+            qc_dir = opj(bids_dir, 'QC', 'ct_in_' + ('acpc' if name == 'acpc' else 'template'))
+            os.makedirs(qc_dir, exist_ok=True)
+            shutil.copyfile(png, opj(qc_dir, opb(png)))
+        if Need_check_coreg:
+            FS_freeview.check_coreg(dst, t['image'], 'ct', sing_fs, transform_volume=False)
+    if 'acpc' in targets:
+        anat_in_ct = pu.out_name(paths['orig_process'], base, space='orig', suffix=T_CT)
+        transfo.apply(ct_img, anat['acpc'], targets['acpc'], 'from', 'linear', out=anat_in_ct)
+        pu.write_json(anat_in_ct, [anat['acpc'], ct_img], 'Anatomy in the CT space (visualisation).')
+    return record_path(paths, base)

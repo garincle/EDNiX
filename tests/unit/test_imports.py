@@ -1,4 +1,4 @@
-"""Every module of the pipeline imports (PET, archives and legacy scripts excluded)."""
+"""Every module of the pipeline imports (archives and legacy scripts excluded)."""
 import importlib
 import subprocess
 import sys
@@ -8,7 +8,7 @@ import pytest
 
 from conftest import REPO
 
-EXCLUDE = ('/pet/', 'Archives', 'UNet_Model_training', '_T1_T2_quantif', 'old_orient_correct', 'Tools/niiRoi.py',
+EXCLUDE = ('Archives', 'UNet_Model_training', '_T1_T2_quantif', 'old_orient_correct', 'Tools/niiRoi.py',
            'Tools/Clean_BIDS.py')
 MODULES = sorted(
     str(p.relative_to(REPO))[:-3].replace('/', '.')

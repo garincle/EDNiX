@@ -5,21 +5,9 @@ import subprocess
 opj = os.path.join
 ope = os.path.exists
 opi = os.path.isfile
-opb = os.path.basename
 spco = subprocess.check_output
 
-
-BALSAsamp= {'resol':['native','native','native_LR',''],
-            '164k':['fsaverage_164k','164k_fs_LR','fsaverage_LR_164k','atlasroi'],
-            '32k':['fsaverage_LR_32k','32k_fs_LR','fsaverage_LR_32k','atlasroi']}
-
-NATIVEsamp= {'resol':['Native_resol','','native_LR',''],
-            '32k':['fsaverage_LR_32k','32k_fs_LR','fsaverage_LR_32k','atlasroi']}
-
-colormap = {'Swhite':'yellow','Spial':'blue','Vwhite':'heat','seg':'GE_COLOR','pet':'GE_COLOR','ct':'grayscale'}
-
-
-def check_seg(FS_dir, subID, surface, sing_fs, FS_refs):
+def FSview(FS_dir, subID, surface,sing_fs,FS_refs):
     # from https://surfer.nmr.mgh.harvard.edu/fswiki/FsTutorial/TopologicalDefect_freeview
     
     Aseg_lut    = opj(FS_refs, 'FreeSurferAllLut.txt')
@@ -62,43 +50,31 @@ def check_seg(FS_dir, subID, surface, sing_fs, FS_refs):
 
         spco([command], shell=True)
 
-    def check_coreg(img, refimg, space, S_folder,type, sing_fs):
 
-        cmd = (sing_fs + 'freeview -v ' + refimg + ':colormap=grayscale:opacity=1:visible=1 ' +
-               img + ':colormap=' + colormap[type] + ':opacity=0.5:visible=1 -transform-volume')
 
-        if space == 'acpc':
-            preference = ['32k', 'resol']
-            name = NATIVEsamp
-        elif space == 'template':
-            preference = ['32k', '164k', 'resol']
-            name = BALSAsamp
+# colour maps of check_coreg (suggested by the PET engineer)
+colormap = {'Swhite': 'yellow', 'Spial': 'blue', 'pet': 'heat', 'ct': 'grayscale', 'seg': 'lut'}
 
-        # to see the surfaces may help .....
-        SURF = ''
-        fname = opb(refimg).split('_')[0]
 
-        if S_folder:
-            for i in preference:
-                if ope(opj(S_folder, BALSAsamp[i][0])):
-                    SURF = BALSAsamp[i]
-                    break
+def check_coreg(img, refimg, imgtype, sing_fs, surfaces=(), transform_volume=True):
+    """
+    Open freeview to check (and, with transform_volume, correct by hand) the registration of
+    `img` (PET or CT) on the anatomical image `refimg`.
 
-        if SURF:
-            lwhite = opj(S_folder, SURF[0],
-                         '.'.join(filter(None, [fname, 'l', 'white', SURF[1], 'surf', 'gii'])))
-            rwhite = opj(S_folder, SURF[0],
-                         '.'.join(filter(None, [fname, 'r', 'white', SURF[1], 'surf', 'gii'])))
-            lpial = opj(S_folder, SURF[0],
-                        '.'.join(filter(None, [fname, 'l', 'pial', SURF[1], 'surf', 'gii'])))
-            rpial = opj(S_folder, SURF[0],
-                        '.'.join(filter(None, [fname, 'r', 'pial', SURF[1], 'surf', 'gii'])))
-
-            print(lwhite)
-            cmd = cmd + (' -f ' + lwhite + ':edgecolor=' + colormap['Swhite'] +
-                         ' ' + rwhite + ':edgecolor=' + colormap['Swhite'] +
-                         ' ' + lpial + ':edgecolor=' + colormap['Spial'] +
-                         ' ' + rpial + ':edgecolor=' + colormap['Spial'])
-
-        spco([cmd], shell=True)
-
+    surfaces : white / pial GIFTI surfaces in the space of `refimg` (optional), drawn as outlines.
+    With transform_volume=True, freeview opens its 'Transform Volume' tool on `img`: after a manual
+    correction the user saves the moved image under its own name ('Save Volume' with resampling),
+    and the calling code re-estimates the registration from it.
+    """
+    for f in (img, refimg):
+        if not opi(f):
+            raise FileNotFoundError(f'check_coreg: file not found: {f}')
+    cmd = (sing_fs + 'freeview -v ' + refimg + ':colormap=grayscale:opacity=1:visible=1 ' +
+           img + ':colormap=' + colormap.get(imgtype, 'heat') + ':opacity=0.5:visible=1')
+    if transform_volume:
+        cmd += ' -transform-volume'
+    outlines = [s for s in surfaces if opi(s)]
+    if outlines:
+        cmd += ' -f ' + ' '.join(s + ':edgecolor=' + (colormap['Spial'] if 'pial' in os.path.basename(s)
+                                                       else colormap['Swhite']) for s in outlines)
+    spco([cmd], shell=True)

@@ -1,412 +1,245 @@
-#import
+"""
+Step 6 of the PET pipeline: registration of the PET session to the anatomy, the CT or a template
+(scenarios of Illustration/pet4.svg), and atlases / masks / anatomy brought into the PET space.
+
+The registration is estimated once per session, on the mean image of the session after the
+between-runs motion correction (all the runs share its space), and stored as a registration record
+(transfo.py) with the chains to every target space:
+
+1v1  anatomy, same session (hybrid PET-MR): PET -> acpc = the AC-PC matrix of the anatomy
+     (anat/matrices/acpc_0GenericAffine.mat), as for the functional images acquired in the space of
+     the anatomy (anat_func_same_space): the PET was reoriented like the anatomy at step 1.
+1v2a anatomy, other session: rigid registration PET -> anatomy (AC-PC), mutual information, restricted
+     to the dilated brain of the anatomy (<session>_from-pet-to-<T>_0GenericAffine.mat).
+1v2b anatomy and CT: PET -> CT (same space: nothing; otherwise rigid registration) then CT -> anatomy
+     (record of the CT pipeline).
+2v1  CT and CT template, no anatomy: PET -> CT -> template (CT pipeline).
+2v2  CT, no CT template: PET -> CT -> CT study template (CT pipeline); no atlas.
+3v1  PET template in the space of the reference template: PET -> PET template (affine + SyN).
+3v2  no anatomy, no template: PET -> PET study template (step 2); no atlas.
+With an anatomy, the AC-PC chain is composed with the anatomy -> template chains of
+modalities/anat/loop3/backtonative.get (template, study template, reference session), the bridge
+used by the functional pipeline.
+"""
 import os
-import json
-import ants
 import shutil
+
+import ants
 
 opj = os.path.join
 opb = os.path.basename
-opn = os.path.normpath
 opd = os.path.dirname
 ope = os.path.exists
 opi = os.path.isfile
 
-from Tools import run_cmd,extract_filename
-from anat.freesurfer import FS_freeview
+from Tools import run_cmd, QC_plot
+from modalities.pet import petutils as pu
+from modalities.pet import transfo
+from modalities.anat.freesurfer import FS_freeview
 
-T1interp    = 'hammingWindowedSinc'
-Boldinterp  = 'lanczosWindowedSinc'
 labelinterp = 'genericLabel'
-
-antsaff     = '0GenericAffine.mat'
-antswarp    = '1Warp.nii.gz'
-antsinvwarp = '1InverseWarp.nii.gz'
-
-resamp_interp = 'Cu'
-
-tmp_trans = 'translation'
-transPET  = 'from-Pet-to-'
-transCT   = 'from-ct-to-'
-acpcname  = 'acpc'
-shiftname = 'shift'
+petinterp = 'linear'
+anatinterp = 'linear'
 
 
-def doit(IMG,Ref_native_raw,T_PET,Ref_native_template,Ref_native_mask,Ref_native_whitemask,Ref_nativegray_mask,template_name,
-         atlas_file,atlas,dir_transfo,dir_prepro_orig_process, dir_prepro_orig_labels, dir_prepro_orig_masks,
-         dir_prepro_orig_matrices,anat_pet_same_space,do_manual,IhaveanANAT,IhaveaCT,dir_prepro_orig_ct_matrices,dir_prepro_acpc,
-         dir_prepro_acpc_process,dir_prepro_acpc_label,dir_prepro_acpc_masks,dir_prepro_template,
-         dir_prepro_template_labels, dir_prepro_template_masks,BASE_template,
-         dir_prepro_template_process,BASE_mask, BASE_Gmask, BASE_Wmask,
-         Need_check_coreg,diary_name,sing_afni,sing_fs):
-
-    transPET = transPET + T_PET
-    transCT  = transCT + T_PET
-
-    tmp_dir = opj(dir_prepro_orig_process, 'forMC')
-    fname, _ = extract_filename.get_desc(opb(IMG), 'desc')
-
-    # pet image in T1w space (only for visualisation)
-    step1        = opj(tmp_dir, 'pet2T1w.nii.gz')
-    petanat      = opj(dir_prepro_orig_process, '_'.join([fname, 'space-anat', 'pet.nii.gz']))
-    petacpc      = opj(dir_prepro_acpc_process, '_'.join([fname, 'space-acpc', 'pet.nii.gz']))
-    pet_template = opj(dir_prepro_template_process, '_'.join([fname, 'space-' + template_name, 'pet.nii.gz']))
-
-    imghd = ants.image_header_info(IMG)
-    if imghd['nDimensions'] == 4:
-        full_IMG = IMG
-        IMG = IMG.replace('_pet.nii.gz','-mean_pet.nii.gz')
-        full_petanat = petanat
-        full_petacpc = petacpc
-        full_pet_template = pet_template
-        petanat = opj(dir_prepro_orig_process, '_'.join([fname, 'space-anat','desc-mean' ,'pet.nii.gz']))
-        petacpc = opj(dir_prepro_acpc_process, '_'.join([fname, 'space-acpc', 'desc-mean','pet.nii.gz']))
-        pet_template = opj(dir_prepro_template_process, '_'.join([fname, 'space-' + template_name,'desc-mean', 'pet.nii.gz']))
-
-    crop_pet = opj(tmp_dir, '_'.join([fname, 'desc-mean-crop', 'pet.nii.gz']))
-
-
-    # template atlas to pet image
-    atlas2         = opj(dir_prepro_orig_labels, '_'.join([fname, 'seg-' + atlas["name"], 'dseg.nii.gz']))
-    atlas_acpc     = opj(dir_prepro_acpc_label, '_'.join([fname, 'seg-' + atlas["name"], 'dseg.nii.gz']))
-    atlas_template = opj(dir_prepro_template_labels, '_'.join([fname, 'seg-' + atlas["name"], 'dseg.nii.gz']))
-
-    # anat image in pet space (only for visualisation)
-    anat2petfile  = opj(dir_prepro_orig_process, '_'.join([fname, 'space-orig',T_PET + '.nii.gz']))
-
-    mask2petfile  = opj(dir_prepro_orig_masks,   '_'.join([fname,'space-orig','mask.nii.gz']))
-    white2petfile = opj(dir_prepro_orig_masks,   '_'.join([fname, 'space-orig','desc-white', 'mask.nii.gz']))
-    gray2petfile  = opj(dir_prepro_orig_masks,   '_'.join([fname, 'space-orig','desc-gray', 'mask.nii.gz']))
-
-    mask2petfile_acpc = opj(dir_prepro_acpc_masks, '_'.join([fname, 'space-acpc', 'mask.nii.gz']))
-    white2petfile_acpc = opj(dir_prepro_acpc_masks, '_'.join([fname, 'space-acpc', 'desc-white', 'mask.nii.gz']))
-    gray2petfile_acpc = opj(dir_prepro_acpc_masks, '_'.join([fname, 'space-acpc', 'desc-gray', 'mask.nii.gz']))
-
-    mask2petfile_template = opj(dir_prepro_template_masks, '_'.join([fname, 'space-' + template_name, 'mask.nii.gz']))
-    white2petfile_template = opj(dir_prepro_template_masks, '_'.join([fname, 'space-' + template_name, 'desc-white', 'mask.nii.gz']))
-    gray2petfile_template = opj(dir_prepro_template_masks, '_'.join([fname, 'space-' + template_name, 'desc-gray', 'mask.nii.gz']))
-
-
-
-    # get the "native to template" transformation matrices
-
-    orderT1 = [opj(dir_transfo, '_'.join([shiftname, antsaff])),
-               opj(dir_transfo, '_'.join([acpcname, antsaff]))]
-    orderW1 = [True, True]
-
-    T1 = []
-    w1 = []
-    for i in range(len(orderT1)):
-        if opi(orderT1[i]):
-            T1.append(orderT1[i])
-            w1.append(orderW1[i])
-
-    orderT2= [opj(dir_transfo, '_'.join(['native','to',template_name,'Final',antsaff])),
-              opj(dir_transfo, '_'.join(['native','to',template_name,'Final',antsinvwarp]))]
-    orderW2 = [True, False]
-
-    T2 = []
-    w2 = []
-    for i in range(len(orderT2)):
-        if opi(orderT2[i]):
-            T2.append(orderT2[i])
-            w2.append(orderW2[i])
-
-    if IhaveaCT:
-        pet_to_anat = opj(dir_prepro_orig_ct_matrices, '_'.join([fname, transCT, antsaff]))
-    else:
-        pet_to_anat = opj(dir_prepro_orig_matrices, '_'.join([fname, transPET, antsaff]))
-
-    list_file = [IMG, Ref_native_raw, Ref_native_template, Ref_native_mask, atlas_file,
-                 opj(dir_transfo, '_'.join([acpcname, antsaff])), T2[0]]
-
-    for fneeded in list_file:
-        if not opi(fneeded):
-            raise FileNotFoundError(f"Input file not found: {fneeded}")
-
-
-    # ..........................................................................................................
-
-    nl = 'Co-registration with the MRI anatomy'
-    run_cmd.msg(nl, diary_name,'OkGREEN')
-
-    # from Pet to T1w
-
-    if not opi(crop_pet):
-        os.mkdirs(tmp_dir,exist_ok = True)
-
-        shutil.copyfile(IMG, crop_pet)
-        cmd = (sing_fs + 'freeview -v ' + IMG + ' -subtitle "CROP-THE-IMAGE ! "')
-        run_cmd.do(cmd, diary_name)
-
-        dictionary = {"Sources": IMG,
-                      "Description": 'Manually Cropped image (Freeview, Freesurfer).', }
-        json_object = json.dumps(dictionary, indent=2)
-        with open(crop_pet.replace('.nii.gz', '.json'), "w") as outfile:
-            outfile.write(json_object)
-
-
-
-    nl = 'Transform the pet image into the MRI anatomy'
-    run_cmd.msg(nl, diary_name,'OKGREEN')
-
-    # Crop the PET image around the skull
-    cmd = (sing_afni + '3dresample -overwrite -master ' + crop_pet + ' -rmode ' + resamp_interp +
-           ' -prefix ' + step1 + ' -input ' + IMG)
-    run_cmd.run(cmd, diary_name)
-
-    # Resample to anat resolution
-    cmd=(sing_afni + '3dresample -overwrite -master ' + Ref_native_raw + ' -rmode ' + resamp_interp +
-         ' -prefix ' + step1 + ' -input ' +  step1)
-    run_cmd.run(cmd,diary_name)
-
-    dictionary = {"Sources": [IMG,
-                            Ref_native_raw],
-                "Description": 'Resampling pet image to T1w (3dresample (AFNI)).', }
-    json_object = json.dumps(dictionary, indent=2)
-    with open(step1.replace('.nii.gz','.json'), "w") as outfile:
-        outfile.write(json_object)
-
-
-    Pet       = ants.image_read(IMG)
-    brain = ants.image_read(Ref_native_raw)
-
-
-
-
+def scenario(IhaveanANAT, anat_pet_same_space, IhaveaCT, ct_targets, pet_template, study_template):
+    """Scenario code of pet4.svg from the launcher options (ct_targets: target names of the CT record)."""
     if IhaveanANAT:
         if anat_pet_same_space:
-            shutil.copyfile(step1,petanat)
-            shutil.copyfile(step1.replace('.nii.gz','.json'),
-                            petanat.replace('.nii.gz','.json'))
+            return '1v1'
+        return '1v2b' if IhaveaCT else '1v2a'
+    if IhaveaCT:
+        if ct_targets is None:
+            raise FileNotFoundError('IhaveaCT=True but no CT registration record: run the CT pipeline first')
+        return '2v2' if ct_targets == ['studyTemplate'] else '2v1'
+    if pet_template:
+        return '3v1'
+    if study_template:
+        return '3v2'
+    raise ValueError('no anatomy, no CT, no PET template and no PET study template: nothing to register the PET '
+                     'to (set IhaveanANAT, IhaveaCT, template_PET or creat_study_template_pet)')
 
-            # Anatomical file into pet file
-            cmd = (sing_afni + '3dresample -overwrite -master ' + IMG + ' -rmode ' + resamp_interp +
-                   ' -prefix ' + anat2petfile + ' -input ' + Ref_native_raw)
-            run_cmd.run(cmd, diary_name)
 
-            dictionary = {"Sources": [IMG,
-                                      Ref_native_raw],
-                          "Description": 'Resampling pet image to T1w (3dresample (AFNI)).', }
-            json_object = json.dumps(dictionary, indent=2)
-            with open(step1.replace('.nii.gz', '.json'), "w") as outfile:
-                outfile.write(json_object)
+def _dilated(mask_file, mm):
+    m = ants.image_read(mask_file)
+    r = max(1, int(round(mm / min(m.spacing[:3]))))
+    return ants.iMath(ants.threshold_image(m, 0.5, 1e9, 1, 0), 'MD', r)
 
+
+def rigid_to(fixed_file, moving_file, prefix, metric, mask_file=None, dilate_mm=5.0, initial=None):
+    fixed = ants.image_read(fixed_file)
+    moving = ants.image_read(moving_file)
+    kw = {}
+    if mask_file and opi(mask_file):
+        kw['mask'] = _dilated(mask_file, dilate_mm)
+    if initial:
+        kw['initial_transform'] = initial
+    ants.registration(fixed=fixed, moving=moving, type_of_transform='Rigid', aff_metric=metric,
+                      outprefix=prefix, **kw)
+    return transfo.registration(prefix)
+
+
+def manual_correction(pet_mean, fixed_file, chain, prefix, pet_in_fixed, imgtype, diary_name, sing_fs):
+    """
+    PET engineer's manual correction: the PET in the anatomical space is opened in freeview with its
+    'Transform Volume' tool; when the user saves it (same name), the registration is estimated again from
+    the edited image, starting from the current one (PET -> PET, mean squares).
+    """
+    transfo.apply(fixed_file, pet_mean, chain, 'to', petinterp, out=pet_in_fixed)
+    before = os.path.getmtime(pet_in_fixed)
+    run_cmd.msg('MANUAL CORRECTION: move the PET (Tools > Transform Volume) and save it under the same name '
+                '(File > Save Volume); close freeview to continue', diary_name, 'WARNING')
+    FS_freeview.check_coreg(pet_in_fixed, fixed_file, imgtype, sing_fs, transform_volume=True)
+    if os.path.getmtime(pet_in_fixed) == before:
+        run_cmd.msg('INFO: the PET was not modified: registration kept', diary_name, 'OKGREEN')
+        return chain
+    edited = ants.image_read(pet_in_fixed)
+    ants.registration(fixed=edited, moving=ants.image_read(pet_mean), type_of_transform='Rigid',
+                      aff_metric='meansquares', initial_transform=[f for f, _ in chain['to']],
+                      outprefix=prefix)
+    run_cmd.msg('INFO: registration re-estimated from the manual correction', diary_name, 'OKGREEN')
+    return transfo.registration(prefix)
+
+
+def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_template, reference,
+             study_template, T_PET, ct_pet_same_space, coreg_metric, type_of_transform_template, do_manual,
+             Need_check_coreg, bids_dir, diary_name, sing_fs):
+    """
+    Registration of the session (scenario `sc`); writes and returns the registration record.
+    anat: dict of the anatomical files in AC-PC space (see _0_Pipeline_launcher.anat_files) or None.
+    packages: output of backtonative.get (or None without anatomy).
+    """
+    nl = 'Registration of the PET session ' + session + ' (scenario ' + sc + ' of pet4.svg)'
+    run_cmd.msg(nl, diary_name, 'HEADER')
+    mat_dir = paths['orig_matrices']
+    os.makedirs(mat_dir, exist_ok=True)
+    targets = {}
+
+    def pet_to_ct():
+        """PET -> CT chain (empty when they share the space)."""
+        ct_img = ct_record['reference']
+        if ct_pet_same_space:
+            return {'to': [], 'from': []}
+        return rigid_to(ct_img, session_mean, opj(mat_dir, session + '_from-pet-to-ct_'), coreg_metric)
+
+    if sc in ('1v1', '1v2a', '1v2b'):
+        if sc == '1v1':
+            acpc = transfo.check(transfo.affine(opj(anat['dir_transfo'], 'acpc_0GenericAffine.mat')))
+        elif sc == '1v2a':
+            prefix = opj(mat_dir, session + '_from-pet-to-' + T_PET + '_')
+            acpc = rigid_to(anat['acpc'], session_mean, prefix, coreg_metric, mask_file=anat['mask'])
+            if do_manual:
+                acpc = manual_correction(session_mean, anat['acpc'], acpc, prefix,
+                                         opj(paths['orig_formc'], 'pet2' + T_PET + '.nii.gz'), 'pet',
+                                         diary_name, sing_fs)
         else:
-            if not IhaveaCT:
-                ants.registration(fixed=brain, moving=Pet,
-                                  type_of_transform='Translation',
-                                  outprefix=opj(dir_prepro_orig_matrices, tmp_trans + '_'))
-                ants.registration(fixed=brain, moving=Pet, type_of_transform='Rigid',
-                                  initial_transform=opj(tmp_dir, '_'.join([tmp_trans, antsaff])),
-                                  outprefix=opj(dir_prepro_orig_matrices, '_'.join([fname, transPET, ''])))
+            if 'acpc' not in ct_record['targets']:
+                raise ValueError('IhaveanANAT and IhaveaCT: the CT record has no AC-PC target (run the CT pipeline '
+                                 'with IhaveanANAT=True)')
+            ct_acpc = ct_record['targets']['acpc']
+            acpc = transfo.compose(pet_to_ct(), {'to': ct_acpc['to'], 'from': ct_acpc['from']})
+        targets['acpc'] = dict(image=anat['acpc'], brain=anat['brain'], mask=anat['mask'], **acpc)
+        for pkg in packages or []:
+            name = pkg[0]
+            chain = transfo.compose(acpc, transfo.from_backtonative(pkg))
+            targets[name] = dict(image=pkg[1], brain=pkg[1], mask=pkg[2], **chain)
+    elif sc in ('2v1', '2v2'):
+        to_ct = pet_to_ct()
+        for name, t in ct_record['targets'].items():
+            chain = transfo.compose(to_ct, {'to': t['to'], 'from': t['from']})
+            targets[name] = dict(image=t['image'], brain=t.get('brain', t['image']), mask=t.get('mask', ''), **chain)
+    elif sc == '3v1':
+        prefix = opj(mat_dir, session + '_to_' + reference + '_')
+        ants.registration(fixed=ants.image_read(pet_template), moving=ants.image_read(session_mean),
+                          type_of_transform=type_of_transform_template, aff_metric=coreg_metric, outprefix=prefix)
+        targets[reference] = dict(image=pet_template, brain=pet_template,
+                                  mask=pet_template.replace('.nii.gz', '_mask.nii.gz')
+                                  if opi(pet_template.replace('.nii.gz', '_mask.nii.gz')) else '',
+                                  **transfo.registration(prefix))
+    elif sc == '3v2':
+        prefix = opj(mat_dir, session + '_to_studyTemplate_')
+        targets['studyTemplate'] = dict(image=study_template, brain=study_template, mask='',
+                                        **transfo.registration(prefix))
+    else:
+        raise ValueError(f'unknown scenario {sc}')
 
-                if do_manual:
-                    mPet = ants.apply_transforms(fixed=brain, moving=Pet, transformlist=[pet_to_anat], interpolator=Boldinterp)
-                    refacpc = ants.image_read(Ref_native_template)
+    for name, t in targets.items():
+        transfo.check(t)
+    record = dict(modality='pet', scenario=sc, session=session, reference=session_mean, targets=targets,
+                  created=pu.now())
+    rec_file = record_path(paths, session)
+    transfo.write_record(rec_file, record)
 
-                    T1b = []
-                    for i in range(len(orderT1)):
-                        if opi(orderT1[i]):
-                            T1b.append(orderT1[i])
-
-                    moved = ants.apply_transforms(fixed=refacpc, moving=mPet,transformlist=T1b,
-                                                  interpolator=Boldinterp)
-                    ants.image_write(moved, opj(dir_prepro_orig_matrices, 'dummy.nii.gz'))
-
-                    FS_freeview.check_coreg(opj(dir_prepro_orig_matrices, 'dummy.nii.gz'), Ref_native_template, 'acpc','', 'pet',
-                                            sing_fs)
-
-                    dummy = ants.image_read(opj(dir_prepro_orig_matrices, 'dummy.nii.gz'))
-
-                    mv = ants.apply_transforms(fixed=mPet, moving=dummy,
-                                               transformlist=[opj(dir_transfo, '_'.join([acpcname, antsaff]))],
-                                               interpolator=Boldinterp, whichtoinvert=[True])
-
-                    ants.registration(fixed=mv, moving=Pet,
-                                      type_of_transform='Translation',
-                                      outprefix=opj(dir_prepro_orig_matrices, tmp_trans + '_'))
-                    ants.registration(fixed=mv, moving=mPet,
-                                      type_of_transform='Rigid',
-                                      initial_transform=opj(dir_prepro_orig_matrices, '_'.join([tmp_trans, antsaff])),
-                                      outprefix=opj(dir_prepro_orig_matrices, '_'.join([fname, transPET, ''])))
-
-                    os.remove(opj(dir_prepro_orig_matrices, 'dummy.nii.gz'))
-
-
-            moved = ants.apply_transforms(fixed=brain, moving=Pet, transformlist=[pet_to_anat], interpolator=Boldinterp)
-            ants.image_write(moved, petanat)
-            dictionary = {"Sources": [IMG,
-                                      Ref_native_raw],
-                          "Description": 'Co-registration of the PET image with the anatomical image (Antspy).', }
-            json_object = json.dumps(dictionary, indent=2)
-            with open(petanat.replace('.nii.gz', '.json'), "w") as outfile:
-                outfile.write(json_object)
-
-            moved = ants.apply_transforms(fixed=Pet, moving=brain, transformlist=[pet_to_anat], interpolator=Boldinterp,
-                                          whichtoinvert=[True])
-            ants.image_write(moved, anat2petfile)
-            dictionary = {"Sources": [IMG,
-                                      Ref_native_raw],
-                          "Description": 'Co-registration of the anatomical image with the PET image (Antspy).', }
-            json_object = json.dumps(dictionary, indent=2)
-            with open(anat2petfile.replace('.nii.gz', '.json'), "w") as outfile:
-                outfile.write(json_object)
+    # quality control: PET in every target space, brain mask of the target as contour
+    os.makedirs(paths['qc'], exist_ok=True)
+    for name, t in targets.items():
+        pet_in = opj(paths['orig_formc'], session + '_space-' + name + '_desc-mean_pet.nii.gz')
+        transfo.apply(t['image'], session_mean, t, 'to', petinterp, out=pet_in)
+        if t.get('mask') and opi(t['mask']):
+            png = opj(paths['qc'], session + '_space-' + name + '_pet.png')
+            QC_plot.mosaic(pet_in, t['mask'], png)
+            os.makedirs(opj(bids_dir, 'QC', 'pet_in_' + ('acpc' if name == 'acpc' else 'template')), exist_ok=True)
+            shutil.copyfile(png, opj(bids_dir, 'QC', 'pet_in_' + ('acpc' if name == 'acpc' else 'template'), opb(png)))
+        if Need_check_coreg:
+            FS_freeview.check_coreg(pet_in, t['image'], 'pet', sing_fs, transform_volume=False)
+    return rec_file
 
 
-        # Atlas and masks (from template space and acpc space):
-        for old_img, tmp, file in zip([atlas_file, Ref_native_mask, Ref_native_whitemask, Ref_nativegray_mask],
-                                      ['atlas_file', 'brain_mask', 'white_mask', 'gray_mask'],
-                                      [atlas2, mask2petfile, white2petfile, gray2petfile]):
-            if opi(old_img):
-                nl = 'Transform the ' + tmp + ' image to fit the PET data'
-                run_cmd.msg(nl, diary_name, 'OKGREEN')
-
-                dummy_img = opj(dir_prepro_orig_matrices, 'tmp.nii.gz')
-                img = ants.image_read(old_img)
-
-                imd = 0
-                if img.dimension > 3:
-                    imd = 3
-
-                Tf = []
-                wf = []
-
-                if opi(pet_to_anat):
-                    Tf.append(pet_to_anat)
-                    wf.append(True)
-
-                Tf += T1
-                wf += w1
-                if old_img == atlas_file:
-                    Tf += T2
-                    wf += w2
-
-                moved = ants.apply_transforms(fixed=Pet, moving=img, transformlist=Tf, interpolator=labelinterp,
-                                              whichtoinvert=wf, imagetype=imd)
-                ants.image_write(moved, dummy_img, ri=False)
-
-                cmd = (sing_afni + '3dresample -rmode NN -overwrite -master ' + IMG +
-                       ' -prefix ' + file + ' -input ' + dummy_img)
-                run_cmd.run(cmd, diary_name)
-
-                dictionary = {"Sources": [IMG,
-                                          old_img],
-                              "Description": 'Co-registration of the ' + tmp + ' image with the PET image (Antspy).', }
-                json_object = json.dumps(dictionary, indent=2)
-                with open(file.replace('.nii.gz', '.json'), "w") as outfile:
-                    outfile.write(json_object)
-                os.remove(dummy_img)
+def record_path(paths, session):
+    return opj(paths['orig_matrices'], session + '_desc-registration_pet.json')
 
 
-            if Need_check_coreg:
-                FS_freeview.check_coreg(petanat, Ref_native_raw, 'acpc', '', 'pet', sing_fs)
+def to_pet_space(record, session, paths, anat, template_files, list_atlas, diary_name, T_PET='T1w'):
+    """
+    Atlases, masks and anatomy (or template) in the PET space of the session (orig/labels, orig/masks,
+    orig/preprocessing). Atlases: nearest-label interpolation (genericLabel); masks: linear interpolation
+    then threshold 0.5 (fraction of the PET voxel covered); 4D atlases (levels) volume by volume.
+    template_files: dict(name, atlas_dir, species, mask, gray, white, csf) used without anatomy.
+    Returns dict(atlases={name: file}, masks={name: file}, anat=file).
+    """
+    nl = 'Atlases and masks into the PET space'
+    run_cmd.msg(nl, diary_name, 'OKGREEN')
+    for d in (paths['orig_labels'], paths['orig_masks'], paths['orig_process']):
+        os.makedirs(d, exist_ok=True)
+    ref = record['reference']
+    out = dict(atlases={}, masks={}, anat='')
+    if 'acpc' in record['targets'] and anat:
+        t = record['targets']['acpc']
+        atlas_src = {a: opj(anat['labels_dir'], anat['ID'] + '_seg-' + a + '_dseg.nii.gz') for a in list_atlas}
+        mask_src = dict(brain=anat['mask'], gray=anat['gray'], white=anat['white'], csf=anat['csf'])
+        anat_src, anat_out = anat['acpc'], pu.out_name(paths['orig_process'], session, space='orig', suffix=T_PET)
+    elif template_files and template_files['name'] in record['targets'] and template_files.get('atlas_dir'):
+        t = record['targets'][template_files['name']]
+        atlas_src = {a: opj(template_files['atlas_dir'], template_files['species'] + '_seg-' + a + '_dseg.nii.gz')
+                     for a in list_atlas}
+        mask_src = {k: template_files.get(k, '') for k in ('brain', 'gray', 'white', 'csf')}
+        anat_src = t['image']
+        anat_out = pu.out_name(paths['orig_process'], session, space='orig', desc='template', suffix=T_PET)
+    else:
+        run_cmd.msg('WARNING: no atlas for this scenario (' + record['scenario'] + '): the regional analysis, the '
+                    'brain ratio and the reference-region models need an atlas or masks', diary_name, 'WARNING')
+        return out
 
-
-
-            new_dir = [dir_prepro_acpc,dir_prepro_acpc_process,dir_prepro_acpc_label,dir_prepro_acpc_masks,dir_prepro_template, dir_prepro_template_labels, dir_prepro_template_masks,
-         dir_prepro_template_process]
-            for dir in new_dir:
-                os.makedirs(dir, exist_ok=True)
-
-            # acpc space
-            acpc_image = ants.image_read(Ref_native_template)
-            # pet image
-            Tf = T1
-            if opi(pet_to_anat):
-                Tf.append(pet_to_anat)
-            moved_ref = ants.apply_transforms(fixed=acpc_image, moving=Pet, transformlist=Tf, interpolator='Linear')
-            ants.image_write(moved_ref, petacpc)
-            dictionary = {"Sources": [IMG,
-                                      Ref_native_template],
-                          "Description": 'Co-registration of the PET image with the anatomical image (Antspy).', }
-            json_object = json.dumps(dictionary, indent=2)
-            with open(petacpc.replace('.nii.gz', '.json'), "w") as outfile:
-                outfile.write(json_object)
-
-            if full_IMG:
-                full_Pet = ants.image_read(full_IMG)
-                moved = ants.apply_transforms(fixed=acpc_image, moving= full_Pet, transformlist=Tf, interpolator='Linear',imagetype=3)
-                ants.image_write(moved, full_petacpc)
-                dictionary = {"Sources": [full_IMG,
-                                          Ref_native_template],
-                              "Description": 'Co-registration of the PET image with the anatomical image (Antspy).', }
-                json_object = json.dumps(dictionary, indent=2)
-                with open(full_petacpc.replace('.nii.gz', '.json'), "w") as outfile:
-                    outfile.write(json_object)
-
-            # labelled images
-            atlas_ref = ants.image_read(atlas_file)
-            moved_atlas = ants.apply_transforms(fixed=moved_ref, moving=atlas_ref , transformlist=T2, interpolator=labelinterp)
-            ants.image_write(moved_atlas, atlas_acpc)
-            dictionary = {"Sources": [petacpc,
-                                      atlas_file],
-                          "Description": 'Co-registration of the atlas image with the pet image (Antspy).', }
-            json_object = json.dumps(dictionary, indent=2)
-            with open(atlas_acpc.replace('.nii.gz', '.json'), "w") as outfile:
-                outfile.write(json_object)
-
-
-            for img, file in zip([Ref_native_mask,Ref_native_whitemask,Ref_nativegray_mask],
-                                 [mask2petfile_acpc, white2petfile_acpc,
-                                  gray2petfile_acpc]):
-                cmd = (sing_afni + '3dresample -overwrite -master ' + petacpc + ' -rmode NN ' +
-                       ' -prefix ' + file + ' -input ' + img)
-                run_cmd.run(cmd, diary_name)
-
-                dictionary = {"Sources": [petacpc,
-                                          img],
-                              "Description": 'Resampled to pet image (3dresample (AFNI)).', }
-                json_object = json.dumps(dictionary, indent=2)
-                with open(file.replace('.nii.gz', '.json'), "w") as outfile:
-                    outfile.write(json_object)
-
-
-
-            # template space
-            T_image = ants.image_read(BASE_template)
-            # pet image
-            Tf = T2 + T1
-            if opi(pet_to_anat):
-                Tf.append(pet_to_anat)
-            
-            moved = ants.apply_transforms(fixed=T_image, moving=Pet, transformlist=Tf, interpolator='Linear')
-            ants.image_write(moved, pet_template)
-            dictionary = {"Sources": [IMG,
-                                      BASE_template],
-                          "Description": 'Co-registration of the PET image with the anatomical image (Antspy).', }
-            json_object = json.dumps(dictionary, indent=2)
-            with open(pet_template.replace('.nii.gz', '.json'), "w") as outfile:
-                outfile.write(json_object)
-            if full_IMG:
-                full_Pet = ants.image_read(full_IMG)
-                moved = ants.apply_transforms(fixed=T_image, moving= full_Pet, transformlist=Tf, interpolator='Linear',imagetype=3)
-                ants.image_write(moved, full_pet_template)
-                dictionary = {"Sources": [full_IMG,
-                                          BASE_template],
-                              "Description": 'Co-registration of the PET image with the anatomical image (Antspy).', }
-                json_object = json.dumps(dictionary, indent=2)
-                with open(pet_template.replace('.nii.gz', '.json'), "w") as outfile:
-                    outfile.write(json_object)
-
-
-            # labelled images
-            for img, file in zip([atlas_file,BASE_mask, BASE_Gmask, BASE_Wmask],
-                                 [atlas_template,mask2petfile_template,white2petfile_template,gray2petfile_template]):
-                cmd = (sing_afni + '3dresample -overwrite -master ' + pet_template + ' -rmode NN ' +
-                       ' -prefix ' + file + ' -input ' + img)
-                run_cmd.run(cmd, diary_name)
-
-                dictionary = {"Sources": [pet_template,
-                                          img],
-                              "Description": 'Resampled to pet image (3dresample (AFNI)).', }
-                json_object = json.dumps(dictionary, indent=2)
-                with open(file.replace('.nii.gz', '.json'), "w") as outfile:
-                    outfile.write(json_object)
-
-
-        else:
-            print('Sorry not ready yet....')
-
-
-
-
+    for name, src in atlas_src.items():
+        if not opi(src):
+            run_cmd.msg('WARNING: atlas not found: ' + src, diary_name, 'WARNING')
+            continue
+        dst = opj(paths['orig_labels'], session + '_space-orig_seg-' + name + '_dseg.nii.gz')
+        transfo.apply(ref, src, t, 'from', labelinterp, out=dst)
+        pu.write_json(dst, [src, ref], 'Atlas in the PET space (genericLabel interpolation).')
+        out['atlases'][name] = dst
+    for name, src in mask_src.items():
+        if not src or not opi(src):
+            run_cmd.msg(f'WARNING: {name} mask not found: {src}', diary_name, 'WARNING')
+            continue
+        dst = opj(paths['orig_masks'], session + '_space-orig' + ('' if name == 'brain' else '_desc-' + name)
+                  + '_mask.nii.gz')
+        m = transfo.apply(ref, src, t, 'from', 'linear')
+        ants.image_write(ants.threshold_image(m, 0.5, 1e9, 1, 0), dst, ri=False)
+        pu.write_json(dst, [src, ref], 'Mask in the PET space (linear interpolation, threshold 0.5).')
+        out['masks'][name] = dst
+    if anat_src and opi(anat_src):
+        transfo.apply(ref, anat_src, t, 'from', anatinterp, out=anat_out)
+        pu.write_json(anat_out, [anat_src, ref], 'Anatomical image in the PET space (visualisation).')
+        out['anat'] = anat_out
+    return out

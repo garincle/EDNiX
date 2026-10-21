@@ -1,9 +1,8 @@
-#import
+"""
+Block 1 of the PET pipeline for one subject / session (step 1):
+frame timing, mean image and SIF of every raw run (pet/raw), then reorientation (pet/orig/preprocessing).
+"""
 import os
-import glob
-from os.path import samefile
-
-import ants
 import json
 
 opj = os.path.join
@@ -12,73 +11,74 @@ opd = os.path.dirname
 ope = os.path.exists
 opi = os.path.isfile
 
-from Tools import run_cmd,getpath
-from modalities.pet import reorient
+from Tools import run_cmd
+from modalities.pet import petutils as pu
+from modalities.pet import reorient, sifFile
 
-def save_json(jsonfile,FS,FT,FD):
-  with open(jsonfile, "w", encoding="utf-8") as f:
-    json.dump({
-            "FrameTimesStart": FS,
-            "FrameReferenceTime": FT,
-            "FrameDuration": FD,
-        }, f, indent=4)
 
-def run(ID,tracor,data_path, reference,humanPosition,animalPosition, anatraw, Need_check_orient, IhaveCT,ref_CT, ct_pet_same_space,pethd,IhaveAnat,anat_pet_same_space,Skip_step,diary_file,sing_afni, sing_fs):
+def position(pos, i):
+    """Position of run i: launcher lists ([''] or one value per run) or a string."""
+    if isinstance(pos, (list, tuple)):
+        if not pos:
+            return ''
+        return pos[i] if i < len(pos) else pos[0]
+    return pos or ''
 
-    (dir_prepro_raw, dir_prepro_raw_process, _, _, path_pet,
-     dir_prepro_orig, _, _,dir_prepro_orig_process, _,
-     _, _, _, _, _, _, _, _,_, _, _, _) = getpath.pet(data_path, reference)
 
-    list_img = sorted(glob.glob(opj(dir_prepro_raw, ID + '_trc-' + tracor + '*_pet.nii.gz')))
-    print(opj(dir_prepro_raw, ID + '_trc-' + tracor + '*_pet.nii.gz'))
-    print(list_img)
-    # mean image
+def timing_file(paths, raw_img):
+    return pu.out_name(paths['raw'], pu.base_name(raw_img), desc='frametiming', ext='.json')
 
-    os.makedirs(path_pet,exist_ok=True)
-    os.makedirs(dir_prepro_raw_process,exist_ok=True)
-    os.makedirs(dir_prepro_orig, exist_ok=True)
 
-    for img in list_img:
-        imghd = ants.image_header_info(img)
-        if imghd['nDimensions'] == 4:
-            mean_img = opj(dir_prepro_raw_process,opb(img.replace('_pet.nii.gz','_desc-mean_pet.nii.gz')))
-            if not opi(mean_img):
-                cmd = (sing_afni + '3dTstat -mean -prefix ' + mean_img + ' ' + img)
-                run_cmd.run(cmd, diary_file)
-                dictionary = {"Sources": img,
-                              "Description": 'mean image (3dTstat from AFNI).', }
-                json_object = json.dumps(dictionary, indent=2)
-                with open(mean_img.replace('.nii.gz', '.json'), "w") as outfile:
-                    outfile.write(json_object)
+def sif_file(paths, raw_img):
+    return opj(paths['raw'], pu.strip_ext(raw_img) + '.sif')
 
-            jsonfile = img.replace('.nii.gz', '.json')
-            if opi(jsonfile):
-                f = open(jsonfile)
-                info_pet = json.load(f)
-            if "FrameTimesStart" in info_pet and "FrameReferenceTime" in info_pet and "FrameDuration" in info_pet:
-                timejson = opj(dir_prepro_orig, img.replace('_pet.nii.gz', '_desc-frametiming_pet.json'))
-                if not opi(timejson):
-                    save_json(timejson, info_pet["FrameTimesStart"], info_pet["FrameReferenceTime"],
-                              info_pet["FrameDuration"])
 
-    if 1 in Skip_step:
-        run_cmd.msg('INFO: skip step ' + str(1), diary_file, 'OKGREEN')
-    else:
-        for img in list_img:
-            jsonfile= img.replace('.nii.gz', '.json')
-            if opi(jsonfile):
-                f = open(jsonfile)
-                info_pet = json.load(f)
-                if humanPosition =='unknown':
-                    if "PatientPosition" in info_pet:
-                        humanPosition = info_pet["PatientPosition"]
+def run(list_img, paths, humanPosition, animalPosition, orientation, check_ref, header_ref, Need_check_orient,
+        PET_header_wrong, deoblique, isotope, srtm, dcm, Skip_step, diary_file, sing_afni, sing_fs, sing_turku):
+    """
+    list_img: raw PET runs of the session. check_ref: image shown under the PET for the orientation check;
+    header_ref: raw image used when PET_header_wrong=True; dcm: (folder, extension) of the DICOM files.
+    Returns the reoriented images (also when step 1 is skipped, if they exist).
+    """
+    for d in (paths['path'], paths['raw'], paths['orig'], paths['orig_process']):
+        os.makedirs(d, exist_ok=True)
+    reoriented = []
+    for i, img in enumerate(list_img):
+        info = pu.raw_sidecar(img)
+        nfr = pu.n_frames(img)
+        timing = pu.frame_timing(info, nfr)
+        out = pu.out_name(paths['orig_process'], pu.base_name(img), desc='reorient')
+        reoriented.append(out)
+        if 1 in Skip_step:
+            continue
+        run_cmd.msg('INFO: ' + opb(img) + f': {nfr} frame(s)', diary_file, 'OKGREEN')
 
-                if not pethd :
-                    # you know that the reconstruction used a wrong header format
-                    if IhaveAnat and anat_pet_same_space :
-                        REF_image = anatraw
-                    else:
-                        if IhaveCT and ct_pet_same_space:
-                            REF_image = ref_CT
-                        reorient.doit(dir_prepro_orig_process, img,humanPosition,animalPosition, REF_image, Need_check_orient, True,
-                              diary_file, sing_afni, sing_fs)
+        # frame timing (pet2b: raw/<name>_desc-frametiming_pet.json)
+        if timing is not None:
+            with open(timing_file(paths, img), 'w') as f:
+                json.dump(pu.timing_to_json(timing), f, indent=2)
+
+        # mean image of the raw run
+        if nfr > 1:
+            pu.write_mean(img, pu.out_name(paths['raw'], pu.base_name(img), desc='mean'), timing, None,
+                          'Duration-weighted mean of the raw frames.')
+
+        # SIF (frame times and counts, Turku tools), only for the kinetic models
+        sif = ''
+        if srtm and nfr > 1:
+            dcm_iso, dcm_start = sifFile.dicom_info(*dcm) if dcm and dcm[0] else (None, None)
+            if dcm_iso and isotope != dcm_iso:
+                run_cmd.msg(f'WARNING: isotope {isotope} (launcher / sidecar) but {dcm_iso} in the DICOM half-life',
+                            diary_file, 'WARNING')
+            sif = sifFile.create(img, sif_file(paths, img), info, timing, isotope, diary_file, sing_turku,
+                                 dicom_start=dcm_start)
+
+        hp = position(humanPosition, i) or info.get('PatientPosition', '')
+        ap = position(animalPosition, i)
+        if not reorient.no_reorientation(ap) and not hp and not orientation:
+            raise ValueError(f'{opb(img)}: animalPosition={ap!r} needs the scanner position (humanPosition or '
+                             'PatientPosition in the sidecar), or give the orientation code')
+        reorient.doit(paths['orig_process'], img, hp, ap, orientation, check_ref, Need_check_orient,
+                      PET_header_wrong, timing, diary_file, sing_afni, sing_fs, suffix='pet', deoblique=deoblique,
+                      sif=sif, header_ref=header_ref)
+    return reoriented
