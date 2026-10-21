@@ -376,7 +376,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
             json.dump(settings, f, indent=2, default=str)
 
         if 1 not in Skip_step:
-            run_cmd.msg('##  Working on step 1 (PET pipeline).  ##', diary_file, 'HEADER')
+            run_cmd.msg(pu.step_header(1), diary_file, 'HEADER')
         reoriented = loop1.run(raw_list, paths, humanPosition, animalPosition, orientation, check_ref, header_ref,
                                Need_check_orient, PET_header_wrong, deoblique, iso, srtm, (dcmfolder, endfiledcm),
                                Skip_step, diary_file, sing_afni, sing_fs, sing_turku)
@@ -393,7 +393,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         if 2 in Skip_step:
             run_cmd.msg('INFO: skip step 2', study_diary, 'OKGREEN')
         else:
-            run_cmd.msg('##  Working on step 2 (PET pipeline).  ##', study_diary, 'HEADER')
+            run_cmd.msg(pu.step_header(2), study_diary, 'HEADER')
             items = []
             for s in sessions:
                 first = s['reoriented'][0]
@@ -403,7 +403,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         if 3 in Skip_step or crop_for_MoCo == 'none':
             run_cmd.msg('INFO: skip step 3', study_diary, 'OKGREEN')
         else:
-            run_cmd.msg('##  Working on step 3 (PET pipeline).  ##', study_diary, 'HEADER')
+            run_cmd.msg(pu.step_header(3), study_diary, 'HEADER')
             studyT.manual_crop(study_template, study_diary, sing_fs, redo=redo_crop)
     study_crop = studyT.crop_name(study_template) if opi(studyT.crop_name(study_template)) else ''
 

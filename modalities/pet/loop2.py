@@ -23,7 +23,7 @@ def _skip(step, Skip_step, diary_file):
     if step in Skip_step:
         run_cmd.msg('INFO: skip step ' + str(step), diary_file, 'OKGREEN')
         return True
-    run_cmd.msg('##  Working on step ' + str(step) + ' (PET pipeline).  ##', diary_file, 'HEADER')
+    run_cmd.msg(pu.step_header(step), diary_file, 'HEADER')
     return False
 
 

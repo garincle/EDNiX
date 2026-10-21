@@ -414,10 +414,13 @@ def suv_scale(pet_info, values, isotope):
     information the image is assumed decay-corrected to the injection time. Returns (f, report) or
     (None, reason).
     """
+    unit = pet_info.get('Units')
+    if str(unit).replace(' ', '').lower() in ('suv', 'g/ml', 'suvbw'):
+        # image distributed in SUV (e.g. CERMEP-IDB-MRXFDG): nothing to scale
+        return 1.0, {'image_units': unit, 'factor': 1.0, 'assumption': 'image already in SUV units (sidecar Units)'}
     w, d = values.get('weight_kg'), values.get('dose_MBq')
     if w is None or d is None:
         return None, 'body weight or injected radioactivity unknown: SUV not computed'
-    unit = pet_info.get('Units')
     k = concentration_to_bq_per_ml(unit)
     report = {'weight_kg': w, 'dose_MBq': d, 'image_units': unit}
     if k is None:
@@ -470,6 +473,17 @@ def rigid_parameters(mat_file, radius_mm):
     pts = radius_mm * np.stack([r * np.cos(golden * k), r * np.sin(golden * k), z], axis=1)
     disp = np.linalg.norm(pts @ R.T + t - pts, axis=1).mean()
     return t, np.array([rx, ry, rz]), float(disp)
+
+
+STEP_NAMES = {'pet': {1: 'pet_reorient', 2: 'pet_study_template', 3: 'pet_crop', 4: 'pet_MoCo_within',
+                      5: 'pet_MoCo_between', 6: 'pet_coreg2anat', 7: 'pet_parametric_images', 8: 'pet_kinetic_models',
+                      'pvc': 'pet_pvc', 9: 'pet_during_fmri', 10: 'pet_norm2template'},
+              'ct': {1: 'ct_reorient', 2: 'ct_study_template', 3: 'ct_coreg2anat'}}
+
+
+def step_header(step, modality='pet'):
+    """Step banner, in the format the interface reads ('Working on step N (function: X)')."""
+    return f'##  Working on step {step} (function: {STEP_NAMES[modality][step]}).  ##'
 
 
 def now():

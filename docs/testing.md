@@ -14,6 +14,7 @@ pytest -n auto
 - registration parameters of each step;
 - functional preprocessing: normalisation, atlas erosion, one-shot resampling of motion, distortion correction (sign detection, field direction, order of the transforms, choice of the field per run);
 - statistics: random-intercept maximum likelihood against statsmodels, type-I error of the longitudinal age test, cluster extent, component matching, phylogenetic covariance;
+- PET and CT (`test_pet.py`, on an analytic head phantom with AFNI and the Turku tools emulated): isotopes, units, SUV and decay, frame windows and time blocks, DFT files and reference TAC, motion correction (recovered motion), PET -> anatomy registration (pose recovered within half a PET voxel), composition of the transform chains, and runs of `preprocess_pet` / `preprocess_ct` in the scenarios 1v1, 1v2a, 1v2b, 2v1, 3v1 and 3v2;
 - launchers: every example launcher only uses parameters known to its pipeline, and the interface rewrites launchers without changing them;
 - interface: label tables, quality-control files, run progress.
 

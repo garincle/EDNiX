@@ -40,6 +40,7 @@ def test_suv_factor_and_decay_reference():
     f2, _ = pu.suv_scale(info2, dict(weight_kg=10.0, dose_MBq=100.0), 'F-18')
     assert f2 == pytest.approx(f * math.exp(math.log(2) * 600 / pu.HALF_LIFE_S['F-18']))
     assert pu.suv_scale(info, dict(weight_kg=None, dose_MBq=100.0), 'F-18')[0] is None
+    assert pu.suv_scale(dict(Units='SUV'), dict(weight_kg=None, dose_MBq=None), 'F-18')[0] == 1.0
 
 
 def test_decay_correction_of_frames_restores_a_constant_activity():

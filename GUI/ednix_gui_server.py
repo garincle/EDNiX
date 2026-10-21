@@ -44,11 +44,11 @@ if (ATLAS_LIB / 'atlas').is_dir():
 MODELS = {}
 HTTPD = None
 DOCS = C.pipeline_docs(REPO)
-PIPE_RE = C.re.compile(r'([\w.]*)\.(preprocess_anat|preprocess_fmri|preprocess_pet|preprocess_data)\s*\(')
+PIPE_RE = C.re.compile(r'([\w.]*)\.(preprocess_anat|preprocess_fmri|preprocess_pet|preprocess_ct|preprocess_data)\s*\(')
 
 
 def pipeline_of(path):
-    """anat / func / pet from the pipeline function the launcher calls, else from its folder name."""
+    """anat / func / pet / ct from the pipeline function the launcher calls, else from its folder name."""
     try:
         m = PIPE_RE.search(Path(path).read_text(encoding='utf-8', errors='replace'))
     except OSError:
@@ -57,9 +57,10 @@ def pipeline_of(path):
         fn, mod = m.group(2), m.group(1)
         if fn == 'preprocess_data':
             return 'pet' if 'pet' in mod else 'other'
-        return {'preprocess_anat': 'anat', 'preprocess_fmri': 'func', 'preprocess_pet': 'pet'}[fn]
+        return {'preprocess_anat': 'anat', 'preprocess_fmri': 'func', 'preprocess_pet': 'pet',
+                'preprocess_ct': 'ct'}[fn]
     folder = Path(path).parent.name.lower()
-    for key, pipe in (('anat', 'anat'), ('func', 'func'), ('pet', 'pet')):
+    for key, pipe in (('anat', 'anat'), ('func', 'func'), ('pet', 'pet'), ('ct', 'ct')):
         if key in folder:
             return pipe
     return 'other'

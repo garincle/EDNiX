@@ -12,12 +12,15 @@
 | `check_mask_fMRI` | functional brain mask |
 | `mask_to_fMRI_orig`, `meanIMG_in_anat` | functional-anatomical registration |
 | `fMRI_MEAN_in_REF_FUNC_ACPC` | functional mean in AC-PC space |
+| `pet_in_acpc`, `pet_in_template` | PET session mean in AC-PC / template space, brain mask of that space as contour |
+| `ct_in_acpc`, `ct_in_template` | CT in AC-PC / template space |
 
 **Metrics**
 
 - Anatomy (step 16, `_16_anat_QC_SNR`): tissue signal-to-noise ratio (mean / standard deviation within a tissue), grey-white contrast-to-noise ratio, coefficient of joint variation, smoothness, per atlas region and hemisphere.
 - Functional (step 12, `_12_fMRI_QC`): framewise displacement (Jenkinson, with the brain radius of the subject), fraction of censored volumes, DVARS, outlier counts, grey- and white-matter SNR, contrast, ghost ratio, global correlation, smoothness, and the agreement of the functional and anatomical images after registration (correlation, mutual information, Jaccard index of the masks).
 - Connectivity (step 13, `_14_fMRI_QC_matrix`): specificity category of each run (Grandjean et al., 2020).
+- PET: motion of every frame (`pet/orig/preprocessing/forMC/*_motion.tsv`, `.png`: translations, rotations, mean displacement of a sphere of the radius of the head), time-activity curves and kinetic fits (`pet/orig/postprocessing/ROI_analysis/pictures`), and the subject values used by the SUV with their source (`pet/Prepro_Settings.json`).
 
 **Visual checks** in ITK-SNAP (`itk_1`, `itk_2`, `itk_3` steps): masks, registrations and atlases overlaid on the images, with the possibility to correct masks by hand ([skullstripping.md](skullstripping.md)).
 

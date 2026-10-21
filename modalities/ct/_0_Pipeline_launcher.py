@@ -162,7 +162,7 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
         if 1 in Skip_step:
             run_cmd.msg('INFO: skip step 1', diary_file, 'OKGREEN')
         else:
-            run_cmd.msg('##  Working on step 1 (CT pipeline).  ##', diary_file, 'HEADER')
+            run_cmd.msg(pu.step_header(1, 'ct'), diary_file, 'HEADER')
             info = pu.raw_sidecar(raw)
             hp = (humanPosition[0] if isinstance(humanPosition, (list, tuple)) and humanPosition else humanPosition) \
                 or info.get('PatientPosition', '')
@@ -180,6 +180,7 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
         if 2 in Skip_step:
             run_cmd.msg('INFO: skip step 2', sdiary, 'OKGREEN')
         else:
+            run_cmd.msg(pu.step_header(2, 'ct'), sdiary, 'HEADER')
             studyT.make_template(study_dir, [(s['ct'], s['paths']['orig_matrices'], s['base']) for s in sessions], '',
                                  studyT_transform, sdiary, suffix='ct')
 
@@ -188,7 +189,7 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
         if 3 in Skip_step:
             run_cmd.msg('INFO: skip step 3', s['diary'], 'OKGREEN')
             continue
-        run_cmd.msg('##  Working on step 3 (CT pipeline).  ##', s['diary'], 'HEADER')
+        run_cmd.msg(pu.step_header(3, 'ct'), s['diary'], 'HEADER')
         packages = None
         if s['anat']:
             packages = backtonative.get(s['ID'], s['anat_path'], bids_dir, s['anat_ses'], s['max_ses'],

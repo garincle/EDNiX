@@ -578,8 +578,8 @@ function endQuiz() {
 }
 
 // ================================================================== launchers (one state per pipeline)
-const PIPE_NAMES = { anat: 'Anatomical pipeline', func: 'Functional pipeline', pet: 'PET pipeline' };
-const PIPES = { anat: newPipeState(), func: newPipeState(), pet: newPipeState() };
+const PIPE_NAMES = { anat: 'Anatomical pipeline', func: 'Functional pipeline', pet: 'PET pipeline', ct: 'CT pipeline (for the PET)' };
+const PIPES = { anat: newPipeState(), func: newPipeState(), pet: newPipeState(), ct: newPipeState() };
 function newPipeState() { return { model: null, values: {}, original: {}, saved: null, out: '', path: '' }; }
 function switchPipe(p) {
   if (PIPES[currentPipe]) { PIPES[currentPipe].out = $('out-path').value; PIPES[currentPipe].path = $('launcher-path').value; }
@@ -599,7 +599,8 @@ async function openLauncher() {
   let model;
   try { model = await api(`/api/launcher?path=${encodeURIComponent(path)}`); }
   catch (e) { msg([['bad', `Could not open this launcher: ${e.message}`]]); return; }
-  const expect = { anat: ['preprocess_anat'], func: ['preprocess_fmri'], pet: ['preprocess_pet', 'preprocess_data'] }[currentPipe];
+  const expect = { anat: ['preprocess_anat'], func: ['preprocess_fmri'], pet: ['preprocess_pet', 'preprocess_data'],
+                   ct: ['preprocess_ct'] }[currentPipe];
   Object.assign(S, { model, values: {}, original: {}, saved: null });
   for (const f of model.fields) { S.values[f.key] = f.value; S.original[f.key] = f.value; }
   $('out-path').value = path.replace(/\.py$/, '_custom.py');

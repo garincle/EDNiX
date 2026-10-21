@@ -9,7 +9,7 @@ import ednix_gui_core as G  # noqa: E402
 LAUNCHERS = sorted((REPO / 'Exemples' / 'Study_EDNiX').glob('Launcher_*/*.py'))
 
 
-@pytest.mark.parametrize('launcher', [p for p in LAUNCHERS if 'Launcher_pet' not in str(p)], ids=lambda p: p.name)
+@pytest.mark.parametrize('launcher', LAUNCHERS, ids=lambda p: p.name)
 def test_example_launchers_only_use_known_parameters(launcher):
     # preprocess_* accept **kwargs: a misspelled parameter would be silently ignored
     assert G.LauncherModel.check_calls(launcher.read_text(encoding='utf-8'), REPO) == []
@@ -34,6 +34,18 @@ def test_label_file_formats(tmp_path):
 def test_pipeline_docstrings_document_most_parameters():
     docs = G.pipeline_docs(REPO)
     assert len(docs.get('preprocess_fmri', {})) > 50 and len(docs.get('preprocess_anat', {})) > 25
+
+
+def test_pet_and_ct_entry_points_are_documented_and_have_steps():
+    import ast
+    docs = G.pipeline_docs(REPO)
+    for fn, mod in (('preprocess_pet', 'modalities/pet/_0_Pipeline_launcher.py'),
+                    ('preprocess_ct', 'modalities/ct/_0_Pipeline_launcher.py')):
+        node = next(n for n in ast.parse((REPO / mod).read_text()).body if isinstance(n, ast.FunctionDef) and n.name == fn)
+        params = [a.arg for a in node.args.args]
+        missing = [p for p in params if p not in docs[fn] and p not in G.CURATED]
+        assert not missing, (fn, missing)
+        assert G.STEPS[fn]
 
 
 def test_qc_scan_table_and_path_safety(tmp_path):

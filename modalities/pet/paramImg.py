@@ -4,11 +4,11 @@ skull-stripped versions. numpy / nibabel; every image keeps the geometry of its 
 
 SUV (body weight)   = C (Bq/mL) x body weight (g) / injected radioactivity (Bq), with C decay-corrected
                       to the injection time (or the dose decayed to the decay-correction time); 1 g/mL
-                      (Boellaard et al. 2009, 2015; Kinahan & Fletcher 2010). The PET engineer's ratio
+                      (Boellaard 2009; Boellaard et al. 2015; Kinahan & Fletcher 2010). The PET engineer's ratio
                       (MBq / kg x 1000) is the same quantity when C is in Bq/mL; the image units are now
                       read from the sidecar.
-SUVglu              = SUV x glucose / 5.0 mmol/L (EANM; the engineer multiplied by the glycaemia in g/L
-                      without reference value).
+SUVglu              = SUV x glucose / 5.0 mmol/L (reference glycaemia; 100 mg/dL = 5.55 mmol/L in other
+                      protocols). The engineer multiplied by the glycaemia in g/L without reference value.
 bratio              = C / mean of C over the brain mask (global normalisation, dimensionless). The
                       engineer's mean included the zeros outside the brain in the time blocks.
 """

@@ -1,69 +1,62 @@
 import os
 import sys
-import Tools.Read_atlas
-#import pet._0_Pipeline_launcher
 from Tools import Load_subject_with_BIDS, load_bids
+from modalities.pet import _0_Pipeline_launcher
 opn = os.path.normpath
 opj = os.path.join
 
 MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
 
-species    = 'Macaque'
-# Override os.path.join to always return Linux-style paths
+######################################################################################################################
+# CERMEP-IDB-MRXFDG (Merida et al. 2021, EJNMMI Res 11:91): [18F]FDG PET/CT (Biograph mCT64, one 10-min frame 50 min
+# after injection), T1w MPRAGE (1.5 T) processed by Launcher_anat_Human_CERMEP.py.
+# Scenario 1v2a (default): rigid PET -> T1w registration. The NIfTI version of the database is already coregistered
+# to the PET by the authors (SPM12): anat_pet_same_space = True (scenario 1v1) is then exact; 1v2a works in both
+# cases. Through the CT (scenario 1v2b): run ../Launcher_ct/Launcher_ct_CERMEP.py first, then set IhaveaCT = True.
+######################################################################################################################
+species = 'Human'
 bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Human/BIDS_Merida/'))
-allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['pet'], suffixes= ['pet'], extensions=['.nii.gz'])
+allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['pet'], suffixes=['pet'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
-Tools.Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
-# choose if you want to select or remove ID from you analysis
+Load_subject_with_BIDS.print_included_tuples(allinfo_study_c)
 list_to_keep = []
 list_to_remove = []
-all_ID, all_Session, all_data_path, all_ID_max, all_Session_max, all_data_path_max = Tools.Load_subject_with_BIDS.load_data_bids(allinfo_study_c, bids_dir, list_to_keep, list_to_remove)
 
-endpet = '*pet.nii.gz' # string
-endjson = '*pet.json' # string
+### PET images
+endpet = '*pet.nii.gz'
+tracer = 'FDG'
+isotope = 'F-18'
 
-humanPosition     = ['']
-orientation       = 'RPS' # "LPI" or ''
-animalPosition    = [''] # valid only for species smaller than humans
-## prior anat processing
-coregistration_longitudinal = False #True or False
-type_norm = 'T1w' # T1 or T2
-### co-registration func to anat to template to with T1 ? T2? use the correct  suffix as in the BIDS
-T_PET = 'T1w' # string
-### if you don't have any anat image you will need to put several image in the folderforTemplate_Anat (refer to the doc)
-Method_mask_pet = '3dSkullStrip_monkeynodil' # string 3dAllineate or nilearn or creat a manual mask in the funcsapce folder name "manual_mask.nii.gz"
-#### ANTs function of the co-registration HammingWindowedSinc is advised
-IhaveanANAT = True # True or False
-anat_pet_same_space = False # True or False
-type_of_transform = 'BOLDAffine'
-aff_metric_ants_Transl = 'mattes' # string
-aff_metric_ants = 'mattes'
-do_pet_to_func = True # True or False
+### orientation (humans: nothing to change)
+humanPosition = ['humanlike']
+animalPosition = ['humanlike']
+orientation = ''
 
-##### if you don't have an anat then template will be the same as anat...
-#creat_study_template was created with the anat type_norm img, and you want to use it as standart space
-creat_study_template = False # True or Fals
-blur = 0# float
-#Dilate the functional brain mask by n layers
-dilate_mask = 5 # int
+### anatomy (same values as in Launcher_anat_Human_CERMEP.py)
+type_norm = 'T1w'
+T_PET = 'T1w'
+creat_study_template = False
+coregistration_longitudinal = True
+IhaveanANAT = True
+anat_pet_same_space = False       # True with the NIfTI set coregistered to the PET (scenario 1v1)
+IhaveaCT = False                  # True after the CT pipeline (scenario 1v2b)
+ct_pet_same_space = True          # PET/CT scanner
 
-############ Right in a list format the steps that you want to skip
-doWARPonfunc = 'header'
+### parametric images (static acquisition: no motion correction, no kinetic model)
+SUV = True                        # images in Bq/mL: needs InjectedRadioactivity and body_weight; images in SUV: kept
+bratio = True
 
-Skip_step = ['itk_1', 'itk_2', 'Clean']
-pet._0_Pipeline_launcher.preprocess_data(
-                    Skip_step, MAIN_PATH, bids_dir,
-                    species, allinfo_study_c, endfmri, endjson,
-                    animalPosition, humanPosition, orientation,
-                    T_PET, type_norm, creat_study_template,
-                    anat_pet_same_space, coregistration_longitudinal,
-                    Method_mask_pet, do_pet_to_func, folderforTemplate_Anat='', IhaveanANAT=True,
-                    overwrite_option=True,
-                    doWARPonfunc=doWARPonfunc, registration_fast=False, type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
-                    list_to_keep=list_to_keep, list_to_remove=list_to_remove, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
-                    reference='EDNiX', use_erode_WM_func_masks = True, use_erode_V_func_masks=True,
-                    blur=0,
-                    selected_atlases_matrix='all', wanted_level_matrix='all',
-                    selected_atlases_SBA='default', panda_files_SBA='default')
+Skip_step = ['pvc', 8, 9]
+_0_Pipeline_launcher.preprocess_pet(
+    Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endpet, tracer,
+    animalPosition, humanPosition, orientation,
+    T_PET, type_norm, creat_study_template, coregistration_longitudinal,
+    IhaveanANAT=IhaveanANAT, anat_pet_same_space=anat_pet_same_space,
+    IhaveaCT=IhaveaCT, ct_pet_same_space=ct_pet_same_space,
+    isotope=isotope, SUV=SUV, bratio=bratio,
+    export_resolution='pet', selected_atlases='all',
+    atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
+    reference='EDNiX', list_to_keep=list_to_keep, list_to_remove=list_to_remove,
+    Need_check_orient=False, Need_check_coreg=False)

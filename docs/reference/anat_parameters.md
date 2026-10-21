@@ -21,6 +21,7 @@ Identifiers accepted by `Skip_step`: the listed steps are skipped.
 | `11` | FreeSurfer white surface |
 | `12` | FreeSurfer pial surface |
 | `flat_map` | Flat maps |
+| `fs_extras` | FreeSurfer parcellations Destrieux / DKT and FreeSurfer statistics (humans only; not used by EDNiX) |
 | `14` | Atlases projected on the surfaces |
 | `15` | FreeSurfer to Workbench conversion |
 | `16` | Anatomical quality control (SNR, CNR...) |
@@ -64,4 +65,4 @@ Identifiers accepted by `Skip_step`: the listed steps are skipped.
 | `check_visualy_each_img` | `False` | Open QC viewer for each anatomical image |
 | `overwrite_option` | `True` | Overwrite existing files |
 | `preftool` | `'ITK'` | Preferred QC visualization tool ('ITK' or 'freeview') |
-| `doBALSAspace` | `False` | Macaque only: also build the volumetric atlas of the BALSA (Yerkes) surface parcellation in native space. |
+| `doBALSAspace` | `False` | Human, chimpanzee and macaque: also bring the subject to the BALSA template space (S1200, CY29, MY19), resample its surfaces to fs_LR, and for the macaque build the BALSA atlas in native space. |
