@@ -231,3 +231,40 @@ def pet(data_path,reference):
             dir_prepro_template_process, dir_prepro_template_postprocessed, dir_prepro_acpc_matrices, dir_prepro_orig_matrices)
 
 
+
+def  ct(data_path,reference):
+    path_ct = opj(data_path, 'ct')
+
+    dir_prepro_raw = opj(path_ct, 'raw')
+    dir_prepro_raw_process = opj(dir_prepro_raw, 'preprocessing')
+    dir_prepro_raw_masks = opj(dir_prepro_raw, 'masks')
+    dir_prepro_raw_matrices = opj(dir_prepro_raw, 'matrices')
+
+    dir_prepro_orig = opj(path_ct, 'acpc-func')
+    dir_prepro_orig_labels = opj(dir_prepro_orig, 'labels')
+    dir_prepro_orig_masks = opj(dir_prepro_orig, 'masks')
+    dir_prepro_orig_process = opj(dir_prepro_orig, 'preprocessing')
+    dir_prepro_orig_matrices = opj(dir_prepro_orig, 'matrices')
+    dir_prepro_orig_postprocessed = opj(dir_prepro_orig, 'postprocessed')
+
+    dir_prepro_acpc = opj(path_ct, 'acpc-anat')
+    dir_prepro_acpc_labels = opj(dir_prepro_acpc, 'labels')
+    dir_prepro_acpc_masks = opj(dir_prepro_acpc, 'masks')
+    dir_prepro_acpc_process = opj(dir_prepro_acpc, 'preprocessing')
+    dir_prepro_acpc_matrices = opj(dir_prepro_acpc, 'matrices')
+    dir_prepro_acpc_postprocessed = opj(dir_prepro_acpc, 'postprocessed')
+
+    dir_prepro_template = opj(path_ct, 'templates', reference)
+    dir_prepro_template_labels = opj(dir_prepro_template, 'labels')
+    dir_prepro_template_masks = opj(dir_prepro_template, 'masks')
+    dir_prepro_template_process = opj(dir_prepro_template, 'preprocessing')
+    dir_prepro_template_postprocessed = opj(dir_prepro_template, 'postprocessed')
+
+    return (dir_prepro_raw, dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_raw_matrices, path_ct,
+            dir_prepro_orig, dir_prepro_orig_labels, dir_prepro_orig_masks,
+            dir_prepro_orig_process, dir_prepro_orig_postprocessed,
+            dir_prepro_acpc, dir_prepro_acpc_labels, dir_prepro_acpc_masks,
+            dir_prepro_acpc_process, dir_prepro_acpc_postprocessed,
+            dir_prepro_template, dir_prepro_template_labels, dir_prepro_template_masks,
+            dir_prepro_template_process, dir_prepro_template_postprocessed, dir_prepro_acpc_matrices,
+            dir_prepro_orig_matrices)

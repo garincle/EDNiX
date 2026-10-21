@@ -1,0 +1,590 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="260.66788mm"
+   height="289.28046mm"
+   viewBox="0 0 260.66788 289.28046"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4.4 (1:1.4.4+202605061432+dcaf3e7d9e)"
+   sodipodi:docname="pet3b.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="0.84377956"
+     inkscape:cx="503.68606"
+     inkscape:cy="431.39229"
+     inkscape:window-width="1041"
+     inkscape:window-height="1053"
+     inkscape:window-x="1950"
+     inkscape:window-y="586"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer1"
+     showgrid="false" />
+  <defs
+     id="defs1">
+    <rect
+       x="691.1994"
+       y="89.302254"
+       width="169.67429"
+       height="39.292992"
+       id="rect1" />
+  </defs>
+  <g
+     inkscape:label="Calque 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-2.3934466,-23.940842)">
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="72.389931"
+       y="45.515438"
+       id="text2"><tspan
+         sodipodi:role="line"
+         id="tspan2"
+         style="font-style:italic;stroke-width:0.352778"
+         x="72.389931"
+         y="45.515438">setupSTUDYNAME.json</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="15.80676"
+       y="33.67836"
+       id="text3"><tspan
+         sodipodi:role="line"
+         id="tspan3"
+         style="stroke-width:0.352778"
+         x="15.80676"
+         y="33.67836">tools</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="23.052572"
+       y="40.479778"
+       id="text4"><tspan
+         sodipodi:role="line"
+         id="tspan4"
+         style="stroke-width:0.352778"
+         x="23.052572"
+         y="40.479778">getorientation</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="33.746212"
+       y="57.393764"
+       id="text5"><tspan
+         sodipodi:role="line"
+         id="tspan5"
+         style="stroke-width:0.352778"
+         x="33.746212"
+         y="57.393764">studywindow.gui_add_pet</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="23.138121"
+       y="50.232388"
+       id="text6"><tspan
+         sodipodi:role="line"
+         id="tspan6"
+         style="stroke-width:0.352778"
+         x="23.138121"
+         y="50.232388">getStudyFeat.pet</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="2.075119"
+       y="27.519615"
+       id="text9"><tspan
+         sodipodi:role="line"
+         id="tspan9"
+         style="stroke-width:0.352778"
+         x="2.075119"
+         y="27.519615">pipeline_PET.ipynb</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="133.04836"
+       y="201.96536"
+       id="text12"><tspan
+         sodipodi:role="line"
+         id="tspan12"
+         style="stroke-width:0.352778"
+         x="133.04836"
+         y="201.96536">preproPET.srtm</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="40.369781"
+       y="201.96536"
+       id="text13"><tspan
+         sodipodi:role="line"
+         id="tspan13"
+         style="stroke-width:0.352778"
+         x="40.369781"
+         y="201.96536">preproPET.suv</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="40.478302"
+       y="192.70712"
+       id="text14"><tspan
+         sodipodi:role="line"
+         id="tspan14"
+         style="stroke-width:0.352778"
+         x="40.478302"
+         y="192.70712">coreg2anat.doit</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="40.282963"
+       y="184.745"
+       id="text15"><tspan
+         sodipodi:role="line"
+         id="tspan15"
+         style="stroke-width:0.352778"
+         x="40.282963"
+         y="184.745">MoCo.static</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="40.282963"
+       y="176.04227"
+       id="text16"><tspan
+         sodipodi:role="line"
+         id="tspan16"
+         style="stroke-width:0.352778"
+         x="40.282963"
+         y="176.04227">MoCo.dynamic</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="40.360134"
+       y="160.56648"
+       id="text17"><tspan
+         sodipodi:role="line"
+         id="tspan17"
+         style="stroke-width:0.352778"
+         x="40.360134"
+         y="160.56648">reorient.doit</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="26.037455"
+       y="74.605232"
+       id="text21"><tspan
+         sodipodi:role="line"
+         id="tspan21"
+         style="stroke-width:0.352778"
+         x="26.037455"
+         y="74.605232">sifFile.read</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="58.892956"
+       y="80.817398"
+       id="text22"><tspan
+         sodipodi:role="line"
+         id="tspan22"
+         style="stroke-width:0.352778"
+         x="58.892956"
+         y="80.817398">sifFile.create</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="59.015156"
+       y="74.340286"
+       id="text23"><tspan
+         sodipodi:role="line"
+         id="tspan23"
+         style="stroke-width:0.352778"
+         x="59.015156"
+         y="74.340286">dcmFile.extract</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="42.286266"
+       y="114.49471"
+       id="text25"><tspan
+         sodipodi:role="line"
+         id="tspan25"
+         style="stroke-width:0.352778"
+         x="42.286266"
+         y="114.49471">getlabels.gettype</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="57.548229"
+       y="121.16065"
+       id="text26"><tspan
+         sodipodi:role="line"
+         id="tspan26"
+         style="stroke-width:0.352778"
+         x="57.548229"
+         y="121.16065">getlabels.getval</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="100.62215"
+       y="120.76228"
+       id="text27"><tspan
+         sodipodi:role="line"
+         id="tspan27"
+         style="stroke-width:0.352778"
+         x="100.62215"
+         y="120.76228">getlabels.getmask</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="51.447395"
+       y="166.67784"
+       id="text28"><tspan
+         sodipodi:role="line"
+         id="tspan28"
+         style="stroke-width:0.352778"
+         x="51.447395"
+         y="166.67784">reorient.run</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="87.142143"
+       y="166.68138"
+       id="text29"><tspan
+         sodipodi:role="line"
+         id="tspan29"
+         style="stroke-width:0.352778"
+         x="87.142143"
+         y="166.68138">reorient.pet</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="53.142757"
+       y="208.92354"
+       id="text30"><tspan
+         sodipodi:role="line"
+         id="tspan30"
+         style="stroke-width:0.352778"
+         x="53.142757"
+         y="208.92354">paramImg.suv</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="53.13311"
+       y="215.03398"
+       id="text31"><tspan
+         sodipodi:role="line"
+         id="tspan31"
+         style="stroke-width:0.352778"
+         x="53.13311"
+         y="215.03398">roi_signal.read</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="53.142757"
+       y="224.2659"
+       id="text32"><tspan
+         sodipodi:role="line"
+         id="tspan32"
+         style="stroke-width:0.352778"
+         x="53.142757"
+         y="224.2659">paramImg.bratio</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="53.13311"
+       y="238.15329"
+       id="text33"><tspan
+         sodipodi:role="line"
+         id="tspan33"
+         style="stroke-width:0.352778"
+         x="53.13311"
+         y="238.15329">norm2template.pet</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="53.13311"
+       y="229.71468"
+       id="text34"><tspan
+         sodipodi:role="line"
+         id="tspan34"
+         style="stroke-width:0.352778"
+         x="53.13311"
+         y="229.71468">roi_signal.read</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="53.251278"
+       y="255.37444"
+       id="text35"><tspan
+         sodipodi:role="line"
+         id="tspan35"
+         style="stroke-width:0.352778"
+         x="53.251278"
+         y="255.37444">cut_image.doit</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="60.734585"
+       y="268.81052"
+       id="text36"><tspan
+         sodipodi:role="line"
+         id="tspan36"
+         style="stroke-width:0.352778"
+         x="60.734585"
+         y="268.81052">norm2template.pet</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="60.734585"
+       y="261.85535"
+       id="text37"><tspan
+         sodipodi:role="line"
+         id="tspan37"
+         style="stroke-width:0.352778"
+         x="60.734585"
+         y="261.85535">roi_signal.read</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="53.251278"
+       y="249.02444"
+       id="text38"><tspan
+         sodipodi:role="line"
+         id="tspan38"
+         style="stroke-width:0.352778"
+         x="53.251278"
+         y="249.02444">cut_image.setTime</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="155.26817"
+       y="208.84724"
+       id="text39"><tspan
+         sodipodi:role="line"
+         id="tspan39"
+         style="stroke-width:0.352778"
+         x="155.26817"
+         y="208.84724">roi_signal.read</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="155.26817"
+       y="233.53011"
+       id="text40"><tspan
+         sodipodi:role="line"
+         id="tspan40"
+         style="stroke-width:0.352778"
+         x="155.26817"
+         y="233.53011">roi_signal.dft</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="155.26817"
+       y="312.19638"
+       id="text41"><tspan
+         sodipodi:role="line"
+         id="tspan41"
+         style="stroke-width:0.352778"
+         x="155.26817"
+         y="312.19638">norm2template.pet</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="20.447594"
+       y="65.184113"
+       id="text42"><tspan
+         sodipodi:role="line"
+         id="tspan42"
+         style="stroke-width:0.352778"
+         x="20.447594"
+         y="65.184113">pet</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="182.72957"
+       y="239.8199"
+       id="text43"><tspan
+         sodipodi:role="line"
+         id="tspan43"
+         style="stroke-width:0.352778"
+         x="182.72957"
+         y="239.8199">dftFile.roi</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="182.72957"
+       y="250.45581"
+       id="text44"><tspan
+         sodipodi:role="line"
+         id="tspan44"
+         style="stroke-width:0.352778"
+         x="182.72957"
+         y="250.45581">dftFile.ref</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="182.86221"
+       y="263.73798"
+       id="text45"><tspan
+         sodipodi:role="line"
+         id="tspan45"
+         style="stroke-width:0.352778"
+         x="182.86221"
+         y="263.73798">turkustrm.bfm</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="182.86221"
+       y="291.30777"
+       id="text46"><tspan
+         sodipodi:role="line"
+         id="tspan46"
+         style="stroke-width:0.352778"
+         x="182.86221"
+         y="291.30777">turkubfbp.run</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="182.86221"
+       y="298.15793"
+       id="text47"><tspan
+         sodipodi:role="line"
+         id="tspan47"
+         style="stroke-width:0.352778"
+         x="182.86221"
+         y="298.15793">turkustrm.img</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="182.86221"
+       y="305.00803"
+       id="text48"><tspan
+         sodipodi:role="line"
+         id="tspan48"
+         style="stroke-width:0.352778"
+         x="182.86221"
+         y="305.00803">turkudv.run</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="71.667625"
+       y="85.887672"
+       id="text49"><tspan
+         sodipodi:role="line"
+         id="tspan49"
+         style="stroke-width:0.352778"
+         x="71.667625"
+         y="85.887672">turkusif.weight</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="209.84276"
+       y="269.48291"
+       id="text50"><tspan
+         sodipodi:role="line"
+         id="tspan50"
+         style="font-style:italic;stroke-width:0.352778"
+         x="209.84276"
+         y="269.48291">file_Kinetic_ROIs_ref.dft</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="209.84276"
+       y="217.9287"
+       id="text51"><tspan
+         sodipodi:role="line"
+         id="tspan51"
+         style="font-style:italic;stroke-width:0.352778"
+         x="209.84276"
+         y="217.9287">file_Kinetic_ROIs.txt</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="182.60899"
+       y="214.14946"
+       id="text52"><tspan
+         sodipodi:role="line"
+         id="tspan52"
+         style="stroke-width:0.352778"
+         x="182.60899"
+         y="214.14946">roiStats.get</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="209.84276"
+       y="223.71568"
+       id="text53"><tspan
+         sodipodi:role="line"
+         id="tspan53"
+         style="font-style:italic;stroke-width:0.352778"
+         x="209.84276"
+         y="223.71568">file_vol_ROIs.txt</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="209.84276"
+       y="244.09123"
+       id="text54"><tspan
+         sodipodi:role="line"
+         id="tspan54"
+         style="font-style:italic;stroke-width:0.352778"
+         x="209.84276"
+         y="244.09123">file_Kinetic_ROIs.dft</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="209.84276"
+       y="257.26712"
+       id="text55"><tspan
+         sodipodi:role="line"
+         id="tspan55"
+         style="font-style:italic;stroke-width:0.352778"
+         x="209.84276"
+         y="257.26712">file_refname_Kinetic.dft</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="209.84276"
+       y="280.83972"
+       id="text57"><tspan
+         sodipodi:role="line"
+         id="tspan57"
+         style="font-style:italic;stroke-width:0.352778"
+         x="209.84276"
+         y="280.83972">file_Kinetic_ROIs_fit.dft</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="209.84276"
+       y="275.21176"
+       id="text58"><tspan
+         sodipodi:role="line"
+         id="tspan58"
+         style="font-style:italic;stroke-width:0.352778"
+         x="209.84276"
+         y="275.21176">file_Kinetic_ROIs_bp.dft</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:0.95;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans Italic';fill:#000000;stroke-width:0.352777"
+       x="20.447594"
+       y="102.22576"
+       id="text1"><tspan
+         sodipodi:role="line"
+         id="tspan1"
+         style="stroke-width:0.352778"
+         x="20.447594"
+         y="102.22576">atlases</tspan></text>
+  </g>
+</svg>

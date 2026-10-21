@@ -1,5 +1,4 @@
 import subprocess
-import numpy as np
 import ants
 import re
 import nibabel as nib
@@ -86,56 +85,58 @@ def get_orientation_nibabel(nifti_path):
         raise ValueError(f"Invalid orientation: {orient_code}")
     return orient_code
 
-# Directions (scanner x, y, z; z = into the bore, y = up) of the anatomical
-# Anterior and Superior axes.
-# Human positions: labels written by the scanner (DICOM PatientPosition).
-_HUMAN_AS = {'HFS': ((0, 1, 0), (0, 0, 1)),
-             'FFS': ((0, 1, 0), (0, 0, -1)),
-             'HFP': ((0, -1, 0), (0, 0, 1)),
-             'FFP': ((0, -1, 0), (0, 0, -1))}
-# Animal positions, with the semantics implied by the existing lookup tables
-# (all physically consistent entries of the previous version are reproduced):
-#   AHF: head first, prone (sphinx)      AFF: feet first, prone
-#   AFS: head first, supine              AHS: feet first, supine
-# NB: the AFS / AHS names are counter-intuitive but kept for backward compatibility.
-_ANIMAL_AS = {'AHF': ((0, 0, 1), (0, 1, 0)),
-              'AFF': ((0, 0, -1), (0, 1, 0)),
-              'AFS': ((0, 0, 1), (0, -1, 0)),
-              'AHS': ((0, 0, -1), (0, -1, 0))}
-
-
-def _frame(a_dir, s_dir):
-    a = np.asarray(a_dir, float)
-    s = np.asarray(s_dir, float)
-    r = np.cross(a, s)                      # RAS right-handed: R = A x S
-    return {'R': r, 'L': -r, 'A': a, 'P': -a, 'S': s, 'I': -s}
-
-
 def getreal(humanPosition, animalPosition, orient):
-    """
-    Translate the orientation code written by the scanner (which assumes a human
-    in `humanPosition`) into the true anatomical orientation of an animal placed
-    in `animalPosition`.
 
-    The mapping is derived geometrically (scanner label direction -> animal
-    anatomical axis with the same direction), so it is always a proper rotation.
-    The previous lookup tables contained five reflections (AFF/FFS, AFF/FFP,
-    AFS/FFS, AFS/FFP, AHS/FFP) that silently mirrored left and right.
+    '''
+    from https://dicom.innolitics.com/ciods/ct-image/general-series/00185100:
+    patient position should be :
+    HFP:  Head First-Prone
+    HFS:  Head First-Supine
+    HFDR: Head First-Decubitus Right
+    HFDL: Head First-Decubitus Left
+    FFDR: Feet First-Decubitus Right
+    FFDL: Feet First-Decubitus Left
+    FFP:  Feet First-Prone
+    FFS:  Feet First-Supine
+    LFP:  Left First-Prone
+    LFS:  Left First-Supine
+    RFP:  Right First-Prone
+    RFS:  Right First-Supine
+    AFDR: Anterior First-Decubitus Right
+    AFDL: Anterior First-Decubitus Left
+    PFDR: Posterior First-Decubitus Right
+    PFDL: Posterior First-Decubitus Left
 
-    humanPosition : 'HFS', 'FFS', 'HFP' or 'FFP'
-    animalPosition: 'AHF', 'AFF', 'AFS', 'AHS' (see _ANIMAL_AS) or 'humanlike'
-    orient        : 3-letter orientation code, e.g. 'RAI'
-    """
-    if animalPosition == 'humanlike':
-        return orient
-    if humanPosition not in _HUMAN_AS:
-        raise ValueError(f"humanPosition '{humanPosition}' not supported with animalPosition "
-                         f"'{animalPosition}' (expected one of {sorted(_HUMAN_AS)}).")
-    if animalPosition not in _ANIMAL_AS:
-        raise ValueError(f"animalPosition '{animalPosition}' not recognised "
-                         f"(expected one of {sorted(_ANIMAL_AS)} or 'humanlike').")
-    scanner = _frame(*_HUMAN_AS[humanPosition])
-    animal = _frame(*_ANIMAL_AS[animalPosition])
-    mapping = {lab: next(k for k, v in animal.items() if np.allclose(v, vec))
-               for lab, vec in scanner.items()}
-    return ''.join(mapping[c] for c in orient)
+    Hence following the same logic : "AHF" stands for "Animal Head First",  "AFF" stands for "Animal Feet First",
+    "humanlike" means no change to be done.
+    '''
+
+    OPPOSITES = {
+        ('AHF', 'HFS'): {'R': 'L', 'L': 'R', 'A': 'S', 'P': 'I', 'S': 'A', 'I': 'P'},
+        ('AHF', 'FFS'): {'R': 'R', 'L': 'L', 'A': 'S', 'P': 'I', 'S': 'P', 'I': 'A'},
+        ('AHF', 'HFP'): {'R': 'R', 'L': 'L', 'A': 'I', 'P': 'S', 'S': 'A', 'I': 'P'},
+        ('AHF', 'FFP'): {'R': 'L', 'L': 'R', 'A': 'I', 'P': 'S', 'S': 'P', 'I': 'A'},
+
+        ('AFF', 'HFS'): {'R': 'R', 'L': 'L', 'A': 'S', 'P': 'I', 'S': 'P', 'I': 'A'},
+        ('AFF', 'FFS'): {'R': 'L', 'L': 'R', 'A': 'S', 'P': 'I', 'S': 'A', 'I': 'P'},
+        ('AFF', 'HFP'): {'R': 'L', 'L': 'R', 'A': 'I', 'P': 'S', 'S': 'P', 'I': 'A'},
+        ('AFF', 'FFP'): {'R': 'R', 'L': 'L', 'A': 'I', 'P': 'S', 'S': 'A', 'I': 'P'},
+
+        ('AFS', 'HFS'): {'R': 'R', 'L': 'L', 'A': 'I', 'P': 'S', 'S': 'A', 'I': 'P'},
+        ('AFS', 'FFS'): {'R': 'L', 'L': 'R', 'A': 'I', 'P': 'S', 'S': 'A', 'I': 'P'},
+        ('AFS', 'HFP'): {'R': 'L', 'L': 'R', 'A': 'S', 'P': 'I', 'S': 'A', 'I': 'P'},
+        ('AFS', 'FFP'): {'R': 'R', 'L': 'L', 'A': 'S', 'P': 'I', 'S': 'A', 'I': 'P'},
+
+        ('AHS', 'HFS'): {'R': 'L', 'L': 'R', 'A': 'I', 'P': 'S', 'S': 'P', 'I': 'A'},
+        ('AHS', 'FFS'): {'R': 'R', 'L': 'L', 'A': 'I', 'P': 'S', 'S': 'A', 'I': 'P'},
+        ('AHS', 'HFP'): {'R': 'R', 'L': 'L', 'A': 'S', 'P': 'I', 'S': 'P', 'I': 'A'},
+        ('AHS', 'FFP'): {'R': 'L', 'L': 'R', 'A': 'S', 'P': 'I', 'S': 'A', 'I': 'P'},
+    }
+
+    default = {'R': 'R', 'L': 'L', 'A': 'A', 'P': 'P', 'S': 'S', 'I': 'I'}
+
+    opposite = OPPOSITES.get(humanPosition, animalPosition, default)
+
+    neworient = ''.join(opposite[c] for c in orient)
+
+    return neworient
