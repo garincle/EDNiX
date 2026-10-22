@@ -27,6 +27,7 @@ import pandas as pd
 from Exemples.Study_EDNiX.analysis.Fig5 import SBA_Region_Profile_Index as sri
 from Exemples.Study_EDNiX.analysis.Fig5.fig5_pipeline import run
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_matrices as fm
+import Exemples.Study_EDNiX.analysis.Fig5.fig5_paper as fpp
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 1. CE QUI EST LANCÉ
@@ -41,6 +42,9 @@ RUN_CONTROL = True       # contrôle de 5b : même sélection, mais une cible co
 RUN_MATRIX = False        # même analyse sur les matrices EDNIxCSCLR (supplémentaire)
 RUN_COMPARISON = False    # les runs sélectionnés par la seed et par les matrices sont-ils les
                          # mêmes ? (F19, supplémentaire)
+# Figure 5e (dernière étape, automatique si RUN_PART != "selection") : la sélection fait-elle
+# ressortir l'espèce, au-delà de sa construction ? Lit 07_state du run principal et du run de
+# contrôle (RUN_CONTROL) ; sans run de contrôle, 5e est dessinée pour le run principal seul.
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 2. CONSTRUCTION DU PROFIL DE CHAQUE CARTE SEED (change la sélection)
@@ -54,8 +58,8 @@ RUN_COMPARISON = False    # les runs sélectionnés par la seed et par les matri
 # Le reste de l'analyse est identique. Les matrices EDNIxCSCLR gardent median_r.
 # Chaque run seed calcule aussi F22 (fiabilité des 3 profils sur tous les runs, avant
 # sélection) : c'est le critère pour choisir PROFILE_METHOD.
-# 6d est dessinée dans l'unité de PROFILE_METHOD (percentiles : P80 en 6d, P20 en 6d') ;
-# les deux autres indices sont en supplémentaire (S6d).
+# 6d est dessinée pour CHAQUE indice régional (06_figures/Fig6/6d_<indice>) : P80, P20,
+# r médian, % dans la queue haute / basse de la carte, % de voxels r > 0 / r < 0.
 PROFILE_METHOD = "percentiles"
 TAIL_Q = 0.2             # taille des queues : 0.2 ou "quintile" (P80 / P20), 0.1 ou "decile"
                          # (P90 / P10), 0.25 ou "quartile" (P75 / P25)
@@ -131,7 +135,11 @@ BASE_CONFIG = dict(
     # Un dossier par méthode de profil : les résultats d'une méthode n'écrasent pas ceux
     # d'une autre. Même dossier possible : les cartes AFNI déjà calculées (même suffixe,
     # mêmes runs en entrée, vérifiés) sont réutilisées.
-    OUTPUT_ROOT="/scratch2/EDNiX/results/EDNiX_Figures/Fig_5_V14_"
+    # Dossier de V12 : sa sélection est celle que redonne SEED_REGION_EXCLUDE_SELECTION=False,
+    # donc ses cartes AFNI (all-units, kept / not kept des tours 1 et final) sont réutilisées
+    # (vérifiées dans input_runs/) ; seules celles de Human_Babayan (ex-BIDS_Babayan) sont
+    # recalculées. Les figures et tables de V12 vont dans _previous_runs/<date>/.
+    OUTPUT_ROOT="/scratch2/EDNiX/results/EDNiX_Figures/Fig_5_V15_"
                 + {"median_r": "", "fraction_posneg": f"_posneg{_Q_PCT}", "percentiles": f"_quant{_Q_PCT}",
                    "quantile_posneg": f"_quant{_Q_PCT}"}[PROFILE_METHOD],
     PROFILE_METHOD=PROFILE_METHOD,   # voir section 2
@@ -154,8 +162,11 @@ BASE_CONFIG = dict(
     RUN_ROUND2_SELECTION=True,     # tour 2 : chaque dataset reclassé contre ses propres gardés
     RUN_ITERATIVE_SELECTION=True,  # tours 3..N : cible inter-espèces reconstruite des gardés
     N_ITERATIVE_ROUNDS=10,         # numéro du DERNIER tour (sélection finale)
-    SEED_REGION_EXCLUDE="auto",    # région de l'atlas qui contient le seed retirée partout
-                                   # ("auto" = trouvée dans l'atlas ; liste de noms ; None)
+    SEED_REGION_EXCLUDE="auto",    # région de l'atlas qui contient le seed (sa valeur reflète
+                                   # l'autocorrélation du seed) : "auto" = trouvée dans
+                                   # l'atlas ; liste de noms ; None = aucune
+    SEED_REGION_EXCLUDE_SELECTION=False,  # False : gardée dans la sélection (= sélection V12)
+    SEED_REGION_EXCLUDE_ANALYSES=True,    # True : retirée de toutes les analyses et figures
 
     # --- phylogénie : F6 seulement (F6 d'origine + F6ab) ------------------------------
     PHYLOGENY_USE_FINAL_ROUND=True,   # (figures) cartes sélectionnées ; la version sans
@@ -173,10 +184,14 @@ BASE_CONFIG = dict(
         # PDF à polices TrueType, PNG 600 dpi ; légendes dans chaque .txt et dans
         # 06_figures/Figure_legends.txt
     BRAIN_MASS_XLSX="/scratch2/EDNiX/Herculano-Houzel_mammalian_brain_dataset_complete.xlsx",
+    WITHIN_ACROSS_PAIRS="other_dataset",  # (figures) 5b / F2 / F2b, paires comparées :
+        # "other_dataset" = même espèce dans un AUTRE dataset vs espèces différentes (les
+        # paires d'un même dataset partagent protocole, scanner et souvent l'animal : exclues
+        # du test) ; "all" = toutes les paires de même espèce (5b de V14)
     WITHIN_ACROSS_TEST="wilcoxon",  # (figures) 5b, test affiché : "wilcoxon" (rank-sum sur
         # les paires, unilatéral, non corrigé ; optimiste car les paires partagent des runs)
         # ou "permutation" (espèces permutées entre datasets) ; les deux sont dans le .txt
-    FIG6D=dict(              # (figures) 6d / 6d' / S6d : une valeur par région et par run
+    FIG6D=dict(              # (figures) 6d, un panneau par indice : une valeur par région et par run
         # sélectionné ; Human + Macaque contre les 5 autres espèces, un test exact
         # bilatéral par région (espèce = unité, 21 affectations, p >= 0,048), non corrigé
         regions=("posterior_parietal_cortex", "prefrontal_cortex_(pfc)",
@@ -193,7 +208,7 @@ BASE_CONFIG = dict(
         # gardée et avec le critère de sélection, par état d'éveil
 
     # --- cartes AFNI (partie 1) --------------------------------------------------------
-    OVERWRITE_MAPS=False,    # False : une carte déjà calculée avec exactement les mêmes runs
+    OVERWRITE_MAPS=True,    # False : une carte déjà calculée avec exactement les mêmes runs
                              # est réutilisée (vérifié dans input_runs/) ; True : recalcul
     MAP_TAG=None,            # None = suffixe unique dérivé de OUTPUT_ROOT
     RENDER_SURFACE=True,     # rendus wb_command des cartes de groupe (5a, S5a)
@@ -295,3 +310,10 @@ if RUN_COMPARISON and RUN_PART != "selection":
     per_dataset, overall = fm.compare_selections(BASE_CONFIG["OUTPUT_ROOT"],
                                                  MATRIX_CONFIG["OUTPUT_ROOT"], COMPARISON_DIR)
     print(overall.to_string(index=False))
+
+# ── 5. Figure 5e : la sélection fait-elle ressortir l'espèce, au-delà de sa construction ? ──
+# Unité = la paire de datasets ; gain = écart(sélectionnés) - écart(tous les runs), testé sur
+# toutes les répartitions des espèces entre datasets ; run principal et run de contrôle.
+# Écrit 06_figures/Fig5/5e_selection_species_gain (.png/.pdf/.txt/.xlsx) et complète le .txt de 5b.
+if RUN_PART != "selection" and (RUN_SEED or RUN_CONTROL):
+    fpp.fig5e_selection_species_gain(BASE_CONFIG["OUTPUT_ROOT"], CONTROL_CONFIG["OUTPUT_ROOT"])

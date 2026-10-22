@@ -264,11 +264,18 @@ CONFIG = dict(
         # F15 (fingerprint vs référence), F16 (proximité entre datasets),
         # F17 (avant/après sélection), F18 (état d'éveil). Python seul.
     REFERENCE_SPECIES="Human",   # référence de F6b/F15b/F18
-    SEED_REGION_EXCLUDE="auto",  # région du niveau ATLAS_LEVEL qui contient le seed,
-        # retirée des régions communes PARTOUT (sélection, consensus, similarités,
-        # figures) : sa valeur reflète l'autocorrélation du seed, pas le couplage.
+    SEED_REGION_EXCLUDE="auto",  # région du niveau ATLAS_LEVEL qui contient le seed (sa
+        # valeur reflète surtout l'autocorrélation du seed, pas le couplage) :
         # "auto" = trouvée dans l'atlas de chaque dataset (voxels du label du seed,
-        # niveau ATLAS_LEVEL) ; liste de noms = imposée ; None = rien retiré.
+        # niveau ATLAS_LEVEL) ; liste de noms = imposée ; None = aucune (les deux
+        # clés suivantes n'ont alors pas d'effet).
+    SEED_REGION_EXCLUDE_SELECTION=False,  # True : retirée des profils que la sélection
+        # note (standardisation des canaux, invariance, consensus, score) ; False
+        # (défaut) : gardée -- la sélection est alors celle d'avant son retrait (V12).
+    SEED_REGION_EXCLUDE_ANALYSES=True,    # True (défaut) : retirée de tous les profils
+        # utilisés après la sélection (partie 2 : statistiques et figures).
+        # Les deux sont des clés de la partie 1 (les profils des deux espaces sont
+        # construits avec la sélection) : en changer une demande de relancer la partie 1.
     PROFILE_KIND="seed",     # "seed" (cartes SBA) | "matrix" (fig5_matrices) :
         # change seulement le rendu des fingerprints (polaire vs matrice).
 
@@ -295,6 +302,12 @@ CONFIG = dict(
         # runs, unilatéral, non corrigé : les paires partagent des runs, le p est donc
         # optimiste. "permutation" = espèces permutées entre datasets (respecte la
         # dépendance). Les deux sont toujours dans le .txt.
+    WITHIN_ACROSS_PAIRS="other_dataset",  # 5b / F2 / F2b : paires comparées.
+        # "other_dataset" (défaut) : même espèce dans un AUTRE dataset vs espèces
+        # différentes -- les paires d'un même dataset (même protocole, même scanner,
+        # souvent même animal) ne séparent pas l'espèce du dataset et sont exclues du
+        # test (montrées sur F2/F2b). "all" : toutes les paires de même espèce, même
+        # dataset compris (5b de la V14, dominé par les paires du même dataset).
     SURFACE_ZOOM={"Human": 1.0, "Macaque": 1.0, "Dog": 1.0, "Marmoset": 0.9,
                   "Mouselemur": 0.9, "Rat": 0.9, "Mouse": 0.9},  # 5a/S5a : taille relative
         # des cerveaux par espèce (1 = remplit la case), après réduction automatique
@@ -435,11 +448,22 @@ def _write_methods(cfg, paths, bids_labels, n_common, unit_counts, final_round=N
     else:
         profile_par = (f"profile: the median correlation ({cfg['VALUE_COL']}) within each "
                        f"atlas region at level {cfg['ATLAS_LEVEL']}.")
-    if cfg.get("_seed_regions_excluded"):
-        profile_par += (f" The region that contains the seed "
-                        f"({', '.join(cfg['_seed_regions_excluded'])}, found from the seed's "
-                        f"voxels in each atlas) was removed from every profile: its value "
-                        f"reflects the seed's own autocorrelation, not coupling.")
+    found = cfg.get("_seed_regions_found") or cfg.get("_seed_regions_excluded") or []
+    out_sel = cfg.get("_seed_regions_excluded_selection", cfg.get("_seed_regions_excluded"))
+    out_ana = cfg.get("_seed_regions_excluded")
+    if found and out_sel and out_ana:
+        profile_par += (f" The region that contains the seed ({', '.join(found)}, found from "
+                        f"the seed's voxels in each atlas) was removed from every profile: its "
+                        f"value reflects the seed's own autocorrelation, not coupling.")
+    elif found and out_ana:
+        profile_par += (f" The region that contains the seed ({', '.join(found)}, found from "
+                        f"the seed's voxels in each atlas) was kept in the profiles scored by "
+                        f"the run selection (channel standardisation, invariance ranking, "
+                        f"consensus) and removed from every profile used afterwards, because "
+                        f"its value reflects the seed's own autocorrelation, not coupling.")
+    elif found and out_sel:
+        profile_par += (f" The region that contains the seed ({', '.join(found)}) was removed "
+                        f"from the profiles scored by the run selection only.")
     maps_par = (f"Group maps were computed with AFNI 3dttest++ (one Fisher-z map per "
                 f"{unit}). Regional group values were taken from the "
                 f"{'THRESHOLDED (|z| >= 1.96, other voxels set to 0 and excluded)' if thr else 'unthresholded'} "
@@ -603,13 +627,17 @@ def _run_region_indices(sri, runs_by_label, common, cfg, species_of_label):
 
 
 def _seed_regions_to_exclude(sri, cfg, bids_configs, profiles_by_label, common, paths):
-    """Common regions to drop because they contain the seed (see
-    SEED_REGION_EXCLUDE). 'auto': for every dataset, the ATLAS_LEVEL region
-    under the seed's voxels in a representative atlas volume; the union is
-    removed. Writes 02_selection/seed_region_exclusion.xlsx."""
+    """Common regions that contain the seed (SEED_REGION_EXCLUDE). 'auto': for
+    every dataset, the ATLAS_LEVEL region under the seed's voxels in a
+    representative atlas volume; the union is returned. Where they are then
+    removed is decided by the caller: SEED_REGION_EXCLUDE_SELECTION (profiles
+    scored by the selection) and SEED_REGION_EXCLUDE_ANALYSES (every profile
+    used after it). Writes 02_selection/seed_region_exclusion.xlsx."""
     rule = cfg.get("SEED_REGION_EXCLUDE", "auto")
     if not rule or cfg.get("PROFILE_KIND", "seed") != "seed":
         return []
+    excl_sel = bool(cfg.get("SEED_REGION_EXCLUDE_SELECTION", True))
+    excl_ana = bool(cfg.get("SEED_REGION_EXCLUDE_ANALYSES", True))
     if not isinstance(rule, str):
         wanted = {str(r).lower().strip() for r in rule}
         absent = sorted(wanted - set(common))
@@ -654,7 +682,9 @@ def _seed_regions_to_exclude(sri, cfg, bids_configs, profiles_by_label, common, 
     if tab.empty or found.empty:
         print("  [seed region] [WARN] seed region not found in any atlas -- nothing removed; "
               "set SEED_REGION_EXCLUDE to the region name to remove it")
-    tab.assign(excluded=tab.get("parent", pd.Series(dtype=object)).isin(parents)).to_excel(
+    is_seed = tab.get("parent", pd.Series(dtype=object)).isin(parents)
+    tab.assign(seed_region=is_seed, excluded_from_selection=is_seed & excl_sel,
+               excluded_from_analyses=is_seed & excl_ana).to_excel(
         os.path.join(paths["selection"], "seed_region_exclusion.xlsx"), index=False)
     return parents
 
@@ -786,6 +816,19 @@ def _validate_config(cfg, user_config):
             warns.append(f"THRESHOLD_ABS={cfg['THRESHOLD_ABS']} is in median_r units -- "
                          f"set to None with PROFILE_METHOD={cfg['PROFILE_METHOD']!r}")
             cfg["THRESHOLD_ABS"] = None
+    for k in ("SEED_REGION_EXCLUDE_SELECTION", "SEED_REGION_EXCLUDE_ANALYSES"):
+        if not isinstance(cfg[k], (bool, np.bool_)):
+            raise ValueError(f"{k} must be True or False, got {cfg[k]!r}")
+    if not cfg["SEED_REGION_EXCLUDE"] and (cfg["SEED_REGION_EXCLUDE_SELECTION"]
+                                           or cfg["SEED_REGION_EXCLUDE_ANALYSES"]):
+        warns.append("SEED_REGION_EXCLUDE=None: no seed region is looked for, "
+                     "SEED_REGION_EXCLUDE_SELECTION / _ANALYSES have no effect")
+    if cfg["SEED_REGION_EXCLUDE_SELECTION"] and not cfg["SEED_REGION_EXCLUDE_ANALYSES"]:
+        warns.append("seed region removed from the selection but KEPT in the analyses: its "
+                     "autocorrelation peak then enters every similarity of part 2")
+    if cfg.get("WITHIN_ACROSS_PAIRS", "other_dataset") not in ("other_dataset", "all"):
+        raise ValueError(f"WITHIN_ACROSS_PAIRS must be 'other_dataset' or 'all', got "
+                         f"{cfg['WITHIN_ACROSS_PAIRS']!r}")
     return warns
 
 
@@ -1725,7 +1768,7 @@ STATE_FILE = "selection_state.pkl"
 FIGURE_KEYS = frozenset({
     "MAKE_FIGURES", "RUN_FINGERPRINTS", "REFERENCE_SPECIES", "RUN_PAPER_FIGURES",
     "BRAIN_MASS_XLSX", "BRAIN_MASS_G", "SURFACE_ZOOM", "SURFACE_DATASETS_PER_ROW",
-    "FIG6D", "WITHIN_ACROSS_TEST", "N_PERM_PHYLOGENY", "RUN_PHYLO_COMPARATIVE",
+    "FIG6D", "WITHIN_ACROSS_TEST", "WITHIN_ACROSS_PAIRS", "N_PERM_PHYLOGENY", "RUN_PHYLO_COMPARATIVE",
     "TREE_PATH", "SPECIES_TO_TREE_TIP", "PGLS_QC_COVARIATES", "SPECIES_COVARIATES",
     "RUN_MULTILEVEL_F6", "MULTILEVEL_F6_LEVELS", "RUN_DISTANCE_TO_REF",
     "DISTANCE_REF_GROUP", "QC_METRICS_FOR_CORRELATION", "QC_META_MIN_BIDS",
@@ -1757,7 +1800,16 @@ def save_state(state):
                 f"pandas {state['versions']['pandas']})\n\n")
         f.write(f"datasets: {sorted(state['profiles_by_label'])}\n")
         f.write(f"final round: {state['final_round']}\n")
-        f.write(f"common regions ({len(state['anat_common'])}): {state['anat_common']}\n")
+        f.write(f"common regions, analyses ({len(state['anat_common'])}): "
+                f"{state['anat_common']}\n")
+        ss = state.get("selection_space")
+        if ss is not None:
+            f.write(f"common regions, selection ({len(ss['anat_common'])}): "
+                    f"{ss['anat_common']}\n")
+        if state.get("seed_regions"):
+            f.write(f"seed region(s): {state['seed_regions']} -- removed from the selection: "
+                    f"{bool(state['cfg'].get('SEED_REGION_EXCLUDE_SELECTION'))}, from the "
+                    f"analyses: {bool(state['cfg'].get('SEED_REGION_EXCLUDE_ANALYSES'))}\n")
         f.write(f"kept per dataset: " + ", ".join(
             f"{k} {len(v)}" for k, v in sorted(state["selections_final"].items())) + "\n\n")
         f.write("Selection settings (part 2 refuses another value for these):\n")
@@ -1783,6 +1835,13 @@ def load_state(root):
 def _merge_figure_config(saved_cfg, user_config):
     """Saved part-1 config + the part-2 keys of `user_config`. A selection key
     with another value than the one the selection was made with raises."""
+    saved_cfg = dict(saved_cfg)
+    if "SEED_REGION_EXCLUDE_SELECTION" not in saved_cfg:
+        # state written before the two switches existed (V14): the seed region
+        # was removed everywhere when SEED_REGION_EXCLUDE was set
+        excl = bool(saved_cfg.get("SEED_REGION_EXCLUDE"))
+        saved_cfg["SEED_REGION_EXCLUDE_SELECTION"] = excl
+        saved_cfg["SEED_REGION_EXCLUDE_ANALYSES"] = excl
     cfg = dict(saved_cfg)
     user_config = dict(user_config or {})
     unknown = sorted(set(user_config) - set(CONFIG) - set(LEGACY_CONFIG_KEYS))
@@ -1930,7 +1989,23 @@ def run(sri, bids_configs, config=None, df_qc_by_label=None, part="both"):
 
 
 def _run_selection(sri, cfg, paths, bids_configs, df_qc_by_label):
-    """Part 1. Returns the state dict that part 2 (_run_figures) needs."""
+    """Part 1. Returns the state dict that part 2 (_run_figures) needs.
+
+    Two region spaces when the seed region is treated differently by the
+    selection and by the analyses (SEED_REGION_EXCLUDE_SELECTION !=
+    SEED_REGION_EXCLUDE_ANALYSES):
+      selection space -- the profiles the selection scores (regions
+          `sel_regions`, two-channel profiles standardised over them):
+          invariance, consensus, scores of every round, F3/F4/F5, balanced
+          stats. Saved in state['selection_space'].
+      analysis space  -- every profile used after the selection (regions
+          `common`, standardised over them): the state's usual keys
+          (profiles_by_label, runs_by_label, afni_profiles, group-map
+          profiles, common, species_profs, final_criterion...).
+    Both come from the same voxels of the same runs; only the region set (and
+    with two channels, the per-channel standardisation over it) differs. With
+    the same setting for both, the two spaces are one and
+    state['selection_space'] is None."""
 
     unit = cfg["UNIT"]
     two_ch = cfg["PROFILE_METHOD"] != "median_r"
@@ -2089,34 +2164,49 @@ def _run_selection(sri, cfg, paths, bids_configs, df_qc_by_label):
         raise ValueError("No common region survived -- nothing can be compared. "
                          "Check ATLAS_LEVEL and the group maps' coverage.")
     # ---- the region that contains the seed ---------------------------------
-    # Its value is the seed's autocorrelation (a peak whose size depends on
-    # resolution, smoothing and on how much of the region the seed fills),
-    # not coupling: it is removed from the common regions before anything is
-    # computed on them. common_regions.xlsx keeps every region with a flag,
-    # so the matrix analysis (no seed) keeps it as a node.
+    # Its value is dominated by the seed's own autocorrelation (a peak whose
+    # size depends on resolution, smoothing and on how much of the region the
+    # seed fills), not by coupling. SEED_REGION_EXCLUDE finds it; two switches
+    # decide where it is removed:
+    #   SEED_REGION_EXCLUDE_SELECTION -- from the profiles the selection scores
+    #     (per-channel standardisation, invariance ranking, consensus, score);
+    #   SEED_REGION_EXCLUDE_ANALYSES  -- from every profile used after the
+    #     selection (statistics and figures of part 2).
+    # common_regions.xlsx keeps every region with its flags, so the matrix
+    # analysis (no seed) keeps it as a node.
     all_common = list(common)
     seed_regions = _seed_regions_to_exclude(sri, cfg, bids_configs, profiles_by_label,
                                             all_common, paths)
-    common = [c for c in common if c not in seed_regions]
-    cfg["_seed_regions_excluded"] = list(seed_regions)
+    excl_sel = bool(cfg["SEED_REGION_EXCLUDE_SELECTION"]) and bool(seed_regions)
+    excl_ana = bool(cfg["SEED_REGION_EXCLUDE_ANALYSES"]) and bool(seed_regions)
+    sel_regions = [c for c in all_common if not (excl_sel and c in seed_regions)]
+    common = [c for c in all_common if not (excl_ana and c in seed_regions)]
+    split = sel_regions != common
+    cfg["_seed_regions_found"] = list(seed_regions)
+    cfg["_seed_regions_excluded"] = list(seed_regions) if excl_ana else []
+    cfg["_seed_regions_excluded_selection"] = list(seed_regions) if excl_sel else []
     if seed_regions:
-        print(f"  seed region(s) removed from the profiles: {seed_regions} -> "
-              f"{len(common)} region(s) analysed")
+        print(f"  seed region(s) {seed_regions}: "
+              f"{'removed from' if excl_sel else 'KEPT in'} the selection "
+              f"({len(sel_regions)} regions), {'removed from' if excl_ana else 'kept in'} "
+              f"the analyses ({len(common)} regions)")
     pd.DataFrame({"common_region": all_common, "source": common_source,
-                  "seed_region_excluded": [c in seed_regions for c in all_common]}).to_excel(
+                  "seed_region": [c in seed_regions for c in all_common],
+                  "used_by_selection": [c in sel_regions for c in all_common],
+                  "used_by_analyses": [c in common for c in all_common]}).to_excel(
         os.path.join(paths["selection"], "common_regions.xlsx"), index=False)
 
-    # ---- regional indices of every run (6d, S6d) ---------------------------
+    # ---- regional indices of every run (6d) --------------------------------
     # While every profile still carries its voxel values: median, upper / lower
     # percentile, % in the top / bottom tail of the map, share > 0 / < 0, per
-    # region, both hemispheres pooled. Part 2 draws 6d in the unit of any profile
-    # method from this table, without the voxel values.
+    # region, both hemispheres pooled (analysis regions). Part 2 draws 6d for
+    # every index from this table, without the voxel values.
     run_index = _run_region_indices(sri, runs_by_label, common, cfg, species_of_label)
 
     # ---- F22: reliability of the three profile constructions ---------------
     # On EVERY run, before any selection, whatever PROFILE_METHOD: the
     # criterion that decides which profile to use, independent of the
-    # cross-species questions.
+    # cross-species questions (analysis regions).
     reliability = None
     if cfg["RUN_PROFILE_RELIABILITY"]:
         print(f"\n{'=' * 70}\n  F22: profile reliability by method (every run)\n{'=' * 70}")
@@ -2159,16 +2249,29 @@ def _run_selection(sri, cfg, paths, bids_configs, df_qc_by_label):
 
     # ---- two-channel profiles ---------------------------------------------
     # fraction_posneg takes the map percentiles over the voxels of the common
-    # regions: only now can the profiles be built (percentiles follows the
-    # same path). Every profile computed so far is converted; every profile
-    # computed from here on (group maps of STEP 3, 3b, 8) comes out converted
-    # from sri.compute_region_profile. common_regions.xlsx keeps the
-    # anatomical names (nodes of the matrix analysis, COMMON_REGIONS_OVERRIDE
-    # of the control run).
+    # regions, and both two-channel methods standardise each channel over them:
+    # only now can the profiles be built. Every profile computed so far is
+    # converted; every profile computed from here on (group maps of STEP 3, 3b)
+    # comes out converted from sri.compute_region_profile with the LAST tail
+    # reference set -- the analysis regions. With two region spaces the
+    # selection-space profiles are converted first (reference = sel_regions),
+    # then the analysis-space ones (reference = common).
+    profiles_sel = profiles_by_label        # one space unless split (below)
     if two_ch:
         print(f"\n{'=' * 70}\n  {cfg['PROFILE_METHOD']} profiles (q = {cfg['TAIL_Q']:g}, "
-              f"{len(common)} common regions)\n{'=' * 70}")
+              f"{len(common)} common regions"
+              + (f"; selection: {len(sel_regions)} regions" if split else "")
+              + f")\n{'=' * 70}")
         sri.set_profile_method(cfg["PROFILE_METHOD"], cfg["TAIL_Q"], keep_sketch=False)
+        if split:
+            sri.set_tail_reference(sel_regions)
+            runs_sel = {lab: {k: sri.to_channel_profile(p) for k, p in profs.items()}
+                        for lab, profs in runs_by_label.items()}
+            profiles_sel = {}
+            for lab in list(profiles_by_label):
+                profiles_sel[lab], _ = fu.aggregate_profiles_to_unit(
+                    sri, runs_sel[lab], unit=unit, label=lab, verbose=False)
+            del runs_sel
         sri.set_tail_reference(common)
         runs_by_label = {lab: {k: sri.to_channel_profile(p) for k, p in profs.items()}
                          for lab, profs in runs_by_label.items()}
@@ -2179,47 +2282,68 @@ def _run_selection(sri, cfg, paths, bids_configs, df_qc_by_label):
                          for lab, (sp_, p) in afni_profiles.items()}
         anat = list(common)
         common = sri.channel_names(anat)
+        common_sel = sri.channel_names(sel_regions) if split else common
         n_runs = sum(len(v) for v in runs_by_label.values())
         print(f"  {n_runs} run profile(s) and {len(afni_profiles)} group-map profile(s) "
               f"converted: {len(common)} values per profile ({len(anat)} regions x "
-              f"{'/'.join(sri.channel_suffixes())}), column {cfg['VALUE_COL']}")
+              f"{'/'.join(sri.channel_suffixes())}), column {cfg['VALUE_COL']}"
+              + (f"; selection profiles: {len(common_sel)} values ({len(sel_regions)} regions, "
+                 f"channels standardised over them)" if split else ""))
+    else:
+        common_sel = list(sel_regions) if split else common
     anat_common = list(anat) if two_ch else list(common)
     n_regions = len(anat_common)
     _write_methods(cfg, paths, sorted(profiles_by_label), n_regions, unit_counts)
 
-    # ---- invariance -----------------------------------------------------
+    # ---- invariance (selection space) -----------------------------------
     # With INVARIANCE_VALUE=1.0 (the default) every common region is kept
     # and the mask is all-True: the invariance score is then purely
     # descriptive -- the bottom panel of F0 still ranks the regions, but
     # nothing is excluded from the run selection. Lower the value to
     # restrict the selection to the most invariant fraction.
     print(f"\n{'=' * 70}\n  Cross-species invariant regions\n{'=' * 70}")
-    species_profs = {lab: fa.species_profile(
-                        sri, profs, source=cfg["CONSENSUS_SOURCE"],
-                        method=cfg["REFERENCE_METHOD"], k=cfg["K_REF"],
-                        value_col=cfg["VALUE_COL"], metric=cfg["METRIC"])
-                     for lab, profs in profiles_by_label.items()}
-    invariance, inv_mat, inv_species = fa.compute_region_invariance(
-        species_profs, common, value_col=cfg["VALUE_COL"],
+    species_profs_sel = {lab: fa.species_profile(
+                            sri, profs, source=cfg["CONSENSUS_SOURCE"],
+                            method=cfg["REFERENCE_METHOD"], k=cfg["K_REF"],
+                            value_col=cfg["VALUE_COL"], metric=cfg["METRIC"])
+                         for lab, profs in profiles_sel.items()}
+    invariance_sel, inv_mat, inv_species = fa.compute_region_invariance(
+        species_profs_sel, common_sel, value_col=cfg["VALUE_COL"],
         species_of_label=species_of_label, zscore=cfg["ZSCORE"])
-    region_mask = fa.select_invariant_regions(
-        invariance, common, mode=cfg["INVARIANCE_MODE"], value=cfg["INVARIANCE_VALUE"])
-    print(f"  {int(np.asarray(region_mask, dtype=bool).sum())}/{len(common)} "
+    region_mask_sel = fa.select_invariant_regions(
+        invariance_sel, common_sel, mode=cfg["INVARIANCE_MODE"], value=cfg["INVARIANCE_VALUE"])
+    print(f"  {int(np.asarray(region_mask_sel, dtype=bool).sum())}/{len(common_sel)} "
           f"region(s) used for the run selection "
           f"(mode={cfg['INVARIANCE_MODE']}, value={cfg['INVARIANCE_VALUE']})")
-    pd.DataFrame({"region": common, "invariance": invariance,
-                  "used_for_selection": region_mask}).to_excel(
+    pd.DataFrame({"region": common_sel, "invariance": invariance_sel,
+                  "used_for_selection": region_mask_sel}).to_excel(
         os.path.join(paths["selection"], "region_invariance.xlsx"), index=False)
+    if split:
+        # analysis space: the species profiles recomputed on its profiles; the
+        # invariance and the selection mask are those of the selection, carried
+        # over by name (they say which values the selection used)
+        species_profs = {lab: fa.species_profile(
+                            sri, profs, source=cfg["CONSENSUS_SOURCE"],
+                            method=cfg["REFERENCE_METHOD"], k=cfg["K_REF"],
+                            value_col=cfg["VALUE_COL"], metric=cfg["METRIC"])
+                         for lab, profs in profiles_by_label.items()}
+        inv_by = dict(zip(common_sel, np.asarray(invariance_sel, float)))
+        mask_by = dict(zip(common_sel, np.asarray(region_mask_sel, bool)))
+        invariance = np.array([inv_by.get(c, np.nan) for c in common], float)
+        region_mask = np.array([bool(mask_by.get(c, False)) for c in common])
+    else:
+        species_profs, invariance, region_mask = (species_profs_sel, invariance_sel,
+                                                  region_mask_sel)
 
-    # ---- STEP 2: selection ---------------------------------------------
+    # ---- STEP 2: selection (selection space) ----------------------------
     print(f"\n{'=' * 70}\n  STEP 2: consensus selection ({unit} level)\n{'=' * 70}")
     sel = fa.run_consensus_selection(
-        sri, cfg, profiles_by_label, common,
+        sri, cfg, profiles_sel, common_sel,
         n_select=cfg["N_SELECT"], leave_one_out=cfg["LEAVE_ONE_OUT"],
         consensus_source=cfg["CONSENSUS_SOURCE"], similarity=cfg["SIMILARITY"],
         method=cfg["REFERENCE_METHOD"], k=cfg["K_REF"], zscore=cfg["ZSCORE"],
         threshold_abs=cfg["THRESHOLD_ABS"], species_of_label=species_of_label,
-        region_mask=region_mask,
+        region_mask=region_mask_sel,
         value_col=cfg["VALUE_COL"], metric=cfg["METRIC"], output_dir=None)
     selections = sel["selections"]
 
@@ -2243,26 +2367,26 @@ def _run_selection(sri, cfg, paths, bids_configs, df_qc_by_label):
     # maps (STEP 3b), JPGs (4b), surfaces (5b), its F4/F1b line, and feeds
     # the phylogeny when PHYLOGENY_USE_FINAL_ROUND=True.
     all_round_selections = {1: selections}
-    # final_criterion[label] = profile_df the FINAL round actually scored
-    # that BIDS's runs against (F8b plots correlation to exactly this).
-    final_criterion = {lab: _vec_to_profile(common, vec, cfg["VALUE_COL"])
-                       for lab, vec in sel["consensus_by_label"].items()}
+    # final_criterion_sel[label] = profile_df the FINAL round actually scored
+    # that BIDS's runs against (selection space).
+    final_criterion_sel = {lab: _vec_to_profile(common_sel, vec, cfg["VALUE_COL"])
+                           for lab, vec in sel["consensus_by_label"].items()}
     selections_round2 = {}
     overlap_df = pd.DataFrame()
     if cfg["RUN_ROUND2_SELECTION"]:
         print(f"\n{'=' * 70}\n  STEP 2b: round-2 selection (species-anchored)\n{'=' * 70}")
         r2 = fa.run_round2_selection(
-            sri, cfg, profiles_by_label, selections, common,
-            n_select=cfg["N_SELECT"], region_mask=region_mask)
+            sri, cfg, profiles_sel, selections, common_sel,
+            n_select=cfg["N_SELECT"], region_mask=region_mask_sel)
         selections_round2 = r2["selections"]
         for label in set(selections) - set(selections_round2):
             print(f"  [WARN] {label}: no round-2 selection -- keeps its round-1 selection")
             selections_round2[label] = selections[label]
         all_round_selections[2] = selections_round2
-        final_criterion = {lab: (_vec_to_profile(common, r2["criterion_by_label"][lab],
-                                                 cfg["VALUE_COL"])
-                                 if lab in r2["criterion_by_label"] else final_criterion.get(lab))
-                           for lab in selections_round2}
+        final_criterion_sel = {
+            lab: (_vec_to_profile(common_sel, r2["criterion_by_label"][lab], cfg["VALUE_COL"])
+                  if lab in r2["criterion_by_label"] else final_criterion_sel.get(lab))
+            for lab in selections_round2}
         rows_r2 = []
         for label, ranking in r2["rankings"].items():
             chosen = {tuple(str(x) for x in k) for k in selections_round2.get(label, [])}
@@ -2281,35 +2405,50 @@ def _run_selection(sri, cfg, paths, bids_configs, df_qc_by_label):
         if cfg["RUN_REFERENCE_METHOD_COMPARISON"]:
             print(f"\n{'=' * 70}\n  Effect of REFERENCE_METHOD on round-2 selection\n{'=' * 70}")
             overlap_df = fa.compare_reference_methods_on_round2(
-                sri, cfg, profiles_by_label, selections, common,
-                n_select=cfg["N_SELECT"], region_mask=region_mask)
+                sri, cfg, profiles_sel, selections, common_sel,
+                n_select=cfg["N_SELECT"], region_mask=region_mask_sel)
             if not overlap_df.empty:
                 overlap_df.drop(columns=["kcore_only", "uniform_only"]).to_excel(
                     os.path.join(paths["selection"], "reference_method_overlap.xlsx"),
                     index=False)
 
     start_round = max(all_round_selections)
+    last_iter = None
     if cfg["RUN_ITERATIVE_SELECTION"] and cfg["N_ITERATIVE_ROUNDS"] > start_round:
         print(f"\n{'=' * 70}\n  Iterative selection: rounds {start_round + 1}.."
               f"{cfg['N_ITERATIVE_ROUNDS']} (continuing from round {start_round})\n{'=' * 70}")
         iter_res = fa.run_iterative_selection(
-            sri, cfg, profiles_by_label, common, n_select=cfg["N_SELECT"],
+            sri, cfg, profiles_sel, common_sel, n_select=cfg["N_SELECT"],
             start_selections=all_round_selections[start_round], start_round=start_round,
             n_rounds=cfg["N_ITERATIVE_ROUNDS"], species_of_label=species_of_label,
-            region_mask=region_mask)
+            region_mask=region_mask_sel)
         for r, rd in iter_res["rounds"].items():
             all_round_selections[r] = rd["selections"]
-        last = max(iter_res["rounds"]) if iter_res["rounds"] else None
-        if last is not None:
-            cons_last = iter_res["rounds"][last]["consensus_by_label"]
-            final_criterion = {lab: (_vec_to_profile(common, cons_last[lab], cfg["VALUE_COL"])
-                                     if lab in cons_last else final_criterion.get(lab))
-                               for lab in all_round_selections[last]}
+        last_iter = max(iter_res["rounds"]) if iter_res["rounds"] else None
+        if last_iter is not None:
+            cons_last = iter_res["rounds"][last_iter]["consensus_by_label"]
+            final_criterion_sel = {
+                lab: (_vec_to_profile(common_sel, cons_last[lab], cfg["VALUE_COL"])
+                      if lab in cons_last else final_criterion_sel.get(lab))
+                for lab in all_round_selections[last_iter]}
 
     final_round = max(all_round_selections)
     selections_final = all_round_selections[final_round]
     print(f"\n  Selection chain: rounds {sorted(all_round_selections)} -- FINAL round = "
           f"{final_round}" + ("" if final_round > 1 else " (no refinement round ran)"))
+
+    # F8b / 6c (analyses): the final round's criterion in the analysis space --
+    # same construction, same kept runs at every round, analysis profiles and
+    # regions (identical to the selection's own criterion when there is one space)
+    if split:
+        print(f"\n  final-round criterion rebuilt in the analysis regions ({len(common)} "
+              f"values) for F8b / 6c")
+        final_criterion = _criterion_in_space(
+            sri, cfg, profiles_by_label, common, region_mask, species_profs,
+            species_of_label, all_round_selections, round2_ran=bool(selections_round2),
+            last_iter_round=last_iter)
+    else:
+        final_criterion = final_criterion_sel
 
     # Convergence across the WHOLE chain (round r vs r-1, r >= 2) + per-round table
     conv_df = pd.DataFrame()
@@ -2335,7 +2474,7 @@ def _run_selection(sri, cfg, paths, bids_configs, df_qc_by_label):
         print(f"  [saved] 02_selection/selection_by_round.xlsx, selection_convergence.xlsx")
 
     balanced = fa.balanced_kept_vs_notkept(
-        profiles_by_label, selections, common,
+        profiles_sel, selections, common_sel,
         consensus_by_label=sel["consensus_by_label"], value_col=cfg["VALUE_COL"],
         zscore=cfg["ZSCORE"], n_draws=cfg["N_DRAWS_BALANCED"],
         species_of_label=species_of_label)
@@ -2351,7 +2490,7 @@ def _run_selection(sri, cfg, paths, bids_configs, df_qc_by_label):
             # subject-only join level -- which is the correct granularity
             # here, not a degraded one. Check the printed join_level.
             qc = fa.validate_selection_against_qc(
-                profiles_by_label, selections, df_qc_by_label,
+                profiles_sel, selections, df_qc_by_label,
                 merge_qc_with_classification, n_draws=cfg["N_DRAWS_BALANCED"])
             if not qc.empty:
                 qc.to_excel(os.path.join(paths["selection"], "external_qc.xlsx"),
@@ -2406,6 +2545,7 @@ def _run_selection(sri, cfg, paths, bids_configs, df_qc_by_label):
     # 'kept_final', 'not_kept_final'), plus the all-units maps ('all'): they feed
     # the phylogenetic sensitivity (PHYLOGENY_USE_FINAL_ROUND), F17 and 5d
     # (before / after), STEP 8 (distance to the kept map) -- whichever part 2 uses.
+    # Analysis space: the tail reference left set by the conversion is `common`.
     group_map_profiles = {"all": dict(afni_profiles)}
     for idx in (map_index, map_index_final):
         if idx is None or idx.empty:
@@ -2437,6 +2577,12 @@ def _run_selection(sri, cfg, paths, bids_configs, df_qc_by_label):
                 print(f"  [5a] [WARN] common-scale rendering failed ({e}) -- per-map renders "
                       f"will be used")
 
+    selection_space = None
+    if split:
+        selection_space = dict(
+            common=common_sel, anat_common=list(sel_regions), profiles_by_label=profiles_sel,
+            species_profs=species_profs_sel, invariance=invariance_sel,
+            region_mask=region_mask_sel, final_criterion=final_criterion_sel)
     return dict(
         cfg=cfg, paths=paths, bids_configs=bids_configs, species_of_label=species_of_label,
         profiles_by_label=profiles_by_label, members_by_label=members_by_label,
@@ -2450,7 +2596,45 @@ def _run_selection(sri, cfg, paths, bids_configs, df_qc_by_label):
         conv_df=conv_df, overlap_df=overlap_df, map_index=map_index,
         map_index_final=map_index_final, group_map_profiles=group_map_profiles,
         surface_pics=surface_pics, surface_ranges=surface_ranges, run_index=run_index,
-        reliability=reliability)
+        reliability=reliability, seed_regions=list(seed_regions),
+        selection_space=selection_space)
+
+
+def _criterion_in_space(sri, cfg, profiles_by_label, common, region_mask, species_profs,
+                        species_of_label, all_round_selections, round2_ran, last_iter_round):
+    """The final round's selection criterion of every dataset, rebuilt in
+    another region space (the analysis space when the seed region is kept for
+    the selection and removed from the analyses): same construction and the
+    same kept units at every round as the selection actually used, with the
+    profiles, regions and selection mask of that space. Mirrors how
+    _run_selection updates the criterion round after round: round 1 (LOSO
+    consensus of the species profiles), round 2 if it ran (each dataset's own
+    round-1 kept reference), then the last iterative round if any (consensus
+    rebuilt from the previous round's kept references)."""
+    vc = cfg["VALUE_COL"]
+    mask = np.asarray(region_mask, dtype=bool)
+    _, _, cons1, _ = fa._select_against_species_profiles(
+        sri, species_profs, profiles_by_label, common, cfg["N_SELECT"],
+        cfg["LEAVE_ONE_OUT"], cfg["ZSCORE"], cfg["THRESHOLD_ABS"], cfg["SIMILARITY"],
+        species_of_label, mask, vc, cfg["METRIC"], False)
+    crit = {lab: _vec_to_profile(common, v, vc) for lab, v in cons1.items()}
+    if round2_ran:
+        r2 = fa.run_round2_selection(sri, cfg, profiles_by_label, all_round_selections[1],
+                                     common, n_select=cfg["N_SELECT"], region_mask=mask,
+                                     verbose=False)
+        crit = {lab: (_vec_to_profile(common, r2["criterion_by_label"][lab], vc)
+                      if lab in r2["criterion_by_label"] else crit.get(lab))
+                for lab in all_round_selections[2]}
+    if last_iter_round is not None:
+        it = fa.run_iterative_selection(
+            sri, cfg, profiles_by_label, common, n_select=cfg["N_SELECT"],
+            start_selections=all_round_selections[last_iter_round - 1],
+            start_round=last_iter_round - 1, n_rounds=last_iter_round,
+            species_of_label=species_of_label, region_mask=mask, verbose=False)
+        cons = it["rounds"][last_iter_round]["consensus_by_label"]
+        crit = {lab: (_vec_to_profile(common, cons[lab], vc) if lab in cons else crit.get(lab))
+                for lab in all_round_selections[last_iter_round]}
+    return crit
 
 
 def _write_methods_article(st, cfg, paths, phylo_source=None):
@@ -2483,12 +2667,34 @@ def _write_methods_article(st, cfg, paths, phylo_source=None):
     q = float(cfg["TAIL_Q"])
     lo, hi = int(round(100 * q)), int(round(100 * (1 - q)))
     anat = st.get("anat_common") or st["common"]
-    seed_out = cfg.get("_seed_regions_excluded") or []
-    n_inv = int(np.asarray(st["region_mask"], bool).sum()) if st.get("region_mask") is not None \
-        else len(st["common"])
-    n_val = len(st["common"])
-    inv_txt = (f"{n_inv} of the {n_val} profile values ({len(anat)} regions x 2 channels)"
-               if n_val != len(anat) else f"{n_inv} of the {n_val} regions")
+    seed_found = (st.get("seed_regions") or cfg.get("_seed_regions_found")
+                  or cfg.get("_seed_regions_excluded") or [])
+    out_ana = bool(cfg.get("_seed_regions_excluded"))
+    out_sel = bool(cfg.get("_seed_regions_excluded_selection",
+                           cfg.get("_seed_regions_excluded")))
+    if seed_found and out_ana and out_sel:
+        seed_txt = ("; the region containing the seed (" + ", ".join(seed_found) + "), found "
+                    "from the seed voxels in each atlas, was removed from every profile because "
+                    "its value reflects the autocorrelation of the seed rather than coupling")
+    elif seed_found and out_ana:
+        seed_txt = ("; the region containing the seed (" + ", ".join(seed_found) + "), found "
+                    "from the seed voxels in each atlas, was kept in the profiles scored by the "
+                    "selection and removed from every subsequent analysis, because its value "
+                    "reflects the autocorrelation of the seed rather than coupling")
+    elif seed_found and out_sel:
+        seed_txt = ("; the region containing the seed (" + ", ".join(seed_found) + ") was "
+                    "removed from the profiles scored by the selection only")
+    else:
+        seed_txt = ""
+    # the selection score: regions and mask of the selection space
+    ss = st.get("selection_space") or dict(common=st["common"], anat_common=anat,
+                                           region_mask=st.get("region_mask"))
+    n_val = len(ss["common"])
+    n_inv = (int(np.asarray(ss["region_mask"], bool).sum())
+             if ss.get("region_mask") is not None else n_val)
+    sel_anat = ss.get("anat_common") or anat
+    inv_txt = (f"{n_inv} of the {n_val} profile values ({len(sel_anat)} regions x 2 channels)"
+               if n_val != len(sel_anat) else f"{n_inv} of the {n_val} regions")
     n_kept = {lab: len(v) for lab, v in st["selections_final"].items()}
     if method == "percentiles":
         prof = (f"two values per region: the {hi}th and the {lo}th percentiles of the "
@@ -2527,6 +2733,13 @@ def _write_methods_article(st, cfg, paths, phylo_source=None):
     g6 = " and ".join((cfg.get("FIG6D") or {}).get("group", ("Human", "Macaque")))
     regs6 = ", ".join(ff.short_region(r) for r in (cfg.get("FIG6D") or {}).get(
         "regions", ()))
+    pairs5b = ("pairs of runs from the same species but two different datasets (available for "
+               "the species with two datasets) and pairs from different species; pairs from the "
+               "same dataset, which also share protocol, scanner and usually the animal, were "
+               "not compared"
+               if cfg.get("WITHIN_ACROSS_PAIRS", "other_dataset") == "other_dataset" else
+               "intra-species pairs (same species, same or another dataset) and inter-species "
+               "pairs")
     test5b = ("one-sided Wilcoxon rank-sum test on the pairs, not corrected for multiple "
               "comparisons (single primary hypothesis); because every run enters many pairs, "
               "the pairs are not independent and this test is liberal, so a permutation test "
@@ -2545,7 +2758,7 @@ Datasets
 {len(labels)} resting-state fMRI datasets from {n_species} species ({n_runs} runs, {n_anim} animals) were analysed: {ds_txt}. Every run was preprocessed and registered to its species template with EDNiX, and a seed-based correlation map (Pearson r) of the retrosplenial seed ({cfg['SEED']}) was computed in template space.
 
 Regional profiles
-Each run's map was summarised over the regions of the EDNiX atlas at level {cfg['ATLAS_LEVEL']} into a regional profile: {prof}. Only regions present in the atlas of every dataset and sampled by every dataset's group map were kept ({len(anat)} common regions){'; the region containing the seed (' + ', '.join(seed_out) + '), found from the seed voxels in each atlas, was removed from every profile because its value reflects the autocorrelation of the seed rather than coupling' if seed_out else ''}. {'Runs were screened beforehand by their distance to the most central run of their dataset (median absolute deviation threshold ' + str(cfg['RUN_QC_MAD_THRESHOLD']) + ').' if cfg['RUN_QC_ENABLE'] else 'No run was excluded before the selection.'} Profiles were {norm} before any comparison. The unit of the selection and of the group maps was the {unit}.
+Each run's map was summarised over the regions of the EDNiX atlas at level {cfg['ATLAS_LEVEL']} into a regional profile: {prof}. Only regions present in the atlas of every dataset and sampled by every dataset's group map were kept ({len(anat)} common regions in the analyses){seed_txt}. {'Runs were screened beforehand by their distance to the most central run of their dataset (median absolute deviation threshold ' + str(cfg['RUN_QC_MAD_THRESHOLD']) + ').' if cfg['RUN_QC_ENABLE'] else 'No run was excluded before the selection.'} Profiles were {norm} before any comparison. The unit of the selection and of the group maps was the {unit}.
 
 Consensus-based selection
 {chain} The score was computed on the {inv_txt} that were the most invariant across species (top fraction {cfg['INVARIANCE_VALUE']:g}, ranked by the median absolute deviation of the species values); every common region was used everywhere else. Leave-one-species-out ensured that no dataset contributed to the criterion that selected its own runs. Selected per dataset: {', '.join(f'{ff.pretty_label(k)} {v}' for k, v in sorted(n_kept.items()))}.
@@ -2557,12 +2770,12 @@ Reliability of the profile constructions
 The three constructions of the profile (median; upper and lower percentiles; tail fractions) were compared on every run before the selection, within the datasets holding several runs per animal, by their discriminability (Bridgeford et al. 2021): the probability that a run is closer (1 − r) to another run of the same animal than to a run of a different animal (0.5, chance). Its significance against chance was assessed by permuting the animal labels across runs (500 permutations), and the methods were compared with an exact paired sign-flip test across datasets. The criterion was fixed before, and independently of, the cross-species analyses.
 
 Statistics
-Figure 5b. Pearson correlations between the profiles of every pair of {unit}s were split into intra-species pairs (same species, same or another dataset) and inter-species pairs, among every {unit} and among the selected {unit}s; the two distributions were compared with a {test5b}.
+Figure 5b. Pearson correlations between the profiles of every pair of {unit}s were split into {pairs5b}, among every {unit} and among the selected {unit}s; the two distributions were compared with a {test5b}.
 Figure 5c. The agreement between species profiles was the mean Pearson r over all pairs of species, tested against {10000:,} permutations of the region labels within each species (one-sided); this permutation ignores the spatial autocorrelation between neighbouring regions and is therefore liberal.
 Figure 5d. Whether the selection reorders the datasets was tested by the Spearman correlation between the dataset-to-consensus correlations before and after selection ({10000:,} permutations, two-sided).
 Figure 6a. Pearson correlations between the species-mean similarity to the leave-one-species-out consensus (or to Human) and divergence time (time-calibrated tree{': ' + os.path.basename(cfg['TREE_PATH']) if cfg.get('TREE_PATH') else ''}) or log10 brain mass (Herculano-Houzel et al. 2015; Jardim-Messeder et al. 2017) were tested exactly over all assignments of the x values to the species (two-sided), with and without Human. Profiles: {phylo_source or 'group maps'}.
 Figure 6c. Within the datasets holding both arousal states in the same animals, the per-run correlation with the selection criterion was compared between anaesthetised and awake runs by the mean over animals of the per-animal difference, tested with an exact sign-flip of the animals (2^n assignments).
-Figure 6d. For each of six regions ({regs6}), the regional value of every selected run (unit of the profile method; supplementary panels for the other indices) was averaged over the runs of each animal, then over the animals of each dataset, then over the datasets of each species, so that neither an animal with more runs nor a dataset with more animals weighs more. The species is the unit of inference -- runs of one species share its brain, protocol and scanner, and testing runs would be pseudoreplication (Hurlbert 1984; Lazic 2010; Aarts et al. 2014). The difference between the mean of {g6} and the mean of the other species was tested exactly over every assignment of 2 of the 7 species to the group (21 assignments; two-sided; smallest possible P = 1/21 = 0.048), one test per region, not corrected for the number of regions. Robustness: the same test with one dataset per species, for every combination of the datasets of the species that have two. Region size: the group difference of each region was compared with the linear fit, across the other common regions, of the group difference against the group difference in log10 relative region size.
+Figure 6d. For each of six regions ({regs6}), the regional value of every selected run (one panel per index: upper and lower percentile, median, % of voxels in the top and bottom tail of the map, % of voxels with r > 0 and r < 0) was averaged over the runs of each animal, then over the animals of each dataset, then over the datasets of each species, so that neither an animal with more runs nor a dataset with more animals weighs more. The species is the unit of inference -- runs of one species share its brain, protocol and scanner, and testing runs would be pseudoreplication (Hurlbert 1984; Lazic 2010; Aarts et al. 2014). The difference between the mean of {g6} and the mean of the other species was tested exactly over every assignment of 2 of the 7 species to the group (21 assignments; two-sided; smallest possible P = 1/21 = 0.048), one test per region, not corrected for the number of regions. Robustness: the same test with one dataset per species, for every combination of the datasets of the species that have two. Region size: the group difference of each region was compared with the linear fit, across the other common regions, of the group difference against the group difference in log10 relative region size.
 Significance marks on the figures: *** P < 0.001, ** P < 0.01, * P < 0.05, n.s. not significant; exact P values, n and statistics are given in the .txt file of each panel. Permutation P values are (1 + number of null statistics at least as extreme) / (1 + number of permutations) except for exact enumerations.
 
 Software
@@ -2587,8 +2800,144 @@ Nili H, et al. (2014) A toolbox for representational similarity analysis. PLoS C
     return path
 
 
+def _kept_references(sri, cfg, profiles_by_label, selections, selections_final, final_round):
+    """Per dataset, the reference (REFERENCE_METHOD / K_REF) of its round-1
+    kept units and of its final-round kept units -- F1a/F1b, F4, fingerprints."""
+    kept_ref_by_label, kept_ref_final_by_label = {}, {}
+    for label, profs in profiles_by_label.items():
+        kept_keys_r1 = {tuple(str(x) for x in k) for k in selections.get(label, [])}
+        kept_profs_r1 = {k: v for k, v in profs.items()
+                         if tuple(str(x) for x in k) in kept_keys_r1}
+        try:
+            if len(kept_profs_r1) >= 2:
+                kept_ref_by_label[label], _ = fa.build_reference_for_profiles(
+                    sri, kept_profs_r1, method=cfg["REFERENCE_METHOD"],
+                    k=min(cfg["K_REF"], len(kept_profs_r1)),
+                    value_col=cfg["VALUE_COL"], metric=cfg["METRIC"])
+        except Exception as e:
+            print(f"  [WARN] {label}: round-1 kept reference failed: {e}")
+        if final_round >= 2:
+            kept_keys_r2 = {tuple(str(x) for x in k)
+                            for k in selections_final.get(label, [])}
+            kept_profs_r2 = {k: v for k, v in profs.items()
+                             if tuple(str(x) for x in k) in kept_keys_r2}
+            try:
+                if len(kept_profs_r2) >= 2:
+                    kept_ref_final_by_label[label], _ = fa.build_reference_for_profiles(
+                        sri, kept_profs_r2, method=cfg["REFERENCE_METHOD"],
+                        k=min(cfg["K_REF"], len(kept_profs_r2)),
+                        value_col=cfg["VALUE_COL"], metric=cfg["METRIC"])
+            except Exception as e:
+                print(f"  [WARN] {label}: round-{final_round} kept reference failed: {e}")
+    return kept_ref_by_label, kept_ref_final_by_label
+
+
+def _f4_per_dataset(sri, cfg, fd, sel, selections, final_round, profiles_by_label, common,
+                    species_profs, species_of_label, kept_ref_by_label,
+                    kept_ref_final_by_label, space_note=""):
+    """F4: one figure per dataset -- its own reference, the consensus it was
+    scored against, every unit (kept / not kept), the kept references. Drawn in
+    the region space of the SELECTION (it shows the selection's target).
+    Returns own_refs ({label: profile}); empty when no reference could be built."""
+    own_refs = {}
+    for label, profs in profiles_by_label.items():
+        try:
+            own_refs[label], _ = fa.build_reference_for_profiles(
+                sri, profs, method=cfg["REFERENCE_METHOD"], k=cfg["K_REF"],
+                value_col=cfg["VALUE_COL"], metric=cfg["METRIC"])
+        except Exception as e:
+            print(f"  [WARN] {label}: reference failed: {e}")
+    if not own_refs:
+        return own_refs
+    unit = cfg["UNIT"]
+    # cons_prof must stay on the RAW value_col scale to be comparable to
+    # own_refs and the individual units. The consensus in
+    # sel["consensus_by_label"] is z-scored and leave-one-out (correct for the
+    # selection SCORING) -- rebuild a separate display-only consensus here: all
+    # species, no LOO, no z-score.
+    display_consensus, _ = fa.build_consensus_pattern(
+        species_profs, common, value_col=cfg["VALUE_COL"],
+        exclude_label=None, zscore=False, threshold_abs=cfg["THRESHOLD_ABS"],
+        species_of_label=species_of_label, verbose=False)
+    finite = np.isfinite(display_consensus)
+    print(f"  [F4] display consensus (raw scale): "
+          f"{int(finite.sum())}/{len(display_consensus)} region(s) finite, "
+          f"range=[{np.nanmin(display_consensus):.3f}, "
+          f"{np.nanmax(display_consensus):.3f}]")
+    cons_prof = own_refs[next(iter(own_refs))].copy()
+    cons_prof[cfg["VALUE_COL"]] = (
+        cons_prof["base_name"].str.lower().str.strip()
+        .map(dict(zip(common, display_consensus))))
+    # Unweighted grand mean: every BIDS's own reference counted once, unlike
+    # display_consensus which collapses same-species BIDS together first.
+    grand_mean_vals = np.nanmedian(
+        np.vstack([fa._ordered_common_values(p, common, cfg["VALUE_COL"])
+                   for p in own_refs.values()]), axis=0)
+    grand_mean_prof = own_refs[next(iter(own_refs))].copy()
+    grand_mean_prof[cfg["VALUE_COL"]] = (
+        grand_mean_prof["base_name"].str.lower().str.strip()
+        .map(dict(zip(common, grand_mean_vals))))
+
+    per = os.path.join(fd, "F4_per_dataset")
+    os.makedirs(per, exist_ok=True)
+    for label, profs in profiles_by_label.items():
+        if label not in own_refs:
+            continue
+        own_vals = own_refs[label][cfg["VALUE_COL"]].values
+        print(f"  [F4] {label}: own_ref range=[{np.nanmin(own_vals):.3f}, "
+              f"{np.nanmax(own_vals):.3f}]  (should be same order of "
+              f"magnitude as the consensus range above)")
+        kept_keys = {tuple(str(x) for x in k) for k in selections.get(label, [])}
+        notkept_profs = {k: v for k, v in profs.items()
+                         if tuple(str(x) for x in k) not in kept_keys}
+        notkept_ref = None
+        try:
+            if len(notkept_profs) >= 2:
+                notkept_ref, _ = fa.build_reference_for_profiles(
+                    sri, notkept_profs, method=cfg["REFERENCE_METHOD"],
+                    k=min(cfg["K_REF"], len(notkept_profs)),
+                    value_col=cfg["VALUE_COL"], metric=cfg["METRIC"])
+        except Exception as e:
+            print(f"  [WARN] {label}: not-kept-only reference failed: {e}")
+        fa.plot_bids_ref_with_individuals(
+            profs, own_refs[label], cons_prof, common,
+            selected_keys=selections.get(label),
+            kept_ref=kept_ref_by_label.get(label), notkept_ref=notkept_ref,
+            grand_mean_ref=grand_mean_prof,
+            kept_ref_round2=kept_ref_final_by_label.get(label),
+            actual_selection_target=sel["consensus_by_label"].get(label),
+            final_round_label=(f"Kept final round (round {final_round})"
+                               if final_round >= 2 else "Kept final round"),
+            target_label=(f"Round-1 selection target ("
+                          f"{fa._norm_label(cfg['ZSCORE']).strip() or 'raw'}, "
+                          f"{'LOO' if cfg['LEAVE_ONE_OUT'] else 'no LOO'}, "
+                          f"right axis)"),
+            value_col=cfg["VALUE_COL"],
+            title=f"{label} (lvl {cfg['ATLAS_LEVEL']}, {unit} level)",
+            output_path=os.path.join(per, f"{label}.png"))
+    _write_legend(
+        os.path.join(fd, "F4_per_dataset.txt"),
+        "F4 -- Per-dataset reference, consensus and individual units",
+        f"One figure per dataset: its own reference (blue), the consensus it "
+        f"was scored against (orange dashed), and every individual {unit} "
+        f"(green = kept, grey = not kept).{space_note}",
+        f"Dataset reference built with {cfg['REFERENCE_METHOD']} over ALL its "
+        f"{unit}s, independent of the selection. Regions ordered by consensus "
+        f"value.",
+        f"Kept {unit}s should track the orange line more closely than grey "
+        f"ones. If they instead look flatter, the metric is rewarding low "
+        f"amplitude rather than matching shape -- try "
+        f"SIMILARITY='neg_euclidean' with ZSCORE=False.")
+    return own_refs
+
+
 def _run_figures(sri, st):
-    """Part 2: every statistic and figure, from the part-1 state `st` only."""
+    """Part 2: every statistic and figure, from the part-1 state `st` only.
+
+    Two region spaces when the seed region is kept for the selection and
+    removed from the analyses (state['selection_space'] set): F3, F4 and F5
+    describe the selection and are drawn in its regions; every other output
+    uses the analysis regions (the state's usual keys)."""
     cfg, paths, bids_configs = st["cfg"], st["paths"], st["bids_configs"]
     unit = cfg["UNIT"]
     species_of_label = st["species_of_label"]
@@ -2604,12 +2953,32 @@ def _run_figures(sri, st):
     selections_final, final_criterion = st["selections_final"], st["final_criterion"]
     map_index, map_index_final = st["map_index"], st["map_index_final"]
     group_map_profiles = st["group_map_profiles"]
+    # ---- region space of the selection vs of the analyses -------------------
+    split = st.get("selection_space") is not None
+    ss = st["selection_space"] if split else dict(
+        common=common, profiles_by_label=profiles_by_label, species_profs=species_profs,
+        invariance=invariance, region_mask=region_mask, final_criterion=final_criterion)
+    # species profiles of every analysis (F1, F1c, fingerprints, 5c): those of the
+    # analysis space (with one space, the selection's own, as before)
+    ana_species_profiles = species_profs if split else sel["species_profiles"]
+    seed_txt = ", ".join(st.get("seed_regions") or cfg.get("_seed_regions_found") or [])
+    sel_note = (f" Drawn in the regions of the SELECTION ({len(ss['common'])} values): the "
+                f"region containing the seed ({seed_txt}) is "
+                f"{'included' if not cfg.get('SEED_REGION_EXCLUDE_SELECTION') else 'excluded'}"
+                f", as it was for the selection; the analyses use {len(common)} values."
+                if split else "")
     # selections are unit keys; every run-level step needs the RUN keys behind
     # them (with UNIT="subject" a unit key (subject, 'ALL', 'ALL', seed) never
     # equals a run key, so kept flags of runs were all False before)
     kept_runs_final = fpp.selected_run_keys(selections_final, members_by_label)
     kept_runs_r1 = fpp.selected_run_keys(selections, members_by_label)
     print(f"\n{'#' * 70}\n  PART 2: statistics and figures\n{'#' * 70}")
+    if split:
+        print(f"  region spaces: selection {len(ss['common'])} values (seed region "
+              f"{seed_txt} {'excluded' if cfg.get('SEED_REGION_EXCLUDE_SELECTION') else 'kept'})"
+              f", analyses {len(common)} values (seed region "
+              f"{'excluded' if cfg.get('SEED_REGION_EXCLUDE_ANALYSES') else 'kept'}); F3, F4, "
+              f"F5 in the selection's regions, everything else in the analysis regions")
 
     # ---- figures computed in part 1, drawn here ------------------------------
     if cfg["MAKE_FIGURES"]:
@@ -2634,16 +3003,11 @@ def _run_figures(sri, st):
 
     # ---- phylogeny source (F6, F7, F11-F13, STEP 7) -----------------------
     # Resolved ONCE here so every phylogenetic output uses the same maps.
-    # Confirmed bugs this replaces: the switch used to live inside the
-    # figures block (overwriting afni_profiles in place), STEP 7 ignored
-    # it entirely, and the log/excel still said "all-units, no selection".
     phylo_profiles = afni_profiles
     phylo_index = all_units_index
     phylo_source = f"all-{unit}s group maps (no selection)"
     # Every dataset that has runs must be represented; compare against that,
-    # not against afni_profiles (which can itself be incomplete -- confirmed
-    # real case: 6/9 all-units maps, while all 9 kept maps existed, and the
-    # old comparison wrongly fell back with an empty "missing" list).
+    # not against afni_profiles (which can itself be incomplete).
     expected = set(profiles_by_label)
     missing_all_units = sorted(expected - set(afni_profiles))
     if missing_all_units:
@@ -2683,12 +3047,13 @@ def _run_figures(sri, st):
 
     # ---- STEP 6: figures + legends --------------------------------------
     fingerprints = {}
+    kept_ref_by_label, kept_ref_final_by_label = {}, {}
     if cfg["MAKE_FIGURES"]:
         print(f"\n{'=' * 70}\n  STEP 6: figures\n{'=' * 70}")
         fd = paths["figures"]
 
         fa.plot_consensus_by_species(
-            sel["species_profiles"], common, species_of_label,
+            ana_species_profiles, common, species_of_label,
             value_col=cfg["VALUE_COL"], zscore=cfg["ZSCORE"],
             title=f"Consensus by species -- all runs (lvl {cfg['ATLAS_LEVEL']}, {unit} level)",
             output_path=os.path.join(fd, "F1_consensus_by_species.png"))
@@ -2709,35 +3074,10 @@ def _run_figures(sri, st):
             "the same plot built from round-1 / final-round KEPT runs only instead of "
             "every run.")
 
-        # Kept-round-1 and kept-round-2 per-BIDS references, computed once
-        # here and reused below by F1a/F1b AND by F4 (was recomputed inline
-        # there before; same build_reference_for_profiles calls, now shared).
-        kept_ref_by_label, kept_ref_final_by_label = {}, {}
-        for label, profs in profiles_by_label.items():
-            kept_keys_r1 = {tuple(str(x) for x in k) for k in selections.get(label, [])}
-            kept_profs_r1 = {k: v for k, v in profs.items()
-                             if tuple(str(x) for x in k) in kept_keys_r1}
-            try:
-                if len(kept_profs_r1) >= 2:
-                    kept_ref_by_label[label], _ = fa.build_reference_for_profiles(
-                        sri, kept_profs_r1, method=cfg["REFERENCE_METHOD"],
-                        k=min(cfg["K_REF"], len(kept_profs_r1)),
-                        value_col=cfg["VALUE_COL"], metric=cfg["METRIC"])
-            except Exception as e:
-                print(f"  [WARN] {label}: round-1 kept reference failed: {e}")
-            if final_round >= 2:
-                kept_keys_r2 = {tuple(str(x) for x in k)
-                                for k in selections_final.get(label, [])}
-                kept_profs_r2 = {k: v for k, v in profs.items()
-                                 if tuple(str(x) for x in k) in kept_keys_r2}
-                try:
-                    if len(kept_profs_r2) >= 2:
-                        kept_ref_final_by_label[label], _ = fa.build_reference_for_profiles(
-                            sri, kept_profs_r2, method=cfg["REFERENCE_METHOD"],
-                            k=min(cfg["K_REF"], len(kept_profs_r2)),
-                            value_col=cfg["VALUE_COL"], metric=cfg["METRIC"])
-                except Exception as e:
-                    print(f"  [WARN] {label}: round-{final_round} kept reference failed: {e}")
+        # Kept-round-1 and kept-final per-BIDS references (analysis space), reused
+        # by F1a/F1b and the fingerprints; F4 has its own, in the selection space.
+        kept_ref_by_label, kept_ref_final_by_label = _kept_references(
+            sri, cfg, profiles_by_label, selections, selections_final, final_round)
 
         if kept_ref_by_label:
             fa.plot_consensus_by_species(
@@ -2780,7 +3120,7 @@ def _run_figures(sri, st):
                 "rounds barely changed that species. F1e shows round-to-round stability.")
 
         fa.plot_consensus_by_bids(
-            sel["species_profiles"], common, species_of_label,
+            ana_species_profiles, common, species_of_label,
             value_col=cfg["VALUE_COL"], zscore=cfg["ZSCORE"],
             title=f"Consensus by BIDS -- all runs (lvl {cfg['ATLAS_LEVEL']}, {unit} level)",
             output_path=os.path.join(fd, "F1c_consensus_by_bids.png"))
@@ -2798,21 +3138,26 @@ def _run_figures(sri, st):
             "two BIDS of the same species diverging from EACH OTHER points at a "
             "dataset/protocol effect instead.")
 
+        pairs_def = cfg.get("WITHIN_ACROSS_PAIRS", "other_dataset")
         fa.plot_intra_vs_inter_species_distance(
             profiles_by_label, common, species_of_label,
             value_col=cfg["VALUE_COL"], zscore=cfg["ZSCORE"],
             title=f"Within- vs across-species similarity (lvl {cfg['ATLAS_LEVEL']})",
-            output_path=os.path.join(fd, "F2_within_vs_across_species.png"))
+            output_path=os.path.join(fd, "F2_within_vs_across_species.png"),
+            intra=pairs_def)
+        compared = ("'same species, other dataset' vs 'different species' (same-dataset "
+                    "pairs shown, not compared)" if pairs_def == "other_dataset" else
+                    "every same-species pair (same dataset included) vs 'different species'")
         _write_legend(
             os.path.join(fd, "F2_within_vs_across_species.txt"),
             "F2 -- Within- vs across-species similarity",
             f"Distribution of {unit}-to-{unit} profile correlation for three kinds of "
             f"pairs: same dataset; same species but another dataset; different species.",
-            f"All {unit} pairs (subsampled above 20000 pairs). AUC (same vs different "
-            f"species) is descriptive. p comes from permuting species labels ACROSS "
-            f"DATASETS (each dataset keeps its {unit}s; pair correlations fixed): pairs "
-            f"share {unit}s and are not independent, so a Mann-Whitney p on pairs would "
-            f"be anti-conservative by orders of magnitude."
+            f"All {unit} pairs (subsampled above 20000 pairs). Classes compared "
+            f"(WITHIN_ACROSS_PAIRS={pairs_def!r}): {compared}. AUC is descriptive. p comes "
+            f"from permuting species labels ACROSS DATASETS (each dataset keeps its {unit}s; "
+            f"pair correlations fixed): pairs share {unit}s and are not independent, so a "
+            f"Mann-Whitney p on pairs would be anti-conservative by orders of magnitude."
             + (f" With UNIT='run', same-dataset pairs include repeated scans of the same "
                f"animal and the same protocol, so they overestimate species similarity."
                if unit == "run" else ""),
@@ -2834,14 +3179,16 @@ def _run_figures(sri, st):
             title=f"Within- vs across-species similarity: all vs final-round selection "
                   f"(lvl {cfg['ATLAS_LEVEL']})",
             selected_name=f"Selected, round {final_round}",
-            output_path=os.path.join(fd, "F2b_within_vs_across_all_vs_selected.png"))
+            output_path=os.path.join(fd, "F2b_within_vs_across_all_vs_selected.png"),
+            intra=pairs_def)
         _write_legend(
             os.path.join(fd, "F2b_within_vs_across_all_vs_selected.txt"),
             "F2b -- Within- vs across-species similarity, all runs vs selected",
             f"Same analysis as F2: left, every {unit}; right, the {unit}s kept by the "
-            f"final selection round (round {final_round}).",
-            "Same pair classes, AUC and dataset-level permutation test as F2, computed "
-            "independently on each pool.",
+            f"final selection round (round {final_round}). Paper panel 5b draws the two "
+            f"compared classes of this figure with the same pairs, bins and statistics.",
+            f"Same pair classes, AUC and dataset-level permutation test as F2 (compared: "
+            f"{compared}), computed independently on each pool.",
             "The left panel is the unbiased estimate. Selection moves the right panel "
             "in both directions: rounds scored against a cross-species consensus pull "
             "runs toward a shared pattern and should REDUCE species separation, while a "
@@ -2857,7 +3204,7 @@ def _run_figures(sri, st):
             os.path.join(fd, "F3_score_distributions.txt"),
             "F3 -- Selection score distributions",
             f"Per dataset, the distribution of every {unit}'s similarity to the "
-            f"consensus, with the selection cutoff marked in orange.",
+            f"consensus, with the selection cutoff marked in orange.{sel_note}",
             f"Similarity metric: {cfg['SIMILARITY']}. Cutoff is the score of the "
             f"{cfg['N_SELECT']}th best {unit}.",
             f"If the kept {unit}s form a separate upper mode, the selection captures "
@@ -2867,118 +3214,32 @@ def _run_figures(sri, st):
             f"has far fewer {unit}s than runs, so a single {unit} moves the cutoff "
             f"more.")
 
-        own_refs = {}
-        for label, profs in profiles_by_label.items():
-            try:
-                own_refs[label], _ = fa.build_reference_for_profiles(
-                    sri, profs, method=cfg["REFERENCE_METHOD"], k=cfg["K_REF"],
-                    value_col=cfg["VALUE_COL"], metric=cfg["METRIC"])
-            except Exception as e:
-                print(f"  [WARN] {label}: reference failed: {e}")
-
+        # F4 shows the selection's own target: drawn in the selection's regions
+        if split:
+            f4_kept, f4_kept_final = _kept_references(
+                sri, cfg, ss["profiles_by_label"], selections, selections_final, final_round)
+        else:
+            f4_kept, f4_kept_final = kept_ref_by_label, kept_ref_final_by_label
+        own_refs = _f4_per_dataset(
+            sri, cfg, fd, sel, selections, final_round, ss["profiles_by_label"], ss["common"],
+            ss["species_profs"], species_of_label, f4_kept, f4_kept_final,
+            space_note=sel_note)
         if own_refs:
-            # cons_prof must stay on the RAW value_col scale to be
-            # comparable to own_refs and the individual units. The
-            # consensus in sel["consensus_by_label"] is z-scored and
-            # leave-one-out (correct for the selection SCORING) --
-            # rebuild a separate display-only consensus here: all
-            # species, no LOO, no z-score.
-            display_consensus, _ = fa.build_consensus_pattern(
-                species_profs, common, value_col=cfg["VALUE_COL"],
-                exclude_label=None, zscore=False, threshold_abs=cfg["THRESHOLD_ABS"],
-                species_of_label=species_of_label, verbose=False)
-            finite = np.isfinite(display_consensus)
-            print(f"  [F4] display consensus (raw scale): "
-                  f"{int(finite.sum())}/{len(display_consensus)} region(s) finite, "
-                  f"range=[{np.nanmin(display_consensus):.3f}, "
-                  f"{np.nanmax(display_consensus):.3f}]")
             sign_df = fa.diagnose_consensus_sign(
                 species_profs, common, value_col=cfg["VALUE_COL"],
                 species_of_label=species_of_label)
             sign_df.to_excel(os.path.join(
                 paths["group_maps"], "consensus_sign_diagnostic.xlsx"), index=False)
 
-            cons_prof = own_refs[next(iter(own_refs))].copy()
-            cons_prof[cfg["VALUE_COL"]] = (
-                cons_prof["base_name"].str.lower().str.strip()
-                .map(dict(zip(common, display_consensus))))
-
-            # Unweighted grand mean: every one of the 10 BIDS's own
-            # species_ref counted once, unlike display_consensus which
-            # collapses same-species BIDS together first (Human counts
-            # once even though 2 BIDS feed it). Answers "what does the
-            # average across every dataset we have look like", flat.
-            grand_mean_vals = np.nanmedian(
-                np.vstack([fa._ordered_common_values(p, common, cfg["VALUE_COL"])
-                          for p in own_refs.values()]), axis=0)
-            grand_mean_prof = own_refs[next(iter(own_refs))].copy()
-            grand_mean_prof[cfg["VALUE_COL"]] = (
-                grand_mean_prof["base_name"].str.lower().str.strip()
-                .map(dict(zip(common, grand_mean_vals))))
-
-            per = os.path.join(fd, "F4_per_dataset")
-            os.makedirs(per, exist_ok=True)
-            for label, profs in profiles_by_label.items():
-                if label in own_refs:
-                    own_vals = own_refs[label][cfg["VALUE_COL"]].values
-                    print(f"  [F4] {label}: own_ref range=[{np.nanmin(own_vals):.3f}, "
-                          f"{np.nanmax(own_vals):.3f}]  (should be same order of "
-                          f"magnitude as the consensus range above)")
-
-                    kept_keys = {tuple(str(x) for x in k) for k in selections.get(label, [])}
-                    notkept_profs = {k: v for k, v in profs.items()
-                                     if tuple(str(x) for x in k) not in kept_keys}
-                    kept_ref = kept_ref_by_label.get(label)
-                    notkept_ref = None
-                    try:
-                        if len(notkept_profs) >= 2:
-                            notkept_ref, _ = fa.build_reference_for_profiles(
-                                sri, notkept_profs, method=cfg["REFERENCE_METHOD"],
-                                k=min(cfg["K_REF"], len(notkept_profs)),
-                                value_col=cfg["VALUE_COL"], metric=cfg["METRIC"])
-                    except Exception as e:
-                        print(f"  [WARN] {label}: not-kept-only reference failed: {e}")
-
-                    kept_ref_r2 = kept_ref_final_by_label.get(label)
-
-                    fa.plot_bids_ref_with_individuals(
-                        profs, own_refs[label], cons_prof, common,
-                        selected_keys=selections.get(label),
-                        kept_ref=kept_ref, notkept_ref=notkept_ref,
-                        grand_mean_ref=grand_mean_prof, kept_ref_round2=kept_ref_r2,
-                        actual_selection_target=sel["consensus_by_label"].get(label),
-                        final_round_label=(f"Kept final round (round {final_round})"
-                                           if final_round >= 2 else "Kept final round"),
-                        target_label=(f"Round-1 selection target ("
-                                      f"{fa._norm_label(cfg['ZSCORE']).strip() or 'raw'}, "
-                                      f"{'LOO' if cfg['LEAVE_ONE_OUT'] else 'no LOO'}, "
-                                      f"right axis)"),
-                        value_col=cfg["VALUE_COL"],
-                        title=f"{label} (lvl {cfg['ATLAS_LEVEL']}, {unit} level)",
-                        output_path=os.path.join(per, f"{label}.png"))
-            _write_legend(
-                os.path.join(fd, "F4_per_dataset.txt"),
-                "F4 -- Per-dataset reference, consensus and individual units",
-                f"One figure per dataset: its own reference (blue), the consensus it "
-                f"was scored against (orange dashed), and every individual {unit} "
-                f"(green = kept, grey = not kept).",
-                f"Dataset reference built with {cfg['REFERENCE_METHOD']} over ALL its "
-                f"{unit}s, independent of the selection. Regions ordered by consensus "
-                f"value.",
-                f"Kept {unit}s should track the orange line more closely than grey "
-                f"ones. If they instead look flatter, the metric is rewarding low "
-                f"amplitude rather than matching shape -- try "
-                f"SIMILARITY='neg_euclidean' with ZSCORE=False.")
-
         fa.plot_region_invariance(
-            invariance, common, mask=region_mask,
+            ss["invariance"], ss["common"], mask=ss["region_mask"],
             title=f"Region invariance across species (lvl {cfg['ATLAS_LEVEL']})",
             output_path=os.path.join(fd, "F5_region_invariance.png"))
         _write_legend(
             os.path.join(fd, "F5_region_invariance.txt"),
             "F5 -- Cross-species region invariance",
             "Per region, how much species AGREE on its value. Green bars are the "
-            "regions the selection was restricted to.",
+            f"regions the selection was restricted to.{sel_note}",
             f"Invariance = 1 - rescaled median absolute deviation of the per-species "
             f"values, computed on the {unit}-level profiles. Selection used "
             f"mode={cfg['INVARIANCE_MODE']}, value={cfg['INVARIANCE_VALUE']}.",
@@ -2986,20 +3247,7 @@ def _run_figures(sri, st):
             "cross-species noise. If very few regions are green, the conserved core "
             "is small and any cross-species claim rests on little.")
 
-        # --- phylogenetic regression, from the ALL-INDIVIDUALS maps -------
-        # Deliberately NOT the kept maps. The kept units are chosen to
-        # maximise correlation with the cross-species consensus, and the
-        # pool they are chosen from differs by an order of magnitude
-        # between datasets (25 runs for Dog/Human_Castrillon, 171 for
-        # Rat). Taking the top N of a larger pool yields a higher
-        # expected correlation even with identical biology and identical
-        # noise -- an order-statistics effect, the same structure as the
-        # winner's curse. Since pool size is confounded with clade
-        # (large rodent datasets, small primate ones), a slope fitted on
-        # kept maps could reflect how much sorting each species allowed
-        # rather than phylogeny. The all-individuals maps carry no
-        # selection pressure at all, so every species is measured under
-        # the same regime.
+        # --- phylogenetic regression (F6/F7) --------------------------------
         if phylo_profiles:
             print(f"  [F6] using {phylo_source} ({len(phylo_profiles)} dataset(s)), "
                   f"leave-one-SPECIES-out reference per point")
@@ -3009,17 +3257,14 @@ def _run_figures(sri, st):
                 ddf_bids["source"] = phylo_source
             if len(ddf_bids) >= 3:
                 # One row per SPECIES for the fit: two BIDS of one species
-                # are not independent observations, and fitting on per-BIDS
-                # rows would both pseudo-replicate and give double weight to
-                # the species that happen to have two datasets.
+                # are not independent observations.
                 ddf = (ddf_bids.groupby("species", as_index=False)
                        .agg(distance_to_human=("distance_to_human", "mean"),
                             pearson_r=("pearson_r", "mean"),
                             n_bids=("label", "count")))
                 ddf["source"] = "all_units"
 
-                # Intra- vs inter-species contrast: the direct answer to
-                # "are the cross-species differences protocol artefacts?".
+                # Intra- vs inter-species contrast
                 intra = (ddf_bids.groupby("species")["distance_to_human"]
                          .agg(lambda s: float(np.abs(s.max() - s.min())) if len(s) > 1 else np.nan)
                          .dropna())
@@ -3046,8 +3291,7 @@ def _run_figures(sri, st):
                 with pd.ExcelWriter(os.path.join(paths["group_maps"],
                                                  "distance_to_consensus.xlsx")) as xw:
                     # "distance_to_human" is the historical column name: it is the
-                    # distance to the leave-one-species-out consensus. The
-                    # divergence time actually used is exported next to it.
+                    # distance to the leave-one-species-out consensus.
                     for df_ in (ddf_bids, ddf):
                         df_["divergence_mya_used"] = df_["species"].map(fa.DIVERGENCE_TIME_MYA)
                         df_["divergence_source"] = cfg["TREE_PATH"] or "hand-entered (approximate)"
@@ -3135,7 +3379,7 @@ def _run_figures(sri, st):
             fingerprints = ff.make_fingerprint_figures(
                 group_all=phylo_profiles, group_all_source=phylo_source,
                 ba_all=ba_all, ba_sel=ba_sel, ba_source=ba_source,
-                f1_all=sel["species_profiles"],
+                f1_all=ana_species_profiles,
                 f1_sel=kept_ref_final_by_label or kept_ref_by_label,
                 common=common, region_mask=region_mask, species_of_label=species_of_label,
                 bids_configs=bids_configs, runs_by_label=runs_by_label,
@@ -3154,7 +3398,7 @@ def _run_figures(sri, st):
                         profiles_by_label=profiles_by_label, runs_by_label=runs_by_label,
                         members_by_label=members_by_label, selections_final=selections_final,
                         rankings=sel["rankings"], selections_r1=selections,
-                        f1_all=sel["species_profiles"],
+                        f1_all=ana_species_profiles,
                         f1_sel=kept_ref_final_by_label or kept_ref_by_label,
                         group_all=phylo_profiles, group_all_source=phylo_source,
                         fingerprints=fingerprints, all_units_index=all_units_index,
@@ -3273,8 +3517,7 @@ def _run_figures(sri, st):
     if cfg["RUN_DISTANCE_TO_REF"]:
         # Dispersion is measured around the dataset's reference from the
         # FINAL selection round (its kept map), whatever
-        # PHYLOGENY_USE_FINAL_ROUND says -- that flag only concerns the
-        # winner's-curse issue of the cross-species phylogenetic tests.
+        # PHYLOGENY_USE_FINAL_ROUND says.
         use_final = (final_round >= 2 and not map_index_final.empty
                      and cfg["DISTANCE_REF_GROUP"] == "kept")
         ref_group = "kept_final" if use_final else cfg["DISTANCE_REF_GROUP"]
@@ -3327,12 +3570,18 @@ def _run_figures(sri, st):
 
     if cfg["RUN_DISTANCE_TO_REF"]:
         # ---- F8b: distance to the FINAL round's selection criterion ----
-        # The exact profile the final round scored each BIDS's runs
-        # against (round 1: LOO/non-LOO consensus; round 2: the BIDS's
-        # own round-1 kept mean; round >= 3: the consensus rebuilt from
-        # the previous round's kept means). Crosses MUST sit at the top
-        # by construction -- this checks the implementation, it is not
-        # a finding. F8 (AFNI kept map) is the independent check.
+        # The profile the final round scored each BIDS's runs against (round 1:
+        # LOO/non-LOO consensus; round 2: the BIDS's own round-1 kept mean;
+        # round >= 3: the consensus rebuilt from the previous round's kept
+        # means). With two region spaces it is the same criterion rebuilt in the
+        # analysis regions (_criterion_in_space, part 1).
+        crit_note = None
+        if split:
+            crit_note = (f"The criterion is rebuilt in the analysed regions ({len(common)} "
+                         f"values; seed region {seed_txt} removed), with the same construction "
+                         f"and the same kept runs at every round as the selection, which "
+                         f"scored {len(ss['common'])} values (seed region included); the r "
+                         f"is therefore close to, not identical with, the selection score.")
         ref_profiles_criterion = {
             label: (species_of_label.get(label), ref)
             for label, ref in final_criterion.items() if ref is not None}
@@ -3349,7 +3598,8 @@ def _run_figures(sri, st):
             try:
                 fpp.fig6c_f8b(paths, dist_df_b, bids_configs, final_round,
                               n_perm=cfg["N_PERM_PHYLOGENY"],
-                              paper=cfg.get("RUN_PAPER_FIGURES", True))
+                              paper=cfg.get("RUN_PAPER_FIGURES", True),
+                              criterion_note=crit_note)
             except Exception as e:
                 import traceback
                 traceback.print_exc()

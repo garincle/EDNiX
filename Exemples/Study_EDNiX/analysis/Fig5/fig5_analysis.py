@@ -2430,27 +2430,39 @@ def _within_across_species_pairs(profiles_by_label, common_base_names, species_o
     return out
 
 
-def _within_across_stats(pairs, n_perm=2000, random_seed=0):
+INTRA_PAIRS = ("other_dataset", "all")
+
+
+def _within_across_stats(pairs, n_perm=2000, random_seed=0, intra="other_dataset"):
     """
     Three pair classes: same dataset / same species but another dataset /
-    different species. Descriptive AUC (same species vs different species)
-    plus a permutation p that respects the dependence between pairs: the
-    species labels are shuffled ACROSS DATASETS (each dataset keeps all its
-    runs), the pair correlations stay fixed, and the statistic
-    median(same species) - median(different species) is recomputed.
-    Pairs are not independent (each run enters hundreds of pairs), so a
-    Mann-Whitney p on pairs is anti-conservative by orders of magnitude --
-    the reason it was replaced. With few datasets per species the
-    permutation null is coarse and the test is weak: read the three
-    medians, not only p.
+    different species. The two classes compared (AUC, Wilcoxon, permutation)
+    are set by `intra`:
+      "other_dataset" (default): intra = same species, ANOTHER dataset;
+          inter = different species; same-dataset pairs are left out of the
+          test (they also share protocol, scanner and usually the animal, so
+          they cannot separate species from dataset);
+      "all": intra = every same-species pair, same dataset included (previous
+          5b) -- dominated by the same-dataset pairs, which are the majority.
+    Descriptive AUC (intra vs inter) plus a permutation p that respects the
+    dependence between pairs: the species labels are shuffled ACROSS DATASETS
+    (each dataset keeps all its runs), the pair correlations stay fixed, and
+    median(intra) - median(inter) is recomputed with the same definition of
+    intra. Pairs are not independent (each run enters hundreds of pairs), so a
+    Mann-Whitney p on pairs is anti-conservative by orders of magnitude. With
+    few datasets per species the permutation null is coarse and the test is
+    weak: read the three medians, not only p.
     """
+    if intra not in INTRA_PAIRS:
+        raise ValueError(f"intra must be one of {INTRA_PAIRS}, got {intra!r}")
     r, da, db = pairs["r"], pairs["da"], pairs["db"]
     sp = pairs["species_of"]
     if len(r) < 4:
         return None
     same_ds = da == db
     same_sp = sp[da] == sp[db]
-    within, across = r[same_sp], r[~same_sp]
+    intra_mask = (same_sp & ~same_ds) if intra == "other_dataset" else same_sp
+    within, across = r[intra_mask], r[~same_sp]
     if len(within) < 2 or len(across) < 2:
         return None
     u, _ = _stats.mannwhitneyu(within, across, alternative="two-sided")
@@ -2466,13 +2478,15 @@ def _within_across_stats(pairs, n_perm=2000, random_seed=0):
     for _ in range(n_perm):
         spp = rng.permutation(sp)
         w = spp[da] == spp[db]
-        if w.all() or not w.any():
+        wi = (w & ~same_ds) if intra == "other_dataset" else w
+        if not wi.any() or w.all():
             continue
-        null.append(np.median(r[w]) - np.median(r[~w]))
+        null.append(np.median(r[wi]) - np.median(r[~w]))
     null = np.asarray(null)
     p_perm = (1 + int(np.sum(null >= obs - 1e-12))) / (len(null) + 1) if len(null) else np.nan
     cross_ds_same_sp = r[same_sp & ~same_ds]
-    return dict(n_same_dataset=int(same_ds.sum()),
+    return dict(intra_definition=intra,
+                n_same_dataset=int(same_ds.sum()),
                 n_same_species_other_dataset=int(len(cross_ds_same_sp)),
                 n_different_species=int(len(across)),
                 median_same_dataset=float(np.median(r[same_ds])) if same_ds.any() else np.nan,
@@ -2485,24 +2499,30 @@ def _within_across_stats(pairs, n_perm=2000, random_seed=0):
                 n_across=int(len(across)))
 
 
+_INTRA_TXT = {"other_dataset": "same species other dataset vs different species",
+              "all": "intra (same species, any dataset) vs inter species"}
+WITHIN_ACROSS_BINS = np.linspace(-1, 1, 41)     # 5b and F2/F2b: same bins
+
+
 def _draw_within_across_panel(ax, pairs, title=None, paper=False, header=None,
-                              n_runs=None, legend=True):
+                              n_runs=None, legend=True, intra="other_dataset"):
     """Three histograms (same dataset / same species other dataset /
-    different species) + descriptive AUC and dataset-level permutation p.
+    different species) + descriptive AUC and dataset-level permutation p
+    (classes compared: `intra`, see _within_across_stats).
     paper=True: same drawing, but no bold title and no statistics in the
     legend; `header` (e.g. 'all runs') at the top left and 'n = .. runs,
     p = ..' at the top right -- the rest goes to the figure legend (.txt)."""
-    st = _within_across_stats(pairs)
+    st = _within_across_stats(pairs, intra=intra)
     if st is None:
         ax.axis("off")
         return None
     r, da, db, sp = pairs["r"], pairs["da"], pairs["db"], pairs["species_of"]
     same_ds, same_sp = da == db, sp[da] == sp[db]
-    bins = np.linspace(-1, 1, 60)
+    bins = WITHIN_ACROSS_BINS
     groups = [(r[same_ds], "#009E73", "same dataset", st["median_same_dataset"]),
-              (r[same_sp & ~same_ds], "#0072B2", "same species, other dataset",
+              (r[same_sp & ~same_ds], INTRA_COLOR, "same species, other dataset",
                st["median_same_species_other_dataset"]),
-              (r[~same_sp], "#D55E00", "different species", st["median_different_species"])]
+              (r[~same_sp], INTER_COLOR, "different species", st["median_different_species"])]
     for vals, col, lab, med in groups:
         if len(vals):
             ax.hist(vals, bins=bins, alpha=0.55, color=col, density=True,
@@ -2519,7 +2539,7 @@ def _draw_within_across_panel(ax, pairs, title=None, paper=False, header=None,
                      loc="right", fontsize=10)
     else:
         ax.set_title((title + "\n" if title else "") +
-                     f"intra vs inter species: AUC={st['auc']:.3f}, Wilcoxon p="
+                     f"{_INTRA_TXT[intra]}: AUC={st['auc']:.3f}\nWilcoxon p="
                      f"{st['p_wilcoxon']:.3g} (pairs), dataset-level permutation p="
                      f"{st['p_perm_dataset_level']:.3g}",
                      fontsize=10, fontweight="bold")
@@ -2532,7 +2552,8 @@ def _draw_within_across_panel(ax, pairs, title=None, paper=False, header=None,
 def plot_intra_vs_inter_species_distance(profiles_by_label, common_base_names,
                                          species_of_label, value_col="median_r",
                                          zscore=True, title=None, output_path=None,
-                                         dpi=300, max_pairs=20000, random_seed=0):
+                                         dpi=300, max_pairs=20000, random_seed=0,
+                                         intra="other_dataset"):
     """
     FIGURE F2: run-to-run profile correlation for pairs from the same
     dataset, from the same species but another dataset, and from different
@@ -2544,7 +2565,8 @@ def plot_intra_vs_inter_species_distance(profiles_by_label, common_base_names,
                                          species_of_label, value_col=value_col, zscore=zscore,
                                          max_pairs=max_pairs, random_seed=random_seed)
     fig, ax = plt.subplots(figsize=(9, 5))
-    st = _draw_within_across_panel(ax, pairs, title=title or "Within- vs across-species similarity")
+    st = _draw_within_across_panel(ax, pairs, title=title or "Within- vs across-species similarity",
+                                   intra=intra)
     if st is None:
         plt.close(fig)
         print("  [plot] not enough pairs")
@@ -2556,21 +2578,26 @@ def plot_intra_vs_inter_species_distance(profiles_by_label, common_base_names,
         print(f"  [saved] {output_path}")
     print(f"    medians: same dataset={st['median_same_dataset']:.4f}, same species other "
           f"dataset={st['median_same_species_other_dataset']:.4f}, different species="
-          f"{st['median_different_species']:.4f}; AUC={st['auc']:.3f}, "
+          f"{st['median_different_species']:.4f}; {_INTRA_TXT[intra]}: AUC={st['auc']:.3f}, "
           f"dataset-level permutation p={st['p_perm_dataset_level']:.3g}")
     return fig, st
 
 
-def _draw_intra_inter_paper(ax, pairs, st, test, header, legend):
-    """Paper 5b: two distributions, intra-species pairs (same species, same or
-    another dataset) and inter-species pairs, dashed = medians, bracket with
-    the stars of `test` ('wilcoxon' or 'permutation') between the medians."""
+def _draw_intra_inter_paper(ax, pairs, st, test, header, legend, intra="other_dataset"):
+    """Paper 5b: two distributions, dashed = medians, bracket with the stars of
+    `test` ('wilcoxon' or 'permutation') between the medians. intra =
+    'other_dataset': same species, another dataset (blue) vs different species
+    (orange), same-dataset pairs not drawn; 'all': every same-species pair."""
     r, da, db, sp = pairs["r"], pairs["da"], pairs["db"], pairs["species_of"]
     same_sp = sp[da] == sp[db]
-    bins = np.linspace(-1, 1, 41)
+    intra_mask = (same_sp & (da != db)) if intra == "other_dataset" else same_sp
+    intra_lab = ("same species, other dataset" if intra == "other_dataset"
+                 else "intra-species pairs")
+    inter_lab = "different species" if intra == "other_dataset" else "inter-species pairs"
+    bins = WITHIN_ACROSS_BINS
     top = 0.0
-    for vals, col, lab in ((r[~same_sp], INTER_COLOR, "inter-species pairs"),
-                           (r[same_sp], INTRA_COLOR, "intra-species pairs")):
+    for vals, col, lab in ((r[~same_sp], INTER_COLOR, inter_lab),
+                           (r[intra_mask], INTRA_COLOR, intra_lab)):
         h, _, _ = ax.hist(vals, bins=bins, density=True, histtype="stepfilled", color=col,
                           alpha=0.28, lw=0)
         ax.hist(vals, bins=bins, density=True, histtype="step", color=col, lw=0.8, label=lab)
@@ -2594,10 +2621,11 @@ def plot_within_vs_across_all_vs_selected(all_runs_by_label, selected_by_label,
                                           value_col="median_r", zscore=True, title=None,
                                           output_path=None, dpi=300, max_pairs=20000,
                                           random_seed=0, selected_name="Selected runs",
-                                          paper=False, test="wilcoxon"):
+                                          paper=False, test="wilcoxon",
+                                          intra="other_dataset"):
     """F2 computed on every run (left) and on the selected runs (right).
-    paper=True (5b): same pairs and statistics, drawn at print size (120 mm)
-    with two classes only -- intra-species vs inter-species pairs -- and the
+    paper=True (5b): same pairs, same statistics (same `intra` definition),
+    drawn at print size (120 mm) with the two compared classes only and the
     stars of `test` ('wilcoxon': rank-sum on the pairs, one-sided; or
     'permutation': species permuted across datasets); also saved as .pdf."""
     pools = [("All runs", all_runs_by_label), (selected_name, selected_by_label)]
@@ -2606,7 +2634,7 @@ def plot_within_vs_across_all_vs_selected(all_runs_by_label, selected_by_label,
         pairs_by[name] = _within_across_species_pairs(
             pbl, common_base_names, species_of_label, value_col=value_col, zscore=zscore,
             max_pairs=max_pairs, random_seed=random_seed)
-        stats[name] = _within_across_stats(pairs_by[name])
+        stats[name] = _within_across_stats(pairs_by[name], intra=intra)
     if paper:
         with paper_style():
             fig, axes = plt.subplots(1, 2, figsize=(PAPER_WIDTH["onehalf"], 46 * MM))
@@ -2615,7 +2643,8 @@ def plot_within_vs_across_all_vs_selected(all_runs_by_label, selected_by_label,
                     ax.axis("off")
                     continue
                 _draw_intra_inter_paper(ax, pairs_by[name], stats[name], test,
-                                        "all runs" if k == 0 else "selected", legend=k == 0)
+                                        "all runs" if k == 0 else "selected", legend=k == 0,
+                                        intra=intra)
             fig.tight_layout(w_pad=1.5)
             if output_path:
                 save_paper(fig, output_path)
@@ -2625,7 +2654,8 @@ def plot_within_vs_across_all_vs_selected(all_runs_by_label, selected_by_label,
     fig, axes = plt.subplots(1, 2, figsize=(16, 5.5))
     for ax, (name, pbl) in zip(axes, pools):
         n_runs = sum(len(p) for p in pbl.values())
-        _draw_within_across_panel(ax, pairs_by[name], title=f"{name} (n={n_runs} runs)")
+        _draw_within_across_panel(ax, pairs_by[name], title=f"{name} (n={n_runs} runs)",
+                                  intra=intra)
     fig.suptitle(title or "Within- vs across-species similarity: all runs vs selected",
                  fontsize=12, fontweight="bold")
     plt.tight_layout()
@@ -2635,12 +2665,12 @@ def plot_within_vs_across_all_vs_selected(all_runs_by_label, selected_by_label,
         print(f"  [saved] {output_path}")
     for name, st in stats.items():
         if st:
-            print(f"    [{name}] intra-species={st['median_within']:.4f} vs inter-species="
-                  f"{st['median_across']:.4f} (same species other dataset="
-                  f"{st['median_same_species_other_dataset']:.4f}), AUC={st['auc']:.3f}, "
-                  f"Wilcoxon p={st['p_wilcoxon']:.3g}, permutation p="
+            print(f"    [{name}] {_INTRA_TXT[intra]}: {st['median_within']:.4f} vs "
+                  f"{st['median_across']:.4f} (same dataset {st['median_same_dataset']:.4f}), "
+                  f"AUC={st['auc']:.3f}, Wilcoxon p={st['p_wilcoxon']:.3g}, permutation p="
                   f"{st['p_perm_dataset_level']:.3g}")
     return fig, stats
+
 
 def _draw_distance_divergence_panel(ax, distance_df, test_result=None, divergence_times=None,
                                     exclude_human=False, title=None, bids_colors=None):
