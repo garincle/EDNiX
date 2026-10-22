@@ -10,7 +10,6 @@ Import of the PET engineer's version (`modalities/pet`, `modalities/ct`), review
 - `Tools/roiStats.py` (numpy), `atlases/getlabels.py`, `FS_freeview.check_coreg` (from the engineer's suggestions; his `get_orientation.py` not taken: it reintroduced the left-right mirrors corrected in September; his `extract_filename.py` helpers not taken: unused).
 - Interface: CT tab, PET / CT steps and options, PET / CT logs and QC. Example launchers `Launcher_pet` (BIDS_Tremblay, CERMEP) and `Launcher_ct` (CERMEP). Tests `tests/unit/test_pet.py`.
 - Deep verification (22/10/2026, journal section 6) **[results]**: PET / CT of the same scanner space follow the world transform of the reorientation of the anatomy / CT (`3drefit -orient` re-signs the origins) and its head position (`same_space_window`); motion correction with a head mask for the metric (relative motion within 0.2-0.4 mm instead of 1.5-2 mm on a phantom); `SyNRA` by default for the template registrations; frame times counted from the injection; partial-volume correction with complete tissue classes and fractions; TACs of the kinetic models on the non-skull-stripped image; `DV_k2ref`; anatomy of another session and longitudinal reference session; `preprocess_data` refused.
-- `modalities/fMRI/chooseanat.py`: the anatomy of another session of the subject was searched one folder too deep (fallback never worked, functional pipeline included). **[results]**
 
 ## Code review, September 2026
 
