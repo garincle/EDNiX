@@ -5,8 +5,11 @@ small image operations (nibabel / numpy, no external program).
 
 Conventions
 -----------
-- Times are in seconds, relative to the BIDS `TimeZero` of the PET sidecar.
-- `timing` is a dict with numpy arrays `start`, `duration`, `end`, `mid` (one value per frame).
+- Times are in seconds from the injection: BIDS frame times (relative to `TimeZero`) minus `InjectionStart`
+  (relative to `TimeZero` too; 0 when absent, TimeZero = injection). SUV_window, time blocks, t* of the Logan
+  plot, end of the kinetic fits and the DFT / SIF frame times of the Turku tools are all post-injection times.
+- `timing` is a dict with numpy arrays `start`, `duration`, `end`, `mid` (one value per frame) and `offset`, the
+  injection time relative to TimeZero (s): BIDS time = timing time + offset.
 - Activity concentrations are converted to Bq/mL when a quantitative value is computed (SUV).
 """
 import os
@@ -50,7 +53,7 @@ def normalise_isotope(code):
     """'F18', '18F', 'F-18', '^18^Fluorine', 'Fluorine-18' -> 'F-18' (None if not recognised)."""
     if code is None:
         return None
-    s = str(code).strip()
+    s = re.sub(r'[\[\]\s]', '', str(code))            # '[18F]' -> '18F'
     if s in HALF_LIFE_S:
         return s
     names = {'fluorine': 'F', 'carbon': 'C', 'oxygen': 'O', 'nitrogen': 'N', 'gallium': 'Ga',
@@ -94,31 +97,58 @@ _PREFIX = {'': 1.0, 'k': 1e3, 'M': 1e6, 'G': 1e9, 'm': 1e-3, 'u': 1e-6, 'µ': 1e
 CI_TO_BQ = 3.7e10
 
 
+# lower-case spellings: 'mbq' is read MBq and 'mci' mCi (milli-becquerel and mega-curie are not used)
+_ACTIVITY_LOWER = {'bq': 1.0, 'kbq': 1e3, 'mbq': 1e6, 'gbq': 1e9, 'ci': CI_TO_BQ, 'mci': 1e-3 * CI_TO_BQ,
+                   'uci': 1e-6 * CI_TO_BQ, 'µci': 1e-6 * CI_TO_BQ, 'nci': 1e-9 * CI_TO_BQ}
+
+
 def _activity_factor(unit):
     """Factor converting an activity in `unit` (Bq, kBq, MBq, GBq, mCi, uCi, nCi...) to Bq."""
-    u = unit.strip()
+    u = str(unit).strip()
     m = re.fullmatch(r'([kMGmuµnp]?)(Bq|Ci)', u)
-    if not m:
-        raise ValueError(f'activity unit not recognised: {unit!r}')
-    pre, base = m.groups()
-    return _PREFIX[pre] * (CI_TO_BQ if base == 'Ci' else 1.0)
+    if m:
+        pre, base = m.groups()
+        return _PREFIX[pre] * (CI_TO_BQ if base == 'Ci' else 1.0)
+    if u.lower() in _ACTIVITY_LOWER:
+        return _ACTIVITY_LOWER[u.lower()]
+    raise ValueError(f'activity unit not recognised: {unit!r}')
 
 
 def concentration_to_bq_per_ml(unit):
     """Factor converting an image in `unit` (e.g. 'Bq/mL', 'kBq/cc', 'nCi/mL') to Bq/mL; None if unknown."""
     if not unit:
         return None
-    u = str(unit).replace(' ', '').replace('cc', 'mL').replace('ml', 'mL')
-    m = re.fullmatch(r'([kMGmuµnp]?(?:Bq|Ci))/([mµu]?L)', u)
-    if not m:
+    if str(unit).strip().upper() == 'BQML':
+        return 1.0                       # DICOM Units (0054,1001) code, written as is by some converters
+    u = str(unit).replace(' ', '')
+    if '/' not in u:
         return None
-    act, vol = m.groups()
-    vol_ml = {'mL': 1.0, 'L': 1000.0, 'uL': 1e-3, 'µL': 1e-3}[vol]
-    return _activity_factor(act) / vol_ml
+    act, vol = u.split('/', 1)
+    vol_ml = {'ml': 1.0, 'cc': 1.0, 'cm3': 1.0, 'cm^3': 1.0, 'l': 1000.0, 'ul': 1e-3, 'µl': 1e-3}.get(vol.lower())
+    if vol_ml is None:
+        return None
+    try:
+        return _activity_factor(act) / vol_ml
+    except ValueError:
+        return None
 
 
 def activity_to_mbq(value, unit):
     return float(value) * _activity_factor(unit or 'MBq') / 1e6
+
+
+def as_bool(v, default=None):
+    """JSON boolean that may have been written as a string ('false', 'True', 'no'...)."""
+    if isinstance(v, bool):
+        return v
+    if v is None:
+        return default
+    s = str(v).strip().lower()
+    if s in ('true', 'yes', '1'):
+        return True
+    if s in ('false', 'no', '0'):
+        return False
+    return default
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -196,8 +226,12 @@ def list_raw_images(path_mod, pattern, suffix='pet'):
 # Images
 # ---------------------------------------------------------------------------------------------------------------------
 def load(path):
+    """(nibabel image, float32 data); a static image stored as 4D with one frame is returned as 3D."""
     img = nib.load(path)
-    return img, np.asarray(img.dataobj, dtype=np.float32)
+    d = np.asarray(img.dataobj, dtype=np.float32)
+    if d.ndim == 4 and d.shape[3] == 1:
+        d = d[..., 0]
+    return img, d
 
 
 def save_like(data, ref_img, path):
@@ -269,14 +303,29 @@ def frame_timing(info, nframes):
                          f'but the image has {nframes}')
     if np.any(dur <= 0) or np.any(np.diff(start) < 0):
         raise ValueError('frame timing not increasing or non-positive frame duration')
-    mid = info.get('FrameReferenceTime')
-    mid = np.asarray(mid, dtype=float) if mid is not None and len(mid) == nframes else start + dur / 2.0
-    return dict(start=start, duration=dur, end=start + dur, mid=mid)
+    if np.any(start[1:] < (start + dur)[:-1] - 1e-3):
+        raise ValueError('overlapping frames in FrameTimesStart / FrameDuration')
+    end = start + dur
+    mid = start + dur / 2.0
+    ref = info.get('FrameReferenceTime')
+    if ref is not None:
+        ref = np.atleast_1d(np.asarray(ref, dtype=float))
+        # used only when it lies within its frame (DICOM writes it in ms; BIDS in s)
+        if len(ref) == nframes and np.all(ref >= start - 1e-3) and np.all(ref <= end + 1e-3):
+            mid = ref
+    try:
+        offset = float(info.get('InjectionStart') or 0.0)
+    except (TypeError, ValueError):
+        offset = 0.0
+    return dict(start=start - offset, duration=dur, end=end - offset, mid=mid - offset, offset=offset)
 
 
 def timing_to_json(timing):
+    """Frame timing written in pet/raw (times from the injection, see the module docstring)."""
     return {"FrameTimesStart": timing['start'].tolist(), "FrameDuration": timing['duration'].tolist(),
-            "FrameReferenceTime": timing['mid'].tolist()}
+            "FrameReferenceTime": timing['mid'].tolist(),
+            "TimeReference": "injection (BIDS times minus InjectionStart)",
+            "InjectionStart_relative_to_TimeZero": timing.get('offset', 0.0)}
 
 
 def load_timing(json_file):
@@ -397,12 +446,21 @@ def subject_values(bids_dir, ID, Session, pet_info):
                     glu = g * GLUCOSE_MMOL_PER_G
                     src['glucose'] = f'{name}:{c} (g/L -> mmol/L)'
     if pet_info.get('InjectedRadioactivity') is not None:
-        dose = activity_to_mbq(pet_info['InjectedRadioactivity'],
-                               pet_info.get('InjectedRadioactivityUnits') or pet_info.get('InjectedRadioActivityUnits'))
-        src['dose'] = 'PET sidecar: InjectedRadioactivity'
-    if pet_info.get('BodyWeight') is not None and weight is None:
-        weight = float(pet_info['BodyWeight'])
-        src['weight'] = 'PET sidecar: BodyWeight'
+        unit = pet_info.get('InjectedRadioactivityUnits') or pet_info.get('InjectedRadioActivityUnits')
+        try:
+            dose = activity_to_mbq(pet_info['InjectedRadioactivity'], unit)
+            src['dose'] = 'PET sidecar: InjectedRadioactivity' + ('' if unit else ' (no InjectedRadioactivityUnits: MBq '
+                                                                                   'assumed)')
+        except (TypeError, ValueError) as e:
+            dose = None
+            src['dose'] = f'PET sidecar: InjectedRadioactivity not usable ({e})'
+    for key in ('BodyWeight', 'PatientWeight'):          # PatientWeight: DICOM (0010,1030), written by dcm2niix
+        if pet_info.get(key) is not None and weight is None:
+            try:
+                weight = float(pet_info[key])
+                src['weight'] = 'PET sidecar: ' + key
+            except (TypeError, ValueError):
+                pass
     return dict(weight_kg=weight, dose_MBq=dose, glucose_mmol_L=glu, sources=src)
 
 
@@ -415,7 +473,7 @@ def suv_scale(pet_info, values, isotope):
     (None, reason).
     """
     unit = pet_info.get('Units')
-    if str(unit).replace(' ', '').lower() in ('suv', 'g/ml', 'suvbw'):
+    if str(unit).replace(' ', '').lower() in ('suv', 'g/ml', 'suvbw', 'gml'):
         # image distributed in SUV (e.g. CERMEP-IDB-MRXFDG): nothing to scale
         return 1.0, {'image_units': unit, 'factor': 1.0, 'assumption': 'image already in SUV units (sidecar Units)'}
     w, d = values.get('weight_kg'), values.get('dose_MBq')
@@ -426,26 +484,33 @@ def suv_scale(pet_info, values, isotope):
     if k is None:
         k = 1.0
         report['warning'] = f'image units {unit!r} not recognised: assumed Bq/mL'
-    if pet_info.get('ImageDecayCorrected') is False:
+    if as_bool(pet_info.get('ImageDecayCorrected'), True) is False:
         report['warning_decay'] = ('image NOT decay-corrected: it is decay-corrected to the injection time '
                                    'frame by frame before the SUV (decay_correct_frames)')
         dose_ref = d
     else:
         t_ref, t_inj = pet_info.get('ImageDecayCorrectionTime'), pet_info.get('InjectionStart')
-        if t_ref is not None and t_inj is not None and isotope in HALF_LIFE_S:
+        if t_ref is not None and t_inj is not None and abs(float(t_ref) - float(t_inj)) > 1e-6:
+            if isotope not in HALF_LIFE_S:
+                return None, (f'image decay-corrected to {float(t_ref) - float(t_inj):g} s after the injection but '
+                              f'isotope unknown ({isotope!r}): the dose cannot be decayed, SUV not computed')
             dose_ref = d * math.exp(-decay_constant(isotope) * (float(t_ref) - float(t_inj)))
             report['dose_decayed_to_reference_MBq'] = dose_ref
+        elif t_ref is not None and t_inj is not None:
+            dose_ref = d
         else:
             dose_ref = d
-            report['assumption'] = 'image assumed decay-corrected to the injection time'
+            report['assumption'] = ('ImageDecayCorrectionTime / InjectionStart missing: image assumed decay-corrected '
+                                    'to the injection time')
     f = k * (w * 1000.0) / (dose_ref * 1e6)
     report['factor'] = f
     return f, report
 
 
-def decay_correct_frames(data4d, timing, isotope, t_injection):
+def decay_correct_frames(data4d, timing, isotope, t_injection=0.0):
     """Decay correction of a non-decay-corrected dynamic image to the injection time
-    (frame-averaged factor: lambda*dt / (1 - exp(-lambda*dt)) * exp(lambda*(t_start - t_inj)))."""
+    (frame-averaged factor: lambda*dt / (1 - exp(-lambda*dt)) * exp(lambda*(t_start - t_inj)); the times of
+    `timing` are already post-injection, t_injection = 0)."""
     lam = decay_constant(isotope)
     dt = timing['duration']
     f = np.exp(lam * (timing['start'] - t_injection)) * (lam * dt) / (1.0 - np.exp(-lam * dt))

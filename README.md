@@ -126,7 +126,7 @@ docs/                documentation
 ## Status
 
 - The anatomical and functional pipelines are in use on the datasets of the example launchers.
-- The PET and CT pipelines (October 2026) are tested on synthetic data for all the scenarios; their first runs on real data must be checked (see [docs/pet_pipeline.md](docs/pet_pipeline.md), section *Limitations*).
+- The PET and CT pipelines (October 2026) are tested on synthetic data for all the scenarios of `pet4.svg` (1v1, 1v2a, 1v2b, 2v1, 2v2, 3v1, 3v2); their first runs on real data must be checked (see [docs/pet_pipeline.md](docs/pet_pipeline.md), section *Limitations*).
 
 ## Contributing
 

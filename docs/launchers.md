@@ -19,7 +19,7 @@ The example launchers cover bat, dog, human, mouse lemur, macaque, marmoset, mou
 4. `list_to_keep` / `list_to_remove`: `(subject, session)` pairs, see [bids.md](bids.md).
 5. `Skip_step`: steps not to run (see the step tables of the [anatomical](reference/anat_parameters.md), [functional](reference/fmri_parameters.md), [PET](reference/pet_parameters.md) and [CT](reference/ct_parameters.md) references).
 
-Every parameter is described in the parameter references ([anatomy](reference/anat_parameters.md), [functional](reference/fmri_parameters.md)), and in the launcher editor of the interface.
+Every parameter is described in the parameter references ([anatomy](reference/anat_parameters.md), [functional](reference/fmri_parameters.md), [PET](reference/pet_parameters.md), [CT](reference/ct_parameters.md)), and in the launcher editor of the interface.
 
 ## Order of the runs
 

@@ -599,7 +599,7 @@ async function openLauncher() {
   let model;
   try { model = await api(`/api/launcher?path=${encodeURIComponent(path)}`); }
   catch (e) { msg([['bad', `Could not open this launcher: ${e.message}`]]); return; }
-  const expect = { anat: ['preprocess_anat'], func: ['preprocess_fmri'], pet: ['preprocess_pet', 'preprocess_data'],
+  const expect = { anat: ['preprocess_anat'], func: ['preprocess_fmri'], pet: ['preprocess_pet'],
                    ct: ['preprocess_ct'] }[currentPipe];
   Object.assign(S, { model, values: {}, original: {}, saved: null });
   for (const f of model.fields) { S.values[f.key] = f.value; S.original[f.key] = f.value; }
@@ -828,7 +828,7 @@ async function loadQcCandidates() {
   try { c = await api('/api/qc/candidates'); } catch { c = []; }
   setOptions($('sel-qc-bids'), c.length ? c.map((x) => [x.path, `${x.path}${x.has_qc ? '' : ' (no QC folder yet)'}`]) : [['', 'no dataset found on this machine']]);
 }
-const REPORT_GROUPS = ['Functional reports', 'Anatomical reports'];
+const REPORT_GROUPS = ['Functional reports', 'Anatomical reports', 'PET reports', 'CT reports'];
 $('btn-qc-scan').addEventListener('click', async () => {
   QC.bids = $('qc-path').value.trim() || $('sel-qc-bids').value;
   if (!QC.bids) return;

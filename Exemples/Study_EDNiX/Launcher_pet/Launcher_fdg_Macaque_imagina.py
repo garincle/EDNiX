@@ -1,12 +1,13 @@
 import os
 import sys
-from Tools import Load_subject_with_BIDS, load_bids
-from modalities.pet import _0_Pipeline_launcher
 opn = os.path.normpath
 opj = os.path.join
 
 MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
+
+from Tools import Load_subject_with_BIDS, load_bids
+from modalities.pet import _0_Pipeline_launcher
 
 ######################################################################################################################
 # [18F]FDG PET of the macaques of BIDS_Tremblay, with the T1w of the anatomical pipeline

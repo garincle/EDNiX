@@ -1,4 +1,4 @@
-"""PET signal during every fMRI run of the session (step 10, simultaneous PET-MR): see run_cut."""
+"""PET signal during every fMRI run of the session (step 9, simultaneous PET-MR): see run_cut."""
 import os
 import glob
 

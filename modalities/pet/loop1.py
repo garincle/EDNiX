@@ -34,10 +34,12 @@ def sif_file(paths, raw_img):
 
 
 def run(list_img, paths, humanPosition, animalPosition, orientation, check_ref, header_ref, Need_check_orient,
-        PET_header_wrong, deoblique, isotope, srtm, dcm, Skip_step, diary_file, sing_afni, sing_fs, sing_turku):
+        PET_header_wrong, deoblique, isotope, srtm, dcm, Skip_step, diary_file, sing_afni, sing_fs, sing_turku,
+        follow=None):
     """
     list_img: raw PET runs of the session. check_ref: image shown under the PET for the orientation check;
     header_ref: raw image used when PET_header_wrong=True; dcm: (folder, extension) of the DICOM files.
+    follow: world transform of the reorientation of the anatomy / CT of the same scanner space (reorient.doit).
     Returns the reoriented images (also when step 1 is skipped, if they exist).
     """
     for d in (paths['path'], paths['raw'], paths['orig'], paths['orig_process']):
@@ -75,10 +77,10 @@ def run(list_img, paths, humanPosition, animalPosition, orientation, check_ref, 
 
         hp = position(humanPosition, i) or info.get('PatientPosition', '')
         ap = position(animalPosition, i)
-        if not reorient.no_reorientation(ap) and not hp and not orientation:
+        if follow is None and not reorient.no_reorientation(ap) and not hp and not orientation:
             raise ValueError(f'{opb(img)}: animalPosition={ap!r} needs the scanner position (humanPosition or '
                              'PatientPosition in the sidecar), or give the orientation code')
         reorient.doit(paths['orig_process'], img, hp, ap, orientation, check_ref, Need_check_orient,
                       PET_header_wrong, timing, diary_file, sing_afni, sing_fs, suffix='pet', deoblique=deoblique,
-                      sif=sif, header_ref=header_ref)
+                      sif=sif, header_ref=header_ref, follow=follow)
     return reoriented

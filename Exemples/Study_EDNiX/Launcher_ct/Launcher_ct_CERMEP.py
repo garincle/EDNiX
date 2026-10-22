@@ -1,12 +1,13 @@
 import os
 import sys
-from Tools import Load_subject_with_BIDS, load_bids
-from modalities.ct import _0_Pipeline_launcher
 opn = os.path.normpath
 opj = os.path.join
 
 MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
+
+from Tools import Load_subject_with_BIDS, load_bids
+from modalities.ct import _0_Pipeline_launcher
 
 ######################################################################################################################
 # Low-dose CT of the CERMEP-IDB-MRXFDG PET/CT: rigid CT -> T1w registration (scenario 1v2b of Illustration/pet4.svg).

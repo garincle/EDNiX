@@ -4,6 +4,7 @@ Block 2 of the PET pipeline for one subject / session (steps 4 to 10, see _0_Pip
 import os
 import glob
 import json
+import shutil
 
 opj = os.path.join
 opb = os.path.basename
@@ -73,9 +74,16 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
         if not pu.is_dynamic(img):
             within.append(img)
             continue
-        within.append(out)
         if skip4:
+            if opi(out):
+                within.append(out)
+            else:
+                # step 4 skipped and never run: the frames are used without within-run correction
+                run_cmd.msg('WARNING: ' + opb(out) + ' not found (step 4 skipped): the reoriented frames are used '
+                            'without within-run motion correction', diary_file, 'WARNING')
+                within.append(img)
             continue
+        within.append(out)
         if crop is None:
             crop = crop_for_session(opts['crop_for_MoCo'], reg.get('study_crop'), session, paths, first_mean,
                                     diary_file, sing_fs, opts['redo_crop']) or ''
@@ -83,6 +91,11 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
         MoCo.dynamic(img, paths['orig_process'], paths['orig_formc'], timing, opts['nb_void'], crop or None,
                      opts['Need_check_MC'], diary_file, sing_fs, opts['MoCo_transform'], opts['coreg_metric'],
                      sif=img.replace('.nii.gz', '.sif'))
+        # motion plot in the QC folder of the subject (read by the interface)
+        os.makedirs(paths['qc'], exist_ok=True)
+        png = opj(paths['orig_formc'], base + '_desc-MoCo-within_motion.png')
+        if opi(png):
+            shutil.copyfile(png, opj(paths['qc'], opb(png)))
 
     # ---------------------------------------------------------------------------------------- 5 between-runs MoCo
     between = [pu.out_name(paths['orig_process'], pu.base_name(i), desc='MoCo-between') for i in within]
@@ -106,22 +119,31 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
             raise FileNotFoundError(f'{session_mean} not found: run step 5 first')
         study_template = reg.get('study_template')
         if reg['scenario'] == '3v2':
-            # re-registration of the motion-corrected session mean to the study template
-            import ants
-            prefix = opj(paths['orig_matrices'], session + '_to_studyTemplate_')
-            ants.registration(fixed=ants.image_read(study_template), moving=ants.image_read(session_mean),
-                              type_of_transform=opts['studyT_transform'], outprefix=prefix)
+            # registration of the motion-corrected session mean to the study template
+            transfo.register(study_template, session_mean, coreg2anat.study_prefix(paths, session),
+                             opts['studyT_transform'])
+        anchor = None
+        if reg['scenario'] == '1v1' or (reg['ct_record'] is not None and opts['ct_pet_same_space']):
+            # same scanner space as the anatomy / CT: the motion-corrected session is brought back to the head position
+            # of the frame acquired with it
+            anchor, how = MoCo.scanner_anchor(reoriented, within, timings, paths['orig_formc'], opts['nb_void'],
+                                              opts.get('same_space_window'))
+            run_cmd.msg('INFO: same scanner space as the anatomy / CT: ' + how, diary_file, 'OKGREEN')
         coreg2anat.register(reg['scenario'], session_mean, session, paths, reg['anat'], reg['packages'],
                             reg['ct_record'], reg['template_PET'], reg['reference'], study_template,
                             opts['T_PET'], opts['ct_pet_same_space'], opts['coreg_metric'],
                             opts['type_of_transform_template'], opts['do_manual'], opts['Need_check_coreg'],
                             bids_dir, diary_file, sing_fs,
-                            template_mask=(reg.get('template_files') or {}).get('brain', ''))
+                            template_mask=(reg.get('template_files') or {}).get('brain', ''), anchor=anchor)
         record = transfo.read_record(rec_file)
         record['pet_space'] = coreg2anat.to_pet_space(record, session, paths, reg['anat'], reg['template_files'],
                                                       reg['list_atlas'], diary_file, opts['T_PET'])
         transfo.write_record(rec_file, record)
     record = transfo.read_record(rec_file) if opi(rec_file) else None
+    if record is not None and opi(session_mean) and os.path.getmtime(session_mean) > os.path.getmtime(rec_file):
+        run_cmd.msg('WARNING: the session mean is newer than the registration record (steps 4-5 run again): run step 6 '
+                    'again, the registration and the atlases in the PET space belong to the previous correction',
+                    diary_file, 'WARNING')
     pet_space = (record or {}).get('pet_space', dict(atlases={}, masks={}, anat=''))
     atlases, masks = pet_space['atlases'], pet_space['masks']
 
@@ -157,16 +179,24 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
                                  f"(available: {sorted(atlases)})")
             sif = img.replace('.nii.gz', '.sif')
             preproPET.srtm(img, paths, timing, sif, info, opts['isotope'], masks, atlases, reg['label_tables'],
-                           reg['levels'], ref, opts['DV_time'], diary_file, sing_turku, opts['kinetic_end'])
+                           reg['levels'], ref, opts['DV_time'], diary_file, sing_turku, opts['kinetic_end'],
+                           opts.get('DV_k2ref'))
 
     # ---------------------------------------------------------------------------------------- pvc
     if opts['pvc_fwhm'] is not None and not _skip('pvc', Skip_step, diary_file):
+        for info in infos:
+            if str(info.get('ReconFilterType', 'none')).lower() not in ('none', '', '["none"]') and \
+                    info.get('ReconFilterSize'):
+                run_cmd.msg(f"INFO: post-reconstruction filter {info.get('ReconFilterType')} "
+                            f"{info.get('ReconFilterSize')} mm in the sidecar: pvc_fwhm must include it",
+                            diary_file, 'WARNING')
+                break
         for img in between:
             base = pu.base_name(img)
-            for desc in ('SUV-mean', 'SUV', 'activity-mean'):
+            for desc in ('SUV-mean', 'SUV', 'activity-mean', 'activity'):
                 src = pu.out_name(paths['orig_post'], base, desc=desc)
                 if opi(src) and not pu.is_dynamic(src):
-                    out = pvcmod.correct(src, masks, opts['pvc_fwhm'],
+                    out = pvcmod.correct(src, pet_space.get('probseg', {}), opts['pvc_fwhm'],
                                          pu.out_name(paths['orig_post'], base, desc=desc + '-PVC'), diary_file,
                                          opts['pvc_method'])
                     if atlases:
@@ -197,7 +227,7 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
                     continue
                 # PET-space skull-stripped images (redone with the mask of each target), working files and
                 # integer QC maps (fit at a bound, number of Logan points: not interpolated)
-                if any(k in opb(f) for k in ('-SS_', 'desc-decaycorr', 'seg4D', '-err_', '-npoints_')):
+                if any(k in opb(f) for k in ('-SS_', 'desc-decaycorr', 'seg4D', '-err_', '-npoints_', 'dynamic-SS')):
                     continue
                 images.append(f)
             if opts['export_dynamic']:

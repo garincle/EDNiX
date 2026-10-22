@@ -1,19 +1,20 @@
 import os
 import sys
-from Tools import Load_subject_with_BIDS, load_bids
-from modalities.pet import _0_Pipeline_launcher
 opn = os.path.normpath
 opj = os.path.join
 
 MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
 
+from Tools import Load_subject_with_BIDS, load_bids
+from modalities.pet import _0_Pipeline_launcher
+
 ######################################################################################################################
 # CERMEP-IDB-MRXFDG (Merida et al. 2021, EJNMMI Res 11:91): [18F]FDG PET/CT (Biograph mCT64, one 10-min frame 50 min
 # after injection), T1w MPRAGE (1.5 T) processed by Launcher_anat_Human_CERMEP.py.
-# Scenario 1v2a (default): rigid PET -> T1w registration. The NIfTI version of the database is already coregistered
-# to the PET by the authors (SPM12): anat_pet_same_space = True (scenario 1v1) is then exact; 1v2a works in both
-# cases. Through the CT (scenario 1v2b): run ../Launcher_ct/Launcher_ct_CERMEP.py first, then set IhaveaCT = True.
+# Scenario 1v2a (default): rigid PET -> T1w registration. The authors distribute the NIfTI images coregistered to
+# the PET (SPM12, Merida et al. 2021): with anat_pet_same_space = True (scenario 1v1) the PET follows the T1w without
+# registration and relies on that coregistration (check the QC image); 1v2a re-estimates it and works in both cases. Through the CT (scenario 1v2b): run ../Launcher_ct/Launcher_ct_CERMEP.py first, then set IhaveaCT = True.
 ######################################################################################################################
 species = 'Human'
 bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Human/BIDS_Merida/'))

@@ -73,7 +73,8 @@ def bfm(ttac_dft, ref_dft, sif, res_file, fit_dft, isotope_if_not_corrected, pic
                 ax.set_xlabel('time (min)')
                 ax.legend(fontsize=6)
                 fig.tight_layout()
-                fig.savefig(opj(pict_dir, name + '_fit.png'))
+                safe = ''.join(c if (c.isalnum() or c in '-_.') else '_' for c in str(name))
+                fig.savefig(opj(pict_dir, safe + '_fit.png'))
                 plt.close(fig)
     return res_file
 

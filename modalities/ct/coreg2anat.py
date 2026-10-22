@@ -24,7 +24,7 @@ opi = os.path.isfile
 from Tools import run_cmd, QC_plot
 from modalities.pet import petutils as pu
 from modalities.pet import transfo
-from modalities.pet.coreg2anat import manual_correction
+from modalities.pet.coreg2anat import manual_correction, qc_contour
 from modalities.anat.freesurfer import FS_freeview
 
 CT_CLIP = (-1000.0, 2000.0)
@@ -43,7 +43,9 @@ def record_path(paths, base):
 
 
 def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, reference, study_template, T_CT, metric,
-             type_of_transform_template, do_manual, Need_check_coreg, bids_dir, diary_name, sing_fs):
+             type_of_transform_template, do_manual, Need_check_coreg, bids_dir, diary_name, sing_fs, template_mask=''):
+    """Registration of the CT (scenario sc); writes and returns the registration record. template_mask: brain mask
+    of the reference template (target mask of the scenario 2v1, also used by the PET pipeline)."""
     nl = 'Registration of the CT ' + base + ' (scenario ' + sc + ')'
     run_cmd.msg(nl, diary_name, 'HEADER')
     mat_dir = paths['orig_matrices']
@@ -59,9 +61,7 @@ def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, referenc
         m = ants.image_read(anat['mask'])
         r = max(1, int(round(10.0 / min(m.spacing[:3]))))
         mask = ants.iMath(ants.threshold_image(m, 0.5, 1e9, 1, 0), 'MD', r)
-        ants.registration(fixed=fixed, moving=ants.image_read(work), type_of_transform='Rigid', aff_metric=metric,
-                          mask=mask, outprefix=prefix)
-        acpc = transfo.registration(prefix)
+        acpc = transfo.register(fixed, work, prefix, 'Rigid', aff_metric=metric, mask=mask)
         if do_manual:
             acpc = manual_correction(work, anat['acpc'], acpc, prefix, opj(paths['orig_formc'], 'ct2' + T_CT + '.nii.gz'),
                                      'ct', diary_name, sing_fs)
@@ -72,9 +72,11 @@ def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, referenc
                                    **transfo.compose(acpc, transfo.from_backtonative(pkg)))
     elif sc == '2v1':
         prefix = opj(mat_dir, base + '_to_' + reference + '_')
-        ants.registration(fixed=ants.image_read(template_CT), moving=ants.image_read(work),
-                          type_of_transform=type_of_transform_template, aff_metric=metric, outprefix=prefix)
-        targets[reference] = dict(image=template_CT, brain=template_CT, mask='', **transfo.registration(prefix))
+        own = template_CT.replace('.nii.gz', '_mask.nii.gz')
+        transfo.register(template_CT, work, prefix, type_of_transform_template, aff_metric=metric)
+        targets[reference] = dict(image=template_CT, brain=template_CT,
+                                  mask=own if opi(own) else (template_mask if template_mask and opi(template_mask) else ''),
+                                  **transfo.registration(prefix))
     elif sc == '2v2':
         prefix = opj(mat_dir, base + '_to_studyTemplate_')
         targets['studyTemplate'] = dict(image=study_template, brain=study_template, mask='',
@@ -94,12 +96,11 @@ def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, referenc
         dst = pu.out_name(out_dir, base, space=name, suffix='ct')
         transfo.apply(t['image'], ct_img, t, 'to', 'linear', out=dst)
         pu.write_json(dst, [ct_img, t['image']], f'CT in the {name} space (ANTsPy, linear).', Transforms=t['to'])
-        if t.get('mask') and opi(t['mask']):
-            png = opj(paths['qc'], base + '_space-' + name + '_ct.png')
-            QC_plot.mosaic(dst, t['mask'], png)
-            qc_dir = opj(bids_dir, 'QC', 'ct_in_' + ('acpc' if name == 'acpc' else 'template'))
-            os.makedirs(qc_dir, exist_ok=True)
-            shutil.copyfile(png, opj(qc_dir, opb(png)))
+        png = opj(paths['qc'], base + '_space-' + name + '_ct.png')
+        QC_plot.mosaic(dst, qc_contour(t, paths['qc'], name), png)
+        qc_dir = opj(bids_dir, 'QC', 'ct_in_' + ('acpc' if name == 'acpc' else 'template'))
+        os.makedirs(qc_dir, exist_ok=True)
+        shutil.copyfile(png, opj(qc_dir, opb(png)))
         if Need_check_coreg:
             FS_freeview.check_coreg(dst, t['image'], 'ct', sing_fs, transform_volume=False)
     if 'acpc' in targets:

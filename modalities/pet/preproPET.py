@@ -6,7 +6,7 @@ suv  (step 7)  activity image of the run (static image, or duration-weighted mea
                skull-stripped versions, time blocks (Do_cut), regional values and TACs.
 srtm (step 8)  dynamic run -> reference-region models (roi_signal.dft): regional and voxel-wise BPnd,
                Logan DVR.
-Images are not resampled here (PET space); step 9 exports them to the anatomical / template spaces.
+Images are not resampled here (PET space); step 10 exports them to the anatomical / template spaces.
 """
 import os
 import shutil
@@ -20,7 +20,7 @@ opi = os.path.isfile
 
 from Tools import run_cmd
 from modalities.pet import petutils as pu
-from modalities.pet import paramImg, cut_image, roi_signal
+from modalities.pet import paramImg, cut_image, roi_signal, sifFile
 
 
 def suv(file, paths, timing, pet_info, values, isotope, masks, atlases, label_tables, levels, SUV, bratio,
@@ -35,11 +35,14 @@ def suv(file, paths, timing, pet_info, values, isotope, masks, atlases, label_ta
 
     # 1. activity image (decay-corrected to the injection time when the data are not decay-corrected)
     src = file
-    if pet_info.get('ImageDecayCorrected') is False:
-        if timing is not None and isotope in pu.HALF_LIFE_S and pet_info.get('InjectionStart') is not None:
+    if pu.as_bool(pet_info.get('ImageDecayCorrected'), True) is False:
+        if timing is not None and isotope in pu.HALF_LIFE_S:
+            if pet_info.get('InjectionStart') is None:
+                run_cmd.msg('WARNING: no InjectionStart in the sidecar: TimeZero taken as the injection time for the '
+                            'decay correction', diary_name, 'WARNING')
             img, d = pu.load(file)
             d4 = d if d.ndim == 4 else d[..., None]
-            dc = pu.decay_correct_frames(d4, timing, isotope, float(pet_info['InjectionStart']))
+            dc = pu.decay_correct_frames(d4, timing, isotope, 0.0)       # frame times are post-injection
             src = pu.out_name(post, base, desc='decaycorr')
             pu.save_like(dc if d.ndim == 4 else dc[..., 0], img, src)
             pu.write_json(src, file, f'Decay correction to the injection time ({isotope}, frame-averaged factor).')
@@ -55,8 +58,12 @@ def suv(file, paths, timing, pet_info, values, isotope, masks, atlases, label_ta
                       f'Duration-weighted mean of the frames of the window {SUV_window} min (None = all).')
         tag = '-mean'
     else:
-        act = src
+        # the activity image itself is also a result (exported; the only one without SUV data and without mask)
+        act = pu.out_name(post, base, desc='activity')
+        shutil.copyfile(src, act)
+        pu.write_json(act, src, 'Activity concentration (units of the image: ' + str(pet_info.get('Units')) + ').')
         tag = ''
+    produced.append(act)
 
     # 2. SUV, SUVglu
     if SUV:
@@ -108,8 +115,9 @@ def suv(file, paths, timing, pet_info, values, isotope, masks, atlases, label_ta
 
 
 def srtm(file, paths, timing, sif, pet_info, isotope, masks, atlases, label_tables, levels, ref, DV_time,
-         diary_name, sing_turku, end_min=None):
-    """Reference-region models of a dynamic run (skull-stripped data for the voxel-wise models)."""
+         diary_name, sing_turku, end_min=None, k2ref=None):
+    """Reference-region models of a dynamic run (skull-stripped data for the voxel-wise models). k2ref: population
+    k2' of the reference region (min-1) for the Logan plot (imgdv -k2=); None = simplified reference Logan."""
     if not pu.is_dynamic(file):
         run_cmd.msg('INFO: ' + opb(file) + ' is static: no kinetic model', diary_name, 'OKGREEN')
         return []
@@ -117,13 +125,23 @@ def srtm(file, paths, timing, sif, pet_info, isotope, masks, atlases, label_tabl
         raise FileNotFoundError(f'SIF of {file} not found ({sif}): step 1 must create it (srtm=True)')
     post = paths['orig_post']
     base = pu.base_name(file)
-    img = file
+    unit = pet_info.get('Units') or 'Bq/mL'           # same assumption as the SUV
+    decay_corrected = pu.as_bool(pet_info.get('ImageDecayCorrected'), True) is not False
+    decaycorr = pu.out_name(post, base, desc='decaycorr')
+    if not decay_corrected and opi(decaycorr):
+        # data decay-corrected at step 7 (to the injection time): the voxel-wise models can be computed
+        run_cmd.msg('INFO: kinetic models on the decay-corrected image of step 7 (' + opb(decaycorr) + ')',
+                    diary_name, 'OKGREEN')
+        file, decay_corrected = decaycorr, True
+        sif = sifFile.copy(sif, file)
+    # TACs on the image itself (label voxels outside the PET-space brain mask are not set to zero); voxel-wise
+    # models on its skull-stripped version (no fit outside the brain)
+    vox = file
     if masks.get('brain'):
         from modalities.pet import paramImg
-        img = paramImg.skullstrip(file, masks['brain'], pu.out_name(post, base, desc='dynamic-SS'))
-        shutil.copyfile(sif, img[:-7] + '.sif')
-    unit = pet_info.get('Units') or 'kBq/mL'
-    decay_corrected = pet_info.get('ImageDecayCorrected', True) is not False
-    return roi_signal.dft(img, atlases, ref, masks, label_tables, timing, img[:-7] + '.sif' if img != file else sif,
-                          unit, decay_corrected, isotope, DV_time, paths['orig_roi'], paths['orig_pict'], post,
-                          diary_name, sing_turku, levels, end_min)
+        vox = paramImg.skullstrip(file, masks['brain'], pu.out_name(post, base, desc='dynamic-SS'))
+        sifFile.copy(sif, vox)
+    return roi_signal.dft(file, atlases, ref, masks, label_tables, timing, sif, unit, decay_corrected, isotope, DV_time,
+                          paths['orig_roi'], paths['orig_pict'], post, diary_name, sing_turku, levels, end_min,
+                          voxel_img=vox, voxel_sif=vox[:-7] + '.sif' if vox != file else sif,
+                          k2ref=k2ref)

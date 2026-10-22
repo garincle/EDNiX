@@ -67,8 +67,8 @@ def read(img, atlases, levels, label_tables, roi_dir, pict_dir, desc, diary_name
             lab = labels_volume(afile, level)
             pre = prefix(roi_dir, base, atlas, level)
             vol_file = pre + '_vol_ROIs.tsv'
-            if not opi(vol_file):
-                roiStats.regional_table(lab, label_tables.get(atlas), vox_mm3).to_csv(vol_file, sep='\t', index=False)
+            # written at every call: the atlas in the PET space changes when the registration is run again
+            roiStats.regional_table(lab, label_tables.get(atlas), vox_mm3).to_csv(vol_file, sep='\t', index=False)
             if data.ndim == 3:
                 tab = roiStats.stats(data, lab, label_tables.get(atlas), vox_mm3)
                 f = pre + f'_desc-{desc}_ROIs.tsv'
@@ -122,14 +122,20 @@ def plot_tacs(tac, timing, pre, cut_marks=None, n_plot=16):
 
 
 def dft(img, atlases, ref, masks, label_tables, timing, sif, unit, decay_corrected, isotope, DV_time,
-        roi_dir, pict_dir, out_dir, diary_name, sing_turku, levels='all', end_min=None, study='EDNiX'):
+        roi_dir, pict_dir, out_dir, diary_name, sing_turku, levels='all', end_min=None, study='EDNiX',
+        voxel_img=None, voxel_sif=None, k2ref=None):
     """
     Reference-region models of one dynamic image (step 8):
       regional BPnd (bfmsrtm) for every atlas level, parametric BPnd (imgbfbp, imgsrtm) and DVR (imgdv,
       if DV_time > 0) images. ref: resolved reference region (atlases.getlabels.resolve).
+    img: image of the TACs (regions and reference); voxel_img (+ voxel_sif): image of the voxel-wise models
+    (skull-stripped), img by default. Frame times are post-injection (petutils.frame_timing).
     The voxel-wise tools need decay-corrected data: they are skipped otherwise (bfmsrtm then gets -i=).
+    k2ref: population k2' of the reference region (min-1) for imgdv (-k2=).
     Returns the parametric images written.
     """
+    voxel_img = voxel_img or img
+    voxel_sif = voxel_sif or sif
     nl = 'Reference-region kinetic models of ' + opb(img)
     run_cmd.msg(nl, diary_name, 'HEADER')
     os.makedirs(roi_dir, exist_ok=True)
@@ -146,6 +152,11 @@ def dft(img, atlases, ref, masks, label_tables, timing, sif, unit, decay_correct
         _, nvox = dftFile.ref(ref_dft, data, lab, ref['labels'], vox_mm3, timing, unit, ref['name'], study)
     else:
         name = ref['name']
+        needed = ('white', 'csf') if name == 'white+csf' else (name,)
+        missing = [k for k in needed if not masks.get(k)]
+        if missing:
+            raise FileNotFoundError(f'reference region {name}: mask(s) {missing} not in the PET space (step 6); '
+                                    f'available: {sorted(masks)}')
         if name == 'white+csf':
             msk = pu.mask_bool(masks['white'], img) | pu.mask_bool(masks['csf'], img)   # union (the engineer's a*b was empty)
         else:
@@ -173,11 +184,12 @@ def dft(img, atlases, ref, masks, label_tables, timing, sif, unit, decay_correct
                     'need decay-corrected data and are not computed', diary_name, 'WARNING')
         return out
     bp = pu.out_name(out_dir, base, desc='BP')
-    out.append(turkubfbp.run(img, ref_dft, sif, bp, pu.out_name(out_dir, base, desc='BP-err'), diary_name,
+    out.append(turkubfbp.run(voxel_img, ref_dft, voxel_sif, bp, pu.out_name(out_dir, base, desc='BP-err'), diary_name,
                              sing_turku, end_min))
-    out.append(turkustrm.img(img, ref_dft, sif, pu.out_name(out_dir, base, desc='SRTM'), diary_name, sing_turku,
-                             end_min))
+    out.append(turkustrm.img(voxel_img, ref_dft, voxel_sif, pu.out_name(out_dir, base, desc='SRTM'), diary_name,
+                             sing_turku, end_min))
     if DV_time and float(DV_time) > 0:
-        out.append(turkudv.run(img, ref_dft, sif, DV_time, pu.out_name(out_dir, base, desc='DVR'),
-                               pu.out_name(out_dir, base, desc='DVR-npoints'), diary_name, sing_turku, end_min))
+        out.append(turkudv.run(voxel_img, ref_dft, voxel_sif, DV_time, pu.out_name(out_dir, base, desc='DVR'),
+                               pu.out_name(out_dir, base, desc='DVR-npoints'), diary_name, sing_turku, end_min,
+                               k2ref=k2ref))
     return out

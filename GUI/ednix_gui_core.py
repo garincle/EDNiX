@@ -10,7 +10,7 @@ import numpy as np
 # =============================================================================
 # Launcher model: parse a launcher script, expose its literal parameters
 # =============================================================================
-PIPELINE_FUNCS = {'preprocess_anat', 'preprocess_fmri', 'preprocess_pet', 'preprocess_ct', 'preprocess_data'}
+PIPELINE_FUNCS = {'preprocess_anat', 'preprocess_fmri', 'preprocess_pet', 'preprocess_ct'}
 
 STATIC_OPTIONS = {
     'which_on': ['all', 'max'],
@@ -31,11 +31,11 @@ STATIC_OPTIONS = {
     'crop_for_MoCo': ['auto', 'manual', 'none'],
     'export_resolution': ['pet', 'target'],
     'deoblique': ['WARP', 'header'],
-    'MoCo_transform': ['Rigid', 'BOLDRigid'],
-    'coreg_metric': ['mattes', 'meansquares', 'CC'],
-    'type_of_transform_template': ['SyN', 'SyNCC', 'Affine'],
-    'studyT_transform': ['SyN', 'Affine', 'Rigid'],
-    'pvc_method': ['RBV', 'GTM', 'MG', 'LABBE', 'MTC', 'IY'],
+    'MoCo_transform': ['Rigid', 'DenseRigid', 'BOLDRigid'],
+    'coreg_metric': ['mattes'],
+    'type_of_transform_template': ['SyNRA', 'TRSAA', 'SyN'],
+    'studyT_transform': ['SyNRA', 'TRSAA', 'Rigid'],
+    'pvc_method': ['RBV', 'MG', 'LABBE+RBV', 'MTC', 'IY'],
     'T_PET': ['T1w', 'T2w'],
     'T_CT': ['T1w', 'T2w'],
 }
@@ -697,12 +697,12 @@ STEPS = {
         (3, 'Crop drawn on the study template in freeview (box used by the motion correction)'),
         (4, 'Motion correction within each dynamic run (two passes, rigid)'),
         (5, 'Motion correction between the runs of the session; mean image of the session'),
-        (6, 'Registration to the anatomy / CT / template (scenarios of pet4.svg); atlases and masks in the PET space'),
+        (6, 'Registration to the anatomy / CT / template (scenarios of pet4.svg), quality control; atlases and masks in the PET space'),
         (7, 'Parametric images (SUV, SUVglu, ratio to the brain mean, time blocks) and regional values / TACs'),
         (8, 'Reference-region kinetic models: SRTM (bfmsrtm, imgbfbp, imgsrtm), Logan DVR (imgdv)'),
         ('pvc', 'Partial-volume correction (PETPVC, needs pvc_fwhm)'),
         (9, 'PET during the fMRI runs (simultaneous PET-MR, do_pet_to_func)'),
-        (10, 'Export to the AC-PC and template spaces (+ skull-stripped), quality control'),
+        (10, 'Export to the AC-PC and template spaces (+ skull-stripped)'),
     ],
     'preprocess_ct': [
         (1, 'Reorientation of the header (as the PET of the same PET/CT acquisition)'),
@@ -800,7 +800,7 @@ TAB_EXT = ('.csv', '.tsv', '.xlsx', '.xls')
 #   sub-*/ses-*/func/QC/      <run>_QC_values.json, <run>_QC_summary.png (step 12), <run>_qc_report.png,
 #                             all_runs_classification.csv (step 13)
 #   sub-*/ses-*/anat/QC_anat/ <name>_QC_values.json, summary images (step 16)
-#   sub-*/ses-*/pet/QC/       PET in the AC-PC / template spaces (step 10 of the PET pipeline), motion
+#   sub-*/ses-*/pet/QC/       PET in the AC-PC / template spaces (step 6 of the PET pipeline), motion (steps 4-5)
 #   sub-*/ses-*/ct/QC/        CT in the AC-PC / template spaces
 #   sub-*/ses-*/{anat,func,pet,ct}/<ID> session <ses><date>.txt   processing logs (diary)
 REPORT_DIRS = (('Functional reports', 'func', 'QC'), ('Anatomical reports', 'anat', 'QC_anat'),

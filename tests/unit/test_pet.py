@@ -8,6 +8,7 @@ import nibabel as nib
 import pandas as pd
 import pytest
 
+import ants
 import _pet_phantom as P
 from modalities.pet import petutils as pu
 from modalities.pet import transfo, dftFile, cut_image, run_cut, MoCo, coreg2anat, loop1, loop2, studyT
@@ -15,6 +16,10 @@ from modalities.pet.turkutools._nifti import TurkuWorkspace
 from atlases import getlabels
 
 opj = os.path.join
+opb = os.path.basename
+
+# reproducible registrations (ANTs random sampling, one thread): the pose tolerances below are not flaky
+ants.config.set_ants_deterministic(True, 123)
 
 
 # ------------------------------------------------------------------------------------------------ helpers
@@ -318,6 +323,34 @@ def _study(tmp_path, monkeypatch, subjects=('01',), anat=True, species='Testmonk
     return main, bids, tdir, out
 
 
+def _chain_error(chain, truth):
+    """Max error (mm) of a linear 'to' chain (points of the fixed space through the matrices in list order, inverted
+    when flagged) against truth(q), the true point of the moving space (RAS) of the fixed point q."""
+    trs = []
+    for f, inv in chain:
+        tr = ants.read_transform(f)
+        trs.append(tr.invert() if inv else tr)
+    err = []
+    for q in ([0, 0, 0], [15, 10, -5], [-12, -20, 10], [5, -25, -12]):
+        q = np.asarray(q, float)
+        p = tuple(P.F @ q)
+        for tr in trs:
+            p = tr.apply_to_point(p)
+        err.append(np.linalg.norm(truth(q) - P.F @ np.asarray(p)))
+    return max(err)
+
+
+def _chain_pose_error(chain, R, t):
+    """_chain_error of a PET -> AC-PC chain against the true pose x_PET = R^T (x_acpc - t)."""
+    return _chain_error(chain, lambda q: R.T @ (q - t))
+
+
+def _template_truth(R, t):
+    """True PET point of a template point (template x -> native S x + s of _template_image, then the PET pose)."""
+    S, sh = np.eye(3) / 1.08, np.array([2.0, -3.0, 1.5])
+    return lambda q: R.T @ (S @ q + sh - t)
+
+
 def _pose_error(mat_chain, R, t):
     import ants
     tr = ants.read_transform(mat_chain[0][0])
@@ -373,7 +406,11 @@ def test_ct_pipeline_then_pet_through_the_ct_1v2b(tmp_path, monkeypatch):
                      selected_atlases=[['TEST', 'all']], atlas_followers=[['TEST'], ['txt'], [2], [1]])
     rec = transfo.read_record(coreg2anat.record_path(getpath.pet(s['01']['dp'], 'EDNiX'), 'sub-01_ses-1_trc-FDG'))
     assert rec['scenario'] == '1v2b'
-    assert rec['targets']['acpc']['to'] == crec['targets']['acpc']['to']        # PET follows the CT
+    to = rec['targets']['acpc']['to']
+    # PET follows the CT (chain of the CT), from the scanner position of its first registered frame (MoCo matrix)
+    assert to[:len(crec['targets']['acpc']['to'])] == crec['targets']['acpc']['to']
+    assert all('forMC' in f for f, _ in to[len(crec['targets']['acpc']['to']):])
+    assert _chain_pose_error(to, R, t) < 1.0
 
 
 @pytest.mark.slow
@@ -382,7 +419,7 @@ def test_pet_study_template_without_anatomy_3v2(tmp_path, monkeypatch):
     main, bids, tdir, s = _study(tmp_path, monkeypatch, subjects=('01', '02'), anat=False)
     L.preprocess_pet([], main, bids, 'Testmonkey', P.bids_table([('01', '1'), ('02', '1')]), '*_trc-FDG_*pet.nii.gz',
                      'FDG', [''], [''], '', 'T1w', 'T1w', False, False, IhaveanANAT=False,
-                     creat_study_template_pet=True, studyT_transform='Affine', crop_for_MoCo='auto',
+                     creat_study_template_pet=True, studyT_transform='TRSAA', crop_for_MoCo='auto',
                      selected_atlases=[['TEST', 'all']], atlas_followers=[['TEST'], ['txt'], [2], [1]])
     st = studyT.template_name(opj(bids, 'sty_template', 'pet'), 'FDG')
     assert os.path.isfile(st) and os.path.isfile(studyT.crop_name(st))
@@ -398,31 +435,111 @@ def test_pet_study_template_without_anatomy_3v2(tmp_path, monkeypatch):
 
 @pytest.mark.slow
 def test_hybrid_pet_mr_1v1_follows_the_reorientation_of_the_anatomy(tmp_path, monkeypatch):
-    """Raw PET in the scanner space of a sphinx animal (AHF declared HFS): after the relabelling of step 1 it lies in
-    the space of the reoriented anatomy, and the AC-PC matrix of the anatomy brings it to AC-PC."""
+    """Sphinx animal (AHF declared HFS) in a hybrid PET-MR; T1w and PET share the scanner space, not their grids, and
+    their fields of view lie past the coordinate origin, where 3drefit -orient re-signs the origins (the emulator
+    follows 3drefit.c). The PET receives the world transform of the reorientation of the T1w (an independent
+    relabelling would shift it by 7 mm), and the motion-corrected session is brought back to the head position of
+    the first 10 min (the head moved later in the run)."""
     from modalities.pet import _0_Pipeline_launcher as L
     from Tools import get_orientation, getpath
     main, bids, tdir, s = _study(tmp_path, monkeypatch)
-    dp, A0 = s['01']['dp'], s['01']['A']
-    raw, _, info = P.dynamic_pet(opj(dp, 'pet', 'sub-01_ses-1_trc-FDG_pet.nii.gz'), np.eye(3), np.zeros(3))
-    probe = str(tmp_path / 'probe.nii.gz')
-    P.save(np.zeros((4, 4, 4)), A0, probe)
-    new = get_orientation.getreal('HFS', 'AHF', P._afni_code(A0))
-    P.emulate('3drefit -orient ' + new + ' ' + probe)
-    Pm = nib.load(probe).affine @ np.linalg.inv(A0)               # relabelling of step 1 (world map)
+    dp, A0, files = s['01']['dp'], s['01']['A'], s['01']['files']
+    A0 = nib.load(files['reorient']).affine                         # reoriented T1w = AC-PC grid (identity AC-PC)
+    A_anat_raw = P.raw_header(A0, 'HFS', 'AHF')                     # raw T1w in the scanner space
+    t1 = nib.load(files['reorient']).get_fdata().astype(np.float32)
+    P.save(t1, A_anat_raw, files['raw'])
+    W = A0 @ np.linalg.inv(A_anat_raw)                              # scanner -> AC-PC world
+    Ap = P.grid(40, 2.0)                                            # PET grid once in the AC-PC world
+    A_pet_raw = np.linalg.inv(W) @ Ap
+    indep = P.refit_orient(A_pet_raw, get_orientation.getreal('HFS', 'AHF', P._afni_code(A_pet_raw)))
+    assert np.abs(indep - Ap)[:3, 3].max() > 5.0                    # the hazard of an independent relabelling
+    still = (np.eye(3), np.zeros(3))
+    moved = (P.pose((4, -3, 5), (4, -3, 3))[0], np.array([4.0, -3.0, 3.0]))
+    raw = opj(dp, 'pet', 'sub-01_ses-1_trc-FDG_pet.nii.gz')
+    P.dynamic_pet(raw, np.eye(3), np.zeros(3), motions=[still] * 5 + [moved] * 3)
     img = nib.load(raw)
-    nib.save(nib.Nifti1Image(np.asarray(img.dataobj), np.linalg.inv(Pm) @ A0), raw)   # scanner space
+    nib.save(nib.Nifti1Image(np.asarray(img.dataobj), A_pet_raw), raw)
     L.preprocess_pet([], main, bids, 'Testmonkey', P.bids_table([('01', '1')]), '*_trc-FDG_*pet.nii.gz', 'FDG',
-                     ['AHF'], ['HFS'], '', 'T1w', 'T1w', False, False, anat_pet_same_space=True,
-                     selected_atlases=[['TEST', 0]], atlas_followers=[['TEST'], ['txt'], [2], [1]])
+                     ['AHF'], ['HFS'], '', 'T1w', 'T1w', False, False, anat_pet_same_space=True, SUV_window=[0, 10],
+                     crop_for_MoCo='none', selected_atlases=[['TEST', 0]], atlas_followers=[['TEST'], ['txt'], [2], [1]])
     paths = getpath.pet(dp, 'EDNiX')
+    reo = pu.out_name(paths['orig_process'], 'sub-01_ses-1_trc-FDG', desc='reorient')
+    assert np.allclose(nib.load(reo).affine, Ap, atol=1e-4)        # PET in the world of the reoriented T1w
     rec = transfo.read_record(coreg2anat.record_path(paths, 'sub-01_ses-1_trc-FDG'))
-    assert rec['scenario'] == '1v1' and rec['targets']['acpc']['to'][0][0].endswith('acpc_0GenericAffine.mat')
-    assert np.allclose(nib.load(rec['reference']).affine, A0, atol=1e-4)
-    atlas_pet = nib.load(rec['pet_space']['atlases']['TEST']).get_fdata()[..., 0]
-    truth = P.tissues(P.world_points((40,) * 3, A0)).reshape((40,) * 3)
-    dice = 2 * ((atlas_pet == 7) & (truth == 6)).sum() / ((atlas_pet == 7).sum() + (truth == 6).sum())
-    assert dice > 0.85, dice
+    to = rec['targets']['acpc']['to']
+    assert rec['scenario'] == '1v1' and to[0][0].endswith('acpc_0GenericAffine.mat') and 'scanner-position' in to[1][0]
+    # frames of 0-10 min (still) exported to AC-PC: on the truth with the anchor, shifted without it
+    exp = pu.out_name(paths['acpc'], 'sub-01_ses-1_trc-FDG', desc='activity-mean', space='acpc')
+    grid = nib.load(exp)
+    truth = P.pet_frame(grid.shape[:3], grid.affine, np.eye(3), np.zeros(3))
+    act = pu.out_name(paths['orig_post'], 'sub-01_ses-1_trc-FDG', desc='activity-mean')
+    no_anchor = transfo.apply(exp, act, dict(to=to[:1]), 'to').numpy()
+    r = lambda a: np.corrcoef(a.ravel(), truth.ravel())[0, 1]
+    assert r(grid.get_fdata()) > 0.99 and r(grid.get_fdata()) > r(no_anchor) + 0.01, (r(grid.get_fdata()), r(no_anchor))
+
+
+@pytest.mark.slow
+def test_pet_ct_same_scanner_space_with_off_centre_fields_of_view(tmp_path, monkeypatch):
+    """PET/CT of a sphinx animal: CT (1 mm, 80 mm) and PET (2 mm, 80 mm) grids past the coordinate origin. The CT is
+    reoriented from the positions, the PET receives the CT's world transform, and the PET -> AC-PC chain (CT
+    registration + head position of the first 10 min) recovers the pose."""
+    from modalities.pet import _0_Pipeline_launcher as L
+    from modalities.ct import _0_Pipeline_launcher as LC
+    from Tools import getpath
+    main, bids, tdir, s = _study(tmp_path, monkeypatch)
+    dp, R, t = s['01']['dp'], s['01']['R'], s['01']['t']
+    Act, Ap = P.grid(80, 1.0), P.grid(40, 2.0)                      # grids once reoriented (x_acpc = R x + t)
+    A_ct_raw = P.raw_header(Act, 'HFS', 'AHF')
+    W = Act @ np.linalg.inv(A_ct_raw)
+    q = P.world_points((80,) * 3, Act) @ R.T + t
+    P.save(np.vectorize(CT_HU.get)(P.tissues(q)).reshape((80,) * 3).astype(np.float32), A_ct_raw,
+           opj(dp, 'ct', 'sub-01_ses-1_ct.nii.gz'))
+    raw = opj(dp, 'pet', 'sub-01_ses-1_trc-FDG_pet.nii.gz')
+    P.dynamic_pet(raw, R, t)
+    img = nib.load(raw)
+    nib.save(nib.Nifti1Image(np.asarray(img.dataobj), np.linalg.inv(W) @ Ap), raw)
+    LC.preprocess_ct([], main, bids, 'Testmonkey', P.bids_table([('01', '1')]), '*_ct.nii.gz', ['AHF'], ['HFS'], '',
+                     'T1w', 'T1w', False, False, atlas_followers=[['TEST'], ['txt'], [2], [1]])
+    L.preprocess_pet([], main, bids, 'Testmonkey', P.bids_table([('01', '1')]), '*_trc-FDG_*pet.nii.gz', 'FDG',
+                     ['AHF'], ['HFS'], '', 'T1w', 'T1w', False, False, IhaveaCT=True, ct_pet_same_space=True,
+                     crop_for_MoCo='none', selected_atlases=[['TEST', 0]], atlas_followers=[['TEST'], ['txt'], [2], [1]])
+    paths = getpath.pet(dp, 'EDNiX')
+    reo = pu.out_name(paths['orig_process'], 'sub-01_ses-1_trc-FDG', desc='reorient')
+    assert np.allclose(nib.load(reo).affine, Ap, atol=1e-4)
+    rec = transfo.read_record(coreg2anat.record_path(paths, 'sub-01_ses-1_trc-FDG'))
+    assert rec['scenario'] == '1v2b' and _chain_pose_error(rec['targets']['acpc']['to'], R, t) < 1.0
+
+
+@pytest.mark.slow
+def test_ct_study_template_without_anatomy_2v2(tmp_path, monkeypatch):
+    from modalities.pet import _0_Pipeline_launcher as L
+    from modalities.ct import _0_Pipeline_launcher as LC
+    from Tools import getpath
+    main, bids, tdir, s = _study(tmp_path, monkeypatch, subjects=('01', '02'), anat=False)
+    for sub in ('01', '02'):
+        R, t = s[sub]['R'], s[sub]['t']
+        Act = P.grid(80, 1.0)
+        q = P.world_points((80,) * 3, Act) @ R.T + t
+        P.save(np.vectorize(CT_HU.get)(P.tissues(q)).reshape((80,) * 3).astype(np.float32), Act,
+               opj(s[sub]['dp'], 'ct', f'sub-{sub}_ses-1_ct.nii.gz'))
+    table = P.bids_table([('01', '1'), ('02', '1')])
+    LC.preprocess_ct([], main, bids, 'Testmonkey', table, '*_ct.nii.gz', [''], [''], '', 'T1w', 'T1w', False, False,
+                     IhaveanANAT=False, creat_study_template_ct=True, studyT_transform='TRSAA',
+                     atlas_followers=[['TEST'], ['txt'], [2], [1]])
+    L.preprocess_pet([], main, bids, 'Testmonkey', table, '*_trc-FDG_*pet.nii.gz', 'FDG', [''], [''], '', 'T1w', 'T1w',
+                     False, False, IhaveanANAT=False, IhaveaCT=True, crop_for_MoCo='none',
+                     selected_atlases=[['TEST', 'all']], atlas_followers=[['TEST'], ['txt'], [2], [1]])
+    for sub in ('01', '02'):
+        paths = getpath.pet(s[sub]['dp'], 'EDNiX')
+        rec = transfo.read_record(coreg2anat.record_path(paths, f'sub-{sub}_ses-1_trc-FDG'))
+        assert rec['scenario'] == '2v2' and list(rec['targets']) == ['studyTemplate']
+        assert os.path.isfile(pu.out_name(opj(paths['templates'], 'studyTemplate'), f'sub-{sub}_ses-1_trc-FDG',
+                                          desc='activity-mean', space='studyTemplate'))
+    # both subjects in the study template: their exported means agree
+    a, b = [nib.load(pu.out_name(opj(getpath.pet(s[x]['dp'], 'EDNiX')['templates'], 'studyTemplate'),
+                                 f'sub-{x}_ses-1_trc-FDG', desc='activity-mean', space='studyTemplate')).get_fdata()
+            for x in ('01', '02')]
+    assert np.corrcoef(a.ravel(), b.ravel())[0, 1] > 0.97
 
 
 def _template_image(tdir, values, species, name):
@@ -443,7 +560,7 @@ def test_pet_template_without_anatomy_3v1(tmp_path, monkeypatch):
     tpl = _template_image(tdir, P.PET, 'Testmonkey', '_desc-FDG_pet.nii.gz')
     L.preprocess_pet([], main, bids, 'Testmonkey', P.bids_table([('01', '1')]), '*_trc-FDG_*pet.nii.gz', 'FDG',
                      [''], [''], '', 'T1w', 'T1w', False, False, IhaveanANAT=False, template_PET=tpl,
-                     type_of_transform_template='Affine', selected_atlases=[['TEST', 'all']],
+                     type_of_transform_template='TRSAA', selected_atlases=[['TEST', 'all']],
                      atlas_followers=[['TEST'], ['txt'], [2], [1]])
     paths = getpath.pet(s['01']['dp'], 'EDNiX')
     rec = transfo.read_record(coreg2anat.record_path(paths, 'sub-01_ses-1_trc-FDG'))
@@ -452,7 +569,8 @@ def test_pet_template_without_anatomy_3v1(tmp_path, monkeypatch):
     q = P.world_points((40,) * 3, s['01']['A']) @ s['01']['R'].T + s['01']['t']
     truth = P.tissues(q).reshape((40,) * 3)
     brain = 2 * ((atlas_pet > 0) & (truth >= 3)).sum() / ((atlas_pet > 0).sum() + (truth >= 3).sum())
-    assert brain > 0.85, brain
+    assert brain > 0.9, brain
+    assert _chain_error(rec['targets']['EDNiX']['to'], _template_truth(s['01']['R'], s['01']['t'])) < 1.5
     assert set(rec['pet_space']['masks']) == {'brain', 'gray', 'white', 'csf'}
 
 
@@ -470,12 +588,14 @@ def test_ct_template_without_anatomy_2v1(tmp_path, monkeypatch):
     tct = _template_image(tdir, CT_HU, 'Testmonkey', '_desc-template_ct.nii.gz')
     LC.preprocess_ct([], main, bids, 'Testmonkey', P.bids_table([('01', '1')]), '*_ct.nii.gz', [''], [''], '',
                      'T1w', 'T1w', False, False, IhaveanANAT=False, template_CT=tct,
-                     type_of_transform_template='Affine', atlas_followers=[['TEST'], ['txt'], [2], [1]])
+                     type_of_transform_template='TRSAA', atlas_followers=[['TEST'], ['txt'], [2], [1]])
     L.preprocess_pet([], main, bids, 'Testmonkey', P.bids_table([('01', '1')]), '*_trc-FDG_*pet.nii.gz', 'FDG',
                      [''], [''], '', 'T1w', 'T1w', False, False, IhaveanANAT=False, IhaveaCT=True,
                      selected_atlases=[['TEST', 'all']], atlas_followers=[['TEST'], ['txt'], [2], [1]])
     rec = transfo.read_record(coreg2anat.record_path(getpath.pet(s['01']['dp'], 'EDNiX'), 'sub-01_ses-1_trc-FDG'))
     assert rec['scenario'] == '2v1' and list(rec['targets']) == ['EDNiX'] and rec['pet_space']['atlases']
+    assert _chain_error(rec['targets']['EDNiX']['to'], _template_truth(R, t)) < 1.5
+    assert os.path.isfile(opj(getpath.ct(s['01']['dp'], 'EDNiX')['qc'], 'sub-01_ses-1_space-EDNiX_ct.png'))
 
 
 @pytest.mark.slow
@@ -503,3 +623,207 @@ def test_between_runs_correction_aligns_the_runs_with_one_resampling(tmp_path, m
     side = json.load(open(pu.sidecar(pu.out_name(paths['orig_process'], 'sub-01_ses-1_trc-FDG_run-2', desc='MoCo-between'))))
     assert 'composed' in side['Description']
     assert os.path.isfile(pu.out_name(paths['orig_process'], 'sub-01_ses-1_trc-FDG', desc='MoCo-between-mean'))
+
+
+# ------------------------------------------------------------------------------------------------ deep-review additions
+def test_frame_times_are_post_injection_and_fmri_matching_stays_in_bids_time():
+    # TimeZero = ScanStart, injection 30 min before the scan
+    info = dict(FrameTimesStart=[0, 600, 1200], FrameDuration=[600, 600, 600], InjectionStart=-1800)
+    tm = pu.frame_timing(info, 3)
+    assert np.allclose(tm['start'], [1800, 2400, 3000]) and tm['offset'] == -1800
+    assert list(pu.window_frames(tm, [40, 60])) == [1, 2]          # 40-60 min after the injection
+    func = dict(AcquisitionTime='10:20:00', RepetitionTime=2.0)       # 1200-1500 s after TimeZero: third PET frame
+    ov, _ = run_cut.getframes(dict(TimeZero='10:00:00'), tm, func, 150, 0)
+    assert np.allclose(ov, [0, 0, 300])
+    # midnight: TimeZero 23:50, fMRI at 00:05 the next day
+    ov, (a, b) = run_cut.getframes(dict(TimeZero='23:50:00'), pu.frame_timing(
+        dict(FrameTimesStart=[0, 600, 1200], FrameDuration=[600, 600, 600]), 3), dict(AcquisitionTime='00:05:00',
+                                                                                     RepetitionTime=2.0), 150, 0)
+    assert a == 900 and ov[1] == 300
+
+
+def test_units_isotopes_and_timing_are_parsed_robustly():
+    assert pu.normalise_isotope('[18F]') == 'F-18' and pu.normalise_isotope('C11') == 'C-11'
+    assert pu.activity_to_mbq(10, 'mci') == pytest.approx(370.0) and pu.activity_to_mbq(5, 'mbq') == 5.0
+    assert pu.concentration_to_bq_per_ml('kBq/cm3') == 1e3 and pu.concentration_to_bq_per_ml('BQML') == 1.0
+    assert pu.concentration_to_bq_per_ml('counts') is None and pu.as_bool('false') is False
+    tm = pu.frame_timing(dict(FrameTimesStart=[0], FrameDuration=[600], FrameReferenceTime=300), 1)
+    assert tm['mid'][0] == 300
+    tm = pu.frame_timing(dict(FrameTimesStart=[0, 60], FrameDuration=[60, 60], FrameReferenceTime=[30000, 90000]), 2)
+    assert np.allclose(tm['mid'], [30, 90])                           # ms reference times ignored
+    with pytest.raises(ValueError):
+        pu.frame_timing(dict(FrameTimesStart=[0, 30], FrameDuration=[60, 60]), 2)   # overlapping frames
+    # unknown isotope and image decay-corrected after the injection: the dose cannot be decayed
+    f, why = pu.suv_scale(dict(Units='Bq/mL', ImageDecayCorrectionTime=3600, InjectionStart=0),
+                          dict(weight_kg=70, dose_MBq=200), None)
+    assert f is None and 'isotope' in why
+    f, rep = pu.suv_scale(dict(Units='Bq/mL', ImageDecayCorrectionTime=3600, InjectionStart=0),
+                          dict(weight_kg=70, dose_MBq=200), 'F-18')
+    assert f == pytest.approx(70e3 / (200e6 * math.exp(-math.log(2) / 6586.2 * 3600)))
+
+
+def test_mean_rigid_and_scanner_anchor(tmp_path):
+    from scipy.spatial.transform import Rotation
+    d = str(tmp_path)
+    R1 = Rotation.from_euler('xyz', (3, -2, 5), degrees=True).as_matrix()
+    m1 = P.write_affine_mat(opj(d, 'm1.mat'), R1, np.array([1.0, 2, 3]))
+    same = MoCo.mean_rigid([m1, m1], opj(d, 'mean.mat'))
+    a, b = ants.read_transform(m1), ants.read_transform(same)
+    assert max(np.linalg.norm(np.subtract(a.apply_to_point(p), b.apply_to_point(p)))
+               for p in [(0, 0, 0), (20, -10, 5)]) < 1e-4
+    # two runs: session -> run (between) -> frames of the window (within), and its exact inverse
+    runs = [opj(d, f'sub-01_trc-FDG_run-{k}_desc-reorient_pet.nii.gz') for k in (1, 2)]
+    corrected = [opj(d, f'sub-01_trc-FDG_run-{k}_desc-MoCo-within_pet.nii.gz') for k in (1, 2)]
+    for k in (1, 2):
+        P.write_affine_mat(opj(d, f'sub-01_trc-FDG_run-{k}_between_0GenericAffine.mat'), np.eye(3), np.array([k, 0, 0.]))
+    mats = []
+    for i in range(3):
+        mats.append(f'f{i}.mat')
+        P.write_affine_mat(opj(d, mats[-1]), np.eye(3), np.array([0, i, 0.]))
+    for c in corrected:
+        pu.write_json(c, '', '', Matrices=mats)
+    tms = [pu.frame_timing(dict(FrameTimesStart=[0, 300, 900], FrameDuration=[300, 600, 600]), 3)] * 2
+    ch, how = MoCo.scanner_anchor(runs, corrected, tms, d, nb_void=0, window_min=[0, 6])
+    assert [opb(f) for f, _ in ch['from']] == ['sub-01_trc-FDG_run-1_between_0GenericAffine.mat', 'f0.mat']
+    assert [inv for _, inv in ch['to']] == [True, True] and ch['to'][0][0] == ch['from'][1][0]
+    ch, _ = MoCo.scanner_anchor(runs, corrected, tms, d, nb_void=0)          # first 10 min: frames 0 and 1
+    assert 'scanner-position' in ch['from'][1][0]
+
+
+def test_world_transform_of_the_reference_is_applied_to_the_header(tmp_path, monkeypatch):
+    from modalities.pet import reorient
+    P.patch_run_cmd(monkeypatch)
+    A0 = P.grid(30, 1.0)
+    raw = P.save(np.random.rand(30, 30, 30), P.raw_header(A0, 'HFS', 'AHF'), str(tmp_path / 'ref_raw.nii.gz'))
+    reo = str(tmp_path / 'ref_reo.nii.gz')
+    P.save(nib.load(raw).get_fdata(), A0, reo)
+    W = reorient.reference_world_map(raw, reo, str(tmp_path), str(tmp_path / 'd.txt'), '')
+    other = P.save(np.random.rand(10, 12, 14), np.linalg.inv(W) @ P.grid(10, 3.0), str(tmp_path / 'o.nii.gz'))
+    out = reorient.apply_world_map(other, W, str(tmp_path / 'o2.nii.gz'))
+    assert np.allclose(nib.load(out).affine, P.grid(10, 3.0)) and np.allclose(nib.load(out).get_fdata(),
+                                                                              nib.load(other).get_fdata(), atol=1e-6)
+    pu.write_json(reo, raw, 'x', WorldTransform=np.eye(4).tolist())
+    assert np.allclose(reorient.reference_world_map(raw, reo, str(tmp_path), str(tmp_path / 'd.txt'), ''), np.eye(4))
+
+
+def test_tissue_fractions_and_pvc_classes(tmp_path):
+    from modalities.pet import pvc
+    A1, A2 = P.grid(40, 1.0), P.grid(10, 4.0)
+    x = P.world_points((40,) * 3, A1)[:, 0].reshape((40,) * 3)
+    half = P.save((x < 0).astype(np.float32), A1, str(tmp_path / 'half.nii.gz'))
+    ref = P.save(np.ones((10,) * 3), A2, str(tmp_path / 'ref.nii.gz'))
+    ident = transfo.affine(P.write_affine_mat(str(tmp_path / 'id.mat'), np.eye(3), np.zeros(3)))
+    fr = nib.load(coreg2anat.tissue_fraction(half, ref, ident, (4.0, 4.0, 4.0), str(tmp_path / 'f.nii.gz'))).get_fdata()
+    xp = P.world_points((10,) * 3, A2)[:, 0].reshape((10,) * 3)
+    assert np.allclose(fr[xp < -6][..., ], 1.0, atol=0.02) and np.allclose(fr[xp > 6], 0.0, atol=0.02)
+    assert 0.25 < fr[np.abs(xp) == 2].mean() < 0.75                  # voxels on the edge: partial fraction
+    gm = P.save(np.full((10,) * 3, 0.5), A2, str(tmp_path / 'gm.nii.gz'))
+    wm = P.save(np.full((10,) * 3, 0.7), A2, str(tmp_path / 'wm.nii.gz'))
+    br = P.save(np.full((10,) * 3, 0.9), A2, str(tmp_path / 'br.nii.gz'))
+    cls = pvc.tissue_classes(dict(GM=gm, WM=wm, brain=br), ref)
+    assert np.allclose(sum(cls), 1.0) and np.allclose(cls[1], 0.5) and np.allclose(cls[2], 0.0)
+
+
+@pytest.mark.slow
+def test_static_single_frame_not_decay_corrected_gives_the_analytic_suv(tmp_path, monkeypatch):
+    """One 10-min frame 50 min after the injection (TimeZero = scan start), not decay-corrected, stored as 4D with one
+    frame: the SUV of the white matter must be C x W / D with C decay-corrected to the injection."""
+    from modalities.pet import _0_Pipeline_launcher as L
+    from Tools import getpath
+    main, bids, tdir, s = _study(tmp_path, monkeypatch)
+    dp, R, t = s['01']['dp'], s['01']['R'], s['01']['t']
+    raw = opj(dp, 'pet', 'sub-01_ses-1_trc-FDG_pet.nii.gz')
+    A = P.grid(40, 2.0)
+    lam = math.log(2) / 6586.2
+    t0, dt = 3000.0, 600.0
+    meas = math.exp(-lam * t0) * (1 - math.exp(-lam * dt)) / (lam * dt)    # mean decay over the frame
+    P.save(P.pet_frame((40,) * 3, A, R, t, smooth_mm=0.1)[..., None] * meas, A, raw)
+    with open(raw.replace('.nii.gz', '.json'), 'w') as f:
+        json.dump(dict(FrameTimesStart=[0], FrameDuration=[dt], Units='Bq/mL', InjectedRadioactivity=100.0,
+                       InjectedRadioactivityUnits='MBq', ImageDecayCorrected='false', InjectionStart=-t0,
+                       TimeZero='10:00:00', TracerRadionuclide='[18F]'), f)
+    L.preprocess_pet([], main, bids, 'Testmonkey', P.bids_table([('01', '1')]), '*_trc-FDG_*pet.nii.gz', 'FDG',
+                     [''], [''], '', 'T1w', 'T1w', False, False, selected_atlases=[['TEST', 1]],
+                     atlas_followers=[['TEST'], ['txt'], [2], [1]])
+    paths = getpath.pet(dp, 'EDNiX')
+    assert nib.load(pu.out_name(paths['orig_process'], 'sub-01_ses-1_trc-FDG', desc='reorient')).ndim == 3
+    tab = pd.read_csv(opj(paths['orig_roi'], 'sub-01_ses-1_trc-FDG_seg-TEST-lvl1_desc-SUV_ROIs.tsv'), sep='\t')
+    wm = float(tab.loc[tab['region'] == 'WM', 'median'].iloc[0])
+    assert wm == pytest.approx(P.PET[5] * 10e3 / 100e6, rel=0.02)          # 1500 Bq/mL x 10 kg / 100 MBq
+    assert os.path.isfile(pu.out_name(paths['acpc'], 'sub-01_ses-1_trc-FDG', desc='activity', space='acpc'))
+
+
+def test_anat_of_another_session_and_reference_session(tmp_path, monkeypatch):
+    from modalities.pet import _0_Pipeline_launcher as L
+    bids = str(tmp_path / 'bids')
+    files, package, dp1 = P.anat_derivative(bids, ses='1')
+    dp2 = opj(bids, 'sub-01', 'ses-2')
+    os.makedirs(opj(dp2, 'pet'))
+    anat, apath, ases = L._anat_files('01', dp2, '2', ['2'], bids, False, True, True, 'T1w', str(tmp_path / 'd.txt'))
+    assert ases == '1' and os.path.normpath(apath) == os.path.normpath(dp1) and anat['acpc'] == files['acpc']
+    assert L._anat_max_session(bids, '01', 'EDNiX', '2') == '1'
+
+
+@pytest.mark.slow
+def test_rerun_of_the_late_steps_and_skipped_registration(tmp_path, monkeypatch):
+    """Steps 7-10 run again alone; the scenario of the existing record is kept when step 6 is skipped (the CT record,
+    needed only by step 6, is then not required)."""
+    from modalities.pet import _0_Pipeline_launcher as L
+    from Tools import getpath
+    main, bids, tdir, s = _study(tmp_path, monkeypatch)
+    args = ([], main, bids, 'Testmonkey', P.bids_table([('01', '1')]), '*_trc-FDG_*pet.nii.gz', 'FDG', [''], [''], '',
+            'T1w', 'T1w', False, False)
+    kw = dict(crop_for_MoCo='none', selected_atlases=[['TEST', 0]], atlas_followers=[['TEST'], ['txt'], [2], [1]])
+    L.preprocess_pet(*args, **kw)
+    paths = getpath.pet(s['01']['dp'], 'EDNiX')
+    exp = pu.out_name(paths['acpc'], 'sub-01_ses-1_trc-FDG', desc='SUV-mean', space='acpc')
+    first = os.path.getmtime(exp)
+    L.preprocess_pet([1, 2, 3, 4, 5, 6], *args[1:], IhaveaCT=True, **kw)    # no CT record: fine, step 6 skipped
+    assert os.path.getmtime(exp) > first
+    with pytest.raises(FileNotFoundError):
+        L.preprocess_pet([1, 2, 3, 4, 5], *args[1:], IhaveaCT=True, **kw)
+
+
+def test_launcher_rejects_old_entry_point_and_bad_options(tmp_path, monkeypatch):
+    from modalities.pet import _0_Pipeline_launcher as L
+    with pytest.raises(TypeError):
+        L.preprocess_data([], 'x')
+    main, bids, tdir, s = _study(tmp_path, monkeypatch)
+    args = ([], main, bids, 'Testmonkey', P.bids_table([('01', '1')]), '*_trc-FDG_*pet.nii.gz', 'FDG', [''], [''], '',
+            'T1w', 'T1w', False, False)
+    with pytest.raises(ValueError):
+        L.preprocess_pet(*args, isotope='F-19', atlas_followers=[['TEST'], ['txt'], [2], [1]])
+    with pytest.raises(ValueError):
+        L.preprocess_pet(*args, pvc_fwhm=5, pvc_method='GTM', atlas_followers=[['TEST'], ['txt'], [2], [1]])
+    with pytest.raises(ValueError):
+        L.preprocess_pet(*args, MoCo_transform='SyN', atlas_followers=[['TEST'], ['txt'], [2], [1]])
+
+
+@pytest.mark.slow
+def test_within_run_motion_estimates_are_accurate(tmp_path):
+    """Relative motion between frames recovered within 0.6 mm (mean) on a noisy phantom (3-6 mm, 4-6 degrees)."""
+    R, t = np.eye(3), np.zeros(3)
+    moves = [((4, 0, 6), (3, -2, 1))] * 3 + [((-5, 3, 0), (-4, 2, 2)), ((0, -6, 4), (2, 4, -3)),
+                                            ((3, 3, -5), (-3, -3, 2)), ((6, 0, 0), (0, 3, 3)), ((-4, -4, 4), (4, 0, -2))]
+    motions = [(P.pose(r, m)[0], np.asarray(m, float)) for r, m in moves]
+    img, A, info = P.dynamic_pet(str(tmp_path / 'sub-01_ses-1_trc-FDG_pet.nii.gz'), R, t, motions=motions)
+    im = nib.load(img)
+    x = np.asarray(im.dataobj, np.float32)
+    rng = np.random.default_rng(0)
+    dur = np.asarray(info['FrameDuration'], float)
+    x = x + rng.normal(size=x.shape).astype(np.float32) * np.sqrt(np.clip(x, 0, None) * 60 / dur)
+    nib.save(nib.Nifti1Image(x, im.affine), img)
+    MoCo.dynamic(img, str(tmp_path / 'pre'), str(tmp_path / 'formc'), pu.frame_timing(info, 8), 2, None, False,
+                 str(tmp_path / 'diary.txt'), '')
+    mats = json.load(open(str(tmp_path / 'pre' / 'sub-01_ses-1_trc-FDG_desc-MoCo-within_pet.json')))['Matrices']
+    T = [ants.read_transform(str(tmp_path / 'formc' / m)) for m in mats]
+    pts = [np.array(p, float) for p in ([0, 0, 0], [15, 10, -5], [-12, -20, 10], [5, -25, -12])]
+    errs = []
+    for i in range(2, 8):
+        for j in range(i + 1, 8):
+            Ti = T[i].invert()
+            for p in pts:
+                true = motions[j][0].T @ (motions[i][0] @ p + motions[i][1] - motions[j][1])
+                est = P.F @ np.asarray(T[j].apply_to_point(Ti.apply_to_point(tuple(P.F @ p))))
+                errs.append(np.linalg.norm(true - est))
+    assert np.mean(errs) < 0.6 and np.max(errs) < 1.5, (np.mean(errs), np.max(errs))

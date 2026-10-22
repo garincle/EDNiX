@@ -40,8 +40,9 @@ def retrieve(ID,data_path, Session,anat_func_same_space,use_erode_V_func_masks,u
 
             if not template_anat_for_fmri ==[]:
 
-                nb = len(opd(data_path).split('/'))+1
-                new_sess = template_anat_for_fmri[0].split('/')[nb]
+                # session folder of the anat found: first component of its path below the subject folder
+                # (the index len(...)+1 pointed one level too deep, at 'anat')
+                new_sess = opr(template_anat_for_fmri[0], start=opd(data_path)).split(os.sep)[0]
 
                 if len(template_anat_for_fmri) == 1:
                     nl = ('WARNING: we found one anat template for this animal in this folder : ' + new_sess +

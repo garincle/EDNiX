@@ -10,12 +10,12 @@ opd = os.path.dirname
 ope = os.path.exists
 opi = os.path.isfile
 
-from Tools import run_cmd, getpath, diaryfile, Load_EDNiX_requirement, check_nii
+from Tools import run_cmd, getpath, diaryfile, Load_EDNiX_requirement, check_nii, Load_subject_with_BIDS
 from modalities.anat import set_launcher
 from modalities.anat.loop3 import backtonative
 from modalities.fMRI import chooseanat
 from modalities.pet import petutils as pu
-from modalities.pet import loop1, loop2, studyT, coreg2anat, transfo
+from modalities.pet import loop1, loop2, studyT, coreg2anat, transfo, reorient
 from atlases import getlabels
 
 # kept for the launchers of the PET engineer (tracer -> isotope)
@@ -23,43 +23,78 @@ known_tracor = pu.KNOWN_TRACER
 
 
 def _anat_files(ID, data_path, Session, all_Session, bids_dir, anat_pet_same_space, use_erode_V, use_erode_WM, T_PET,
-                diary_file):
-    """Anatomical files of the subject in AC-PC space (chooseanat.retrieve, as the functional pipeline), with the
-    same fallback on the other sessions of the subject. Returns (anat dict, anat data_path, anat session)."""
+                diary_file, type_norm=None):
+    """
+    Anatomical files of the subject in AC-PC space (chooseanat.retrieve, as the functional pipeline), with the
+    same fallback on the other sessions of the subject. Returns (anat dict, anat data_path, anat session): the
+    session where the anatomy really is (chooseanat.retrieve itself falls back on another session of the subject,
+    and the transforms of backtonative.get must be read there).
+    raw_norm / reorient_norm: raw copy and reoriented image of the normalisation contrast (type_norm), the images
+    the AC-PC matrix was estimated from (world transform of the reorientation, hybrid PET-MR).
+    """
+    type_norm = type_norm or T_PET
+
     def get(path, ses):
         (anat_subject, brainmask, G_mask, WBG_mask, V_mask, W_mask, dir_transfo, FS_dir, dir_prepro, volumes_dir,
          labels_dir, masks_dir) = chooseanat.retrieve(ID, path, ses, anat_pet_same_space, use_erode_V, use_erode_WM,
                                                       T_PET, diary_file)
-        return dict(ID=ID, acpc=anat_subject,
+        anat_path = opd(opd(dir_transfo))                      # <bids>/sub-<ID>/ses-<S>/anat/matrices
+        label = opb(anat_path)[4:] if opb(anat_path).startswith('ses-') else str(ses)
+        anat_ses = next((s for s in [ses] + list(all_Session) if str(s) == label), label)
+        anat = dict(ID=ID, acpc=anat_subject,
                     brain=opj(volumes_dir, ID + '_space-acpc_desc-SS_' + T_PET + '.nii.gz'),
-                    mask=brainmask, gray=G_mask, white=W_mask, csf=V_mask, labels_dir=labels_dir,
-                    dir_transfo=dir_transfo,
+                    mask=brainmask, gray=G_mask, gray_wb=WBG_mask, white=W_mask, csf=V_mask,
+                    white_full=W_mask.replace('_desc-erod-', '_desc-'), csf_full=V_mask.replace('_desc-erod-', '_desc-'),
+                    labels_dir=labels_dir, dir_transfo=dir_transfo,
                     reorient=opj(dir_prepro, ID + '_space-raw_desc-reorient_' + T_PET + '.nii.gz'),
                     raw=opj(dir_prepro, ID + '_space-raw_desc-template_' + T_PET + '.nii.gz'),
+                    reorient_norm=opj(dir_prepro, ID + '_space-raw_desc-reorient_' + type_norm + '.nii.gz'),
+                    raw_norm=opj(dir_prepro, ID + '_space-raw_desc-template_' + type_norm + '.nii.gz'),
                     surfaces=sorted(glob.glob(opj(opd(volumes_dir), 'surfaces', 'Native_resol', ID + '.[lr].*.surf.gii'))))
+        return anat, (anat_path if ope(anat_path) else path), anat_ses
     try:
-        anat = get(data_path, Session)
+        anat, apath, ases = get(data_path, Session)
         if opi(anat['acpc']):
-            return anat, data_path, Session
-    except Exception:
-        pass
+            if str(ases) != str(Session):
+                run_cmd.msg(f'INFO: anat of {ID} taken from session {ases} for the session {Session}', diary_file,
+                            'OKGREEN')
+            return anat, apath, ases
+    except Exception as e:
+        run_cmd.msg(f'INFO: anat of {ID} session {Session} not available ({e})', diary_file, 'WARNING')
     if anat_pet_same_space:
         raise FileNotFoundError(run_cmd.error(f'ERROR: anat_pet_same_space=True but no anatomy for {ID} in session '
                                               f'{Session}', diary_file))
     run_cmd.msg(f'INFO: no anat found for {ID} session {Session}, searching the other sessions of this subject...',
                 diary_file, 'WARNING')
-    for ses in sorted(set(all_Session)):
+    # every session of the subject on disk (an anatomy may be in a session without PET), most recent first
+    on_disk = [opb(p)[4:] for p in glob.glob(opj(bids_dir, f'sub-{ID}', 'ses-*')) if os.path.isdir(p)]
+    for ses in _session_sort(set(on_disk) | {str(s) for s in all_Session}):
         candidate = opj(bids_dir, f'sub-{ID}', f'ses-{ses}')
         if not ope(candidate):
             continue
         try:
-            anat = get(candidate, ses)
+            anat, apath, ases = get(candidate, ses)
         except Exception:
             continue
         if opi(anat['acpc']):
-            run_cmd.msg(f'INFO: anat of {ID} found in session {ses}, used for this PET session.', diary_file, 'OKGREEN')
-            return anat, candidate, ses
+            run_cmd.msg(f'INFO: anat of {ID} found in session {ases}, used for this PET session.', diary_file, 'OKGREEN')
+            return anat, apath, ases
     raise FileNotFoundError(run_cmd.error(f'ERROR: no anat found for {ID} in any session. Cannot proceed.', diary_file))
+
+
+def _session_sort(sessions):
+    """Sessions in descending order, numeric when they all are numbers (Tools.Load_subject_with_BIDS)."""
+    return Load_subject_with_BIDS._session_sort(list(sessions), reverse=True)
+
+
+def _anat_max_session(bids_dir, ID, reference, default):
+    """Reference session of a longitudinal anatomical analysis: the session whose anatomy was registered to the
+    template (anat/matrices/native_to_<reference>_Final_0GenericAffine.mat; the other sessions are registered to it),
+    which need not be the last PET session."""
+    found = [opb(opd(opd(opd(f))))[4:] for f in
+             glob.glob(opj(bids_dir, f'sub-{ID}', 'ses-*', 'anat', 'matrices',
+                           f'native_to_{reference}_Final_0GenericAffine.mat'))]
+    return _session_sort(found)[0] if found else default
 
 
 def _ct_record(ID, data_path, bids_dir, all_Session, reference, same_session_only):
@@ -79,6 +114,15 @@ def _ct_raw(ID, data_path, reference):
     if recs:
         return transfo.read_record(recs[0]).get('raw', '')
     return ''
+
+
+# linear transforms allowed for the motion correction (head motion is rigid; ANTs collapses them into one
+# 0GenericAffine.mat, read by petutils.rigid_parameters)
+MOCO_TRANSFORMS = ('Rigid', 'QuickRigid', 'DenseRigid', 'BOLDRigid', 'Translation')
+# PETPVC methods that write a corrected image (GTM: CSV of regional values; STC: other mask format)
+PVC_METHODS = ('RBV', 'MG', 'LABBE', 'MTC', 'IY', 'RL', 'VC', 'RBV+VC', 'RBV+RL', 'MG+VC', 'MG+RL', 'LABBE+RBV',
+               'LABBE+RBV+VC', 'LABBE+RBV+RL', 'LABBE+MTC', 'LABBE+MTC+VC', 'LABBE+MTC+RL', 'MTC+VC', 'MTC+RL',
+               'IY+VC', 'IY+RL')
 
 
 def _selected_atlases(selected_atlases, list_atlas):
@@ -104,12 +148,12 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
                    T_PET, type_norm, creat_study_template, coregistration_longitudinal,
                    IhaveanANAT=True, anat_pet_same_space=False,
                    IhaveaCT=False, ct_pet_same_space=True,
-                   template_PET='', creat_study_template_pet=False, studyT_transform='SyN',
+                   template_PET='', creat_study_template_pet=False, studyT_transform='SyNRA',
                    isotope='unknown', PET_header_wrong=False, deoblique='WARP', dcmfolder='', endfiledcm='dcm',
                    nb_void=0, crop_for_MoCo='auto', redo_crop=False, MoCo_transform='Rigid',
-                   coreg_metric='mattes', type_of_transform_template='SyN', do_manual=False,
+                   coreg_metric='mattes', type_of_transform_template='SyNRA', do_manual=False, same_space_window=None,
                    SUV=True, bratio=True, SUV_window=None, Do_cut=False, duration=10,
-                   srtm=False, reference_signal='unknown', DV_time=0, kinetic_end=None,
+                   srtm=False, reference_signal='unknown', DV_time=0, DV_k2ref=None, kinetic_end=None,
                    pvc_fwhm=None, pvc_method='RBV',
                    do_pet_to_func=False, endfmri='*_bold.nii.gz', T1_eq=0,
                    export_resolution='pet', export_dynamic=False,
@@ -135,7 +179,8 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
     Skip_step : list
         Steps NOT to run (numbers above, or 'pvc').
     MAIN_PATH : str
-        Folder of the EDNiX installation (the one that contains Atlases_library).
+        Folder of the EDNiX installation, with its trailing '/' as in the example launchers: Atlases_library and
+        Singularity_library are looked for in os.path.dirname(MAIN_PATH) (modalities/anat/set_launcher.py).
     bids_dir : str
         Path to the BIDS dataset.
     species : str
@@ -177,7 +222,10 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         Build a PET study template (step 2): used to crop the images for the motion correction and, without
         anatomy, CT or PET template, as the common space (3v2, no atlas).
     studyT_transform : str, optional
-        ANTs transform of the PET study template registrations ('SyN').
+        ANTs transform of the PET study template registrations:
+        'SyNRA' (default: rigid + affine + SyN stages). ANTsPy's 'SyN' and 'Affine' start with a single affine
+        stage, which missed a 12-degree rotation by about 7 mm on the test phantom (< 1 mm with 'SyNRA' or the
+        linear 'TRSAA').
     isotope : str, optional
         Radionuclide ('F-18', 'C-11'...); 'unknown': TracerRadionuclide of the sidecar, else from the tracer name.
     PET_header_wrong : bool, optional
@@ -200,21 +248,30 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
     coreg_metric : str, optional
         Metric of the rigid registrations (motion, PET -> anatomy / CT): 'mattes' (mutual information).
     type_of_transform_template : str, optional
-        ANTs transform of the PET -> PET template registration (scenario 3v1), e.g. 'SyN'.
+        ANTs transform of the PET -> PET template registration (scenario 3v1):
+        'SyNRA' (default: rigid + affine + SyN stages). ANTsPy's 'SyN' and 'Affine' start with a single affine
+        stage, which missed a 12-degree rotation by about 7 mm on the test phantom (< 1 mm with 'SyNRA' or the
+        linear 'TRSAA').
     do_manual : bool, optional
         Manual correction of the PET -> anatomy registration in freeview (scenario 1v2a).
+    same_space_window : list, optional
+        PET in the scanner space of the anatomy (1v1) or of the CT (ct_pet_same_space): [start, end] (min after the
+        injection) of the anatomy / CT acquisition. The motion-corrected PET (average head position) is brought back to
+        the mean head position of the frames of that window; None = the first 10 min of the first run from its first
+        registered frame (CT acquired before the PET).
     SUV : bool, optional
         Compute the SUV (body weight and injected radioactivity from the sidecar / sessions.tsv /
         participants.tsv) and, with the blood glucose, the glucose-corrected SUV.
     bratio : bool, optional
         Compute the ratio of the PET to its mean over the brain mask.
     SUV_window : list, optional
-        [start, end] in minutes of the frames averaged for the SUV and ratio images of a dynamic run (frames whose
-        middle is in the window); None = all frames.
+        [start, end] in minutes after the injection (BIDS frame times minus InjectionStart) of the frames averaged for
+        the SUV and ratio images of a dynamic run (frames whose middle is in the window); None = all frames.
     Do_cut : bool, optional
         Also write the mean of every time block of `duration` minutes (divided by its brain mean).
     duration : float, optional
-        Duration (min) of the time blocks of Do_cut.
+        Duration (min) of the time blocks of Do_cut (from the first frame; a frame belongs to the block that contains
+        its middle).
     srtm : bool, optional
         Reference-region kinetic models of the dynamic runs (step 8): SRTM (regional bfmsrtm, voxel-wise imgbfbp,
         imgsrtm) and Logan DVR (imgdv) with the Turku PET Centre tools.
@@ -223,14 +280,18 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         'labels': [7, 1007] or a name pattern or 'default', 'name': 'Cer'}, {'type': 'mask', 'name': 'white'},
         or 'unknown' for the interactive choice (saved for the next subjects).
     DV_time : float, optional
-        Start (min) of the linear part of the Logan plot (imgdv); 0 = no DVR image.
+        Start t* (min after the injection) of the linear part of the Logan plot (imgdv); 0 = no DVR image.
+    DV_k2ref : float, optional
+        Population average k2' (min-1) of the reference region for the Logan plot (imgdv -k2=); None = the C_ref/k2'
+        term is omitted (simplified reference Logan, valid when C_ref / C_T is constant after DV_time).
     kinetic_end : float, optional
-        End (min) of the kinetic fits; None = all frames.
+        End (min after the injection) of the kinetic fits; None = all frames.
     pvc_fwhm : float or list, optional
-        Spatial resolution of the scanner (PSF FWHM, mm): partial-volume correction (PETPVC) of the static images;
-        None = no correction.
+        Spatial resolution of the reconstructed images (PSF FWHM, mm: scanner, reconstruction and post-reconstruction
+        filter, sqrt(FWHM_scanner^2 + FWHM_filter^2) for Gaussian kernels): partial-volume correction (PETPVC) of the
+        static images; None = no correction.
     pvc_method : str, optional
-        PETPVC method ('RBV', 'GTM', 'MG'...).
+        PETPVC method that writes an image ('RBV', 'MG', 'LABBE+RBV', 'IY'...; see PVC_METHODS).
     do_pet_to_func : bool, optional
         Simultaneous PET-MR: mean PET during every fMRI run of the session (step 9).
     endfmri : str, optional
@@ -253,7 +314,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
     list_to_keep, list_to_remove : list
         (subject, session) pairs to process / exclude.
     overwrite_option : bool, optional
-        Overwrite the AFNI outputs.
+        Not used: kept for the launchers of the other pipelines (the PET / CT steps always rewrite their outputs).
     Need_check_orient, Need_check_MC, Need_check_coreg : bool, optional
         Open freeview to check the orientation, the motion correction and the registrations.
     doBALSAspace : bool, optional
@@ -284,6 +345,16 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         raise ValueError(f"crop_for_MoCo={crop_for_MoCo!r}: expected 'auto', 'manual' or 'none'")
     if export_resolution not in ('pet', 'target'):
         raise ValueError(f"export_resolution={export_resolution!r}: expected 'pet' or 'target'")
+    if pvc_fwhm is not None and pvc_method not in PVC_METHODS:
+        raise ValueError(f'pvc_method={pvc_method!r}: expected one of {PVC_METHODS} (GTM writes a table of regional '
+                         f'values and STC a 3D mask, not an image)')
+    if MoCo_transform not in MOCO_TRANSFORMS:
+        raise ValueError(f'MoCo_transform={MoCo_transform!r}: expected a rigid ANTs transform {MOCO_TRANSFORMS}')
+    same_space = (IhaveanANAT and anat_pet_same_space) or (IhaveaCT and ct_pet_same_space)
+    if same_space and deoblique != 'WARP':
+        run_cmd.printcolor("WARNING: PET in the scanner space of the anatomy / CT: deoblique='WARP' (as the anatomical "
+                           "pipeline) keeps the world coordinates; deoblique='header' moves the PET away from it.",
+                           'WARNING')
 
     # atlases of the regional analysis and their label tables
     levels = _selected_atlases(selected_atlases, list_atlas)
@@ -311,9 +382,10 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
     opts = dict(Skip_step=Skip_step, T_PET=T_PET, ct_pet_same_space=ct_pet_same_space, nb_void=int(nb_void),
                 crop_for_MoCo=crop_for_MoCo, redo_crop=redo_crop, MoCo_transform=MoCo_transform,
                 coreg_metric=coreg_metric, type_of_transform_template=type_of_transform_template,
+                same_space_window=same_space_window,
                 studyT_transform=studyT_transform, do_manual=do_manual, Need_check_MC=Need_check_MC,
                 Need_check_coreg=Need_check_coreg, SUV=SUV, bratio=bratio, SUV_window=SUV_window, Do_cut=Do_cut,
-                duration=duration, srtm=srtm, reference_signal=reference_signal, DV_time=DV_time,
+                duration=duration, srtm=srtm, reference_signal=reference_signal, DV_time=DV_time, DV_k2ref=DV_k2ref,
                 kinetic_end=kinetic_end, pvc_fwhm=pvc_fwhm, pvc_method=pvc_method, do_pet_to_func=do_pet_to_func,
                 endfmri=endfmri, T1_eq=int(T1_eq), export_resolution=export_resolution, export_dynamic=export_dynamic,
                 isotope=isotope)
@@ -343,28 +415,52 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
                         diary_file, 'WARNING')
             continue
         info0 = pu.raw_sidecar(raw_list[0])
-        iso = isotope
-        if iso in ('unknown', '', None):
+        if isotope in ('unknown', '', None):
             iso = pu.normalise_isotope(info0.get('TracerRadionuclide')) or pu.KNOWN_TRACER.get(str(tracer).upper())
             if iso is None and srtm:
                 raise ValueError(run_cmd.error('ERROR: isotope unknown (no TracerRadionuclide in the sidecar, tracer '
                                                f'{tracer} not in the table): give isotope in the launcher', diary_file))
+            if iso is None:
+                run_cmd.msg('WARNING: isotope unknown (no TracerRadionuclide in the sidecar, tracer not in the table): '
+                            'no decay correction of the dose / frames', diary_file, 'WARNING')
+        else:
+            # 'F18', '18F', 'Fluorine-18'... -> 'F-18' (a name not recognised would silently skip the decay terms)
+            iso = pu.normalise_isotope(isotope)
+            if iso is None:
+                raise ValueError(run_cmd.error(f'ERROR: isotope={isotope!r} not recognised; expected one of '
+                                               f'{sorted(pu.HALF_LIFE_S)}', diary_file))
         opts['isotope'] = iso
         session = pu.session_base(pu.base_name(raw_list[0]))
 
-        # images for the orientation check / header copy
-        check_ref, header_ref = '', ''
+        # images for the orientation check / header copy, and world transform of the reorientation of the
+        # modality of the same scanner space (anatomy of a hybrid PET-MR, CT of a PET/CT), applied to the PET
+        check_ref, header_ref, follow = '', '', None
         if IhaveanANAT:
             try:
                 anat, _, _ = _anat_files(ID, data_path, Session, all_Session, bids_dir, anat_pet_same_space,
-                                         use_erode_V_func_masks, use_erode_WM_func_masks, T_PET, diary_file)
+                                         use_erode_V_func_masks, use_erode_WM_func_masks, T_PET, diary_file, type_norm)
                 check_ref = anat['reorient'] if anat_pet_same_space else anat['acpc']
                 header_ref = anat['raw'] if anat_pet_same_space else ''
+                if anat_pet_same_space and not PET_header_wrong and 1 not in Skip_step:
+                    follow = dict(W=reorient.reference_world_map(anat['raw_norm'], anat['reorient_norm'],
+                                                                 paths['orig_formc'], diary_file, sing_afni),
+                                  source=opb(anat['reorient_norm']))
             except FileNotFoundError:
                 if not (1 in Skip_step):
                     raise
-        if IhaveaCT and ct_pet_same_space and not header_ref:
-            header_ref = _ct_raw(ID, data_path, reference)
+        if IhaveaCT and ct_pet_same_space:
+            if not header_ref:
+                header_ref = _ct_raw(ID, data_path, reference)
+            if follow is None and not (IhaveanANAT and anat_pet_same_space) and not PET_header_wrong \
+                    and 1 not in Skip_step:
+                ct_rec, _ = _ct_record(ID, data_path, bids_dir, all_Session, reference, True)
+                if ct_rec is None:
+                    raise FileNotFoundError(run_cmd.error('ERROR: IhaveaCT=True and ct_pet_same_space=True but no CT '
+                                                          'registration record in this session: run the CT pipeline '
+                                                          '(modalities/ct) first', diary_file))
+                follow = dict(W=reorient.reference_world_map(ct_rec.get('raw', ''), ct_rec['reference'],
+                                                             paths['orig_formc'], diary_file, sing_afni),
+                              source=opb(ct_rec['reference']))
 
         values = pu.subject_values(bids_dir, ID, Session, info0)
         settings = {"Subject": ID, "Session": Session, "Template": reference, "Atlases": levels,
@@ -380,7 +476,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
             run_cmd.msg(pu.step_header(1), diary_file, 'HEADER')
         reoriented = loop1.run(raw_list, paths, humanPosition, animalPosition, orientation, check_ref, header_ref,
                                Need_check_orient, PET_header_wrong, deoblique, iso, srtm, (dcmfolder, endfiledcm),
-                               Skip_step, diary_file, sing_afni, sing_fs, sing_turku)
+                               Skip_step, diary_file, sing_afni, sing_fs, sing_turku, follow=follow)
         sessions.append(dict(ID=ID, Session=Session, data_path=data_path, max_ses=max_ses, paths=paths,
                              session=session, raw=raw_list, reoriented=reoriented, diary=diary_file, isotope=iso))
 
@@ -419,22 +515,39 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         anat, packages, ct_record = None, None, None
         if IhaveanANAT:
             anat, anat_path, anat_ses = _anat_files(ID, data_path, Session, all_Session, bids_dir, anat_pet_same_space,
-                                                    use_erode_V_func_masks, use_erode_WM_func_masks, T_PET, diary_file)
-            packages = backtonative.get(ID, anat_path, bids_dir, anat_ses, s['max_ses'], 'space-acpc_desc-SS',
+                                                    use_erode_V_func_masks, use_erode_WM_func_masks, T_PET, diary_file,
+                                                    type_norm)
+            anat_max = _anat_max_session(bids_dir, ID, reference, s['max_ses']) if coregistration_longitudinal \
+                else s['max_ses']
+            packages = backtonative.get(ID, anat_path, bids_dir, anat_ses, anat_max, 'space-acpc_desc-SS',
                                         type_norm, BASE_SS, BASE_mask, BASE_atlas_folder, study_template_atlas_folder,
                                         creat_study_template, coregistration_longitudinal, reference, 'Final', species,
                                         diary_file)
-        if IhaveaCT:
-            ct_record, _ = _ct_record(ID, data_path, bids_dir, all_Session, reference, ct_pet_same_space)
-        sc = coreg2anat.scenario(IhaveanANAT, anat_pet_same_space, IhaveaCT,
-                                 None if ct_record is None else sorted(ct_record['targets']),
-                                 template_PET, creat_study_template_pet and opi(study_template))
+        rec_file = coreg2anat.record_path(paths, s['session'])
+        if 6 in Skip_step and opi(rec_file):
+            # registration already done: its scenario is kept, the CT record is not needed any more
+            sc = transfo.read_record(rec_file)['scenario']
+        else:
+            if IhaveaCT:
+                ct_record, _ = _ct_record(ID, data_path, bids_dir, all_Session, reference, ct_pet_same_space)
+            sc = coreg2anat.scenario(IhaveanANAT, anat_pet_same_space, IhaveaCT,
+                                     None if ct_record is None else sorted(ct_record['targets']),
+                                     template_PET, creat_study_template_pet and opi(study_template))
         run_cmd.msg('INFO: registration scenario ' + sc + ' (Illustration/pet4.svg)', diary_file, 'OKGREEN')
+        ignored = [name for name, used in (('template_PET', not template_PET or sc == '3v1'),
+                                           ('IhaveaCT', not IhaveaCT or sc in ('1v2b', '2v1', '2v2')),
+                                           ('anat_pet_same_space', not anat_pet_same_space or sc == '1v1'))
+                   if not used]
+        if ignored:
+            run_cmd.msg('WARNING: not used in scenario ' + sc + ': ' + ', '.join(ignored), diary_file, 'WARNING')
 
         template_files = dict(name=reference, label_base=opj(BASE_atlas_folder, species + '_seg-'),
                               atlas_dir=BASE_atlas_folder, species=species, brain=BASE_mask, gray=BASE_Gmask,
+                              gray_wb=BASE_WBGmask,
                               white=BASE_Wmask if use_erode_WM_func_masks else BASE_Wmask.replace('_desc-erod-', '_desc-'),
-                              csf=BASE_Vmask if use_erode_V_func_masks else BASE_Vmask.replace('_desc-erod-', '_desc-'))
+                              csf=BASE_Vmask if use_erode_V_func_masks else BASE_Vmask.replace('_desc-erod-', '_desc-'),
+                              white_full=BASE_Wmask.replace('_desc-erod-', '_desc-'),
+                              csf_full=BASE_Vmask.replace('_desc-erod-', '_desc-'))
         target_files = {}
         for pkg in packages or []:
             target_files[pkg[0]] = dict(label_base=pkg[3], list_atlas=atlas_names, masks=[pkg[2]])
@@ -449,5 +562,8 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
                   diary_file, sing_afni, sing_fs, sing_wb, sing_turku)
 
 
-# name of the PET engineer's entry point
-preprocess_data = preprocess_pet
+def preprocess_data(*args, **kwargs):
+    """Entry point of the PET engineer's version: its arguments (53, in another order) do not map onto
+    preprocess_pet, so a call is refused instead of being bound to the wrong parameters."""
+    raise TypeError('preprocess_data (PET engineer version) is replaced by preprocess_pet, whose parameters differ: '
+                    'see Exemples/Study_EDNiX/Launcher_pet and docs/reference/pet_parameters.md')

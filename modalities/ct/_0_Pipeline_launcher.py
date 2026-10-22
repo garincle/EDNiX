@@ -14,15 +14,16 @@ from modalities.anat.loop3 import backtonative
 from modalities.ct import reorient, coreg2anat
 from modalities.pet import petutils as pu
 from modalities.pet import studyT
-from modalities.pet._0_Pipeline_launcher import _anat_files
+from modalities.pet import reorient as pet_reorient
+from modalities.pet._0_Pipeline_launcher import _anat_files, _anat_max_session
 
 
 def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endct,
                   animalPosition, humanPosition, orientation,
                   T_CT, type_norm, creat_study_template, coregistration_longitudinal,
                   IhaveanANAT=True, anat_ct_same_space=False,
-                  template_CT='', creat_study_template_ct=False, studyT_transform='SyN',
-                  type_of_transform_template='SyN', coreg_metric='mattes',
+                  template_CT='', creat_study_template_ct=False, studyT_transform='SyNRA',
+                  type_of_transform_template='SyNRA', coreg_metric='mattes',
                   CT_header_wrong=False, deoblique='WARP', do_manual=False,
                   Need_check_orient=False, Need_check_coreg=False,
                   reference='EDNiX', atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
@@ -42,7 +43,8 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
     Skip_step : list
         Steps NOT to run.
     MAIN_PATH : str
-        Folder of the EDNiX installation (the one that contains Atlases_library).
+        Folder of the EDNiX installation, with its trailing '/' as in the example launchers: Atlases_library and
+        Singularity_library are looked for in os.path.dirname(MAIN_PATH) (modalities/anat/set_launcher.py).
     bids_dir : str
         Path to the BIDS dataset.
     species : str
@@ -73,9 +75,15 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
     creat_study_template_ct : bool, optional
         Build a CT study template (step 2) and register the CTs to it (scenario 2v2, no anatomy, no CT template).
     studyT_transform : str, optional
-        ANTs transform of the study template registrations ('SyN').
+        ANTs transform of the study template registrations:
+        'SyNRA' (default: rigid + affine + SyN stages). ANTsPy's 'SyN' and 'Affine' start with a single affine
+        stage, which missed a 12-degree rotation by about 7 mm on the test phantom (< 1 mm with 'SyNRA' or the
+        linear 'TRSAA').
     type_of_transform_template : str, optional
-        ANTs transform of the CT -> CT template registration (2v1), e.g. 'SyN'.
+        ANTs transform of the CT -> CT template registration (2v1):
+        'SyNRA' (default: rigid + affine + SyN stages). ANTsPy's 'SyN' and 'Affine' start with a single affine
+        stage, which missed a 12-degree rotation by about 7 mm on the test phantom (< 1 mm with 'SyNRA' or the
+        linear 'TRSAA').
     coreg_metric : str, optional
         Metric of the registrations ('mattes': mutual information).
     CT_header_wrong : bool, optional
@@ -96,7 +104,7 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
     list_to_keep, list_to_remove : list
         (subject, session) pairs to process / exclude.
     overwrite_option : bool, optional
-        Overwrite the AFNI outputs.
+        Not used: kept for the launchers of the other pipelines (the PET / CT steps always rewrite their outputs).
     doBALSAspace : bool, optional
         Same value as in the anatomical pipeline.
     **kwargs : dict
@@ -158,7 +166,8 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
         anat = anat_path = anat_ses = None
         if IhaveanANAT:
             anat, anat_path, anat_ses = _anat_files(ID, data_path, Session, all_Session, bids_dir, anat_ct_same_space,
-                                                    use_erode_V_func_masks, use_erode_WM_func_masks, T_CT, diary_file)
+                                                    use_erode_V_func_masks, use_erode_WM_func_masks, T_CT, diary_file,
+                                                    type_norm)
         ct_img = pu.out_name(paths['orig_process'], base, desc='reorient', suffix='ct')
         if 1 in Skip_step:
             run_cmd.msg('INFO: skip step 1', diary_file, 'OKGREEN')
@@ -169,9 +178,16 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
                 or info.get('PatientPosition', '')
             ap = animalPosition[0] if isinstance(animalPosition, (list, tuple)) and animalPosition else animalPosition
             check = (anat['reorient'] if anat_ct_same_space else anat['acpc']) if anat else ''
+            follow = None
+            if anat and anat_ct_same_space and not CT_header_wrong:
+                # CT in the scanner space of the anatomy: it receives the world transform of the anatomy's
+                # reorientation (see modalities/pet/reorient.py)
+                follow = dict(W=pet_reorient.reference_world_map(anat['raw_norm'], anat['reorient_norm'],
+                                                                 paths['orig_formc'], diary_file, sing_afni),
+                              source=opb(anat['reorient_norm']))
             reorient.doit(paths['orig_process'], raw, hp, ap, orientation, check, Need_check_orient, CT_header_wrong,
                           diary_file, sing_afni, sing_fs, deoblique=deoblique,
-                          header_ref=anat['raw'] if (anat and anat_ct_same_space) else '')
+                          header_ref=anat['raw'] if (anat and anat_ct_same_space) else '', follow=follow)
         sessions.append(dict(ID=ID, Session=Session, max_ses=max_ses, paths=paths, base=base, raw=raw, ct=ct_img,
                              anat=anat, anat_path=anat_path, anat_ses=anat_ses, diary=diary_file))
 
@@ -193,10 +209,12 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
         run_cmd.msg(pu.step_header(3, 'ct'), s['diary'], 'HEADER')
         packages = None
         if s['anat']:
-            packages = backtonative.get(s['ID'], s['anat_path'], bids_dir, s['anat_ses'], s['max_ses'],
+            anat_max = _anat_max_session(bids_dir, s['ID'], reference, s['max_ses']) if coregistration_longitudinal \
+                else s['max_ses']
+            packages = backtonative.get(s['ID'], s['anat_path'], bids_dir, s['anat_ses'], anat_max,
                                         'space-acpc_desc-SS', type_norm, BASE_SS, BASE_mask, BASE_atlas_folder,
                                         study_template_atlas_folder, creat_study_template, coregistration_longitudinal,
                                         reference, 'Final', species, s['diary'])
         coreg2anat.register(sc, s['ct'], s['raw'], s['base'], s['paths'], s['anat'], packages, template_CT, reference,
                             study_template, T_CT, coreg_metric, type_of_transform_template, do_manual,
-                            Need_check_coreg, bids_dir, s['diary'], sing_fs)
+                            Need_check_coreg, bids_dir, s['diary'], sing_fs, template_mask=BASE_mask)

@@ -25,17 +25,18 @@ from modalities.pet.turkutools import turkusif
 
 
 def start_string(pet_info, dicom_start=None):
-    """Scan start for the SIF title line: DICOM date/time when available, else BIDS TimeZero + ScanStart
-    (BIDS has no date: 01/01/1970 is written, which tpcclib only uses for display)."""
-    if dicom_start:
-        return dicom_start
+    """Time origin of the SIF frame times for its title line. The frame times are post-injection
+    (petutils.frame_timing), so the title gives the injection clock time, BIDS TimeZero + InjectionStart (BIDS has no
+    date: 01/01/1970 is written, which tpcclib only uses for display); dicom_start is the DICOM acquisition start,
+    used for the date when given."""
     t0 = pet_info.get('TimeZero') or pet_info.get('AcquisitionTime')
     try:
         t = datetime.datetime.strptime(str(t0).split('.')[0], '%H:%M:%S')
     except (TypeError, ValueError):
         t = datetime.datetime(1970, 1, 1)
-    t = t + datetime.timedelta(seconds=float(pet_info.get('ScanStart') or 0.0))
-    return '01/01/1970 ' + t.strftime('%H:%M:%S')
+    t = t + datetime.timedelta(seconds=float(pet_info.get('InjectionStart') or 0.0))
+    date = dicom_start.split()[0] if dicom_start else '01/01/1970'
+    return date + ' ' + t.strftime('%H:%M:%S')
 
 
 def write(sif_path, start, timing, isotope, study='EDNiX'):

@@ -66,8 +66,10 @@ def tacs(data4d, labels_vol, label_df, voxel_mm3):
     flat = labels_vol.reshape(-1)
     d = data4d.reshape(-1, data4d.shape[-1])
     cols = {}
-    for l in tab['label']:
-        cols[int(l)] = d[flat == l].mean(axis=0)
+    with np.errstate(invalid='ignore'):
+        for l in tab['label']:
+            # NaN voxels (outside the field of view after resampling) ignored, as in stats()
+            cols[int(l)] = np.nanmean(d[flat == l], axis=0)
     df = pd.DataFrame(cols)
     df.attrs['names'] = tab['region'].tolist()
     df.attrs['volumes_mm3'] = tab['volume_mm3'].tolist()
@@ -78,6 +80,8 @@ def get(img, atlas_file, label_df, level=0, ref_check=True):
     """Regional statistics of a 3D image file over level `level` of an atlas file on the same grid."""
     im = nib.load(img)
     data = np.asarray(im.dataobj, dtype=np.float32)
+    if data.ndim == 4 and data.shape[3] == 1:
+        data = data[..., 0]
     if data.ndim > 3:
         raise ValueError(f'{img} is 4D: use tacs()')
     lab = _labels_volume(atlas_file, level, img if ref_check else None)

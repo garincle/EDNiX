@@ -24,6 +24,7 @@ used by the functional pipeline.
 import os
 import shutil
 
+import numpy as np
 import ants
 
 opj = os.path.join
@@ -47,6 +48,8 @@ def scenario(IhaveanANAT, anat_pet_same_space, IhaveaCT, ct_targets, pet_templat
     if IhaveanANAT:
         if anat_pet_same_space:
             return '1v1'
+        if IhaveaCT and ct_targets is None:
+            raise FileNotFoundError('IhaveaCT=True but no CT registration record: run the CT pipeline first')
         return '1v2b' if IhaveaCT else '1v2a'
     if IhaveaCT:
         if ct_targets is None:
@@ -67,16 +70,16 @@ def _dilated(mask_file, mm):
 
 
 def rigid_to(fixed_file, moving_file, prefix, metric, mask_file=None, dilate_mm=5.0, initial=None):
-    fixed = ants.image_read(fixed_file)
-    moving = ants.image_read(moving_file)
+    """Rigid registration; the metric is computed in mask_file (path, dilated by dilate_mm, or ANTsImage used as is)
+    of the fixed image: without a mask the background dominates the mutual information."""
     kw = {}
-    if mask_file and opi(mask_file):
+    if isinstance(mask_file, ants.ANTsImage):
+        kw['mask'] = mask_file
+    elif mask_file and opi(mask_file):
         kw['mask'] = _dilated(mask_file, dilate_mm)
     if initial:
         kw['initial_transform'] = initial
-    ants.registration(fixed=fixed, moving=moving, type_of_transform='Rigid', aff_metric=metric,
-                      outprefix=prefix, **kw)
-    return transfo.registration(prefix)
+    return transfo.register(fixed_file, moving_file, prefix, 'Rigid', aff_metric=metric, **kw)
 
 
 def manual_correction(pet_mean, fixed_file, chain, prefix, pet_in_fixed, imgtype, diary_name, sing_fs):
@@ -103,12 +106,14 @@ def manual_correction(pet_mean, fixed_file, chain, prefix, pet_in_fixed, imgtype
 
 def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_template, reference,
              study_template, T_PET, ct_pet_same_space, coreg_metric, type_of_transform_template, do_manual,
-             Need_check_coreg, bids_dir, diary_name, sing_fs, template_mask=''):
+             Need_check_coreg, bids_dir, diary_name, sing_fs, template_mask='', anchor=None):
     """
     Registration of the session (scenario `sc`); writes and returns the registration record.
     anat: dict of the anatomical files in AC-PC space (see _0_Pipeline_launcher._anat_files) or None.
     packages: output of backtonative.get (or None without anatomy).
     template_mask: brain mask of the reference template (target mask of the scenarios 2v1 and 3v1).
+    anchor: chains session space -> scanner space of the frame acquired with the anatomy / CT (MoCo.scanner_anchor),
+    used when the PET shares the scanner space of the anatomy (1v1) or of the CT (ct_pet_same_space).
     """
     nl = 'Registration of the PET session ' + session + ' (scenario ' + sc + ' of pet4.svg)'
     run_cmd.msg(nl, diary_name, 'HEADER')
@@ -117,15 +122,19 @@ def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_te
     targets = {}
 
     def pet_to_ct():
-        """PET -> CT chain (empty when they share the space)."""
+        """PET -> CT chain (scanner position of the CT acquisition when they share the space)."""
         ct_img = ct_record['reference']
         if ct_pet_same_space:
-            return {'to': [], 'from': []}
-        return rigid_to(ct_img, session_mean, opj(mat_dir, session + '_from-pet-to-ct_'), coreg_metric)
+            return anchor or {'to': [], 'from': []}
+        ct = ants.image_read(ct_img)
+        head = ants.iMath(ants.threshold_image(ct, -500.0, 1e9, 1, 0), 'MD', 3)      # head of the CT (> -500 HU)
+        return rigid_to(ct_img, session_mean, opj(mat_dir, session + '_from-pet-to-ct_'), coreg_metric, mask_file=head)
 
     if sc in ('1v1', '1v2a', '1v2b'):
         if sc == '1v1':
             acpc = transfo.check(transfo.affine(opj(anat['dir_transfo'], 'acpc_0GenericAffine.mat')))
+            if anchor:
+                acpc = transfo.compose(anchor, acpc)
         elif sc == '1v2a':
             prefix = opj(mat_dir, session + '_from-pet-to-' + T_PET + '_')
             acpc = rigid_to(anat['acpc'], session_mean, prefix, coreg_metric, mask_file=anat['mask'])
@@ -138,6 +147,9 @@ def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_te
                 raise ValueError('IhaveanANAT and IhaveaCT: the CT record has no AC-PC target (run the CT pipeline '
                                  'with IhaveanANAT=True)')
             ct_acpc = ct_record['targets']['acpc']
+            if os.path.normpath(ct_acpc['image']) != os.path.normpath(anat['acpc']):
+                raise ValueError(f"the CT was registered to {ct_acpc['image']} but the anatomy of this PET session is "
+                                 f"{anat['acpc']}: run the CT pipeline with the anatomy of the PET session")
             acpc = transfo.compose(pet_to_ct(), {'to': ct_acpc['to'], 'from': ct_acpc['from']})
         targets['acpc'] = dict(image=anat['acpc'], brain=anat['brain'], mask=anat['mask'], **acpc)
         for pkg in packages or []:
@@ -152,13 +164,16 @@ def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_te
             targets[name] = dict(image=t['image'], brain=t.get('brain', t['image']), mask=mask, **chain)
     elif sc == '3v1':
         prefix = opj(mat_dir, session + '_to_' + reference + '_')
-        ants.registration(fixed=ants.image_read(pet_template), moving=ants.image_read(session_mean),
-                          type_of_transform=type_of_transform_template, aff_metric=coreg_metric, outprefix=prefix)
         own = pet_template.replace('.nii.gz', '_mask.nii.gz')
+        # whole head (no brain mask: the scalp and skull signal constrains the affine stages; a brain mask dilated by
+        # 5-10 mm gave 1.4-4.6 mm errors against < 1 mm on the test phantom)
+        chain = transfo.register(pet_template, session_mean, prefix, type_of_transform_template, aff_metric=coreg_metric)
         targets[reference] = dict(image=pet_template, brain=pet_template,
-                                  mask=own if opi(own) else template_mask, **transfo.registration(prefix))
+                                  mask=own if opi(own) else template_mask, **chain)
     elif sc == '3v2':
-        prefix = opj(mat_dir, session + '_to_studyTemplate_')
+        # registration of the motion-corrected session mean (the step-2 matrices <session>_to_studyTemplate_ of the
+        # first reoriented run are kept for the crop of the motion correction)
+        prefix = study_prefix(paths, session)
         targets['studyTemplate'] = dict(image=study_template, brain=study_template, mask='',
                                         **transfo.registration(prefix))
     else:
@@ -171,23 +186,55 @@ def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_te
     rec_file = record_path(paths, session)
     transfo.write_record(rec_file, record)
 
-    # quality control: PET in every target space, brain mask of the target as contour
+    # quality control: PET in every target space, brain mask of the target (or head of a study template) as contour
     os.makedirs(paths['qc'], exist_ok=True)
     for name, t in targets.items():
         pet_in = opj(paths['orig_formc'], session + '_space-' + name + '_desc-mean_pet.nii.gz')
         transfo.apply(t['image'], session_mean, t, 'to', petinterp, out=pet_in)
-        if t.get('mask') and opi(t['mask']):
-            png = opj(paths['qc'], session + '_space-' + name + '_pet.png')
-            QC_plot.mosaic(pet_in, t['mask'], png)
-            os.makedirs(opj(bids_dir, 'QC', 'pet_in_' + ('acpc' if name == 'acpc' else 'template')), exist_ok=True)
-            shutil.copyfile(png, opj(bids_dir, 'QC', 'pet_in_' + ('acpc' if name == 'acpc' else 'template'), opb(png)))
+        png = opj(paths['qc'], session + '_space-' + name + '_pet.png')
+        QC_plot.mosaic(pet_in, qc_contour(t, paths['qc'], name), png)
+        qc_dir = opj(bids_dir, 'QC', 'pet_in_' + ('acpc' if name == 'acpc' else 'template'))
+        os.makedirs(qc_dir, exist_ok=True)
+        shutil.copyfile(png, opj(qc_dir, opb(png)))
         if Need_check_coreg:
             FS_freeview.check_coreg(pet_in, t['image'], 'pet', sing_fs, transform_volume=False)
     return rec_file
 
 
+def qc_contour(target, qc_dir, name):
+    """Contour of the QC images: brain mask of the target space, else a head mask of the target image (study
+    template without mask, ants.get_mask)."""
+    if target.get('mask') and opi(target['mask']):
+        return target['mask']
+    out = opj(qc_dir, name + '_desc-qccontour_mask.nii.gz')
+    if not opi(out):
+        ants.image_write(ants.get_mask(ants.image_read(target['image'])), out, ri=False)
+    return out
+
+
+def study_prefix(paths, session):
+    """Prefix of the registration of the motion-corrected session mean to the PET study template (3v2)."""
+    return opj(paths['orig_matrices'], session + '_desc-MoCo_to_studyTemplate_')
+
+
 def record_path(paths, session):
     return opj(paths['orig_matrices'], session + '_desc-registration_pet.json')
+
+
+def tissue_fraction(src, ref, chain, pet_spacing, out):
+    """
+    Fraction of every PET voxel covered by a binary mask of the target space: the mask is averaged over the
+    extent of a PET voxel (Gaussian of the variance of a box of the PET voxel size, sigma = voxel / sqrt(12))
+    before the linear resampling into the PET space (a plain linear resampling samples the mask at the PET
+    voxel centres only). Used by the partial-volume correction.
+    """
+    m = ants.threshold_image(ants.image_read(src), 0.5, 1e9, 1, 0)
+    sigma = [float(v) / np.sqrt(12.0) for v in pet_spacing[:3]]
+    sm = ants.smooth_image(m, sigma, sigma_in_physical_coordinates=True)
+    f = transfo.apply(ref, sm, chain, 'from', 'linear')
+    a = np.clip(f.numpy(), 0.0, 1.0)
+    ants.image_write(f.new_image_like(a), out, ri=False)
+    return out
 
 
 def to_pet_space(record, session, paths, anat, template_files, list_atlas, diary_name, T_PET='T1w'):
@@ -195,31 +242,44 @@ def to_pet_space(record, session, paths, anat, template_files, list_atlas, diary
     Atlases, masks and anatomy (or template) in the PET space of the session (orig/labels, orig/masks,
     orig/preprocessing). Atlases: nearest-label interpolation (genericLabel); masks: linear interpolation
     then threshold 0.5 (fraction of the PET voxel covered); 4D atlases (levels) volume by volume.
-    template_files: dict(name, atlas_dir, species, mask, gray, white, csf) used without anatomy.
-    Returns dict(atlases={name: file}, masks={name: file}, anat=file).
+    Tissue fractions (label-GM/WM/brain _probseg, tissue_fraction) of the whole-brain grey matter, the
+    non-eroded white matter and the brain mask, for the partial-volume correction.
+    template_files: dict(name, atlas_dir, species, brain, gray, gray_wb, white, csf, white_full) without anatomy.
+    Returns dict(atlases={name: file}, masks={name: file}, probseg={GM, WM, brain: file}, anat=file).
     """
     nl = 'Atlases and masks into the PET space'
     run_cmd.msg(nl, diary_name, 'OKGREEN')
     for d in (paths['orig_labels'], paths['orig_masks'], paths['orig_process']):
         os.makedirs(d, exist_ok=True)
     ref = record['reference']
-    out = dict(atlases={}, masks={}, anat='')
+    out = dict(atlases={}, masks={}, probseg={}, anat='')
     if 'acpc' in record['targets'] and anat:
         t = record['targets']['acpc']
         atlas_src = {a: opj(anat['labels_dir'], anat['ID'] + '_seg-' + a + '_dseg.nii.gz') for a in list_atlas}
         mask_src = dict(brain=anat['mask'], gray=anat['gray'], white=anat['white'], csf=anat['csf'])
+        frac_src = dict(GM=anat.get('gray_wb', ''), WM=anat.get('white_full', ''), brain=anat['mask'])
         anat_src, anat_out = anat['acpc'], pu.out_name(paths['orig_process'], session, space='orig', suffix=T_PET)
     elif template_files and template_files['name'] in record['targets'] and template_files.get('atlas_dir'):
         t = record['targets'][template_files['name']]
         atlas_src = {a: opj(template_files['atlas_dir'], template_files['species'] + '_seg-' + a + '_dseg.nii.gz')
                      for a in list_atlas}
         mask_src = {k: template_files.get(k, '') for k in ('brain', 'gray', 'white', 'csf')}
+        frac_src = dict(GM=template_files.get('gray_wb', ''), WM=template_files.get('white_full', ''),
+                        brain=template_files.get('brain', ''))
         anat_src = t['image']
         anat_out = pu.out_name(paths['orig_process'], session, space='orig', desc='template', suffix=T_PET)
     else:
         run_cmd.msg('WARNING: no atlas for this scenario (' + record['scenario'] + '): the regional analysis, the '
                     'brain ratio and the reference-region models need an atlas or masks', diary_name, 'WARNING')
         return out
+    pet_spacing = ants.image_read(ref).spacing
+    for name, src in frac_src.items():
+        if src and opi(src):
+            dst = opj(paths['orig_masks'], session + '_space-orig_label-' + name + '_probseg.nii.gz')
+            tissue_fraction(src, ref, t, pet_spacing, dst)
+            pu.write_json(dst, [src, ref], 'Fraction of the PET voxel in the mask (box-average, then linear '
+                                           'resampling), for the partial-volume correction.')
+            out['probseg'][name] = dst
 
     for name, src in atlas_src.items():
         if not opi(src):

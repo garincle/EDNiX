@@ -12,10 +12,13 @@ import numpy as np
 
 
 def unit_label(unit):
-    """Unit string accepted by tpcclib (kBq/mL, Bq/mL, nCi/mL...)."""
+    """Unit string accepted by tpcclib (kBq/mL, Bq/mL, nCi/mL...); Bq/mL when unknown (as the SUV)."""
     if not unit:
-        return 'kBq/mL'
-    return str(unit).replace('cc', 'mL').replace('ml', 'mL')
+        return 'Bq/mL'
+    u = str(unit).replace(' ', '')
+    if u.upper() == 'BQML':
+        return 'Bq/mL'
+    return u.replace('cc', 'mL').replace('ml', 'mL').replace('cm3', 'mL')
 
 
 def write(path, t_start, t_end, values, names, volumes_mm3, unit='kBq/mL', study='EDNiX'):
@@ -73,7 +76,7 @@ def ref(file, data4d, labels_vol, labels, voxel_mm3, timing, unit, ref_name, stu
     sel = np.isin(labels_vol, labels)
     if not sel.any():
         raise ValueError(f'reference region {ref_name}: none of the labels {labels} is in the atlas in PET space')
-    tac = data4d[sel].mean(axis=0)
+    tac = np.nanmean(data4d[sel], axis=0)
     return write(file, timing['start'], timing['end'], tac[:, None], [ref_name], [sel.sum() * voxel_mm3], unit, study), int(sel.sum())
 
 
@@ -81,5 +84,5 @@ def mask(file, data4d, msk, voxel_mm3, timing, unit, ref_name, study='EDNiX'):
     """Reference TAC = mean concentration in a mask (the engineer wrote the SUM of the activity)."""
     if not msk.any():
         raise ValueError(f'reference mask {ref_name} is empty in PET space')
-    tac = data4d[msk].mean(axis=0)
+    tac = np.nanmean(data4d[msk], axis=0)
     return write(file, timing['start'], timing['end'], tac[:, None], [ref_name], [msk.sum() * voxel_mm3], unit, study), int(msk.sum())

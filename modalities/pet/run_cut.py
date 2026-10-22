@@ -1,5 +1,5 @@
 """
-PET signal during an fMRI run of a simultaneous PET-MR session (step 10, optional).
+PET signal during an fMRI run of a simultaneous PET-MR session (step 9, optional).
 
 The run occupies [AcquisitionTime + T1_eq x TR, AcquisitionTime + n_volumes x TR] (clock time of the BOLD
 sidecar); the PET frames are placed on the same clock with the BIDS TimeZero of the PET sidecar. The mean
@@ -37,9 +37,13 @@ def getframes(pet_info, timing, func_info, n_volumes, T1_eq):
     tz = _clock(pet_info.get('TimeZero') or pet_info['AcquisitionTime'])
     a, b = run_window(func_info, n_volumes, T1_eq)
     a, b = a - tz, b - tz
+    if a < -43200:                    # run after midnight, PET TimeZero before
+        a, b = a + 86400, b + 86400
     if b < a:
         raise ValueError('fMRI run ends before it starts (check AcquisitionTime / RepetitionTime)')
-    ov = np.clip(np.minimum(timing['end'], b) - np.maximum(timing['start'], a), 0, None)
+    # frame times are post-injection; the fMRI clock is matched in BIDS time (relative to TimeZero)
+    off = float(timing.get('offset', 0.0))
+    ov = np.clip(np.minimum(timing['end'] + off, b) - np.maximum(timing['start'] + off, a), 0, None)
     return ov, (a, b)
 
 

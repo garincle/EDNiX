@@ -58,14 +58,24 @@ def pose(rot_deg=(8.0, -5.0, 12.0), t_mm=(6.0, -9.0, 4.0)):
     return Rotation.from_euler('xyz', rot_deg, degrees=True).as_matrix(), np.asarray(t_mm, float)
 
 
-def pet_frame(shape, A, R, t, scale=1.0, motion=None, smooth_mm=3.0):
-    p = world_points(shape, A)
+_PET_LUT = np.array([PET[k] for k in range(7)], np.float32)
+
+
+def pet_frame(shape, A, R, t, scale=1.0, motion=None, smooth_mm=3.0, ss=3):
+    """PET frame on the grid A (diagonal): tissues rendered on a grid ss times finer and block-averaged (partial
+    volume, no aliasing of the tissue edges, which would differ between moved frames), then the scanner blur."""
+    Af = A.copy()
+    Af[:3, :3] = A[:3, :3] / ss
+    Af[:3, 3] = A[:3, 3] - (ss - 1) / (2.0 * ss) * np.diag(A[:3, :3])
+    fine = tuple(n * ss for n in shape)
+    p = world_points(fine, Af)
     if motion is not None:
         Rm, tm = motion
         p = p @ Rm.T + tm
     q = p @ R.T + t
-    vals = np.vectorize(PET.get)(tissues(q)).astype(np.float32).reshape(shape) * scale
-    return gaussian_filter(vals, smooth_mm / A[0, 0])
+    v = _PET_LUT[tissues(q)].reshape(fine) * scale
+    v = v.reshape(shape[0], ss, shape[1], ss, shape[2], ss).mean(axis=(1, 3, 5))
+    return gaussian_filter(v, smooth_mm / A[0, 0]).astype(np.float32)
 
 
 def save(data, A, path):
@@ -185,6 +195,45 @@ def _afni_code(A):
     return ''.join(OPP[c] for c in _axcodes(A))
 
 
+# AFNI dataset axes: per voxel axis, orientation letter (R = R2L...), origin and delta in DICOM coordinates (x+ = L,
+# y+ = P, z+ = S); ORIENT_sign '+' for R2L, A2P, I2S
+_AXIS = {'R': 0, 'L': 0, 'A': 1, 'P': 1, 'I': 2, 'S': 2}
+_SIGN = {'R': 1, 'L': -1, 'A': 1, 'P': -1, 'I': 1, 'S': -1}
+
+
+def afni_axes(A):
+    """(letter, origin, delta) of every voxel axis of a cardinal NIfTI affine, as AFNI stores them."""
+    out = []
+    for i in range(3):
+        k = int(np.argmax(np.abs(A[:3, i])))
+        flip = -1.0 if k < 2 else 1.0                       # RAS -> DICOM
+        d, o = flip * A[k, i], flip * A[k, 3]
+        out.append(({0: 'RL', 1: 'AP', 2: 'IS'}[k][0 if d > 0 else 1], o, d))
+    return out
+
+
+def afni_affine(axes):
+    """NIfTI affine (RAS) of AFNI axes [(letter, origin, delta)]."""
+    A = np.eye(4)
+    for i, (letter, o, d) in enumerate(axes):
+        k = _AXIS[letter]
+        flip = -1.0 if k < 2 else 1.0
+        A[:3, i] = 0.0
+        A[k, i] = flip * d
+        A[k, 3] = flip * o
+    return A
+
+
+def refit_orient(A, code):
+    """3drefit -orient code (AFNI 3drefit.c): the orientation letters are replaced, the origin keeps its magnitude
+    and takes the sign of the new orientation (xxorg = ORIENT_sign == '+' ? -|xxorg| : |xxorg|), the delta too."""
+    axes = []
+    for (letter, o, d), new in zip(afni_axes(A), code):
+        sg = _SIGN[new]
+        axes.append((new, -sg * abs(o), sg * abs(d)))
+    return afni_affine(axes)
+
+
 def emulate(cmd, diary=None):
     tok = shlex.split(cmd)
     prog = tok[0]
@@ -200,12 +249,8 @@ def emulate(cmd, diary=None):
         f = tok[-1]
         img = nib.load(f)
         if '-orient' in tok:
-            new = tok[tok.index('-orient') + 1]
-            old = _afni_code(img.affine)
-            P = sum(np.outer(DIR[OPP[n]], DIR[OPP[o]]) for n, o in zip(new, old))
-            A = img.affine.copy()
-            A[:3, :] = P @ A[:3, :]
-            nib.save(nib.Nifti1Image(np.asarray(img.dataobj), A, img.header), f)
+            A = refit_orient(img.affine, tok[tok.index('-orient') + 1])
+            nib.save(nib.Nifti1Image(np.asarray(img.dataobj), A), f)
         return b'', b''
     if prog == '3dWarp':
         shutil.copyfile(tok[-1], tok[tok.index('-prefix') + 1])
@@ -272,3 +317,23 @@ def no_containers(monkeypatch):
 def bids_table(entries):
     import pandas as pd
     return pd.DataFrame([dict(subject=s, session=e, modality='pet') for s, e in entries])
+
+
+def raw_header(A_reo, humanPosition, animalPosition, natural=False):
+    """
+    Scanner-space header of an image that the reorientation of step 1 (get_orientation.getreal + 3drefit -orient)
+    turns into A_reo (cardinal, field of view around the origin). natural=False puts every first voxel past the
+    coordinate origin (off-centre field of view): there 3drefit -orient re-signs the origins.
+    """
+    from Tools import get_orientation
+    M = {c: get_orientation.getreal(humanPosition, animalPosition, c * 3)[0] for c in 'RLAPIS'}
+    Minv = {v: k for k, v in M.items()}
+    axes = []
+    for new, o, d in afni_axes(A_reo):
+        old = Minv[new]
+        sg = _SIGN[old]
+        axes.append((old, (-sg if natural else sg) * abs(o), sg * abs(d)))
+    A_raw = afni_affine(axes)
+    code = ''.join(a[0] for a in axes)
+    assert np.allclose(refit_orient(A_raw, get_orientation.getreal(humanPosition, animalPosition, code)), A_reo)
+    return A_raw

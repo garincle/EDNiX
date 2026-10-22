@@ -47,6 +47,23 @@ def registration(outprefix):
     return affine(aff)
 
 
+def clear(outprefix):
+    """Remove the files of a previous registration written with `outprefix` (a warp left by an earlier
+    non-linear run would otherwise be picked up by registration() after a linear one)."""
+    for suffix in (ANTS_AFF, ANTS_WARP, ANTS_INVWARP):
+        if opi(outprefix + suffix):
+            os.remove(outprefix + suffix)
+
+
+def register(fixed, moving, outprefix, type_of_transform, **kwargs):
+    """ants.registration written with `outprefix` after clear(); returns the chains (registration())."""
+    clear(outprefix)
+    fx = ants.image_read(fixed) if isinstance(fixed, str) else fixed
+    mv = ants.image_read(moving) if isinstance(moving, str) else moving
+    ants.registration(fixed=fx, moving=mv, type_of_transform=type_of_transform, outprefix=outprefix, **kwargs)
+    return registration(outprefix)
+
+
 def from_backtonative(package):
     """Chains native (AC-PC) <-> template of one package of modalities.anat.loop3.backtonative.get."""
     return {'to': [[f, bool(w)] for f, w in zip(package[9], package[10])],

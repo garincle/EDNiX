@@ -1,5 +1,5 @@
 """
-Step 9 of the PET pipeline: parametric images of the PET space exported to the AC-PC space of the
+Step 10 of the PET pipeline: parametric images of the PET space exported to the AC-PC space of the
 anatomy (pet/acpc) and to every template space (pet/templates/<name>), with their skull-stripped
 version (-SS), through the chains of the registration record (one resampling per image).
 
@@ -32,17 +32,17 @@ PALETTE = (' MODE_USER_SCALE -thresholding THRESHOLD_TYPE_OFF THRESHOLD_TEST_SHO
 
 
 def target_grid(target, pet_ref, out_dir, name, export_resolution):
-    """Reference image of the exported images in one target space (created once)."""
+    """Reference image of the exported images in one target space (written again at every export: the target or the
+    PET voxel size may have changed since the previous run)."""
     if export_resolution == 'target':
         return target['image']
     grid = opj(out_dir, name + '_desc-grid-pet-resolution.nii.gz')
-    if not opi(grid):
-        os.makedirs(out_dir, exist_ok=True)
-        img = ants.image_read(target['image'])
-        vox = float(min(ants.image_read(pet_ref).spacing[:3]))
-        if min(img.spacing[:3]) < vox:
-            img = ants.resample_image(img, (vox, vox, vox), use_voxels=False, interp_type=0)
-        ants.image_write(img, grid, ri=False)
+    os.makedirs(out_dir, exist_ok=True)
+    img = ants.image_read(target['image'])
+    vox = float(min(ants.image_read(pet_ref).spacing[:3]))
+    if min(img.spacing[:3]) < vox:
+        img = ants.resample_image(img, (vox, vox, vox), use_voxels=False, interp_type=0)
+    ants.image_write(img, grid, ri=False)
     return grid
 
 

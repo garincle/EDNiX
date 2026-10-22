@@ -13,19 +13,19 @@ Identifiers accepted by `Skip_step`: the listed steps are skipped.
 | `3` | Crop drawn on the study template in freeview (box used by the motion correction) |
 | `4` | Motion correction within each dynamic run (two passes, rigid) |
 | `5` | Motion correction between the runs of the session; mean image of the session |
-| `6` | Registration to the anatomy / CT / template (scenarios of pet4.svg); atlases and masks in the PET space |
+| `6` | Registration to the anatomy / CT / template (scenarios of pet4.svg), quality control; atlases and masks in the PET space |
 | `7` | Parametric images (SUV, SUVglu, ratio to the brain mean, time blocks) and regional values / TACs |
 | `8` | Reference-region kinetic models: SRTM (bfmsrtm, imgbfbp, imgsrtm), Logan DVR (imgdv) |
 | `pvc` | Partial-volume correction (PETPVC, needs pvc_fwhm) |
 | `9` | PET during the fMRI runs (simultaneous PET-MR, do_pet_to_func) |
-| `10` | Export to the AC-PC and template spaces (+ skull-stripped), quality control |
+| `10` | Export to the AC-PC and template spaces (+ skull-stripped) |
 
 ## Parameters
 
 | parameter | default | description |
 |---|---|---|
 | `Skip_step` | required | Steps NOT to run (numbers above, or 'pvc'). |
-| `MAIN_PATH` | required | Folder of the EDNiX installation (the one that contains Atlases_library). |
+| `MAIN_PATH` | required | Folder of the EDNiX installation, with its trailing '/' as in the example launchers: Atlases_library and Singularity_library are looked for in os.path.dirname(MAIN_PATH) (modalities/anat/set_launcher.py). |
 | `bids_dir` | required | Path to the BIDS dataset. |
 | `species` | required | Species of the dataset ('Macaque', 'Human'...), as in the anatomical pipeline. |
 | `allinfo_study_c` | required | BIDS table of the study (Tools.load_bids.Load_BIDS_to_pandas with modalities=['pet']). |
@@ -44,7 +44,7 @@ Identifiers accepted by `Skip_step`: the listed steps are skipped.
 | `ct_pet_same_space` | `True` | PET and CT share the scanner space (PET/CT scanner): no PET -> CT registration. |
 | `template_PET` | `''` | PET template in the space of the reference template (scenario 3v1, no anatomy, no CT). |
 | `creat_study_template_pet` | `False` | Build a PET study template (step 2): used to crop the images for the motion correction and, without anatomy, CT or PET template, as the common space (3v2, no atlas). |
-| `studyT_transform` | `'SyN'` | ANTs transform of the PET study template registrations ('SyN'). |
+| `studyT_transform` | `'SyNRA'` | ANTs transform of the PET study template registrations: 'SyNRA' (default: rigid + affine + SyN stages). ANTsPy's 'SyN' and 'Affine' start with a single affine stage, which missed a 12-degree rotation by about 7 mm on the test phantom (< 1 mm with 'SyNRA' or the linear 'TRSAA'). |
 | `isotope` | `'unknown'` | Radionuclide ('F-18', 'C-11'...); 'unknown': TracerRadionuclide of the sidecar, else from the tracer name. |
 | `PET_header_wrong` | `False` | The reconstruction wrote a wrong orientation: the orientation code of the raw anatomy (or CT) of the same scanner space is copied before the reorientation. |
 | `deoblique` | `'WARP'` | 'WARP' resamples an oblique PET on a cardinal grid (3dWarp, as the anatomy); 'header' drops the obliquity. |
@@ -55,19 +55,21 @@ Identifiers accepted by `Skip_step`: the listed steps are skipped.
 | `redo_crop` | `False` | Draw the crops again (they are kept from one run to the next otherwise). |
 | `MoCo_transform` | `'Rigid'` | ANTs transform of the motion correction ('Rigid'). |
 | `coreg_metric` | `'mattes'` | Metric of the rigid registrations (motion, PET -> anatomy / CT): 'mattes' (mutual information). |
-| `type_of_transform_template` | `'SyN'` | ANTs transform of the PET -> PET template registration (scenario 3v1), e.g. 'SyN'. |
+| `type_of_transform_template` | `'SyNRA'` | ANTs transform of the PET -> PET template registration (scenario 3v1): 'SyNRA' (default: rigid + affine + SyN stages). ANTsPy's 'SyN' and 'Affine' start with a single affine stage, which missed a 12-degree rotation by about 7 mm on the test phantom (< 1 mm with 'SyNRA' or the linear 'TRSAA'). |
 | `do_manual` | `False` | Manual correction of the PET -> anatomy registration in freeview (scenario 1v2a). |
+| `same_space_window` | `None` | PET in the scanner space of the anatomy (1v1) or of the CT (ct_pet_same_space): [start, end] (min after the injection) of the anatomy / CT acquisition. The motion-corrected PET (average head position) is brought back to the mean head position of the frames of that window; None = the first 10 min of the first run from its first registered frame (CT acquired before the PET). |
 | `SUV` | `True` | Compute the SUV (body weight and injected radioactivity from the sidecar / sessions.tsv / participants.tsv) and, with the blood glucose, the glucose-corrected SUV. |
 | `bratio` | `True` | Compute the ratio of the PET to its mean over the brain mask. |
-| `SUV_window` | `None` | [start, end] in minutes of the frames averaged for the SUV and ratio images of a dynamic run (frames whose middle is in the window); None = all frames. |
+| `SUV_window` | `None` | [start, end] in minutes after the injection (BIDS frame times minus InjectionStart) of the frames averaged for the SUV and ratio images of a dynamic run (frames whose middle is in the window); None = all frames. |
 | `Do_cut` | `False` | Also write the mean of every time block of `duration` minutes (divided by its brain mean). |
-| `duration` | `10` | Duration (min) of the time blocks of Do_cut. |
+| `duration` | `10` | Duration (min) of the time blocks of Do_cut (from the first frame; a frame belongs to the block that contains its middle). |
 | `srtm` | `False` | Reference-region kinetic models of the dynamic runs (step 8): SRTM (regional bfmsrtm, voxel-wise imgbfbp, imgsrtm) and Logan DVR (imgdv) with the Turku PET Centre tools. |
 | `reference_signal` | `'unknown'` | Reference region (atlases/getlabels.py): {'type': 'atlas', 'atlas': 'EDNIxCSCLR', 'level': 0, 'labels': [7, 1007] or a name pattern or 'default', 'name': 'Cer'}, {'type': 'mask', 'name': 'white'}, or 'unknown' for the interactive choice (saved for the next subjects). |
-| `DV_time` | `0` | Start (min) of the linear part of the Logan plot (imgdv); 0 = no DVR image. |
-| `kinetic_end` | `None` | End (min) of the kinetic fits; None = all frames. |
-| `pvc_fwhm` | `None` | Spatial resolution of the scanner (PSF FWHM, mm): partial-volume correction (PETPVC) of the static images; None = no correction. |
-| `pvc_method` | `'RBV'` | PETPVC method ('RBV', 'GTM', 'MG'...). |
+| `DV_time` | `0` | Start t* (min after the injection) of the linear part of the Logan plot (imgdv); 0 = no DVR image. |
+| `DV_k2ref` | `None` | Population average k2' (min-1) of the reference region for the Logan plot (imgdv -k2=); None = the C_ref/k2' term is omitted (simplified reference Logan, valid when C_ref / C_T is constant after DV_time). |
+| `kinetic_end` | `None` | End (min after the injection) of the kinetic fits; None = all frames. |
+| `pvc_fwhm` | `None` | Spatial resolution of the reconstructed images (PSF FWHM, mm: scanner, reconstruction and post-reconstruction filter, sqrt(FWHM_scanner^2 + FWHM_filter^2) for Gaussian kernels): partial-volume correction (PETPVC) of the static images; None = no correction. |
+| `pvc_method` | `'RBV'` | PETPVC method that writes an image ('RBV', 'MG', 'LABBE+RBV', 'IY'...; see PVC_METHODS). |
 | `do_pet_to_func` | `False` | Simultaneous PET-MR: mean PET during every fMRI run of the session (step 9). |
 | `endfmri` | `'*_bold.nii.gz'` | Glob pattern of the raw fMRI runs in sub-*/ses-*/func (step 9). |
 | `T1_eq` | `0` | Number of first fMRI volumes removed by the functional pipeline (step 9). |
@@ -80,7 +82,7 @@ Identifiers accepted by `Skip_step`: the listed steps are skipped.
 | `use_erode_V_func_masks` | `True` | Use the eroded white-matter / ventricle masks (reference region 'white', 'csf'). |
 | `list_to_keep` | `[]` | (subject, session) pairs to process / exclude. |
 | `list_to_remove` | `[]` | (subject, session) pairs to process / exclude. |
-| `overwrite_option` | `True` | Overwrite the AFNI outputs. |
+| `overwrite_option` | `True` | Not used: kept for the launchers of the other pipelines (the PET / CT steps always rewrite their outputs). |
 | `Need_check_orient` | `False` | Open freeview to check the orientation, the motion correction and the registrations. |
 | `Need_check_MC` | `False` | Open freeview to check the orientation, the motion correction and the registrations. |
 | `Need_check_coreg` | `False` | Open freeview to check the orientation, the motion correction and the registrations. |

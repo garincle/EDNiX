@@ -66,8 +66,7 @@ def make_template(study_dir, sessions, tracer, transform, diary_file, suffix='pe
 
     for (img, matdir, base), im in zip(sessions, images):
         os.makedirs(matdir, exist_ok=True)
-        prefix = opj(matdir, base + '_to_studyTemplate_')
-        ants.registration(fixed=tpl, moving=im, type_of_transform=transform, outprefix=prefix)
+        transfo.register(tpl, im, opj(matdir, base + '_to_studyTemplate_'), transform)
         run_cmd.msg('INFO: ' + base + ' registered to the study template', diary_file, 'OKGREEN')
     return fname
 
