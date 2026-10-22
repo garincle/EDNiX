@@ -79,7 +79,6 @@ Identifiers accepted by `Skip_step`: the listed steps are skipped.
 | `band` | `'0.01 0.1'` | Temporal filter band (default: '0.01 0.1'). |
 | `blur` | `0` | Gaussian smoothing kernel in mm. |
 | `do_not_correct_signal` | `False` | Skip temporal or spatial signal corrections. |
-| `extract_exterior_CSF` | `False` | Not available: must be False. No step produces its mask, and the signals are extracted from skull-stripped data, which are zero outside the brain (True stops the step with an error). |
 | `extract_WM` | `True` | Nuisance signals of the white matter (Wmask), the ventricles (Vmask) and the brain (global signal). They select the regressors of the 'AFNI' method only. 'Grandjean' always uses the mean signal of the white-matter and ventricle masks (when the masks exist) and 'fMRIPrep_style' always uses aCompCor of both; extract_GS adds the global signal to 'AFNI' and 'fMRIPrep_style'. |
 | `extract_Vc` | `False` | Nuisance signals of the white matter (Wmask), the ventricles (Vmask) and the brain (global signal). They select the regressors of the 'AFNI' method only. 'Grandjean' always uses the mean signal of the white-matter and ventricle masks (when the masks exist) and 'fMRIPrep_style' always uses aCompCor of both; extract_GS adds the global signal to 'AFNI' and 'fMRIPrep_style'. |
 | `extract_GS` | `False` | Nuisance signals of the white matter (Wmask), the ventricles (Vmask) and the brain (global signal). They select the regressors of the 'AFNI' method only. 'Grandjean' always uses the mean signal of the white-matter and ventricle masks (when the masks exist) and 'fMRIPrep_style' always uses aCompCor of both; extract_GS adds the global signal to 'AFNI' and 'fMRIPrep_style'. |
@@ -90,6 +89,9 @@ Identifiers accepted by `Skip_step`: the listed steps are skipped.
 | `acompcor_n_fixed` | `5` | Number of aCompCor components per tissue in 'fixed' mode (default 5). |
 | `acompcor_variance` | `0.50` | Fraction of the variance to explain in 'adaptive' mode (default 0.50). |
 | `acompcor_max` | `15` | Cap on the number of aCompCor components per tissue in 'adaptive' and 'parallel' modes (default 15). |
+| `motion_mask` | `'None'` | Brain mask for the motion estimation of step 1. 'None' (default): the whole image is used (ANTs rigid, 'BOLDRigid'). 'previous': the functional mask written by step 3 of an earlier execution (run the pipeline once, then again from step 1). Or the path of a mask in the frame of the reoriented functional series. Needed when tissue that does not move with the brain (skull, muscle, skin) dominates the image: the log of step 1 compares the two estimations. |
+| `motion_mask_erode` | `3` | Voxels removed from the border of the motion mask (default 3): it must stay inside the brain whatever the head does, so use at least the largest head displacement in voxels. |
+| `motion_method` | `'ants'` | Program that estimates the head motion in step 1: 'ants' (default, ANTs rigid), '3dvolreg' (AFNI) or 'mcflirt' (FSL). The transforms of 3dvolreg and MCFLIRT are converted into the ANTs matrices used by step 5 (one interpolation per volume with the registration and distortion correction), after a check that the converted matrices reproduce the registered volumes written by the program (the run stops otherwise). Needs the python package nitransforms. The brain mask (motion_mask) is used with 'ants' only. |
 | `selected_atlases_matrix` | `'all'` | Atlas selection for matrix-based analyses ('all', 'default', etc.). |
 | `wanted_level_matrix` | `'all'` | Atlas selection for matrix-based analyses ('all', 'default', etc.). |
 | `matrix_fit` | `['covariance', 'correlation', 'partial correlation']` | Connectivity estimators (nilearn ConnectivityMeasure), e.g. 'correlation', 'partial correlation'. |
@@ -104,6 +106,6 @@ Identifiers accepted by `Skip_step`: the listed steps are skipped.
 | `use_cortical_mask_func` | `False` | Restrict analyses to cortical regions. |
 | `n_cut` | `10` | Number of voxels to exclude at edges. |
 | `threshold_val` | `10` | Intensity threshold for masking. |
-| `doBALSAspace` | `False` | Macaque only: also build the volumetric atlas of the BALSA (Yerkes) surface parcellation in native space. |
+| `doBALSAspace` | `False` | Human, chimpanzee and macaque: also bring the subject to the BALSA template space (S1200, CY29, MY19), resample its surfaces to fs_LR, and for the macaque build the BALSA atlas in native space. |
 
 `preprocess_fmri` also accepts other keyword arguments, which it ignores: a misspelled parameter name is therefore reported as a warning, not an error. The interface and the unit tests check the example launchers for this.

@@ -578,8 +578,8 @@ function endQuiz() {
 }
 
 // ================================================================== launchers (one state per pipeline)
-const PIPE_NAMES = { anat: 'Anatomical pipeline', func: 'Functional pipeline', pet: 'PET pipeline' };
-const PIPES = { anat: newPipeState(), func: newPipeState(), pet: newPipeState() };
+const PIPE_NAMES = { anat: 'Anatomical pipeline', func: 'Functional pipeline', pet: 'PET pipeline', ct: 'CT pipeline (for the PET)' };
+const PIPES = { anat: newPipeState(), func: newPipeState(), pet: newPipeState(), ct: newPipeState() };
 function newPipeState() { return { model: null, values: {}, original: {}, saved: null, out: '', path: '' }; }
 function switchPipe(p) {
   if (PIPES[currentPipe]) { PIPES[currentPipe].out = $('out-path').value; PIPES[currentPipe].path = $('launcher-path').value; }
@@ -599,7 +599,8 @@ async function openLauncher() {
   let model;
   try { model = await api(`/api/launcher?path=${encodeURIComponent(path)}`); }
   catch (e) { msg([['bad', `Could not open this launcher: ${e.message}`]]); return; }
-  const expect = { anat: ['preprocess_anat'], func: ['preprocess_fmri'], pet: ['preprocess_pet', 'preprocess_data'] }[currentPipe];
+  const expect = { anat: ['preprocess_anat'], func: ['preprocess_fmri'], pet: ['preprocess_pet'],
+                   ct: ['preprocess_ct'] }[currentPipe];
   Object.assign(S, { model, values: {}, original: {}, saved: null });
   for (const f of model.fields) { S.values[f.key] = f.value; S.original[f.key] = f.value; }
   $('out-path').value = path.replace(/\.py$/, '_custom.py');
@@ -827,7 +828,7 @@ async function loadQcCandidates() {
   try { c = await api('/api/qc/candidates'); } catch { c = []; }
   setOptions($('sel-qc-bids'), c.length ? c.map((x) => [x.path, `${x.path}${x.has_qc ? '' : ' (no QC folder yet)'}`]) : [['', 'no dataset found on this machine']]);
 }
-const REPORT_GROUPS = ['Functional reports', 'Anatomical reports'];
+const REPORT_GROUPS = ['Functional reports', 'Anatomical reports', 'PET reports', 'CT reports'];
 $('btn-qc-scan').addEventListener('click', async () => {
   QC.bids = $('qc-path').value.trim() || $('sel-qc-bids').value;
   if (!QC.bids) return;

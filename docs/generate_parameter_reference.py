@@ -17,7 +17,8 @@ import ednix_gui_core as G  # noqa: E402
 ENTRY_POINTS = [
     ('modalities/anat/_0_Pipeline_launcher.py', 'preprocess_anat', 'anat_parameters.md', 'Anatomical pipeline'),
     ('modalities/fMRI/_0_Pipeline_launcher.py', 'preprocess_fmri', 'fmri_parameters.md', 'Functional pipeline'),
-    ('modalities/pet/_0_Pipeline_launcher.py', 'preprocess_data', 'pet_parameters.md', 'PET pipeline (in development)'),
+    ('modalities/pet/_0_Pipeline_launcher.py', 'preprocess_pet', 'pet_parameters.md', 'PET pipeline'),
+    ('modalities/ct/_0_Pipeline_launcher.py', 'preprocess_ct', 'ct_parameters.md', 'CT pipeline (for the PET pipeline)'),
 ]
 
 

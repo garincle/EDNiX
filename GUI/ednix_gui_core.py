@@ -10,7 +10,7 @@ import numpy as np
 # =============================================================================
 # Launcher model: parse a launcher script, expose its literal parameters
 # =============================================================================
-PIPELINE_FUNCS = {'preprocess_anat', 'preprocess_fmri', 'preprocess_pet', 'preprocess_data'}
+PIPELINE_FUNCS = {'preprocess_anat', 'preprocess_fmri', 'preprocess_pet', 'preprocess_ct'}
 
 STATIC_OPTIONS = {
     'which_on': ['all', 'max'],
@@ -27,6 +27,17 @@ STATIC_OPTIONS = {
     'ICA_cleaning': ['Skip', 'Applied'],
     'n_for_ANTS': ['linear', 'lanczosWindowedSinc', 'hammingWindowedSinc', 'bSpline'],
     'type_of_transform': ['Rigid', 'Affine', 'SyN', 'SyNCC', 'BOLDRigid', 'BOLDAffine'],
+    # PET / CT pipelines
+    'crop_for_MoCo': ['auto', 'manual', 'none'],
+    'export_resolution': ['pet', 'target'],
+    'deoblique': ['WARP', 'header'],
+    'MoCo_transform': ['Rigid', 'DenseRigid', 'BOLDRigid'],
+    'coreg_metric': ['mattes'],
+    'type_of_transform_template': ['SyNRA', 'TRSAA', 'SyN'],
+    'studyT_transform': ['SyNRA', 'TRSAA', 'Rigid'],
+    'pvc_method': ['RBV', 'MG', 'LABBE+RBV', 'MTC', 'IY'],
+    'T_PET': ['T1w', 'T2w'],
+    'T_CT': ['T1w', 'T2w'],
 }
 
 
@@ -680,6 +691,24 @@ STEPS = {
         ('itk_3', 'Manual check of the final data in ITK-SNAP'),
         ('Clean', 'Delete intermediate files'),
     ],
+    'preprocess_pet': [
+        (1, 'Frame timing, SIF and mean image of the raw runs; reorientation of the header (as the anatomy)'),
+        (2, 'PET study template (creat_study_template_pet)'),
+        (3, 'Crop drawn on the study template in freeview (box used by the motion correction)'),
+        (4, 'Motion correction within each dynamic run (two passes, rigid)'),
+        (5, 'Motion correction between the runs of the session; mean image of the session'),
+        (6, 'Registration to the anatomy / CT / template (scenarios of pet4.svg), quality control; atlases and masks in the PET space'),
+        (7, 'Parametric images (SUV, SUVglu, ratio to the brain mean, time blocks) and regional values / TACs'),
+        (8, 'Reference-region kinetic models: SRTM (bfmsrtm, imgbfbp, imgsrtm), Logan DVR (imgdv)'),
+        ('pvc', 'Partial-volume correction (PETPVC, needs pvc_fwhm)'),
+        (9, 'PET during the fMRI runs (simultaneous PET-MR, do_pet_to_func)'),
+        (10, 'Export to the AC-PC and template spaces (+ skull-stripped)'),
+    ],
+    'preprocess_ct': [
+        (1, 'Reorientation of the header (as the PET of the same PET/CT acquisition)'),
+        (2, 'CT study template (creat_study_template_ct, no anatomy)'),
+        (3, 'Registration to the anatomy / CT template / study template, record for the PET pipeline, QC'),
+    ],
 }
 
 CURATED = {
@@ -771,8 +800,11 @@ TAB_EXT = ('.csv', '.tsv', '.xlsx', '.xls')
 #   sub-*/ses-*/func/QC/      <run>_QC_values.json, <run>_QC_summary.png (step 12), <run>_qc_report.png,
 #                             all_runs_classification.csv (step 13)
 #   sub-*/ses-*/anat/QC_anat/ <name>_QC_values.json, summary images (step 16)
-#   sub-*/ses-*/{anat,func}/<ID> session <ses><date>.txt   processing logs (diary)
-REPORT_DIRS = (('Functional reports', 'func', 'QC'), ('Anatomical reports', 'anat', 'QC_anat'))
+#   sub-*/ses-*/pet/QC/       PET in the AC-PC / template spaces (step 6 of the PET pipeline), motion (steps 4-5)
+#   sub-*/ses-*/ct/QC/        CT in the AC-PC / template spaces
+#   sub-*/ses-*/{anat,func,pet,ct}/<ID> session <ses><date>.txt   processing logs (diary)
+REPORT_DIRS = (('Functional reports', 'func', 'QC'), ('Anatomical reports', 'anat', 'QC_anat'),
+               ('PET reports', 'pet', 'QC'), ('CT reports', 'ct', 'QC'))
 VIRTUAL_TABLES = {'@func_metrics': 'Functional QC metrics (all runs)',
                   '@anat_metrics': 'Anatomical QC metrics (all subjects)',
                   '@specificity': 'Connectivity specificity (all runs)'}
@@ -927,7 +959,7 @@ def qc_table(bids_dir, rel, max_rows=3000, z_thresh=3.5):
 
 def _log_files(bids):
     out = []
-    for modality in ('anat', 'func'):
+    for modality in ('anat', 'func', 'pet', 'ct'):
         for d in _subject_dirs(bids, modality):
             out += [p for p in sorted(d.glob('* session *.txt')) if 'launcher_parameters' not in p.name]
     return out

@@ -57,6 +57,14 @@ func/
     acpc-anat/                 anatomical resolution, AC-PC space
     templates/<reference>/     template space: postprocessed_rs/, labels/, masks/
 fmap/preprocessing/            field-map processing (TOPUP / FUGUE)
+pet/                           raw PET (BIDS-PET) + diary, Prepro_Settings.json
+    raw/                       frame timing, SIF, mean of the raw runs
+    orig/                      PET space: preprocessing/, matrices/, labels/, masks/, postprocessing/ROI_analysis/
+    acpc/                      parametric images in AC-PC space
+    templates/<name>/          parametric images in template space (labels/, masks/)
+ct/                            raw CT + same layout (orig/, acpc/, templates/)
 ```
+
+The PET pipeline reads the BIDS-PET sidecar (frame timing, units, injected radioactivity, decay correction, radionuclide) and the body weight / blood glucose of `sessions.tsv` or `participants.tsv`: see [pet_pipeline.md](pet_pipeline.md).
 
 Dataset-level quality-control images and tables are written in `<BIDS>/QC/` (see [quality_control.md](quality_control.md)).

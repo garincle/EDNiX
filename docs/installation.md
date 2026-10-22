@@ -35,10 +35,12 @@ The pipeline calls AFNI, ANTs, FSL, FreeSurfer, Connectome Workbench, ITK-SNAP a
     connectome_workbench_1.5.0-freesurfer-update.sif
     itksnap_5.0.9.sif
     synthstrip.1.5.sif
-    tpcclib.sif                      (PET)
+    tpcclib.sif                      (PET kinetic models: Turku PET Centre tools)
 ```
 
 The U-Net skull-stripping models are read from the same folder. FreeSurfer needs its licence file in the container environment.
+
+PET options: `pydicom` (isotope and scan start from the DICOM files, `dcmfolder`) and, for the partial-volume correction (`pvc_fwhm`), `nipype` and the `petpvc` program on the `PATH`.
 
 > `MAIN_PATH` must end with `/` in the launchers: the container folder is derived from it with `os.path.dirname`, which returns the parent folder when the trailing slash is missing.
 

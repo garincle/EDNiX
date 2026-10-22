@@ -193,41 +193,56 @@ def func(data_path,reference, resting_or_task):
             dir_prepro_template_process, dir_prepro_template_postprocessed, dir_prepro_acpc_matrices, dir_prepro_orig_matrices)
 
 
-def pet(data_path,reference):
+def _emission_tree(data_path, reference, modality):
+    """
+    Output folders of the PET and CT pipelines (Illustration/pet2b.svg), as a dict.
 
-    path_pet    = opj(data_path, 'pet')
+    <data_path>/<modality>/            BIDS raw images (input) + diary + Prepro_Settings.json
+        raw/                           derived images in the raw space (mean, frame timing, SIF)
+        orig/                          native space of the modality (after reorientation)
+            preprocessing/             reoriented and motion-corrected images, anatomy in this space
+                forMC/                 cropped images and per-frame matrices of the motion correction
+            matrices/                  registrations (transform records, ANTs matrices)
+            labels/                    atlases in this space
+            masks/                     brain / tissue masks in this space
+            postprocessing/            parametric images (SUV, ratio, BP, DVR...)
+                ROI_analysis/          regional values, time-activity curves, DFT files
+                    pictures/          curves and fits
+        acpc/                          parametric images in the AC-PC space of the anatomy
+        templates/<name>/              parametric images in each template space (labels/, masks/)
+        QC/                            quality-control images of this subject
+    """
+    path_mod = opj(data_path, modality)
+    orig = opj(path_mod, 'orig')
+    post = opj(orig, 'postprocessing')
+    return dict(path=path_mod,
+                raw=opj(path_mod, 'raw'),
+                orig=orig,
+                orig_process=opj(orig, 'preprocessing'),
+                orig_formc=opj(orig, 'preprocessing', 'forMC'),
+                orig_matrices=opj(orig, 'matrices'),
+                orig_labels=opj(orig, 'labels'),
+                orig_masks=opj(orig, 'masks'),
+                orig_post=post,
+                orig_roi=opj(post, 'ROI_analysis'),
+                orig_pict=opj(post, 'ROI_analysis', 'pictures'),
+                acpc=opj(path_mod, 'acpc'),
+                templates=opj(path_mod, 'templates'),
+                template=opj(path_mod, 'templates', reference),
+                qc=opj(path_mod, 'QC'))
 
-    dir_prepro_raw = opj(path_pet, 'raw')
-    dir_prepro_raw_process = opj(dir_prepro_raw, 'preprocessing')
-    dir_prepro_raw_masks = opj(dir_prepro_raw, 'masks')
-    dir_prepro_raw_matrices = opj(dir_prepro_raw, 'matrices')
 
-    dir_prepro_orig     = opj(path_pet, 'acpc-func')
-    dir_prepro_orig_labels = opj(dir_prepro_orig, 'labels')
-    dir_prepro_orig_masks = opj(dir_prepro_orig, 'masks')
-    dir_prepro_orig_process = opj(dir_prepro_orig, 'preprocessing')
-    dir_prepro_orig_matrices = opj(dir_prepro_orig, 'matrices')
-    dir_prepro_orig_postprocessed = opj(dir_prepro_orig, 'postprocessed')
-
-    dir_prepro_acpc     = opj(path_pet, 'acpc-anat')
-    dir_prepro_acpc_labels = opj(dir_prepro_acpc, 'labels')
-    dir_prepro_acpc_masks = opj(dir_prepro_acpc, 'masks')
-    dir_prepro_acpc_process = opj(dir_prepro_acpc, 'preprocessing')
-    dir_prepro_acpc_matrices = opj(dir_prepro_acpc, 'matrices')
-    dir_prepro_acpc_postprocessed = opj(dir_prepro_acpc, 'postprocessed')
-
-    dir_prepro_template = opj(path_pet, 'templates',reference)
-    dir_prepro_template_labels = opj(dir_prepro_template, 'labels')
-    dir_prepro_template_masks = opj(dir_prepro_template, 'masks')
-    dir_prepro_template_process = opj(dir_prepro_template, 'preprocessing')
-    dir_prepro_template_postprocessed = opj(dir_prepro_template, 'postprocessed')
-
-    return (dir_prepro_raw, dir_prepro_raw_process, dir_prepro_raw_masks, dir_prepro_raw_matrices, path_pet,
-            dir_prepro_orig, dir_prepro_orig_labels, dir_prepro_orig_masks,
-            dir_prepro_orig_process, dir_prepro_orig_postprocessed,
-            dir_prepro_acpc, dir_prepro_acpc_labels, dir_prepro_acpc_masks,
-            dir_prepro_acpc_process, dir_prepro_acpc_postprocessed,
-            dir_prepro_template, dir_prepro_template_labels, dir_prepro_template_masks,
-            dir_prepro_template_process, dir_prepro_template_postprocessed, dir_prepro_acpc_matrices, dir_prepro_orig_matrices)
+def pet(data_path, reference):
+    """Folders of the PET pipeline for one subject / session (see _emission_tree)."""
+    return _emission_tree(data_path, reference, 'pet')
 
 
+def ct(data_path, reference):
+    """Folders of the CT pipeline for one subject / session (same layout as the PET pipeline)."""
+    return _emission_tree(data_path, reference, 'ct')
+
+
+def emission_template_dirs(paths, name):
+    """templates/<name>/ and its labels/ and masks/ sub-folders, for a dict returned by pet() or ct()."""
+    root = opj(paths['templates'], name)
+    return root, opj(root, 'labels'), opj(root, 'masks')

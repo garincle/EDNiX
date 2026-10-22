@@ -1,6 +1,6 @@
 # EDNiX interface
 
-3D atlases (several at once, volume and cortical surface), launcher editing without code for the anatomical, functional and PET pipelines, background runs with live logs.
+3D atlases (several at once, volume and cortical surface), launcher editing without code for the anatomical, functional, PET and CT pipelines, background runs with live logs.
 
 ## Installation (once)
 
@@ -23,10 +23,10 @@ After a double-click the same messages are in `~/.ednix_gui/launch.log`, and an 
 ## Use
 
 - **Atlases**: pick a species, a reference, a source (volume atlas or cortical surface), an atlas, then *Add to view*. Add several layers to compare levels, atlases or species; *Side by side* and *Same size* help comparisons. Click a region to select it, double-click to centre the view, drag to rotate, scroll to zoom. *View* buttons give standard orientations; *Fix orientation* rotates everything by 90° if a template is stored in an unusual orientation. The *Challenge* asks you to find 10 regions. *Use as seeds* sends the selection to the functional launcher.
-- **Launchers** (Anatomy, Functional, PET): open an example or your own launcher; every parameter shows its description (from the pipeline docstrings) and the launcher comment; *Skip_step* is a checklist of the pipeline steps. *Check*, *Save*, *Run in the background*.
+- **Launchers** (Anatomy, Functional, PET, CT): open an example or your own launcher; every parameter shows its description (from the pipeline docstrings) and the launcher comment; *Skip_step* is a checklist of the pipeline steps. *Check*, *Save*, *Run in the background*.
 - **Runs**: status, current pipeline step and live log of every run. Runs keep going if you close the interface; reopen it to follow them.
 - **Quality control**, for a dataset:
-  - images of `<BIDS>/QC` per check, and the reports of every subject: functional (`func/QC`: QC summary of step 12, connectivity specificity of step 13) and anatomical (`anat/QC_anat`, step 16), with a subject filter and a full-screen viewer (arrow keys);
+  - images of `<BIDS>/QC` per check, and the reports of every subject: functional (`func/QC`: QC summary of step 12, connectivity specificity of step 13) anatomical (`anat/QC_anat`, step 16), PET and CT (`pet/QC`, `ct/QC`: PET / CT in the AC-PC and template spaces), with a subject filter and a full-screen viewer (arrow keys);
   - the QC metrics of all runs (and of all subjects for the anatomy) and the connectivity specificity gathered in one table each, sortable, with values more than 3.5 robust standard deviations from the median highlighted; clicking a row shows the images of that run;
   - the errors and warnings of the processing logs of every subject (most errors first), and each log with its errors highlighted, alone or with two lines of context.
 - **Runs**: the log keeps the colours of the pipeline messages, highlights errors and warnings, counts them, and can show them only or jump from one error to the next.

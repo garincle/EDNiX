@@ -1,5 +1,16 @@
 # Changelog
 
+## PET and CT pipelines, October 2026
+
+Import of the PET engineer's version (`modalities/pet`, `modalities/ct`), reviewed and corrected: the detail of every change is in [docs/PET_CT_review_journal.md](docs/PET_CT_review_journal.md), the methods in [docs/pet_pipeline.md](docs/pet_pipeline.md).
+
+- `modalities.pet._0_Pipeline_launcher.preprocess_pet` and `modalities.ct._0_Pipeline_launcher.preprocess_ct`: processing in the PET space, registration scenarios 1v1, 1v2a, 1v2b, 2v1, 2v2, 3v1, 3v2 (`Illustration/pet4.svg`), output folders of `Illustration/pet2b.svg`, bridge with the anatomy through `backtonative.get` as the functional pipeline, registration records.
+- Motion correction within (two passes) and between runs; SUV (units, decay reference), SUVglu, ratio to the brain mean, time blocks; regional values and TACs; SRTM / Logan with the Turku tools (decay correction checked, reference TAC over the union of the voxels); partial-volume correction (PETPVC, scanner PSF); PET during fMRI runs; export to the AC-PC and template spaces.
+- `Tools/getpath.py`: `pet()` and new `ct()` return the folders of `pet2b.svg` as dictionaries (only the PET / CT code used `pet()`).
+- `Tools/roiStats.py` (numpy), `atlases/getlabels.py`, `FS_freeview.check_coreg` (from the engineer's suggestions; his `get_orientation.py` not taken: it reintroduced the left-right mirrors corrected in September; his `extract_filename.py` helpers not taken: unused).
+- Interface: CT tab, PET / CT steps and options, PET / CT logs and QC. Example launchers `Launcher_pet` (BIDS_Tremblay, CERMEP) and `Launcher_ct` (CERMEP). Tests `tests/unit/test_pet.py`.
+- Deep verification (22/10/2026, journal section 6) **[results]**: PET / CT of the same scanner space follow the world transform of the reorientation of the anatomy / CT (`3drefit -orient` re-signs the origins) and its head position (`same_space_window`); motion correction with a head mask for the metric (relative motion within 0.2-0.4 mm instead of 1.5-2 mm on a phantom); `SyNRA` by default for the template registrations; frame times counted from the injection; partial-volume correction with complete tissue classes and fractions; TACs of the kinetic models on the non-skull-stripped image; `DV_k2ref`; anatomy of another session and longitudinal reference session; `preprocess_data` refused.
+
 ## Code review, September 2026
 
 48 corrections from a full code review. The PET module is unchanged (under development).

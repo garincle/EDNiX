@@ -14,6 +14,7 @@ pytest -n auto
 - registration parameters of each step;
 - functional preprocessing: normalisation, atlas erosion, one-shot resampling of motion, distortion correction (sign detection, field direction, order of the transforms, choice of the field per run);
 - statistics: random-intercept maximum likelihood against statsmodels, type-I error of the longitudinal age test, cluster extent, component matching, phylogenetic covariance;
+- PET and CT (`test_pet.py`, on an analytic head phantom rendered with partial volume, AFNI and the Turku tools emulated; `3drefit -orient` follows AFNI's origin rule): isotopes, units, post-injection times, SUV and decay (analytic SUV of a static non-decay-corrected frame within 2 %), frame windows and time blocks, DFT files and reference TAC, tissue fractions and PVC classes, motion correction (relative motion within 0.6 mm on a noisy phantom), PET -> anatomy registration (pose within half a PET voxel), composition of the transform chains, world transform of a reference of the same scanner space and head-position anchor, and runs of `preprocess_pet` / `preprocess_ct` in the scenarios 1v1, 1v2a, 1v2b (also with off-centre fields of view), 2v1, 2v2, 3v1 and 3v2, with pose checks of the chains, reruns of the late steps and refused options. Registrations are made reproducible in the tests (`ants.config.set_ants_deterministic`);
 - launchers: every example launcher only uses parameters known to its pipeline, and the interface rewrites launchers without changing them;
 - interface: label tables, quality-control files, run progress.
 
