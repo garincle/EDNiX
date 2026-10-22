@@ -57,10 +57,34 @@ def head_mask(img, frac=0.1, dilate_vox=2):
     return ants.iMath(ants.threshold_image(img, thr, 1e30, 1, 0), 'MD', dilate_vox)
 
 
-def _register(fixed, moving, prefix, transform, metric):
+def _identity_matrix(path):
+    """Writes an identity rigid transform (3D) in ITK .mat format and returns its path."""
+    ants.write_transform(ants.new_ants_transform(dimension=3, transform_type='AffineTransform'), path)
+    return path
+
+
+def _has_signal(img):
+    """True if the image has a positive, finite total mass (ANTs' centre-of-mass initialisation needs it)."""
+    a = img.numpy()
+    a = a[np.isfinite(a)]
+    return bool(a.size) and float(np.sum(a[a > 0])) > 0.0
+
+
+def _register(fixed, moving, prefix, transform, metric, fallback=None):
+    """
+    Rigid registration moving -> fixed, returns the path of the matrix. A frame without signal in the cropped
+    box (all zeros: e.g. the first frames of a late-start or gated acquisition, or a crop mask outside the
+    head) cannot be registered: ANTs' initialisation (image moments) aborts with 'Total Mass of the image was
+    zero'. Such a frame receives `fallback` (matrix of the previous registered frame), or the identity.
+    """
     for suffix in ('0GenericAffine.mat',):
         if opi(prefix + suffix):
             os.remove(prefix + suffix)
+    if not _has_signal(moving):
+        if fallback and opi(fallback):
+            shutil.copyfile(fallback, prefix + '0GenericAffine.mat')
+            return prefix + '0GenericAffine.mat'
+        return _identity_matrix(prefix + '0GenericAffine.mat')
     reg = ants.registration(fixed=fixed, moving=moving, type_of_transform=transform, aff_metric=metric,
                             outprefix=prefix, mask=head_mask(fixed), **MOCO_REG)
     return reg['fwdtransforms'][-1]
@@ -124,10 +148,14 @@ def dynamic(img, out_dir, formc_dir, timing, nb_void, crop_mask, Need_check, dia
     ants.image_write(ref_full, ref3D, ri=False)
     pu.write_json(ref3D, img, f'Reference of the motion correction: duration-weighted mean of frames {nb_void}-{nfr - 1}.')
 
+    if not _has_signal(ref_full):
+        raise ValueError(f'{img}: the reference (mean of frames {nb_void}-{nfr - 1}) has no signal; check the image and nb_void')
     if crop_mask:
         cmask = ants.resample_image_to_target(ants.image_read(crop_mask), ref_full, interp_type='nearestNeighbor')
         ref_crop = ants.crop_image(ref_full, label_image=cmask, label=1)
         ants.image_write(ref_crop, pu.out_name(formc_dir, base, desc='crop-mean'), ri=False)
+        if not _has_signal(ref_crop):
+            raise ValueError(f'{crop_mask}: the crop mask does not overlap the head of {img} (empty box); check its space')
     else:
         cmask = None
         ref_crop = ref_full
@@ -136,10 +164,16 @@ def dynamic(img, out_dir, formc_dir, timing, nb_void, crop_mask, Need_check, dia
     for p in range(passes):
         # pass 1: reference = mean of the uncorrected frames; pass 2: mean of the frames corrected by pass 1
         # (sharper reference; two-pass registration to the mean, as SPM realign / AFNI 3dvolreg -base mean)
+        prev = None
         for i in frames:
             fr = frames_img[i]
             fr_crop = ants.crop_image(fr, label_image=cmask, label=1) if cmask is not None else fr
-            mats[i] = _register(ref_crop, fr_crop, opj(formc_dir, base + '_mc' + f'{i:03d}' + '_'), transform, metric)
+            if not _has_signal(fr_crop):
+                run_cmd.msg(f'WARNING: frame {i} has no signal in the registration box (all zeros): it receives the '
+                            f'transform of the previous frame (identity if none)', diary_name, 'WARNING')
+            mats[i] = _register(ref_crop, fr_crop, opj(formc_dir, base + '_mc' + f'{i:03d}' + '_'), transform, metric,
+                                fallback=prev)
+            prev = mats[i]
             corrected[i] = ants.apply_transforms(fixed=ref_full, moving=fr, transformlist=[mats[i]],
                                                  interpolator=petinterp)
         if p < passes - 1:

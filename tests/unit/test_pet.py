@@ -177,6 +177,21 @@ def test_chain_composition_matches_the_direct_map(tmp_path):
 
 # ------------------------------------------------------------------------------------------------ motion / registration
 @pytest.mark.slow
+def test_within_run_motion_correction_survives_an_empty_frame(tmp_path):
+    """A frame of zeros (no counts) made ANTs abort ('Total Mass of the image was zero'); it must be tolerated."""
+    R, t = P.pose((0, 0, 0), (0, 0, 0))
+    img, A, info = P.dynamic_pet(str(tmp_path / 'sub-01_ses-1_trc-FDG_pet.nii.gz'), R, t)
+    d = nib.load(img)
+    a = d.get_fdata().astype(np.float32)
+    a[..., 4] = 0.0
+    nib.save(nib.Nifti1Image(a, d.affine, d.header), img)
+    out = MoCo.dynamic(img, str(tmp_path / 'pre'), str(tmp_path / 'formc'), pu.frame_timing(info, a.shape[3]), 2, None,
+                       False, str(tmp_path / 'diary.txt'), '')
+    mc = nib.load(out).get_fdata()
+    assert np.all(mc[..., 4] == 0) and np.all(np.isfinite(mc)) and mc[..., 5].max() > 0
+
+
+@pytest.mark.slow
 def test_within_run_motion_correction_recovers_the_motion(tmp_path):
     R, t = P.pose((0, 0, 0), (0, 0, 0))
     # frames 0-1 (not registered) are in the position of frame 2, the assumption of the correction
