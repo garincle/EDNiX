@@ -193,7 +193,7 @@ def preprocess_anat(Skip_step,
     # second loop (adapt to the longitudinal co-registration and study template
 
     ref_suffix  = '_space-acpc_desc-SS-step2_'
-    mask_suffix = '_desc-step2_'
+    mask_suffix = '_desc-step2'
 
     stdy_template      = opj(studyprepro_dir, 'studyTemplate_' + type_norm + '.nii.gz')
     stdy_template_mask = opj(studyprepro_dir, 'studyTemplate_mask.nii.gz')
