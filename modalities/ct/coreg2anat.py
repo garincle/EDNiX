@@ -139,14 +139,6 @@ def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, referenc
         # the CT to >= 0 for the centre of mass: in HU the air (-1000) is a negative mass larger than the head, and
         # the centre of mass of the raw CT lies away from the head (ANTs' default initialisation).
         prefix = opj(mat_dir, base + '_from-ct-to-' + T_CT + '_')
-        # min_quality=0: keep the registration with `metric` (mutual information). The quality score of
-        # rigid_to (mean of the resampled image in the brain / mean of its positive voxels) assumes a bright
-        # brain, as in PET; in a CT the brain (~30 HU) is far below the bone (~1000 HU), so a correct
-        # registration scores ~0.2 and the 'meansquares' retry was kept instead: mean squares compares
-        # intensities directly, which is not valid between a CT and a T1w (11 mm error on the test phantom).
-        acpc = rigid_to(anat['acpc'], work, prefix, metric,
-                        mask_file=anat['mask'], dilate_mm=10.0,
-                        coreg_transform=coreg_transform, min_quality=0.0)
         head = ct_head_mask(work)
         ants.image_write(head, opj(paths['orig_formc'], base + '_desc-head_mask.nii.gz'), ri=False)
         acpc_mat = opj(anat['dir_transfo'], 'acpc_0GenericAffine.mat')
