@@ -49,7 +49,9 @@ def _image(rng, lab, csf, scale, effect=0.0):
     return img
 
 
-def make_study(root, n_per_group=8, effect=0.15, seed=0, with_roi=True):
+def make_study(root, n_per_group=8, effect=0.15, seed=0, with_roi=True, dynamic=()):
+    """dynamic: subject numbers exported as a dynamic run (desc-SUV-mean) whose file names carry no ses- entity
+    (sub-X_trc-FDG_..., as BIDS_Tremblay), the session being only the folder name."""
     rng = np.random.default_rng(seed)
     brain, lab, blob, csf = _phantom()
     rows = []
@@ -64,9 +66,11 @@ def make_study(root, n_per_group=8, effect=0.15, seed=0, with_roi=True):
             t = d / 'templates' / TEMPLATE
             (t / 'labels').mkdir(parents=True)
             (t / 'masks').mkdir(parents=True)
-            base = f'sub-{sub}_ses-{ses}_trc-FDG'
-            nib.save(nib.Nifti1Image(img, AFF), str(t / f'{base}_space-{TEMPLATE}_desc-SUV_pet.nii.gz'))
-            nib.save(nib.Nifti1Image(img * brain, AFF), str(t / f'{base}_space-{TEMPLATE}_desc-SUV-SS_pet.nii.gz'))
+            dyn = k in dynamic
+            base = f'sub-{sub}_trc-FDG' if dyn else f'sub-{sub}_ses-{ses}_trc-FDG'
+            dsc = 'SUV-mean' if dyn else 'SUV'
+            nib.save(nib.Nifti1Image(img, AFF), str(t / f'{base}_space-{TEMPLATE}_desc-{dsc}_pet.nii.gz'))
+            nib.save(nib.Nifti1Image(img * brain, AFF), str(t / f'{base}_space-{TEMPLATE}_desc-{dsc}-SS_pet.nii.gz'))
             nib.save(nib.Nifti1Image(lab, AFF), str(t / 'labels' / 'Phantom_seg-PH_dseg.nii.gz'))
             nib.save(nib.Nifti1Image(brain.astype(np.uint8), AFF), str(t / 'masks' / 'Phantom_mask.nii.gz'))
             if with_roi:
@@ -80,7 +84,7 @@ def make_study(root, n_per_group=8, effect=0.15, seed=0, with_roi=True):
                         v = rng.normal(8 * scale, 0.3, n)
                     tab.append(dict(label=l, region=name, n_voxels=v.size, volume_mm3=v.size * 8.0, n_valid=v.size,
                                     mean=float(v.mean()), sd=float(v.std(ddof=1)), median=float(np.median(v))))
-                pd.DataFrame(tab).to_csv(roi / f'{base}_seg-PH-lvl0_desc-SUV_ROIs.tsv', sep='\t', index=False)
+                pd.DataFrame(tab).to_csv(roi / f'{base}_seg-PH-lvl0_desc-{dsc}_ROIs.tsv', sep='\t', index=False)
             rows.append(dict(participant_id=f'sub-{sub}', group=g, age=float(rng.uniform(20, 60))))
     pd.DataFrame(rows).to_csv(root / 'participants.tsv', sep='\t', index=False)
     return dict(brain=brain, lab=lab, blob=blob, csf=csf)
@@ -299,3 +303,65 @@ def test_surface_rendering_uses_the_ribbon_projection_and_skips_empty_maps(tmp_p
     k = calls[0]
     assert k['projection'] == 'ribbon' and k['pos_max'] == pytest.approx(4) and k['neg_max'] == pytest.approx(-4)
     assert k['output_dir'] == str(tmp_path / 'surfaces') and k['display_zero'] is False
+
+
+# ------------------------------------------------------------------------------------------------- naming
+def test_dynamic_naming_and_session_from_the_folder(tmp_path, capsys):
+    """desc-SUV finds the desc-SUV-mean images of dynamic runs (and the reverse); the session comes from the
+    ses- folder when the file name has no ses- entity."""
+    make_study(tmp_path, n_per_group=3, dynamic={1, 2, 3, 4, 5, 6})
+    imgs = G.collect_images(str(tmp_path), TEMPLATE, 'SUV')
+    assert len(imgs) == 6 and set(imgs.desc) == {'SUV-mean'} and set(imgs.session) == {'1'}
+    assert 'resolved to desc-SUV-mean' in capsys.readouterr().out
+    long = R.collect_roi_tables(str(tmp_path), 'PH', 0, 'SUV')
+    assert set(long.session) == {'1'} and long.subject.nunique() == 6
+    # mixed study: static and dynamic runs side by side, each session uses the one it has
+    mixed = tmp_path / 'mixed'
+    make_study(mixed, n_per_group=3, dynamic={2, 5})
+    for d in ('SUV', 'SUV-mean'):
+        imgs = G.collect_images(str(mixed), TEMPLATE, d)
+        assert len(imgs) == 6 and imgs.groupby('desc').size().to_dict() == {'SUV': 4, 'SUV-mean': 2}
+    with pytest.raises(FileNotFoundError, match='desc-bratio-mean'):
+        G.collect_images(str(mixed), TEMPLATE, 'bratio')
+    res = G.run_group_analysis(str(mixed), TEMPLATE, 'two-sample', desc='SUV', group_col='group',
+                               groups=['patient', 'control'], normalization='global', n_perm=50,
+                               output_dir=str(mixed / 'out'))
+    assert json.load(open(os.path.join(res['output_dir'], 'patient-vs-control_summary.json')))['desc'] == 'SUV'
+
+
+# ------------------------------------------------------------------------------------------------- subject tables
+def test_no_covariate_needs_no_participants_table(tmp_path):
+    """One-sample without covariate and two-sample with group_assignment: participants.tsv is not read."""
+    make_study(tmp_path, n_per_group=4, effect=0.3)
+    (tmp_path / 'participants.tsv').write_text('broken\tfile\nwithout\tids\n')
+    res = G.run_group_analysis(str(tmp_path), TEMPLATE, 'one-sample', desc='SUV', covariates=None,
+                               normalization='global', n_perm=50, output_dir=str(tmp_path / 'one'))
+    assert res['summary']['n'] == 8
+    groups = {'patient': ['sub-01', '02', '03', '04'], 'control': ['05', '06', '07', '08']}
+    res = G.run_group_analysis(str(tmp_path), TEMPLATE, 'two-sample', desc='SUV', group_assignment=groups,
+                               normalization=dict(type='atlas', atlas='PH', level=0, labels=[7], name='Cer'),
+                               label_tables=LABELS, n_perm=200, output_dir=str(tmp_path / 'two'))
+    assert res['contrast'] == 'patient-vs-control' and res['summary']['n'] == 8
+    roi = R.run_roi_analysis(str(tmp_path), 'PH', 0, 'SUV', 'two-sample', group_assignment=groups,
+                             normalization=[7], output_dir=str(tmp_path / 'roi'))
+    st = roi['stats'].set_index('region')
+    assert st.loc['blob', 'cope'] < 0 and st.loc['blob', 'p_FDR'] < 0.05
+    with pytest.raises(ValueError, match='no image for subject'):
+        G.assign_groups(G.collect_images(str(tmp_path), TEMPLATE, 'SUV'), {'a': ['99'], 'b': ['01']})
+    with pytest.raises(KeyError, match='no ID column.*columns found'):         # a covariate needs the table
+        G.run_group_analysis(str(tmp_path), TEMPLATE, 'regression', desc='SUV', covariates=['age'],
+                             output_dir=str(tmp_path / 'reg'))
+
+
+def test_participants_table_with_another_id_column(tmp_path):
+    make_study(tmp_path, n_per_group=4)
+    p = pd.read_csv(tmp_path / 'participants.tsv', sep='\t')
+    p = p.rename(columns={'participant_id': 'Subject'})
+    p['Subject'] = p['Subject'].str.replace('sub-', '')
+    p.loc[0, 'age'] = np.nan
+    p.to_csv(tmp_path / 'participants.tsv', sep='\t', index=False, na_rep='n/a')
+    imgs = G.collect_images(str(tmp_path), TEMPLATE, 'SUV')
+    t = G.subject_table(imgs, str(tmp_path), ['age', 'group'])
+    assert t.age.dtype.kind == 'f' and t.age.isna().sum() == 1 and set(t.group) == {'patient', 'control'}
+    with pytest.raises(KeyError, match="available: .*'age'"):
+        G.subject_table(imgs, str(tmp_path), ['weight'])

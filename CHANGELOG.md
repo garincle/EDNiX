@@ -1,5 +1,13 @@
 # Changelog
 
+## PET group analyses of dynamic runs, October 2026
+
+- `pet_group.collect_images` / `pet_roi_group.collect_roi_tables`: `desc='bratio'` (or `'SUV'`) also finds the `desc-bratio-mean` images and tables of dynamic runs (and the reverse); each session uses the one it has and the choice is printed. Before, a dynamic study failed with `no image with desc-SUV`.
+- The session is read from the `ses-<label>` folder when the file names have no `ses-` entity (BIDS_Tremblay: `sub-X_trc-FDG_...` in `ses-control2/`); it was empty.
+- Covariates are optional (`covariates=None` or `[]`). When no column is needed (one-sample, paired on sessions, two-sample with the new `group_assignment={group: [IDs]}`), `participants.tsv` / `sessions.tsv` are not read; in `run_group_analysis` and `run_roi_analysis`.
+- The ID column of `participants.tsv` / `sessions.tsv` may be `participant_id` / `session_id` or `subject`, `sub`, `id`... (or a first column of `sub-` values); otherwise the error lists the columns found. A missing covariate lists the available columns. `n/a` values are read as missing in numeric columns.
+- `Launcher_PET_group_CERMEP.py` runs on the brain ratio (`desc='bratio'`, no second normalisation) instead of SUV with the cerebellum reference; new `Launcher_PET_group_Tremblay.py` (macaque, dynamic FDG, same model, checks the columns and the number of animals first).
+
 ## Unit tests green again, October 2026
 
 The `tests` workflow had been failing on master since 6 October (28 tests on Python 3.11).

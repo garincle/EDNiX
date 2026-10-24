@@ -26,7 +26,8 @@ import numpy as np
 import pandas as pd
 
 from Statistics.Group_PET import _glm
-from Statistics.Group_PET.pet_group import _entities, _filter, subject_table, _log
+from Statistics.Group_PET.pet_group import (_path_entities, _filter, subject_table, _log, desc_alternatives,
+                                            pick_desc, assign_groups, _needed_columns)
 
 opj = os.path.join
 opb = os.path.basename
@@ -35,23 +36,31 @@ opd = os.path.dirname
 
 def collect_roi_tables(bids_dir, atlas, level, desc, list_to_keep=None, list_to_remove=None):
     """Long table: subject, session, run, base, label, region, n_voxels, n_valid, mean (one row per image and
-    region). desc: desc of the regional table ('SUV', 'SUV-mean', 'SUV-PVC', 'bratio'...)."""
-    name = f'*_seg-{atlas}-lvl{level}_desc-{desc}_ROIs.tsv'
-    pats = [opj(bids_dir, 'sub-*', 'ses-*', 'pet', 'orig', 'postprocessing', 'ROI_analysis', name),
-            opj(bids_dir, 'sub-*', 'pet', 'orig', 'postprocessing', 'ROI_analysis', name)]
-    rows = []
-    for f in sorted(set(sum((glob.glob(p) for p in pats), []))):
-        ent = _entities(f)
-        t = pd.read_csv(f, sep='\t')
-        base = opb(f).split('_seg-')[0]
-        t.insert(0, 'base', base)
-        t.insert(0, 'run', ent.get('run', ''))
-        t.insert(0, 'session', ent.get('ses', ''))
-        t.insert(0, 'subject', ent.get('sub'))
-        rows.append(t)
-    if not rows:
-        raise FileNotFoundError(f'no regional table {name} in {bids_dir}: run step 7 of the PET pipeline '
+    region). desc: desc of the regional table ('SUV', 'SUV-mean', 'SUV-PVC', 'bratio'...); 'SUV' and 'SUV-mean'
+    (static / dynamic run) are interchangeable: each session uses the one it has (pet_group.desc_alternatives)."""
+    rows, found = [], []
+    for d in desc_alternatives(desc):
+        name = f'*_seg-{atlas}-lvl{level}_desc-{d}_ROIs.tsv'
+        pats = [opj(bids_dir, 'sub-*', 'ses-*', 'pet', 'orig', 'postprocessing', 'ROI_analysis', name),
+                opj(bids_dir, 'sub-*', 'pet', 'orig', 'postprocessing', 'ROI_analysis', name)]
+        for f in sorted(set(sum((glob.glob(p) for p in pats), []))):
+            ent = _path_entities(f)
+            found.append(dict(subject=ent.get('sub'), session=ent.get('ses', ''), run=ent.get('run', ''),
+                              desc=d, file=f))
+    if not found:
+        raise FileNotFoundError(f'no regional table *_seg-{atlas}-lvl{level}_desc-{desc}_ROIs.tsv (nor '
+                                f'desc-{desc_alternatives(desc)[1]}) in {bids_dir}: run step 7 of the PET pipeline '
                                 f'(atlas, level and desc as in the file names of ROI_analysis/)')
+    files, msg = pick_desc(pd.DataFrame(found), desc)
+    if msg:
+        _log(msg)
+    for r in files.itertuples():
+        t = pd.read_csv(r.file, sep='\t')
+        t.insert(0, 'base', opb(r.file).split('_seg-')[0])
+        t.insert(0, 'run', r.run)
+        t.insert(0, 'session', r.session)
+        t.insert(0, 'subject', r.subject)
+        rows.append(t)
     long = pd.concat(rows, ignore_index=True)
     keys = _filter(long[['subject', 'session']].drop_duplicates().reset_index(drop=True), list_to_keep,
                    list_to_remove)
@@ -116,11 +125,12 @@ def normalise_regions(ses, normalization, all_regions=None):
 def run_roi_analysis(bids_dir, atlas, level, desc, design, group_col=None, groups=None, covariates=None,
                      test_covariate=None, paired_col='session', paired_levels=None, normalization='global',
                      min_voxels=10, aggregate='subject', list_to_keep=None, list_to_remove=None, output_dir=None,
-                     output_suffix=None, fdr_q=0.05):
+                     output_suffix=None, fdr_q=0.05, group_assignment=None):
     """
     Regional group analysis (module docstring). Parameters as pet_group.run_group_analysis, plus:
     atlas, level : atlas and level of the regional tables (file names of ROI_analysis/, e.g. 'EDNIxCSCLR', 0)
     desc         : desc of the tables ('SUV', 'SUV-mean', 'SUV-PVC'...)
+    covariates, group_assignment: as pet_group.run_group_analysis (no covariate: participants.tsv is not read)
     normalization: 'global' | 'none' | list of labels of this atlas level (e.g. [7, 1007]: cerebellum)
     min_voxels   : minimum number of valid PET voxels of a region in every session (10: earlier rule)
     Returns dict(output_dir, values (subjects x regions), stats (one row per region), report).
@@ -156,10 +166,11 @@ def run_roi_analysis(bids_dir, atlas, level, desc, design, group_col=None, group
 
     # observations
     obs = wide.reset_index()
-    needed = covariates + ([group_col] if design == 'two-sample' else []) + \
-        ([paired_col] if design == 'paired' and paired_col not in ('session', 'subject') else [])
+    group_col, groups, needed = _needed_columns(design, group_col, groups, covariates, paired_col, group_assignment)
     info = subject_table(obs[['subject', 'session']].assign(image='', run='', base='', desc=desc, data_path=''),
                          bids_dir, needed)
+    if group_assignment:
+        info = assign_groups(info, group_assignment, group_col)
     obs = info.drop(columns=['image', 'run', 'base', 'data_path']).merge(obs, on=['subject', 'session'])
     if ref is not None:
         obs = obs.merge(ref, on=['subject', 'session'], how='left')
