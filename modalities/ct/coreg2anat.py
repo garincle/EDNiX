@@ -24,7 +24,7 @@ opi = os.path.isfile
 from Tools import run_cmd, QC_plot
 from modalities.pet import petutils as pu
 from modalities.pet import transfo
-from modalities.pet.coreg2anat import (manual_correction, qc_contour, rigid_to, ct_head_mask,
+from modalities.pet.coreg2anat import (manual_correction, qc_contour, rigid_to, ct_head_mask, refine_in_brain,
                                        _validate_coreg_transform)
 from modalities.anat.freesurfer import FS_freeview
 
@@ -36,6 +36,31 @@ def clipped(ct_file, out):
     arr = np.clip(img.numpy(), *CT_CLIP)
     ants.image_write(ants.from_numpy(arr, origin=img.origin, spacing=img.spacing, direction=img.direction), out,
                      ri=False)
+    return out
+
+
+CT_BRAIN_WINDOW = (0.0, 80.0)
+CT_BONE_HU = 200.0
+
+
+def brain_window(ct_file, out, window=CT_BRAIN_WINDOW, smooth_mm=1.0):
+    """
+    CT in the brain window for the second pass of the CT -> anatomy registration (ct_brain_refine): Gaussian
+    smoothing of sigma smooth_mm (noise of a low-dose attenuation CT), then 0 - 1 over `window` (HU: CSF ~5, white
+    matter ~30, grey matter ~40), 0 below it (air, fat), 1 up to CT_BONE_HU (partial volume) and 0 above it: the
+    bone is dark, as the cortical bone of a T1w. On [-1000, 2000] HU the whole parenchyma falls in one or two of
+    the 32 bins of the Mattes mutual information and only the skull drives the registration; in the brain window
+    the grey / white matter and the ventricles do (brain window of head CT: Muschelli et al. 2015).
+    """
+    ct = ants.image_read(ct_file)
+    sm = ants.smooth_image(ct, smooth_mm, sigma_in_physical_coordinates=True) if smooth_mm else ct
+    v = sm.numpy()
+    lo, hi = window
+    w = np.clip((v - lo) / (hi - lo), 0.0, 1.0)
+    w[v > CT_BONE_HU] = 0.0
+    ants.image_write(ct.new_image_like(w.astype(np.float32)), out, ri=False)
+    pu.write_json(out, [ct_file], f'CT in the brain window {window} HU (smoothed {smooth_mm} mm, 0 above '
+                                  f'{CT_BONE_HU} HU): moving image of the second CT -> anatomy pass.')
     return out
 
 
@@ -60,7 +85,7 @@ def record_path(paths, base):
 
 def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, reference, study_template, T_CT, metric,
              type_of_transform_template, do_manual, Need_check_coreg, bids_dir, diary_name, sing_fs,
-             template_mask='', coreg_transform='Rigid', coreg_init='auto'):
+             template_mask='', coreg_transform='Rigid', coreg_init='auto', ct_brain_refine=False):
     """Registration of the CT (scenario sc); writes and returns the registration record.
 
     Parameters
@@ -115,7 +140,12 @@ def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, referenc
     coreg_init : str
         Initialisation of the CT -> anatomy registration (modalities.pet.coreg2anat.init_candidates): 'auto'
         (centres of mass of the CT head without the bed and of the anatomy, centres of the fields of view, AC-PC
-        matrix of the anatomy, identity; the best start is kept), 'com', 'fov', 'acpc' or 'identity'.
+        matrix of the anatomy, identity, search over the rotations; the best start is kept), 'com', 'fov', 'acpc',
+        'identity' or 'search'.
+    ct_brain_refine : bool
+        Scenario 1v2b: second pass in the brain after the head registration: CT in the brain window (brain_window)
+        within the brain of the anatomy brought into the CT and dilated by 3 mm (refine_in_brain), from the first
+        pass. The grey / white matter and the ventricles then drive the registration instead of the skull.
     """
     _validate_coreg_transform(coreg_transform, diary_name)
 
@@ -145,6 +175,11 @@ def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, referenc
         acpc = rigid_to(anat['acpc'], work, prefix, metric, mask_file=anat['mask'], dilate_mm=10.0,
                         coreg_transform=coreg_transform, moving_mask=head, init=coreg_init,
                         acpc=acpc_mat if opi(acpc_mat) else None, diary_name=diary_name)
+        if ct_brain_refine:
+            win = brain_window(work, opj(paths['orig_formc'], base + '_desc-brainwindow_ct.nii.gz'))
+            acpc = refine_in_brain(anat['acpc'], anat['mask'], win, acpc, prefix + 'desc-brain_', metric, 3.0,
+                                   coreg_transform, opj(paths['orig_formc'], base + '_desc-coregbrain_mask.nii.gz'),
+                                   diary_name)
         if do_manual:
             # manual correction done on the full CT so the engineer sees the skull; the chain is
             # world-to-world, valid either way, and the re-registration uses initial_transform
@@ -180,7 +215,8 @@ def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, referenc
     for t in targets.values():
         transfo.check(t)
     record = dict(modality='ct', scenario=sc, session=base, reference=ct_img, raw=raw, targets=targets,
-                  coreg_transform=coreg_transform, created=pu.now())
+                  coreg_transform=coreg_transform, coreg_init=coreg_init, ct_brain_refine=bool(ct_brain_refine),
+                  created=pu.now())
     transfo.write_record(record_path(paths, base), record)
 
     # quality control: CT in every target space, brain mask of the target (or head of a study template) as contour

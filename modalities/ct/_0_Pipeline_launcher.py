@@ -25,6 +25,7 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
                   template_CT='', creat_study_template_ct=False, studyT_transform='SyNRA',
                   type_of_transform_template='SyNRA', coreg_metric='mattes',
                   CT_header_wrong=False, deoblique='WARP', do_manual=False, coreg_transform='Rigid', coreg_init='auto',
+                  ct_brain_refine=False,
                   Need_check_orient=False, Need_check_coreg=False,
                   reference='EDNiX', atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
                   use_erode_WM_func_masks=True, use_erode_V_func_masks=True,
@@ -98,9 +99,14 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
         by a rigid motion).
     coreg_init : str, optional
         Initialisation of the CT -> anatomy registration: 'auto' (centres of mass of the CT head without the bed and
-        of the anatomy, centres of the fields of view, AC-PC matrix of the anatomy, identity; the start with the
-        highest mutual information covering the brain is kept, scores in ct/orig/matrices/*candidates.json), 'com',
-        'fov', 'acpc' or 'identity'.
+        of the anatomy, centres of the fields of view, AC-PC matrix of the anatomy, identity, search over the
+        rotations; the start with the highest mutual information covering the brain is kept, scores in
+        ct/orig/matrices/*candidates.json), 'com', 'fov', 'acpc', 'identity' or 'search'.
+    ct_brain_refine : bool, optional
+        Second pass of the CT -> anatomy registration (1v2b) in the brain: CT in the brain window (0-80 HU, bone set
+        to 0) within the brain of the anatomy brought into the CT, from the head registration. The grey / white
+        matter and the ventricles drive it instead of the skull. False by default (no gain on the phantoms, where
+        the head registration is already < 0.5 mm); to try when the QC shows the brain shifted inside the skull.
     Need_check_orient, Need_check_coreg : bool, optional
         Open freeview to check the orientation and the registration.
     reference : str, optional
@@ -232,4 +238,5 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
         coreg2anat.register(sc, s['ct'], s['raw'], s['base'], s['paths'], s['anat'], packages, template_CT, reference,
                             study_template, T_CT, coreg_metric, type_of_transform_template, do_manual,
                             Need_check_coreg, bids_dir, s['diary'], sing_fs, template_mask=BASE_mask,
-                            coreg_transform=coreg_transform, coreg_init=coreg_init)
+                            coreg_transform=coreg_transform, coreg_init=coreg_init,
+                            ct_brain_refine=ct_brain_refine)

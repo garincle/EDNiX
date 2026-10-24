@@ -40,7 +40,8 @@ Identifiers accepted by `Skip_step`: the listed steps are skipped.
 | `deoblique` | `'WARP'` | 'WARP' resamples an oblique CT on a cardinal grid (3dWarp, as the anatomy); 'header' drops the obliquity. |
 | `do_manual` | `False` | Manual correction of the CT -> anatomy registration in freeview. |
 | `coreg_transform` | `'Rigid'` | ANTsPy type_of_transform of the CT -> anatomy registration ('Rigid': the CT and the MRI of one subject differ by a rigid motion). |
-| `coreg_init` | `'auto'` | Initialisation of the CT -> anatomy registration: 'auto' (centres of mass of the CT head without the bed and of the anatomy, centres of the fields of view, AC-PC matrix of the anatomy, identity; the start with the highest mutual information covering the brain is kept, scores in ct/orig/matrices/*candidates.json), 'com', 'fov', 'acpc' or 'identity'. |
+| `coreg_init` | `'auto'` | Initialisation of the CT -> anatomy registration: 'auto' (centres of mass of the CT head without the bed and of the anatomy, centres of the fields of view, AC-PC matrix of the anatomy, identity, search over the rotations; the start with the highest mutual information covering the brain is kept, scores in ct/orig/matrices/*candidates.json), 'com', 'fov', 'acpc', 'identity' or 'search'. |
+| `ct_brain_refine` | `False` | Second pass of the CT -> anatomy registration (1v2b) in the brain: CT in the brain window (0-80 HU, bone set to 0) within the brain of the anatomy brought into the CT, from the head registration. The grey / white matter and the ventricles drive it instead of the skull. False by default (no gain on the phantoms, where the head registration is already < 0.5 mm); to try when the QC shows the brain shifted inside the skull. |
 | `Need_check_orient` | `False` | Open freeview to check the orientation and the registration. |
 | `Need_check_coreg` | `False` | Open freeview to check the orientation and the registration. |
 | `reference` | `'EDNiX'` | Reference template ('EDNiX'). |

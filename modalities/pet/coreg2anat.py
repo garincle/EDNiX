@@ -199,7 +199,7 @@ def _validate_coreg_transform(t, diary_name=''):
 # Initialisation candidates and multi-start registration
 # ---------------------------------------------------------------------------
 
-INIT_MODES = ('auto', 'com', 'fov', 'acpc', 'identity')
+INIT_MODES = ('auto', 'com', 'fov', 'acpc', 'identity', 'search')
 
 
 def _grid_center(img):
@@ -217,6 +217,40 @@ def _translation_file(path, t):
     return path
 
 
+def _rigid_part(tr):
+    """Closest rotation (SVD projection) of the linear part of an ANTs affine transform, same centre and
+    translation: the starts of a rigid registration must not carry a scale or a shear (ANTs writes the initial
+    transform into the result)."""
+    p = np.asarray(tr.parameters, float)
+    u, _, vt = np.linalg.svd(p[:9].reshape(3, 3))
+    r = u @ np.diag([1.0, 1.0, np.sign(np.linalg.det(u @ vt))]) @ vt
+    return ants.create_ants_transform(transform_type='AffineTransform', dimension=3, matrix=r,
+                                      translation=tuple(p[9:12]), center=tuple(np.asarray(tr.fixed_parameters, float)))
+
+
+def rotation_search(fixed, fixed_mask, moving, path, step_deg=15.0, arc_fraction=0.5, voxel_mm=None):
+    """
+    Start found by a search over the rotations (ANTs antsAffineInitializer: every rotation of the sphere by
+    `step_deg` within arc_fraction x 180 degrees around the centres of mass, a short local optimisation of the mutual
+    information from each, the best kept), for a head rotated far from the anatomy (a CT
+    head flexed on the head holder, a PET of an animal in another position). Images resampled to `voxel_mm`
+    (default 3 voxels of the fixed image, at least the coarsest voxel of the moving image) to keep it fast. The
+    result is reduced to its rotation (_rigid_part) and written to `path`.
+    """
+    vox = voxel_mm or max(3.0 * min(fixed.spacing[:3]), max(moving.spacing[:3]))
+    f = ants.resample_image(_nonnegative(fixed), (vox,) * 3, use_voxels=False, interp_type=0)
+    m = ants.resample_image(moving, (vox,) * 3, use_voxels=False, interp_type=0)
+    mask = None
+    if fixed_mask is not None:
+        mask = _binary(ants.resample_image_to_target(fixed_mask, f, interp_type='nearestNeighbor'))
+    tmp = path.replace('.mat', '_affine.mat')
+    ants.affine_initializer(f, m, search_factor=step_deg, radian_fraction=arc_fraction, use_principal_axis=False,
+                            local_search_iterations=10, mask=mask, txfn=tmp)
+    ants.write_transform(_rigid_part(ants.read_transform(tmp)), path)
+    os.remove(tmp)
+    return path
+
+
 def init_candidates(fixed, fixed_mask, moving, prefix, init='auto', acpc=None, initial=None):
     """
     Initial transforms (fixed points -> moving points) of rigid_to, as a list of (name, [files]):
@@ -227,12 +261,13 @@ def init_candidates(fixed, fixed_mask, moving, prefix, init='auto', acpc=None, i
       acpc      AC-PC matrix of the anatomy: the PET / CT is assumed to be near the native anatomy (consistent scanner
                 coordinates, similar head position), the matrix the anatomical pipeline already estimated is reused;
       identity  world coordinates of the headers as they are;
+      search    best start of a search over the rotations (rotation_search): large rotations between the images;
       initial   a given transform (manual correction, first pass).
     init: 'auto' (every available one), one of the names above, or 'initial' (only `initial`).
     """
     if init not in INIT_MODES + ('initial',):
         raise ValueError(f'coreg_init={init!r}: expected one of {INIT_MODES}')
-    names = ('com', 'fov', 'acpc', 'identity') if init == 'auto' else (init,)
+    names = ('com', 'fov', 'acpc', 'identity', 'search') if init == 'auto' else (init,)
     out = []
     if initial:
         out.append(('initial', [initial] if isinstance(initial, str) else list(initial)))
@@ -256,6 +291,8 @@ def init_candidates(fixed, fixed_mask, moving, prefix, init='auto', acpc=None, i
                 raise FileNotFoundError(f'coreg_init="acpc" but no AC-PC matrix: {acpc}')
         elif name == 'identity':
             out.append((name, [_translation_file(prefix + 'init-identity.mat', (0.0, 0.0, 0.0))]))
+        elif name == 'search':
+            out.append((name, [rotation_search(fixed, fixed_mask, moving, prefix + 'init-search.mat')]))
     return out
 
 
@@ -284,7 +321,7 @@ def rigid_to(fixed_file, moving_file, prefix, metric, mask_file=None, dilate_mm=
                 is multiplied by it and cropped to its box, and the metric ignores the voxels outside it. Removes
                 the torso, the bed and the extracerebral uptake from both the metric and the initialisation.
     init        initialisation candidates (init_candidates): 'auto' = centres of mass, centres of the fields of
-                view, AC-PC matrix (`acpc`), identity, plus `initial` if given.
+                view, AC-PC matrix (`acpc`), identity, search over the rotations, plus `initial` if given.
 
     For every candidate: Translation, then `coreg_transform`, with the adaptive pyramid; ANTs includes the initial
     transform in the matrix it writes. The candidate kept has the lowest Mattes metric value (highest mutual
