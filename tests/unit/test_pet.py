@@ -359,7 +359,7 @@ def test_pipeline_1v2a_end_to_end_on_a_phantom(tmp_path, monkeypatch):
     df = pd.DataFrame(dict(label_id=[1, 7, 10, 1010, 20, 30],
                            region_name=['Cerebrum', 'Cerebellum', 'L_Ctx', 'R_Ctx', 'WM', 'CSF']))
     opts = dict(Skip_step=Skip, T_PET='T1w', ct_pet_same_space=True, nb_void=2, crop_for_MoCo='none', redo_crop=False,
-                MoCo_transform='Rigid', coreg_metric='mattes', type_of_transform_template='SyN', studyT_transform='SyN',
+                MoCo_transform='Rigid', coreg_metric='mattes', coreg_transform='Rigid', type_of_transform_template='SyN', studyT_transform='SyN',
                 do_manual=False, Need_check_MC=False, Need_check_coreg=False, SUV=True, bratio=True,
                 SUV_window=[10, 40], Do_cut=True, duration=10, srtm=True,
                 reference_signal=dict(type='atlas', atlas='TEST', level=0, labels=[7], name='Cer'), DV_time=10,

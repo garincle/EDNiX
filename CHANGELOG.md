@@ -1,5 +1,21 @@
 # Changelog
 
+## Unit tests green again, October 2026
+
+The `tests` workflow had been failing on master since 6 October (28 tests on Python 3.11).
+- `extract_exterior_CSF` had been removed from `signal_regression` / `preprocess_fmri`: the AFNI emulator of the tests still passed it (21 `test_post_ttt` failures), `Launcher_func_Dog.py` still passed it (removed), and its test now checks that the option no longer exists (it used to be refused with an error).
+- `preprocess_pet`: the `coreg_transform` entry of the docstring was written as code, so the parameter reference and the interface did not see it.
+- Interface QC test updated to the current `qc_scan` paths (relative to the BIDS folder).
+- PET tests: `ants.config` exists only from antspyx 0.6; the hand-built options of the end-to-end test lacked `coreg_transform`.
+- **[results]** CT -> T1w registration (scenario 1v2b): the quality score of `rigid_to` assumes a bright brain (PET); for a CT a correct mutual-information registration scored ~0.2 and the `meansquares` retry, not valid between a CT and a T1w, was kept (11 mm error on the test phantom; probably the CT / anatomy misalignment seen on CERMEP). The CT call now keeps the mutual-information registration. Stopgap: the registration rework (PR #15) replaces this logic.
+
+## PET group analyses, October 2026
+
+New `Statistics/Group_PET` (documentation: [docs/group_analysis.md](docs/group_analysis.md#pet-group-analyses); example `Exemples/Study_EDNiX/analysis/Launcher_PET_group_CERMEP.py`; tests `tests/unit/test_pet_group.py`):
+
+- `pet_group.run_group_analysis`: voxel-wise one-sample, two-sample, regression and paired designs with covariates on the PET images exported to a template space; normalisation to the brain mean, to a reference region (same syntax as `reference_signal`) or none, with the normalising value tested between groups; analysis mask with coverage and the relative threshold of SPM (excludes CSF and background); smoothing restricted to the mask; cluster FWE by Freedman-Lane permutation (default) or AFNI 3dClustSim on the residual ACF; cluster table with atlas regions.
+- `pet_roi_group.run_roi_analysis`: the earlier ROI scripts (drop regions with fewer than 10 PET voxels in any subject, division by a reference region, tables as Excel) on the regional tables of the PET space, with GLM and FDR per region.
+- `pet_surface.render_pet_surfaces`: maps projected on the surfaces of the species with the SBA surface function, ribbon-constrained projection by default.
 ## Cross-species regional profiles, October 2026
 
 - `Plotting/Plot_interspecies_regional_profiles.py`: gathers the ROI tables of the PET pipeline (`ROI_analysis/*_seg-<atlas>-lvl<k>_desc-<desc>_ROIs.tsv`) for several species and compares them on the regions of the EDNiX atlas (shared label table, so regions are matched by name). One subject = one sample (runs averaged), hemispheres merged by valid-voxel weighting or kept separate, optional ratio to reference regions or within-subject z-score. Regions kept when present in every species with >= 10 voxels per label in every subject (rule of the former `3_correct_atlas_for_small_V.py`); optional size threshold in FWHM units against partial volume. Per region, each species vs the reference species: permutation test (or Welch / Mann-Whitney), Hedges g with 95% CI, Benjamini-Hochberg FDR. Profile similarity: Pearson / Spearman r with subject-bootstrap CI, split-half reliabilities and noise ceiling. Figures: polar fingerprint + polar effect sizes, grouped bars with every subject, region-mean scatter; each with a .txt legend, plus an Excel workbook and a methods text.

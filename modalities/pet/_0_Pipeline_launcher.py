@@ -252,6 +252,10 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
     coreg_metric : str, optional
         Metric of the rigid registrations (motion, PET -> anatomy / CT): 'mattes' (mutual information).
     coreg_transform : str, optional
+        ANTs type_of_transform of the PET -> anatomy / CT registration ('Rigid' by default):
+        'Rigid' (6 DOF, standard for PET -> anatomy of the same subject), 'Affine' (12 DOF: size difference,
+        atrophy, field of view), 'TRSAA' (translation + rigid + affine cascade), 'SyNRA' (rigid + affine + SyN,
+        slow), 'SyNCC' (SyN with cross-correlation, slow), 'BsplineSyN' (non-linear, slow).
         ANTsPy type_of_transform of the PET -> anatomy / CT registration: 'Rigid' (default; a PET and an MRI of the
         same subject differ by a rigid motion). 'Similarity' / 'Affine' add scale parameters that can absorb a
         misregistration (PET brain shrunk into the MRI brain); non-linear transforms ('SyNRA'...) are not
