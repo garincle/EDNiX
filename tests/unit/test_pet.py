@@ -275,7 +275,7 @@ def test_multistart_registration_of_a_pet_with_the_torso_in_the_field_of_view(tm
     # the AC-PC matrix of the anatomy is a start when given
     cands = coreg2anat.init_candidates(ants.image_read(files['acpc']), None, ants.image_read(pet),
                                        str(tmp_path / 'c_'), 'auto', opj(files['dir_transfo'], 'acpc_0GenericAffine.mat'))
-    assert [c[0] for c in cands] == ['com', 'fov', 'acpc', 'identity']
+    assert [c[0] for c in cands] == ['com', 'fov', 'acpc', 'identity', 'search']
     with pytest.raises(ValueError):
         coreg2anat.init_candidates(ants.image_read(files['acpc']), None, ants.image_read(pet), str(tmp_path / 'c_'),
                                    'bad')
@@ -304,6 +304,41 @@ def test_ct_to_anatomy_centre_of_mass_and_bed(tmp_path):
     chain = coreg2anat.rigid_to(files['acpc'], ctf, str(tmp_path / 'ct_'), 'mattes', mask_file=files['mask'],
                                 dilate_mm=10.0, moving_mask=head)
     assert _mstart_error(chain, R, t) < 1.0
+
+
+@pytest.mark.slow
+def test_ct_large_rotation_search_and_brain_window_pass(tmp_path):
+    # low-dose CT (noise 25 HU) of a head flexed by 80 degrees, with the neck, the cervical spine, the head holder
+    # and the bed: the centre-of-mass start fails, the search over the rotations finds it; the second pass in the
+    # brain window keeps it within half a voxel
+    from modalities.ct import coreg2anat as ctc
+    files, _, _ = P.anat_derivative(str(tmp_path / 'bids'))
+    hu = [-1000.0, 40.0, 1200.0, 5.0, 38.0, 30.0, 38.0]
+    extra = [((0, -5, -55), (18, 18, 30), 40.0), ((0, -12, -50), (5, 5, 28), 700.0),
+             ((0, -38, -5), (34, 4, 36), 150.0), ((0, -48, -40), (60, 4, 80), 400.0)]
+    A = P.grid(80, 2.0, center=(15, -20, -10))
+    R, t = P.pose((80, 0, 0), (12, 20, -15))
+    ct = _render((80,) * 3, A, R, t, hu, extra, smooth_mm=1.0)
+    ct = ct + np.random.default_rng(0).normal(0, 25, ct.shape).astype(np.float32)
+    ctf = P.save(ct, A, str(tmp_path / 'ct.nii.gz'))
+    head = coreg2anat.ct_head_mask(ants.image_read(ctf))
+    prefix = str(tmp_path / 'ct_')
+    chain = coreg2anat.rigid_to(files['acpc'], ctf, prefix, 'mattes', mask_file=files['mask'], dilate_mm=10.0,
+                                moving_mask=head)
+    with open(prefix + 'candidates.json') as f:
+        starts = {s['init']: s for s in json.load(f)['starts']}
+    assert starts['search']['metric'] < starts['com']['metric'] and _mstart_error(chain, R, t) < 1.0
+    tr = ants.read_transform(str(tmp_path / 'ct_init-search.mat'))
+    lin = np.asarray(tr.parameters[:9]).reshape(3, 3)
+    assert np.allclose(lin @ lin.T, np.eye(3), atol=1e-4)                # the start is a rotation (no scale)
+    win = ctc.brain_window(ctf, str(tmp_path / 'win.nii.gz'))
+    w = nib.load(win).get_fdata()
+    lab = P.tissues(P.world_points((80,) * 3, A) @ R.T + t).reshape((80,) * 3)
+    assert w[lab == 4].mean() > w[lab == 5].mean() > w[lab == 3].mean()  # grey > white > CSF
+    assert w[lab == 2].mean() < 0.1 and w[lab == 0].mean() < 0.05       # bone and air dark
+    second = coreg2anat.refine_in_brain(files['acpc'], files['mask'], win, chain, str(tmp_path / 'b_'), 'mattes',
+                                        3.0, 'Rigid', str(tmp_path / 'bm.nii.gz'))
+    assert _mstart_error(second, R, t) < 1.0
 
 
 @pytest.mark.slow

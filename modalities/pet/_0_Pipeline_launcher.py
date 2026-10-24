@@ -259,8 +259,9 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
     coreg_init : str, optional
         Initialisation of the PET -> anatomy / CT registration: 'auto' (default: centres of mass of the masked
         images, centres of the fields of view ('FOV to FOV'), AC-PC matrix of the anatomy (the PET is near the
-        native anatomy), identity (headers); the start with the highest mutual information that covers the brain
-        is kept, scores in pet/orig/matrices/*candidates.json), or one of 'com', 'fov', 'acpc', 'identity'.
+        native anatomy), identity (headers), search over the rotations (antsAffineInitializer: large rotations);
+        the start with the highest mutual information that covers the brain is kept, scores in
+        pet/orig/matrices/*candidates.json), or one of 'com', 'fov', 'acpc', 'identity', 'search'.
     pet_coreg_mask : str, optional
         Mask of the PET for the registration (after the crop box of the motion correction): 'none' (default),
         'threshold' (voxels above pet_mask_percentile of the positive voxels, largest connected component, holes
