@@ -644,10 +644,20 @@ def test_ct_study_template_without_anatomy_2v2(tmp_path, monkeypatch):
     L.preprocess_pet([], main, bids, 'Testmonkey', table, '*_trc-FDG_*pet.nii.gz', 'FDG', [''], [''], '', 'T1w', 'T1w',
                      False, False, IhaveanANAT=False, IhaveaCT=True, crop_for_MoCo='none',
                      selected_atlases=[['TEST', 'all']], atlas_followers=[['TEST'], ['txt'], [2], [1]])
+    from modalities.pet import bridge
+    assert os.path.isfile(bridge.record_path(opj(bids, 'sty_template', 'pet'), 'EDNiX'))
     for sub in ('01', '02'):
         paths = getpath.pet(s[sub]['dp'], 'EDNiX')
         rec = transfo.read_record(coreg2anat.record_path(paths, f'sub-{sub}_ses-1_trc-FDG'))
-        assert rec['scenario'] == '2v2' and list(rec['targets']) == ['studyTemplate']
+        # step 'bridge': the CT study template is linked to the reference template through the PET study template
+        assert rec['scenario'] == '2v2' and sorted(rec['targets']) == ['EDNiX', 'studyTemplate']
+        err = _chain_error(rec['targets']['EDNiX']['to'], _template_truth(s[sub]['R'], s[sub]['t']))
+        assert err < 2.0, err
+        atlas = nib.load(rec['pet_space']['atlases']['TEST']).get_fdata()[..., 0]
+        A = nib.load(rec['reference']).affine
+        truth = P.tissues(P.world_points(atlas.shape, A) @ s[sub]['R'].T + s[sub]['t']).reshape(atlas.shape)
+        dice = 2 * ((atlas == 7) & (truth == 6)).sum() / ((atlas == 7).sum() + (truth == 6).sum())
+        assert dice > 0.7, dice
         assert os.path.isfile(pu.out_name(opj(paths['templates'], 'studyTemplate'), f'sub-{sub}_ses-1_trc-FDG',
                                           desc='activity-mean', space='studyTemplate'))
     # both subjects in the study template: their exported means agree

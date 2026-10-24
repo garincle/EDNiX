@@ -14,6 +14,7 @@ Identifiers accepted by `Skip_step`: the listed steps are skipped.
 | `4` | Motion correction within each dynamic run (two passes, rigid) |
 | `5` | Motion correction between the runs of the session; mean image of the session |
 | `6` | Registration to the anatomy / CT / template (scenarios of pet4.svg), quality control; atlases and masks in the PET space |
+| `bridge` | Scenario 2v2: PET study template in the CT study template, reference template registered to it, atlases to every session (ct_template_bridge) |
 | `7` | Parametric images (SUV, SUVglu, ratio to the brain mean, time blocks) and regional values / TACs |
 | `8` | Reference-region kinetic models: SRTM (bfmsrtm, imgbfbp, imgsrtm), Logan DVR (imgdv) |
 | `pvc` | Partial-volume correction (PETPVC, needs pvc_fwhm) |
@@ -65,6 +66,8 @@ Identifiers accepted by `Skip_step`: the listed steps are skipped.
 | `pet_mask_dilate_mm` | `3.0` | Dilation (mm) of the PET mask ('threshold', 'anat') and of the brain of the anatomy in the second pass (3). |
 | `coreg_target` | `'anat'` | Fixed image of the PET -> anatomy registration (1v2a): 'anat' (default, AC-PC head image), 'brain' (skull-stripped anatomy) or 'synthetic' (FDG-like image of the anatomy: grey matter 1, white matter 0.35, CSF 0.05, smoothed to synthetic_fwhm; Ashburner & Friston 1997). FDG only. |
 | `synthetic_fwhm` | `None` | FWHM (mm) of the synthetic target; None = twice the largest PET voxel. |
+| `ct_template_bridge` | `True` | Scenario 2v2 (CT study template, no anatomy): step 'bridge' links the CT study template to the reference template through a PET study template (modalities/pet/bridge.py): steps 4-6 for every session, mean of the session means in the CT study template, skull-stripped reference template registered to it (multi-start similarity then affine, mutual information), brain mask and atlases brought back to every session, then steps 7-10 with the atlases. True by default; False keeps 2v2 without atlas. FDG-like tracers (brain contrast). |
+| `bridge_transform` | `'Affine'` | Reference template -> PET study template: 'Affine' (default) or 'SyNRA' (affine then SyN). |
 | `SUV` | `True` | Compute the SUV (body weight and injected radioactivity from the sidecar / sessions.tsv / participants.tsv) and, with the blood glucose, the glucose-corrected SUV. |
 | `bratio` | `True` | Compute the ratio of the PET to its mean over the brain mask. |
 | `SUV_window` | `None` | [start, end] in minutes after the injection (BIDS frame times minus InjectionStart) of the frames averaged for the SUV and ratio images of a dynamic run (frames whose middle is in the window); None = all frames. |

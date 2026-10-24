@@ -39,6 +39,21 @@ def clipped(ct_file, out):
     return out
 
 
+def head_image(ct_file, out, pad_mm=5.0):
+    """CT restricted to the head for the CT study template (the manual crop of the PET engineer's notebook, made
+    automatic): voxels outside the head mask (ct_head_mask: > -500 HU, largest component, holes filled, dilated by
+    pad_mm) set to -1000 HU (air), image cropped to the box of the mask. The bed and the head holder no longer drive
+    ants.build_template; world coordinates are kept, so the transforms apply to the full CT."""
+    ct = ants.image_read(ct_file)
+    head = ants.iMath(ct_head_mask(ct), 'MD', max(1, int(round(pad_mm / min(ct.spacing[:3])))))
+    arr = np.where(head.numpy() > 0, np.clip(ct.numpy(), *CT_CLIP), CT_CLIP[0]).astype(np.float32)
+    img = ants.crop_image(ct.new_image_like(arr), label_image=head, label=1)
+    ants.image_write(img, out, ri=False)
+    pu.write_json(out, [ct_file], f'CT restricted to the head (> -500 HU, largest component, dilated {pad_mm} mm; '
+                                  f'outside -1000 HU), cropped: input of the CT study template.')
+    return out
+
+
 def record_path(paths, base):
     return opj(paths['orig_matrices'], base + '_desc-registration_ct.json')
 

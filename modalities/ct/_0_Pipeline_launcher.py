@@ -206,8 +206,14 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
             run_cmd.msg('INFO: skip step 2', sdiary, 'OKGREEN')
         else:
             run_cmd.msg(pu.step_header(2, 'ct'), sdiary, 'HEADER')
-            studyT.make_template(study_dir, [(s['ct'], s['paths']['orig_matrices'], s['base']) for s in sessions], '',
-                                 studyT_transform, sdiary, suffix='ct')
+            # CT restricted to the head (bed and head holder removed), as the manual crop of the PET engineer
+            items = []
+            for s in sessions:
+                os.makedirs(s['paths']['orig_formc'], exist_ok=True)
+                head = coreg2anat.head_image(s['ct'], pu.out_name(s['paths']['orig_formc'], s['base'], desc='head',
+                                                                  suffix='ct'))
+                items.append((head, s['paths']['orig_matrices'], s['base']))
+            studyT.make_template(study_dir, items, '', studyT_transform, sdiary, suffix='ct')
 
     study_template_atlas_folder = opj(bids_dir, 'sty_template')
     for s in sessions:

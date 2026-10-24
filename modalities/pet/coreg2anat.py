@@ -274,7 +274,7 @@ def _score(fixed, moving, chain, fixed_mask, coverage_mask, moving_support):
 
 def rigid_to(fixed_file, moving_file, prefix, metric, mask_file=None, dilate_mm=5.0, initial=None,
              coreg_transform='Rigid', moving_mask=None, init='auto', acpc=None, min_coverage=0.9, diary_name='',
-             verbose=False):
+             verbose=False, same_subject=True):
     """
     Registration moving (PET, CT) -> fixed (anatomy, CT), multi-start; returns the chains of `prefix`.
 
@@ -291,8 +291,12 @@ def rigid_to(fixed_file, moving_file, prefix, metric, mask_file=None, dilate_mm=
     information, Wells et al. 1996; Maes et al. 1997) among those whose moving image covers at least
     `min_coverage` of the fixed brain; a multi-start search against the local optima of mutual information
     (Jenkinson & Smith 2001, FLIRT; AFNI 3dAllineate -twobest). Scores in <prefix>candidates.json.
+    same_subject=False (template to template): no warning on the scale / non-linear transforms.
     """
-    _validate_coreg_transform(coreg_transform, diary_name)
+    if same_subject:
+        _validate_coreg_transform(coreg_transform, diary_name)
+    elif coreg_transform not in ANTS_TRANSFORMS:
+        raise ValueError(f'coreg_transform={coreg_transform!r}: expected one of {ANTS_TRANSFORMS}')
     fixed = _read(fixed_file)
     moving = _nonnegative(_read(moving_file))
     if moving.dimension == 4:

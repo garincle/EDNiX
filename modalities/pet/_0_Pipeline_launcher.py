@@ -15,7 +15,7 @@ from modalities.anat import set_launcher
 from modalities.anat.loop3 import backtonative
 from modalities.fMRI import chooseanat
 from modalities.pet import petutils as pu
-from modalities.pet import loop1, loop2, studyT, coreg2anat, transfo, reorient
+from modalities.pet import loop1, loop2, studyT, coreg2anat, transfo, reorient, bridge
 from atlases import getlabels
 from modalities.pet.coreg2anat import ANTS_TRANSFORMS
 
@@ -155,6 +155,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
                    coreg_metric='mattes', type_of_transform_template='SyNRA', do_manual=False, same_space_window=None,
                    coreg_transform='Rigid', coreg_init='auto', pet_coreg_mask='none', pet_mask_percentile=30.0,
                    pet_mask_dilate_mm=3.0, coreg_target='anat', synthetic_fwhm=None,
+                   ct_template_bridge=True, bridge_transform='Affine',
                    SUV=True, bratio=True, SUV_window=None, Do_cut=False, duration=10,
                    srtm=False, reference_signal='unknown', DV_time=0, DV_k2ref=None, kinetic_end=None,
                    pvc_fwhm=None, pvc_method='RBV',
@@ -276,6 +277,14 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         CSF 0.05, smoothed to synthetic_fwhm; Ashburner & Friston 1997). FDG only.
     synthetic_fwhm : float, optional
         FWHM (mm) of the synthetic target; None = twice the largest PET voxel.
+    ct_template_bridge : bool, optional
+        Scenario 2v2 (CT study template, no anatomy): step 'bridge' links the CT study template to the reference
+        template through a PET study template (modalities/pet/bridge.py): steps 4-6 for every session, mean of the
+        session means in the CT study template, skull-stripped reference template registered to it (multi-start
+        similarity then affine, mutual information), brain mask and atlases brought back to every session, then
+        steps 7-10 with the atlases. True by default; False keeps 2v2 without atlas. FDG-like tracers (brain contrast).
+    bridge_transform : str, optional
+        Reference template -> PET study template: 'Affine' (default) or 'SyNRA' (affine then SyN).
     type_of_transform_template : str, optional
         ANTs transform of the PET -> PET template registration (scenario 3v1):
         'SyNRA' (default: rigid + affine + SyN stages). ANTsPy's 'SyN' and 'Affine' start with a single affine
@@ -425,6 +434,8 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         raise ValueError(f"coreg_transform={coreg_transform!r}: expected one of {ANTS_TRANSFORMS}")
     if coreg_init not in coreg2anat.INIT_MODES:
         raise ValueError(f"coreg_init={coreg_init!r}: expected one of {coreg2anat.INIT_MODES}")
+    if bridge_transform not in bridge.BRIDGE_TRANSFORMS:
+        raise ValueError(f"bridge_transform={bridge_transform!r}: expected one of {bridge.BRIDGE_TRANSFORMS}")
     if coreg_target not in coreg2anat.COREG_TARGETS:
         raise ValueError(f"coreg_target={coreg_target!r}: expected one of {coreg2anat.COREG_TARGETS}")
     if pet_coreg_mask not in coreg2anat.PET_MASKS and not os.path.isfile(str(pet_coreg_mask)):
@@ -546,6 +557,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
 
     # ======================================================================================== block 2 (steps 4-10)
     study_template_atlas_folder = opj(bids_dir, 'sty_template')
+    jobs = []
     for s in sessions:
         ID, Session, data_path, paths, diary_file = s['ID'], s['Session'], s['data_path'], s['paths'], s['diary']
         nl = 'INFO: Work on ' + str(ID) + ' session ' + str(Session) + ' (PET block 2)'
@@ -591,15 +603,49 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         target_files = {}
         for pkg in packages or []:
             target_files[pkg[0]] = dict(label_base=pkg[3], list_atlas=atlas_names, masks=[pkg[2]])
-        if sc in ('2v1', '3v1'):
+        if sc in ('2v1', '3v1') or (sc == '2v2' and ct_template_bridge):
             target_files[reference] = dict(label_base=template_files['label_base'], list_atlas=atlas_names,
                                            masks=[BASE_mask])
         reg = dict(scenario=sc, anat=anat, packages=packages, ct_record=ct_record, template_PET=template_PET,
                    reference=reference, study_template=study_template, study_crop=study_crop,
                    template_files=template_files, target_files=target_files, list_atlas=atlas_names,
                    label_tables=label_tables, levels=levels, ref_atlas=ref_atlas, reference_json=reference_json)
-        loop2.run(ID, Session, data_path, bids_dir, paths, s['session'], s['reoriented'], s['raw'], opts, reg,
-                  diary_file, sing_afni, sing_fs, sing_wb, sing_turku)
+        jobs.append((s, reg))
+
+    # 2v2 with ct_template_bridge: steps 4-6 for every session, group step 'bridge' (CT study template -> reference
+    # template through the PET study template, modalities/pet/bridge.py), then steps 7-10 with the atlases
+    bridged = [j for j in jobs if j[1]['scenario'] == '2v2'] if ct_template_bridge else []
+
+    def run_block2(job, skip):
+        s, reg = job
+        o = dict(opts, Skip_step=list(Skip_step) + [k for k in skip if k not in Skip_step])
+        loop2.run(s['ID'], s['Session'], s['data_path'], bids_dir, s['paths'], s['session'], s['reoriented'],
+                  s['raw'], o, reg, s['diary'], sing_afni, sing_fs, sing_wb, sing_turku)
+
+    if not bridged:
+        for job in jobs:
+            run_block2(job, [])
+        return
+    for job in jobs:
+        run_block2(job, [7, 8, 'pvc', 9, 10])
+    records = []
+    for s, _ in bridged:
+        rf = coreg2anat.record_path(s['paths'], s['session'])
+        if not opi(rf):
+            raise FileNotFoundError(f'{rf} not found: run step 6 first')
+        records.append(transfo.read_record(rf))
+    bridge_file = bridge.record_path(study_dir, reference)
+    if 'bridge' in Skip_step and opi(bridge_file):
+        run_cmd.msg('INFO: skip step bridge (' + opb(bridge_file) + ' kept)', study_diary, 'OKGREEN')
+    else:
+        run_cmd.msg(pu.step_header('bridge'), study_diary, 'HEADER')
+        bridge.run(records, study_dir, tracer, reference, BASE_SS, BASE_mask, coreg_metric, bridge_transform,
+                   study_diary)
+    for s, reg in bridged:
+        bridge.extend_session(coreg2anat.record_path(s['paths'], s['session']), bridge_file, s['paths'],
+                              reg['template_files'], reg['list_atlas'], bids_dir, s['diary'])
+    for job in jobs:
+        run_block2(job, [4, 5, 6])
 
 
 def preprocess_data(*args, **kwargs):

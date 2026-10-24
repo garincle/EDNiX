@@ -18,11 +18,11 @@ The CT pipeline (`modalities/ct`, entry point `preprocess_ct`) registers a CT to
 | **1v2a** | anatomical MRI, other session | rigid PET -> anatomy (mutual information, dilated brain mask), then anatomy -> template | yes |
 | **1v2b** | anatomical MRI and CT (PET/CT scanner) | PET -> CT (same space: world transform of the CT and head position of the CT acquisition; otherwise rigid, head mask) -> anatomy (CT pipeline) -> template | yes |
 | **2v1** | CT and a CT template, no MRI | PET -> CT -> CT template (`SyNRA`: rigid + affine + SyN) | yes (template atlases) |
-| **2v2** | CT, no CT template | PET -> CT -> CT study template | no |
+| **2v2** | CT, no CT template | PET -> CT -> CT study template; group step `bridge`: CT study template -> PET study template -> reference template (`ct_template_bridge=True`) | yes (template atlases, through the bridge) |
 | **3v1** | PET template in the space of the reference template | PET -> PET template (`SyNRA`) | yes (template atlases) |
 | **3v2** | nothing else | PET -> PET study template | no |
 
-The scenario is chosen from `IhaveanANAT`, `anat_pet_same_space`, `IhaveaCT` (and the record of the CT pipeline), `template_PET` and `creat_study_template_pet`; it is written in the diary and in the registration record. In 2v2 and 3v2 the study template is not linked to the reference template ("possible in theory, not available yet" in `pet4.svg`): without an atlas or a brain mask, only the SUV images are computed, in the PET and study-template spaces.
+The scenario is chosen from `IhaveanANAT`, `anat_pet_same_space`, `IhaveaCT` (and the record of the CT pipeline), `template_PET` and `creat_study_template_pet`; it is written in the diary and in the registration record. In 3v2 (and in 2v2 with `ct_template_bridge=False`) the study template is not linked to the reference template: without an atlas or a brain mask, only the SUV images are computed, in the PET and study-template spaces. In 2v2 the group step `bridge` (below) provides that link.
 
 With an anatomy, the AC-PC chain is composed with the anatomy -> template chains of `modalities/anat/loop3/backtonative.get`, the bridge used by the functional pipeline: reference template, study template and reference session (longitudinal), with the same `creat_study_template` and `coregistration_longitudinal` as the anatomical launcher. One registration is estimated per session, on the mean image of the session after the between-runs motion correction.
 
@@ -51,6 +51,7 @@ EDNIX_STRICT=1 python Exemples/Study_EDNiX/Launcher_pet/Launcher_fdg_CERMEP.py
 | 4 | motion correction within each dynamic run |
 | 5 | motion correction between the runs of the session; mean image of the session |
 | 6 | registration (scenario), quality control images, atlases / masks / tissue fractions / anatomy in the PET space |
+| `bridge` | 2v2 only, once for the group after step 6 of every session: PET study template in the CT study template space, reference template -> PET study template, reference target and atlases added to every session |
 | 7 | parametric images and regional values |
 | 8 | reference-region kinetic models (`srtm=True`) |
 | `pvc` | partial-volume correction (`pvc_fwhm`) |
@@ -60,7 +61,7 @@ EDNIX_STRICT=1 python Exemples/Study_EDNiX/Launcher_pet/Launcher_fdg_CERMEP.py
 | step | CT pipeline |
 |---|---|
 | 1 | reorientation of the header (same positions as the PET of the PET/CT) |
-| 2 | CT study template (scenario 2v2) |
+| 2 | CT study template (scenario 2v2), built on the CTs restricted to the head (`desc-head_ct`: > -500 HU, largest component, outside set to -1000 HU, cropped) |
 | 3 | registration, record for the PET pipeline, CT in the AC-PC / template space, anatomy in the CT space, QC |
 
 Every parameter is described in [reference/pet_parameters.md](reference/pet_parameters.md) and [reference/ct_parameters.md](reference/ct_parameters.md).
@@ -101,6 +102,8 @@ CT: `sub-<ID>/ses-<ses>/ct/*_ct.nii.gz` (`endct`), in Hounsfield units.
 - `coreg_transform='Rigid'`: a PET and an MRI of one subject differ by a rigid motion; `Similarity` / `Affine` can absorb a misregistration with a scale (PET brain shrunk into the MRI brain) and non-linear transforms are not physiological for one subject (warnings).
 
 On the phantoms the four starts, the masks and the synthetic target all reach < 0.4 mm when the start is good; the phantoms do not reproduce the T1 contrast of the scalp nor the partial volume of a 2-mm macaque cortex, so the choice between `'anat'` masks and the `'synthetic'` target must be made on the QC of real data. A cortex whose FDG signal spreads symmetrically into the CSF and the white matter is partial volume (PET FWHM larger than the cortical thickness: see the `pvc` step), not misregistration; a misregistration shifts the signal into the CSF on one side and into the white matter on the other.
+
+**Group step `bridge` (scenario 2v2, `ct_template_bridge=True`).** A CT has almost no contrast inside the brain, so the CT study template cannot be registered to a T1 template; the FDG grey / white matter contrast can (the chain of the dog notebook of the previous PET scripts, `modalities/pet/bridge.py`). The pipeline runs steps 1-6 for every session, then: (1) PET study template = mean of the session means brought to the CT study template through their own PET -> CT -> CT study template chains, each scaled by its 99th percentile (dose). A mean and not `ants.build_template`, whose additional warps would not be part of the session chains (the notebook built the PET template again with its own warps and did not propagate them to the subjects). (2) Skull-stripped reference template (moving, its dilated brain mask as moving mask) -> PET study template: multi-start similarity (`rigid_to`, same starts as above, no coverage condition since the T1 brain covers only part of the head-wide PET template), then affine initialised by it; `bridge_transform='SyNRA'` adds a SyN stage (Avants et al. 2008) in the dilated FDG mask of the PET template. An affine started from a translation stopped in a sheared local optimum on the phantom (6 mm error, against 1.2 mm with the cascade, the Translation / Rigid / Similarity / Affine order of ANTs `TRSAA`). (3) Brain mask of the reference template in the PET study template, ratio image, PET study template in the reference space (QC). (4) Every 2v2 session receives the reference target (session -> CT study template -> reference) and the atlases / masks of the reference template in its PET space; steps 7-10 then run as in 2v1. Record: `<BIDS>/sty_template/pet/matrices/studyTemplate_to_<reference>_desc-bridge_pet.json`; `Skip_step=['bridge']` reuses it. On the phantom: session -> reference chain within 2 mm of the truth and Dice > 0.7 of a template atlas region in the PET space (`test_ct_study_template_without_anatomy_2v2`). The bridge is a between-subject registration of templates of different modalities: its accuracy is that of the T1 / FDG-mean contrast, check the QC image first.
 
 PET -> PET template and CT -> CT template: whole head, `SyNRA` by default (rigid + affine + SyN). ANTsPy's `SyN` and `Affine` start with a single affine stage, which missed a 12-degree rotation by about 7 mm on the test phantom (< 1 mm with `SyNRA` or the linear `TRSAA`), and a brain mask on these whole-head registrations increased the error (1.4-4.6 mm). The files of a previous registration with the same prefix are removed first (a warp left by an earlier non-linear run would otherwise be reused).
 
@@ -173,7 +176,7 @@ As in the engineer's version: freeview for the orientation (`Need_check_orient`)
 - Same scanner space: the anatomy / CT must not have been moved by hand after its reorientation, and `same_space_window` must match its acquisition.
 - Turku tools: the outputs are written back with the geometry of the input image (voxel order restored when the tool writes a valid header); check one parametric image against the anatomy.
 - The SIF date is 01/01/1970 without DICOM (BIDS has no date); tpcclib only displays it.
-- Scenarios 2v2 / 3v2: no link to the reference template, no atlas.
+- Scenario 3v2: no link to the reference template, no atlas. Scenario 2v2: the bridge is a linear (or `SyNRA`) registration of a T1 template on an FDG group mean; check `<study template>_space-<reference>_pet.png` before using the atlases.
 - MoCo of very early frames: they inherit the transform of the first registered frame (motion before that frame is not corrected).
 - `imgdv` / `bfmsrtm` unit handling: the DFT carries the image units (`Units`, Bq/mL when absent) and the NIfTI image none; tpcclib then assumes both are in the same units (they are: the TACs come from the image).
 - Registration accuracies above are on noise-free or Gaussian-noise phantoms with 2-mm PET voxels; real data (lower counts, tracer kinetics changing the contrast between frames) will do worse: check the motion plots and QC images.
@@ -182,6 +185,7 @@ As in the engineer's version: freeview for the orientation (`Need_check_orient`)
 
 - Alpert NM, Bradshaw JF, Kennedy D, Correia JA (1990) The principal axes transformation: a method for image registration. J Nucl Med 31:1717-1722.
 - Ashburner J, Friston KJ (1997) Multimodal image coregistration and partitioning: a unified framework. NeuroImage 6:209-217.
+- Avants BB, Epstein CL, Grossman M, Gee JC (2008) Symmetric diffeomorphic image registration with cross-correlation: evaluating automated labeling of elderly and neurodegenerative brain. Med Image Anal 12:26-41.
 - Boellaard R (2009) Standards for PET image acquisition and quantitative data analysis. J Nucl Med 50 Suppl 1:11S-20S.
 - Boellaard R et al. (2015) FDG PET/CT: EANM procedure guidelines for tumour imaging: version 2.0. Eur J Nucl Med Mol Imaging 42:328-354.
 - Gunn RN, Lammertsma AA, Hume SP, Cunningham VJ (1997) Parametric imaging of ligand-receptor binding in PET using a simplified reference region model. NeuroImage 6:279-287.
