@@ -99,7 +99,7 @@ def test_glm_matches_scipy_two_sample_and_regression():
     cope, t, _ = _glm.GLM(X, c).fit(Y)
     ref = stats.ttest_ind(Y[:7], Y[7:], axis=0)
     assert np.allclose(t, ref.statistic) and np.allclose(cope, Y[:7].mean(0) - Y[7:].mean(0))
-    X, c, names, _ = _glm.design_matrix(tab, 'regression', covariates=['age'])
+    X, c, _, _ = _glm.design_matrix(tab, 'regression', covariates=['age'])
     _, t, _ = _glm.GLM(X, c).fit(Y)
     r = np.array([stats.pearsonr(tab.age, Y[:, v])[0] for v in range(50)])
     assert np.allclose(t, r * np.sqrt(14 / (1 - r ** 2)))
