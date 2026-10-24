@@ -698,6 +698,7 @@ STEPS = {
         (4, 'Motion correction within each dynamic run (two passes, rigid)'),
         (5, 'Motion correction between the runs of the session; mean image of the session'),
         (6, 'Registration to the anatomy / CT / template (scenarios of pet4.svg), quality control; atlases and masks in the PET space'),
+        ('bridge', 'Scenario 2v2: PET study template in the CT study template, reference template registered to it, atlases to every session (ct_template_bridge)'),
         (7, 'Parametric images (SUV, SUVglu, ratio to the brain mean, time blocks) and regional values / TACs'),
         (8, 'Reference-region kinetic models: SRTM (bfmsrtm, imgbfbp, imgsrtm), Logan DVR (imgdv)'),
         ('pvc', 'Partial-volume correction (PETPVC, needs pvc_fwhm)'),

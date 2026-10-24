@@ -551,7 +551,7 @@ def rigid_parameters(mat_file, radius_mm):
 
 STEP_NAMES = {'pet': {1: 'pet_reorient', 2: 'pet_study_template', 3: 'pet_crop', 4: 'pet_MoCo_within',
                       5: 'pet_MoCo_between', 6: 'pet_coreg2anat', 7: 'pet_parametric_images', 8: 'pet_kinetic_models',
-                      'pvc': 'pet_pvc', 9: 'pet_during_fmri', 10: 'pet_norm2template'},
+                      'pvc': 'pet_pvc', 9: 'pet_during_fmri', 10: 'pet_norm2template', 'bridge': 'pet_bridge'},
               'ct': {1: 'ct_reorient', 2: 'ct_study_template', 3: 'ct_coreg2anat'}}
 
 

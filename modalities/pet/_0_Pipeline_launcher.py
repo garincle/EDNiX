@@ -15,7 +15,7 @@ from modalities.anat import set_launcher
 from modalities.anat.loop3 import backtonative
 from modalities.fMRI import chooseanat
 from modalities.pet import petutils as pu
-from modalities.pet import loop1, loop2, studyT, coreg2anat, transfo, reorient
+from modalities.pet import loop1, loop2, studyT, coreg2anat, transfo, reorient, bridge
 from atlases import getlabels
 from modalities.pet.coreg2anat import ANTS_TRANSFORMS
 
@@ -153,7 +153,9 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
                    isotope='unknown', PET_header_wrong=False, deoblique='WARP', dcmfolder='', endfiledcm='dcm',
                    nb_void=0, crop_for_MoCo='auto', redo_crop=False, MoCo_transform='Rigid',
                    coreg_metric='mattes', type_of_transform_template='SyNRA', do_manual=False, same_space_window=None,
-                   coreg_transform='Rigid',
+                   coreg_transform='Rigid', coreg_init='auto', pet_coreg_mask='none', pet_mask_percentile=30.0,
+                   pet_mask_dilate_mm=3.0, coreg_target='anat', synthetic_fwhm=None,
+                   ct_template_bridge=True, bridge_transform='Affine',
                    SUV=True, bratio=True, SUV_window=None, Do_cut=False, duration=10,
                    srtm=False, reference_signal='unknown', DV_time=0, DV_k2ref=None, kinetic_end=None,
                    pvc_fwhm=None, pvc_method='RBV',
@@ -249,13 +251,40 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         ANTs transform of the motion correction ('Rigid').
     coreg_metric : str, optional
         Metric of the rigid registrations (motion, PET -> anatomy / CT): 'mattes' (mutual information).
-    coreg_transform = 'Rigid'         # ANY ANTs type_of_transform, e.g.:
-                                  #   'Rigid'      - 6 DOF, standard PET -> anatomy same subject
-                                  #   'Affine'     - 12 DOF, size difference (atrophy, FOV)
-                                  #   'TRSAA'      - Translation + Rigid + Affine (cascade ANTs)
-                                  #   'SyNRA'      - Rigid + Affine + SyN (cascade ANTs), slow
-                                  #   'SyNCC'      - SyN with cross-correlation, slow
-                                  #   'BsplineSyN' - non-linear, slow
+    coreg_transform : str, optional
+        ANTsPy type_of_transform of the PET -> anatomy / CT registration: 'Rigid' (default; a PET and an MRI of the
+        same subject differ by a rigid motion). 'Similarity' / 'Affine' add scale parameters that can absorb a
+        misregistration (PET brain shrunk into the MRI brain); non-linear transforms ('SyNRA'...) are not
+        physiological for one subject. A warning is written for both.
+    coreg_init : str, optional
+        Initialisation of the PET -> anatomy / CT registration: 'auto' (default: centres of mass of the masked
+        images, centres of the fields of view ('FOV to FOV'), AC-PC matrix of the anatomy (the PET is near the
+        native anatomy), identity (headers); the start with the highest mutual information that covers the brain
+        is kept, scores in pet/orig/matrices/*candidates.json), or one of 'com', 'fov', 'acpc', 'identity'.
+    pet_coreg_mask : str, optional
+        Mask of the PET for the registration (after the crop box of the motion correction): 'none' (default),
+        'threshold' (voxels above pet_mask_percentile of the positive voxels, largest connected component, holes
+        filled, dilated pet_mask_dilate_mm), 'anat' (second pass: brain of the anatomy brought into the PET by a
+        first registration, dilated pet_mask_dilate_mm, then registration of the PET brain only; removes the
+        extracerebral uptake from the metric), or a mask file in the PET space.
+    pet_mask_percentile : float, optional
+        Percentile of the positive PET voxels for pet_coreg_mask='threshold' (30).
+    pet_mask_dilate_mm : float, optional
+        Dilation (mm) of the PET mask ('threshold', 'anat') and of the brain of the anatomy in the second pass (3).
+    coreg_target : str, optional
+        Fixed image of the PET -> anatomy registration (1v2a): 'anat' (default, AC-PC head image), 'brain'
+        (skull-stripped anatomy) or 'synthetic' (FDG-like image of the anatomy: grey matter 1, white matter 0.35,
+        CSF 0.05, smoothed to synthetic_fwhm; Ashburner & Friston 1997). FDG only.
+    synthetic_fwhm : float, optional
+        FWHM (mm) of the synthetic target; None = twice the largest PET voxel.
+    ct_template_bridge : bool, optional
+        Scenario 2v2 (CT study template, no anatomy): step 'bridge' links the CT study template to the reference
+        template through a PET study template (modalities/pet/bridge.py): steps 4-6 for every session, mean of the
+        session means in the CT study template, skull-stripped reference template registered to it (multi-start
+        similarity then affine, mutual information), brain mask and atlases brought back to every session, then
+        steps 7-10 with the atlases. True by default; False keeps 2v2 without atlas. FDG-like tracers (brain contrast).
+    bridge_transform : str, optional
+        Reference template -> PET study template: 'Affine' (default) or 'SyNRA' (affine then SyN).
     type_of_transform_template : str, optional
         ANTs transform of the PET -> PET template registration (scenario 3v1):
         'SyNRA' (default: rigid + affine + SyN stages). ANTsPy's 'SyN' and 'Affine' start with a single affine
@@ -391,6 +420,8 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
     opts = dict(Skip_step=Skip_step, T_PET=T_PET, ct_pet_same_space=ct_pet_same_space, nb_void=int(nb_void),
                 crop_for_MoCo=crop_for_MoCo, redo_crop=redo_crop, MoCo_transform=MoCo_transform,
                 coreg_metric=coreg_metric, coreg_transform=coreg_transform, type_of_transform_template=type_of_transform_template,
+                coreg_init=coreg_init, pet_coreg_mask=pet_coreg_mask, pet_mask_percentile=float(pet_mask_percentile),
+                pet_mask_dilate_mm=float(pet_mask_dilate_mm), coreg_target=coreg_target, synthetic_fwhm=synthetic_fwhm,
                 same_space_window=same_space_window,
                 studyT_transform=studyT_transform, do_manual=do_manual, Need_check_MC=Need_check_MC,
                 Need_check_coreg=Need_check_coreg, SUV=SUV, bratio=bratio, SUV_window=SUV_window, Do_cut=Do_cut,
@@ -401,6 +432,14 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
 
     if coreg_transform not in ANTS_TRANSFORMS:
         raise ValueError(f"coreg_transform={coreg_transform!r}: expected one of {ANTS_TRANSFORMS}")
+    if coreg_init not in coreg2anat.INIT_MODES:
+        raise ValueError(f"coreg_init={coreg_init!r}: expected one of {coreg2anat.INIT_MODES}")
+    if bridge_transform not in bridge.BRIDGE_TRANSFORMS:
+        raise ValueError(f"bridge_transform={bridge_transform!r}: expected one of {bridge.BRIDGE_TRANSFORMS}")
+    if coreg_target not in coreg2anat.COREG_TARGETS:
+        raise ValueError(f"coreg_target={coreg_target!r}: expected one of {coreg2anat.COREG_TARGETS}")
+    if pet_coreg_mask not in coreg2anat.PET_MASKS and not os.path.isfile(str(pet_coreg_mask)):
+        raise ValueError(f"pet_coreg_mask={pet_coreg_mask!r}: expected one of {coreg2anat.PET_MASKS} or a mask file")
 
     frame = inspect.currentframe()
     _loc = inspect.getargvalues(frame).locals
@@ -518,6 +557,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
 
     # ======================================================================================== block 2 (steps 4-10)
     study_template_atlas_folder = opj(bids_dir, 'sty_template')
+    jobs = []
     for s in sessions:
         ID, Session, data_path, paths, diary_file = s['ID'], s['Session'], s['data_path'], s['paths'], s['diary']
         nl = 'INFO: Work on ' + str(ID) + ' session ' + str(Session) + ' (PET block 2)'
@@ -563,15 +603,49 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         target_files = {}
         for pkg in packages or []:
             target_files[pkg[0]] = dict(label_base=pkg[3], list_atlas=atlas_names, masks=[pkg[2]])
-        if sc in ('2v1', '3v1'):
+        if sc in ('2v1', '3v1') or (sc == '2v2' and ct_template_bridge):
             target_files[reference] = dict(label_base=template_files['label_base'], list_atlas=atlas_names,
                                            masks=[BASE_mask])
         reg = dict(scenario=sc, anat=anat, packages=packages, ct_record=ct_record, template_PET=template_PET,
                    reference=reference, study_template=study_template, study_crop=study_crop,
                    template_files=template_files, target_files=target_files, list_atlas=atlas_names,
                    label_tables=label_tables, levels=levels, ref_atlas=ref_atlas, reference_json=reference_json)
-        loop2.run(ID, Session, data_path, bids_dir, paths, s['session'], s['reoriented'], s['raw'], opts, reg,
-                  diary_file, sing_afni, sing_fs, sing_wb, sing_turku)
+        jobs.append((s, reg))
+
+    # 2v2 with ct_template_bridge: steps 4-6 for every session, group step 'bridge' (CT study template -> reference
+    # template through the PET study template, modalities/pet/bridge.py), then steps 7-10 with the atlases
+    bridged = [j for j in jobs if j[1]['scenario'] == '2v2'] if ct_template_bridge else []
+
+    def run_block2(job, skip):
+        s, reg = job
+        o = dict(opts, Skip_step=list(Skip_step) + [k for k in skip if k not in Skip_step])
+        loop2.run(s['ID'], s['Session'], s['data_path'], bids_dir, s['paths'], s['session'], s['reoriented'],
+                  s['raw'], o, reg, s['diary'], sing_afni, sing_fs, sing_wb, sing_turku)
+
+    if not bridged:
+        for job in jobs:
+            run_block2(job, [])
+        return
+    for job in jobs:
+        run_block2(job, [7, 8, 'pvc', 9, 10])
+    records = []
+    for s, _ in bridged:
+        rf = coreg2anat.record_path(s['paths'], s['session'])
+        if not opi(rf):
+            raise FileNotFoundError(f'{rf} not found: run step 6 first')
+        records.append(transfo.read_record(rf))
+    bridge_file = bridge.record_path(study_dir, reference)
+    if 'bridge' in Skip_step and opi(bridge_file):
+        run_cmd.msg('INFO: skip step bridge (' + opb(bridge_file) + ' kept)', study_diary, 'OKGREEN')
+    else:
+        run_cmd.msg(pu.step_header('bridge'), study_diary, 'HEADER')
+        bridge.run(records, study_dir, tracer, reference, BASE_SS, BASE_mask, coreg_metric, bridge_transform,
+                   study_diary)
+    for s, reg in bridged:
+        bridge.extend_session(coreg2anat.record_path(s['paths'], s['session']), bridge_file, s['paths'],
+                              reg['template_files'], reg['list_atlas'], bids_dir, s['diary'])
+    for job in jobs:
+        run_block2(job, [4, 5, 6])
 
 
 def preprocess_data(*args, **kwargs):

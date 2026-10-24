@@ -169,7 +169,13 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
                             opts['type_of_transform_template'], opts['do_manual'], opts['Need_check_coreg'],
                             bids_dir, diary_file, sing_fs,
                             template_mask=(reg.get('template_files') or {}).get('brain', ''), anchor=anchor,
-                            moving_for_estimate=session_mean_for_reg, coreg_transform=opts['coreg_transform'])
+                            moving_for_estimate=session_mean_for_reg, coreg_transform=opts.get('coreg_transform', 'Rigid'),
+                            coreg_init=opts.get('coreg_init', 'auto'),
+                            pet_coreg_mask=opts.get('pet_coreg_mask', 'none'),
+                            pet_mask_percentile=opts.get('pet_mask_percentile', 30.0),
+                            pet_mask_dilate_mm=opts.get('pet_mask_dilate_mm', 3.0),
+                            coreg_target=opts.get('coreg_target', 'anat'),
+                            synthetic_fwhm=opts.get('synthetic_fwhm'))
 
         record = transfo.read_record(rec_file)
         record['pet_space'] = coreg2anat.to_pet_space(record, session, paths, reg['anat'], reg['template_files'],
