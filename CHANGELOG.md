@@ -7,7 +7,6 @@ The `tests` workflow had been failing on master since 6 October (28 tests on Pyt
 - `preprocess_pet`: the `coreg_transform` entry of the docstring was written as code, so the parameter reference and the interface did not see it.
 - Interface QC test updated to the current `qc_scan` paths (relative to the BIDS folder).
 - PET tests: `ants.config` exists only from antspyx 0.6; the hand-built options of the end-to-end test lacked `coreg_transform`.
-- **[results]** CT -> T1w registration (scenario 1v2b): the quality score of `rigid_to` assumes a bright brain (PET); for a CT a correct mutual-information registration scored ~0.2 and the `meansquares` retry, not valid between a CT and a T1w, was kept (11 mm error on the test phantom; probably the CT / anatomy misalignment seen on CERMEP). The CT call now keeps the mutual-information registration. Stopgap: the registration rework (PR #15) replaces this logic.
 
 ## PET group analyses, October 2026
 
