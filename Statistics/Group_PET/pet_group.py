@@ -77,19 +77,57 @@ def _entities(name):
     return ent
 
 
+def _path_entities(path):
+    """Entities of a BIDS file: those of its name, with sub / ses taken from the folders when the name does not
+    carry them (a run named sub-X_trc-FDG_pet.nii.gz in sub-X/ses-Y/pet/: session Y)."""
+    ent = _entities(path)
+    for part in os.path.normpath(path).split(os.sep)[:-1]:
+        for k in ('sub', 'ses'):
+            if part.startswith(k + '-') and not ent.get(k):
+                ent[k] = part[len(k) + 1:]
+    return ent
+
+
+def desc_alternatives(desc):
+    """The desc asked, then its static / dynamic counterpart: step 7 writes desc-<x> for a static run and
+    desc-<x>-mean (mean of the frames of SUV_window) for a dynamic run; both are the same quantity."""
+    return [desc, desc[:-len('-mean')]] if desc.endswith('-mean') else [desc, desc + '-mean']
+
+
+def pick_desc(df, desc):
+    """For every (subject, session) of df (columns subject, session, desc), the row(s) of `desc`, or of its
+    static / dynamic counterpart when `desc` is absent. Returns the selected rows and a log message (or '')."""
+    alts = desc_alternatives(desc)
+    parts, used = [], {}
+    for _, g in df.groupby(['subject', 'session'], sort=False):
+        for d in alts:
+            sel = g[g.desc == d]
+            if len(sel):
+                parts.append(sel)
+                used[d] = used.get(d, 0) + 1
+                break
+    out = pd.concat(parts) if parts else df.iloc[:0]
+    msg = ''
+    if any(d != desc for d in used):
+        msg = (f'INFO: desc-{desc} resolved to ' + ', '.join(f'desc-{d} ({n} session(s))' for d, n in used.items())
+               + ' (desc-<x>: static run; desc-<x>-mean: mean of the frames of SUV_window of a dynamic run)')
+    return out.sort_index(), msg
+
+
 def collect_images(bids_dir, template, desc=None, list_to_keep=None, list_to_remove=None):
     """
     Exported template-space images of every session. Returns a DataFrame: subject, session, run, base,
     image, data_path (BIDS session folder) and the `desc` used.
     desc: one desc of the PET pipeline ('SUV', 'SUV-mean', 'SUV-PVC', 'bratio'...), or None: the first of
-    DESC_PRIORITY available for every session (the same desc for all the subjects).
+    DESC_PRIORITY available for every session (the same desc for all the subjects). 'SUV' and 'SUV-mean'
+    (static / dynamic run, see desc_alternatives) are interchangeable: each session uses the one it has.
     list_to_keep / list_to_remove: (ID, session) tuples, as in the launchers.
     """
     pats = [opj(bids_dir, 'sub-*', 'ses-*', 'pet', 'templates', template, f'*_space-{template}_desc-*_pet.nii.gz'),
             opj(bids_dir, 'sub-*', 'pet', 'templates', template, f'*_space-{template}_desc-*_pet.nii.gz')]
     rows = []
     for f in sorted(set(sum((glob.glob(p) for p in pats), []))):
-        ent = _entities(f)
+        ent = _path_entities(f)
         d = ent.get('desc', '')
         if d.endswith('-SS') or 'grid' in d:
             continue
@@ -111,14 +149,19 @@ def collect_images(bids_dir, template, desc=None, list_to_keep=None, list_to_rem
         if desc is None:
             raise ValueError(f'none of {DESC_PRIORITY} is available for every session: give desc '
                              f'(available: {sorted(df.desc.unique())})')
-    out = df[df.desc == desc].reset_index(drop=True)
-    missing = keys.merge(out[['subject', 'session']], how='left', indicator=True)
+    out, msg = pick_desc(df, desc)
+    if msg:
+        _log(msg)
+    out = out.reset_index(drop=True)
+    missing = keys.merge(out[['subject', 'session']].drop_duplicates(), how='left', indicator=True)
     missing = missing[missing._merge == 'left_only']
+    if out.empty:
+        raise FileNotFoundError(f'no image with desc-{desc} or desc-{desc_alternatives(desc)[1]} '
+                                f'(available: {sorted(df.desc.unique())})')
     if len(missing):
         _log(f'WARNING: desc-{desc} not found for {len(missing)} session(s): '
-             + ', '.join(f'sub-{s}_ses-{e}' for s, e in zip(missing.subject, missing.session)))
-    if out.empty:
-        raise FileNotFoundError(f'no image with desc-{desc} (available: {sorted(df.desc.unique())})')
+             + ', '.join(f'sub-{s}' + (f'_ses-{e}' if e else '') for s, e in zip(missing.subject, missing.session)))
+    out.attrs['desc'] = desc
     return out
 
 
@@ -137,27 +180,55 @@ def _filter(df, list_to_keep, list_to_remove):
     return df.reset_index(drop=True)
 
 
+SUBJECT_ID_COLUMNS = ('participant_id', 'subject_id', 'subject', 'sub', 'participant', 'id', 'ID', 'Subject')
+SESSION_ID_COLUMNS = ('session_id', 'session', 'ses', 'Session')
+
+
+def _id_column(df, candidates, path):
+    """Column of `df` holding the IDs: the first of `candidates` present (case-insensitive), else a first
+    column whose values look like BIDS IDs (sub-xx / ses-xx)."""
+    lower = {c.lower(): c for c in df.columns}
+    for c in candidates:
+        if c.lower() in lower:
+            return lower[c.lower()]
+    first = df.columns[0]
+    prefix = 'ses-' if candidates is SESSION_ID_COLUMNS else 'sub-'
+    if df[first].astype(str).str.startswith(prefix).all():
+        return first
+    raise KeyError(f'{path}: no ID column (expected one of {list(candidates)}, or a first column of {prefix}<label> '
+                   f'values); columns found: {list(df.columns)}')
+
+
 def subject_table(images, bids_dir, columns=None):
     """
     images (collect_images) + the columns of sub-<ID>/sub-<ID>_sessions.tsv (by session) and of
     participants.tsv (by subject); a session value wins over a participant value. columns: the columns
-    needed (KeyError if one is found nowhere).
+    needed (KeyError if one is found nowhere). No column needed (one-sample or paired on sessions without
+    covariates, groups given by group_assignment): the tables are not read.
+    The ID column is participant_id / session_id (BIDS), or one of SUBJECT_ID_COLUMNS / SESSION_ID_COLUMNS.
     """
     t = images.copy()
+    if not columns:
+        return t
     part = opj(bids_dir, 'participants.tsv')
     if opi(part):
-        p = pd.read_csv(part, sep='\t', dtype={'participant_id': str})
-        p['subject'] = p['participant_id'].map(lambda x: _norm_id(x, 'sub-'))
-        p = p.drop(columns=['participant_id'])
+        p = pd.read_csv(part, sep='\t', dtype=str)
+        idc = _id_column(p, SUBJECT_ID_COLUMNS, part)
+        p['subject'] = p[idc].map(lambda x: _norm_id(x, 'sub-'))
+        p = p.drop(columns=[idc] if idc != 'subject' else [])
+        p = p.apply(lambda c: pd.to_numeric(c, errors='coerce') if c.name != 'subject' and _numeric(c) else c)
         t = t.merge(p, on='subject', how='left', suffixes=('', '_participants'))
     ses_rows = []
     for sub in t.subject.unique():
         f = opj(bids_dir, f'sub-{sub}', f'sub-{sub}_sessions.tsv')
         if opi(f):
-            s = pd.read_csv(f, sep='\t', dtype={'session_id': str})
-            s['session'] = s['session_id'].map(lambda x: _norm_id(x, 'ses-'))
+            s = pd.read_csv(f, sep='\t', dtype=str)
+            idc = _id_column(s, SESSION_ID_COLUMNS, f)
+            s['session'] = s[idc].map(lambda x: _norm_id(x, 'ses-'))
+            s = s.drop(columns=[idc] if idc != 'session' else [])
+            s = s.apply(lambda c: pd.to_numeric(c, errors='coerce') if c.name != 'session' and _numeric(c) else c)
             s['subject'] = sub
-            ses_rows.append(s.drop(columns=['session_id']))
+            ses_rows.append(s)
     if ses_rows:
         s = pd.concat(ses_rows, ignore_index=True)
         t = t.merge(s, on=['subject', 'session'], how='left', suffixes=('', '_ses'))
@@ -165,9 +236,36 @@ def subject_table(images, bids_dir, columns=None):
             base = c[:-4]
             t[base] = t[c].combine_first(t[base])
             t = t.drop(columns=[c])
-    missing = [c for c in (columns or []) if c not in t.columns]
+    missing = [c for c in columns if c not in t.columns]
     if missing:
-        raise KeyError(f'column(s) {missing} found neither in participants.tsv nor in the sessions.tsv files')
+        avail = [c for c in t.columns if c not in ('subject', 'session', 'run', 'desc', 'base', 'image', 'data_path')]
+        raise KeyError(f'column(s) {missing} found neither in participants.tsv nor in the sessions.tsv files '
+                       f'(available: {avail})' + ('' if opi(part) else f'; no {part}'))
+    return t
+
+
+def _numeric(col):
+    """Text column of a TSV read as str whose non-empty values are all numbers (n/a, empty: missing)."""
+    v = col.dropna()
+    v = v[~v.isin(['n/a', 'NA', 'NaN', ''])]
+    return len(v) > 0 and pd.to_numeric(v, errors='coerce').notna().all()
+
+
+def assign_groups(table, group_assignment, group_col='group'):
+    """Group column from {group: [subject IDs]} (no participants.tsv needed). Subjects in no list: NaN
+    (left out of a two-sample design); a subject in two lists or an ID with no image: error."""
+    owner = {}
+    for g, ids in group_assignment.items():
+        for i in ids:
+            i = _norm_id(i, 'sub-')
+            if i in owner:
+                raise ValueError(f'subject {i} is in groups {owner[i]!r} and {g!r}')
+            owner[i] = str(g)
+    absent = sorted(set(owner) - set(table.subject))
+    if absent:
+        raise ValueError(f'group_assignment: no image for subject(s) {absent} (subjects: {sorted(table.subject.unique())})')
+    t = table.copy()
+    t[group_col] = t.subject.map(owner)
     return t
 
 
@@ -376,12 +474,27 @@ def plot_map(path, bg, title, out_png, threshold=None, cut_coords=7, display_mod
 
 
 # ======================================================================================================= main
+def _needed_columns(design, group_col, groups, covariates, paired_col, group_assignment):
+    """(group_col, groups, columns to read from participants.tsv / sessions.tsv)."""
+    if group_assignment:
+        if design != 'two-sample':
+            raise ValueError("group_assignment is for design='two-sample'")
+        group_col = group_col or 'group'
+        groups = list(groups or group_assignment)
+        if len(groups) != 2:
+            raise ValueError(f'group_assignment: two groups expected, got {groups}')
+    needed = list(covariates or []) + ([group_col] if design == 'two-sample' and not group_assignment else []) + \
+        ([paired_col] if design == 'paired' and paired_col not in ('session', 'subject') else [])
+    return group_col, groups, needed
+
+
 def run_group_analysis(bids_dir, template, design, desc=None, group_col=None, groups=None, covariates=None,
                        test_covariate=None, paired_col='session', paired_levels=None, normalization='global',
                        label_tables=None, brain_mask=None, tissue_mask=None, rel_threshold=0.8, fwhm=None,
                        aggregate='subject', voxel_p=0.001, alpha=0.05, cluster_method='permutation',
                        n_perm=5000, seed=0, sing_afni='', list_to_keep=None, list_to_remove=None,
-                       output_dir=None, output_suffix=None, background=None, peak_atlas=None, peak_level=0):
+                       output_dir=None, output_suffix=None, background=None, peak_atlas=None, peak_level=0,
+                       group_assignment=None):
     """
     Voxel-wise group analysis of PET images in a template space (see the module docstring).
 
@@ -399,8 +512,12 @@ def run_group_analysis(bids_dir, template, design, desc=None, group_col=None, gr
         DESC_PRIORITY available for every session.
     group_col, groups : str, [str, str]
         Two-sample: column of participants.tsv / sessions.tsv and the two groups (contrast groups[0] - groups[1]).
-    covariates : list of str
-        Columns of participants.tsv / sessions.tsv (numeric: centred; text: categorical).
+    group_assignment : dict or None
+        Two-sample without participants.tsv: {group: [subject IDs]} (group_col defaults to 'group', groups to
+        the two keys). Subjects in no list are left out.
+    covariates : list of str or None
+        Columns of participants.tsv / sessions.tsv (numeric: centred; text: categorical). None / []: no
+        covariate; when no column is needed the tables are not read.
     test_covariate : str
         Regression: the covariate tested (default: the first one).
     paired_col, paired_levels : str, [a, b]
@@ -452,10 +569,11 @@ def run_group_analysis(bids_dir, template, design, desc=None, group_col=None, gr
 
     # ------------------------------------------------------------------------------------------- 1 inputs
     images = collect_images(bids_dir, template, desc, list_to_keep, list_to_remove)
-    desc = images.desc.iloc[0]
-    needed = covariates + ([group_col] if design == 'two-sample' else []) + \
-        ([paired_col] if design == 'paired' and paired_col not in ('session', 'subject') else [])
+    desc = images.attrs.get('desc') or images.desc.iloc[0]
+    group_col, groups, needed = _needed_columns(design, group_col, groups, covariates, paired_col, group_assignment)
     table = subject_table(images, bids_dir, needed)
+    if group_assignment:
+        table = assign_groups(table, group_assignment, group_col)
     files = template_files(images)
     norm_tag = normalization if isinstance(normalization, str) else (normalization.get('name') or 'ref')
     out = output_dir or opj(bids_dir, 'Results', f'Grp_PET_{design}_desc-{desc}_norm-{norm_tag}'
