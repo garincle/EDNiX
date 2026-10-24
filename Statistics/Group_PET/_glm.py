@@ -90,7 +90,7 @@ def design_matrix(table, design, group_col=None, groups=None, covariates=None, t
     return X, contrast, names, keep
 
 
-def contrast_name(design, contrast, names, groups=None, test_covariate=None):
+def contrast_name(design, contrast, names, groups=None):
     if design == 'two-sample':
         return f'{groups[0]}-vs-{groups[1]}'
     if design == 'regression':
@@ -111,7 +111,7 @@ class GLM:
         xtx_inv = self.pinv @ self.pinv.T
         self.var_c = float(self.c @ xtx_inv @ self.c)
         # nuisance part of the model: Z = X C0, C0 = basis of the null space of c (Ridgway 2009)
-        _, s, vt = np.linalg.svd(self.c[None, :])
+        vt = np.linalg.svd(self.c[None, :])[2]
         C0 = vt[1:].T
         Z = self.X @ C0 if C0.size else np.zeros((n, 0))
         self.Hz = Z @ np.linalg.pinv(Z) if Z.shape[1] else np.zeros((n, n))

@@ -223,7 +223,7 @@ def labels_on_grid(atlas_file, level, ref):
     return np.rint(np.asarray(a3.dataobj)).astype(np.int64)
 
 
-def template_files(images, template):
+def template_files(images):
     """Brain mask and atlases written by the PET export next to the first image (templates/<template>/)."""
     d = opd(images.image.iloc[0])
     masks = sorted(glob.glob(opj(d, 'masks', '*.nii.gz')))
@@ -319,11 +319,11 @@ def smooth_in_mask(data, mask, fwhm_mm, zooms):
 
 
 # ======================================================================================================= clusters
-def cluster_table(z3d, t3d, supra_thr, ref, mask, alpha_info, null_max=None, labels=None, label_names=None):
+def cluster_table(z3d, t3d, supra_thr, ref, mask, null_max=None, labels=None, label_names=None):
     """Clusters of |t| >= supra_thr (positive and negative separately, face connectivity): size, volume,
     peak z and its world coordinates, region of the peak, cluster FWE p (permutation)."""
     vox = float(np.prod(ref.header.get_zooms()[:3]))
-    rows, keep = [], np.zeros(z3d.shape, bool)
+    rows = []
     for sign, sup in ((1, (t3d >= supra_thr) & mask), (-1, (t3d <= -supra_thr) & mask)):
         lab, n = ndimage.label(sup)
         for c in range(1, n + 1):
@@ -456,7 +456,7 @@ def run_group_analysis(bids_dir, template, design, desc=None, group_col=None, gr
     needed = covariates + ([group_col] if design == 'two-sample' else []) + \
         ([paired_col] if design == 'paired' and paired_col not in ('session', 'subject') else [])
     table = subject_table(images, bids_dir, needed)
-    files = template_files(images, template)
+    files = template_files(images)
     norm_tag = normalization if isinstance(normalization, str) else (normalization.get('name') or 'ref')
     out = output_dir or opj(bids_dir, 'Results', f'Grp_PET_{design}_desc-{desc}_norm-{norm_tag}'
                             + (f'_{output_suffix}' if output_suffix else ''))
@@ -512,7 +512,7 @@ def run_group_analysis(bids_dir, template, design, desc=None, group_col=None, gr
     X, c, names, rows = _glm.design_matrix(obs, design_glm, group_col, groups, covariates, test_covariate)
     Y = Y[rows]
     obs = obs[rows].reset_index(drop=True)
-    cname = _glm.contrast_name(design, c, names, groups, test_covariate)
+    cname = _glm.contrast_name(design, c, names, groups)
     glm = _glm.GLM(X, c)
     cope, t, resid = glm.fit(Y)
     z = _glm.t_to_z(t, glm.df)
@@ -565,7 +565,7 @@ def run_group_analysis(bids_dir, template, design, desc=None, group_col=None, gr
         labels = labels_on_grid(files['atlases'][atl], peak_level, ref)
         lt = (label_tables or {}).get(atl)
         names_map = dict(zip(lt['label_id'], lt['region_name'])) if lt is not None else None
-    clusters, cmasks = cluster_table(z3d, t3d, thr, ref, mask, alpha, null_max, labels, names_map)
+    clusters, cmasks = cluster_table(z3d, t3d, thr, ref, mask, null_max, labels, names_map)
     surv = np.zeros(mask.shape, bool)
     if len(clusters):
         clusters['significant'] = clusters['n_voxels'] >= k_min
@@ -598,7 +598,7 @@ def _observations(table, sm, mask, design, aggregate, paired_col, paired_levels)
     # runs of a session first
     ses = table.groupby(['subject', 'session'], sort=True, as_index=False)
     rows, cols = [], []
-    for (sub, s), g in ses:
+    for _, g in ses:
         r = g.iloc[0].drop(labels=['image', 'run', 'base']).to_dict()
         r['n_images'] = len(g)
         r['normalising_value'] = float(np.nanmean(g['normalising_value']))
@@ -623,7 +623,7 @@ def _observations(table, sm, mask, design, aggregate, paired_col, paired_levels)
     if aggregate == 'subject' and obs.subject.duplicated().any():
         g = obs.groupby('subject', sort=True)
         new_rows, new_Y = [], []
-        for sub, gi in g:
+        for _, gi in g:
             r = gi.iloc[0].to_dict()
             r['session'] = ','.join(str(x) for x in gi.session)
             r['n_images'] = int(gi.n_images.sum())

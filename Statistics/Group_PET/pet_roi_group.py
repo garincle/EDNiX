@@ -186,7 +186,7 @@ def run_roi_analysis(bids_dir, atlas, level, desc, design, group_col=None, group
     design_glm = 'one-sample' if design == 'paired' else design
     X, c, cols, rows = _glm.design_matrix(obs, design_glm, group_col, groups, covariates, test_covariate)
     Y, obs = Y[rows], obs[rows].reset_index(drop=True)
-    cname = _glm.contrast_name(design, c, cols, groups, test_covariate)
+    cname = _glm.contrast_name(design, c, cols, groups)
     glm = _glm.GLM(X, c)
     cope, t, resid = glm.fit(Y)
     p = _glm.parametric_p(t, glm.df)
