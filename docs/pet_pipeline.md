@@ -145,6 +145,8 @@ sub-<ID>/ses-<ses>/ct/       same layout (orig/preprocessing, orig/matrices/<bas
 <BIDS>/QC/pet_in_acpc/, pet_in_template/, ct_in_acpc/ ...   QC images of all subjects
 ```
 
+Group analyses of these outputs (voxel-wise in a template space, regional, surfaces): [group_analysis.md](group_analysis.md#pet-group-analyses).
+
 The registration record (`orig/matrices/*_desc-registration_*.json`) lists, for every target space, its reference image, mask and the two chains of transforms (to and from the PET or CT space): it is what the later steps, the CT -> PET link and group analyses use.
 
 ## Interactive steps

@@ -1,5 +1,13 @@
 # Changelog
 
+## PET group analyses, October 2026
+
+New `Statistics/Group_PET` (documentation: [docs/group_analysis.md](docs/group_analysis.md#pet-group-analyses); example `Exemples/Study_EDNiX/analysis/Launcher_PET_group_CERMEP.py`; tests `tests/unit/test_pet_group.py`):
+
+- `pet_group.run_group_analysis`: voxel-wise one-sample, two-sample, regression and paired designs with covariates on the PET images exported to a template space; normalisation to the brain mean, to a reference region (same syntax as `reference_signal`) or none, with the normalising value tested between groups; analysis mask with coverage and the relative threshold of SPM (excludes CSF and background); smoothing restricted to the mask; cluster FWE by Freedman-Lane permutation (default) or AFNI 3dClustSim on the residual ACF; cluster table with atlas regions.
+- `pet_roi_group.run_roi_analysis`: the earlier ROI scripts (drop regions with fewer than 10 PET voxels in any subject, division by a reference region, tables as Excel) on the regional tables of the PET space, with GLM and FDR per region.
+- `pet_surface.render_pet_surfaces`: maps projected on the surfaces of the species with the SBA surface function, ribbon-constrained projection by default.
+
 ## PET and CT pipelines, October 2026
 
 Import of the PET engineer's version (`modalities/pet`, `modalities/ct`), reviewed and corrected: the detail of every change is in [docs/PET_CT_review_journal.md](docs/PET_CT_review_journal.md), the methods in [docs/pet_pipeline.md](docs/pet_pipeline.md).

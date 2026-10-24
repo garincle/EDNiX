@@ -13,7 +13,7 @@ It is developed at the Institut des Sciences Cognitives Marc Jeannerod (CNRS, Ly
 - **Anatomy.** Orientation fixing for animal positions, bias correction, AC-PC alignment, study or longitudinal templates, FreeSurfer and Connectome Workbench surfaces, cortical thickness and atlas-based regional measures.
 - **Functional MRI.** Motion correction with brain-size-scaled censoring, field-map distortion correction, a single interpolation per volume, AFNI / fMRIPrep-style / Grandjean denoising, correlation matrices, seed-based analysis, ICA and dictionary learning.
 - **PET (and CT).** Static and dynamic PET with or without MRI or CT (hybrid PET-MR, separate sessions, PET/CT, template only): reorientation as the anatomy, motion correction, registration through the anatomy, SUV and ratio images, regional values and time-activity curves in the PET space, reference-region kinetic models (SRTM, Logan; Turku PET Centre tools), export to the template spaces.
-- **Statistics.** Voxel-wise mixed models (3dLMEr) and t-tests with residual-ACF cluster correction, longitudinal models, phylogenetic regression (PGLS).
+- **Statistics.** Voxel-wise mixed models (3dLMEr) and t-tests with residual-ACF cluster correction, PET group analyses (voxel-wise, regional, surfaces; permutation cluster inference), longitudinal models, phylogenetic regression (PGLS).
 - **Provenance.** Every output has a JSON sidecar listing its sources and command; every external command is checked.
 - **Interface.** A desktop interface to explore atlases in 3D, edit launchers without code, run and follow pipelines, and review quality control.
 
@@ -115,7 +115,7 @@ modalities/fMRI      functional pipeline (preprocess_fmri)
 modalities/pet       PET pipeline (preprocess_pet)
 modalities/ct        CT pipeline (preprocess_ct), registration of a CT for the PET
 atlases/             atlas handling
-Statistics/          group statistics (Group_fMRI), phylogenetic analyses (Evo)
+Statistics/          group statistics (Group_fMRI, Group_PET), phylogenetic analyses (Evo)
 Tools/               shared utilities (command runner, BIDS loading, geometry checks)
 GUI/                 desktop interface
 Exemples/            example launchers and the analyses of the EDNiX study
