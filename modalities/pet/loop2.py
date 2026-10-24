@@ -118,28 +118,65 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
         if not opi(session_mean):
             raise FileNotFoundError(f'{session_mean} not found: run step 5 first')
         study_template = reg.get('study_template')
+
+        # The crop box of steps 4-5 is used in the MoCo metric only: the MoCo outputs are full FOV. ANTs
+        # initialises a rigid registration from the centre of mass of the *whole* moving image, so a
+        # full-FOV PET (bladder, liver, injection site, scanner bed) starts far from the head even when
+        # the metric is restricted to a brain mask. Crop the session mean for the registration itself;
+        # the transforms produced are world-to-world and remain valid for the full session mean, which
+        # stays the reference of the record (used by to_pet_space, the QC and norm2template.export).
+        # crop is set in step 4 (dynamic runs) or step 5 (multiple static runs); it is None / '' when
+        # crop_for_MoCo='none' or when a single static run gives no crop. In those cases the full mean is
+        # used, exactly as before.
+        session_mean_for_reg = session_mean
+        if not (crop and opi(crop)):
+            # steps 4-5 skipped (or crop_for_MoCo='none'): the crop was not computed earlier in this call.
+            # Recompute it here so the registration always sees a head-only moving image. crop_for_session
+            # reuses the manual crop / study-template crop already on disk (no freeview if they exist) and
+            # is idempotent for the cropbox mask.
+            crop = crop_for_session(opts['crop_for_MoCo'], reg.get('study_crop'), session, paths, first_mean,
+                                    diary_file, sing_fs, opts['redo_crop']) or ''
+            if crop and opi(crop):
+                run_cmd.msg('INFO: crop computed for step 6 alone (steps 4-5 not run): ' + opb(crop),
+                            diary_file, 'OKGREEN')
+        if crop and opi(crop):
+            session_mean_for_reg = MoCo.crop_mean(
+                session_mean, crop, session_mean.replace('.nii.gz', '_desc-forReg.nii.gz'))
+            run_cmd.msg('INFO: registration estimated on the cropped session mean: ' +
+                        opb(session_mean_for_reg) + ' (crop box: ' + opb(crop) + ')', diary_file, 'OKGREEN')
+        else:
+            run_cmd.msg('WARNING: no crop box available: the full session mean is used for the '
+                        'registration (ANTs centre-of-mass initialisation may be biased by the scanner '
+                        'bed / shoulders)', diary_file, 'WARNING')
+
         if reg['scenario'] == '3v2':
-            # registration of the motion-corrected session mean to the study template
-            transfo.register(study_template, session_mean, coreg2anat.study_prefix(paths, session),
+            # registration of the motion-corrected session mean to the study template. Done here (not in
+            # coreg2anat.register, which just reads the prefix) so it can also use the cropped mean.
+            transfo.register(study_template, session_mean_for_reg, coreg2anat.study_prefix(paths, session),
                              opts['studyT_transform'])
+
         anchor = None
         if reg['scenario'] == '1v1' or (reg['ct_record'] is not None and opts['ct_pet_same_space']):
-            # same scanner space as the anatomy / CT: the motion-corrected session is brought back to the head position
-            # of the frame acquired with it
+            # same scanner space as the anatomy / CT: the motion-corrected session is brought back to the head
+            # position of the frame acquired with it
             anchor, how = MoCo.scanner_anchor(reoriented, within, timings, paths['orig_formc'], opts['nb_void'],
                                               opts.get('same_space_window'))
             run_cmd.msg('INFO: same scanner space as the anatomy / CT: ' + how, diary_file, 'OKGREEN')
+
         coreg2anat.register(reg['scenario'], session_mean, session, paths, reg['anat'], reg['packages'],
                             reg['ct_record'], reg['template_PET'], reg['reference'], study_template,
                             opts['T_PET'], opts['ct_pet_same_space'], opts['coreg_metric'],
                             opts['type_of_transform_template'], opts['do_manual'], opts['Need_check_coreg'],
                             bids_dir, diary_file, sing_fs,
-                            template_mask=(reg.get('template_files') or {}).get('brain', ''), anchor=anchor)
+                            template_mask=(reg.get('template_files') or {}).get('brain', ''), anchor=anchor,
+                            moving_for_estimate=session_mean_for_reg, coreg_transform=opts['coreg_transform'])
+
         record = transfo.read_record(rec_file)
         record['pet_space'] = coreg2anat.to_pet_space(record, session, paths, reg['anat'], reg['template_files'],
                                                       reg['list_atlas'], diary_file, opts['T_PET'])
         transfo.write_record(rec_file, record)
     record = transfo.read_record(rec_file) if opi(rec_file) else None
+
     if record is not None and opi(session_mean) and os.path.getmtime(session_mean) > os.path.getmtime(rec_file):
         run_cmd.msg('WARNING: the session mean is newer than the registration record (steps 4-5 run again): run step 6 '
                     'again, the registration and the atlases in the PET space belong to the previous correction',

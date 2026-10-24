@@ -39,17 +39,17 @@ orientation = ''
 type_norm = 'T1w'
 T_PET = 'T1w'
 creat_study_template = False
-coregistration_longitudinal = True
+coregistration_longitudinal = False
 IhaveanANAT = True
 anat_pet_same_space = False       # True with the NIfTI set coregistered to the PET (scenario 1v1)
 IhaveaCT = False                  # True after the CT pipeline (scenario 1v2b)
-ct_pet_same_space = True          # PET/CT scanner
+ct_pet_same_space = False# PET/CT scanner
 
 ### parametric images (static acquisition: no motion correction, no kinetic model)
 SUV = True                        # images in Bq/mL: needs InjectedRadioactivity and body_weight; images in SUV: kept
 bratio = True
 
-Skip_step = ['pvc', 8, 9]
+Skip_step = [4,5,6,7,8,10,11,12,13,14,'pvc', 9]
 _0_Pipeline_launcher.preprocess_pet(
     Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endpet, tracer,
     animalPosition, humanPosition, orientation,

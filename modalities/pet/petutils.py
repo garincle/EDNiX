@@ -202,9 +202,18 @@ def write_json(path, sources, description, **extra):
 
 
 def read_json(path):
+    """Read a JSON sidecar. Falls back to json.load(strict=False) when the file contains unescaped
+    control characters (\\r, \\n, \\t) inside string values: some DICOM converters (dcm2niix 1.0.2017
+    on Siemens CERMEP CTs, for example) write multi-line DICOM fields like InstitutionAddress as
+    literal CR instead of escaped \\n, which Python's strict json parser rejects. The relaxed parse
+    keeps the control characters in the value (harmless for sidecars)."""
     if path and opi(path):
-        with open(path) as f:
-            return json.load(f)
+        with open(path, encoding='utf-8', errors='replace') as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                f.seek(0)
+                return json.load(f, strict=False)
     return {}
 
 

@@ -17,6 +17,7 @@ from modalities.fMRI import chooseanat
 from modalities.pet import petutils as pu
 from modalities.pet import loop1, loop2, studyT, coreg2anat, transfo, reorient
 from atlases import getlabels
+from modalities.pet.coreg2anat import ANTS_TRANSFORMS
 
 # kept for the launchers of the PET engineer (tracer -> isotope)
 known_tracor = pu.KNOWN_TRACER
@@ -152,6 +153,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
                    isotope='unknown', PET_header_wrong=False, deoblique='WARP', dcmfolder='', endfiledcm='dcm',
                    nb_void=0, crop_for_MoCo='auto', redo_crop=False, MoCo_transform='Rigid',
                    coreg_metric='mattes', type_of_transform_template='SyNRA', do_manual=False, same_space_window=None,
+                   coreg_transform='Rigid',
                    SUV=True, bratio=True, SUV_window=None, Do_cut=False, duration=10,
                    srtm=False, reference_signal='unknown', DV_time=0, DV_k2ref=None, kinetic_end=None,
                    pvc_fwhm=None, pvc_method='RBV',
@@ -247,6 +249,13 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         ANTs transform of the motion correction ('Rigid').
     coreg_metric : str, optional
         Metric of the rigid registrations (motion, PET -> anatomy / CT): 'mattes' (mutual information).
+    coreg_transform = 'Rigid'         # ANY ANTs type_of_transform, e.g.:
+                                  #   'Rigid'      - 6 DOF, standard PET -> anatomy same subject
+                                  #   'Affine'     - 12 DOF, size difference (atrophy, FOV)
+                                  #   'TRSAA'      - Translation + Rigid + Affine (cascade ANTs)
+                                  #   'SyNRA'      - Rigid + Affine + SyN (cascade ANTs), slow
+                                  #   'SyNCC'      - SyN with cross-correlation, slow
+                                  #   'BsplineSyN' - non-linear, slow
     type_of_transform_template : str, optional
         ANTs transform of the PET -> PET template registration (scenario 3v1):
         'SyNRA' (default: rigid + affine + SyN stages). ANTsPy's 'SyN' and 'Affine' start with a single affine
@@ -381,7 +390,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
 
     opts = dict(Skip_step=Skip_step, T_PET=T_PET, ct_pet_same_space=ct_pet_same_space, nb_void=int(nb_void),
                 crop_for_MoCo=crop_for_MoCo, redo_crop=redo_crop, MoCo_transform=MoCo_transform,
-                coreg_metric=coreg_metric, type_of_transform_template=type_of_transform_template,
+                coreg_metric=coreg_metric, coreg_transform=coreg_transform, type_of_transform_template=type_of_transform_template,
                 same_space_window=same_space_window,
                 studyT_transform=studyT_transform, do_manual=do_manual, Need_check_MC=Need_check_MC,
                 Need_check_coreg=Need_check_coreg, SUV=SUV, bratio=bratio, SUV_window=SUV_window, Do_cut=Do_cut,
@@ -389,6 +398,9 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
                 kinetic_end=kinetic_end, pvc_fwhm=pvc_fwhm, pvc_method=pvc_method, do_pet_to_func=do_pet_to_func,
                 endfmri=endfmri, T1_eq=int(T1_eq), export_resolution=export_resolution, export_dynamic=export_dynamic,
                 isotope=isotope)
+
+    if coreg_transform not in ANTS_TRANSFORMS:
+        raise ValueError(f"coreg_transform={coreg_transform!r}: expected one of {ANTS_TRANSFORMS}")
 
     frame = inspect.currentframe()
     _loc = inspect.getargvalues(frame).locals

@@ -31,7 +31,7 @@ isotope = 'unknown'               # 'unknown': TracerRadionuclide of the sidecar
 ### orientation of the PET header (as for the anatomy)
 humanPosition = ['']              # '': PatientPosition of the sidecar
 animalPosition = ['']             # '' = humanlike
-orientation = 'RPS'               # code forced on the header ('' to use the positions): CHECK it on one subject
+orientation = 'RIP'               # code forced on the header ('' to use the positions): CHECK it on one subject
 Need_check_orient = False         # True: freeview after the reorientation
 
 ### anatomy (same values as in the anatomical launcher)
@@ -43,7 +43,7 @@ IhaveanANAT = True
 anat_pet_same_space = False       # True only for a hybrid PET-MR acquisition (scenario 1v1)
 
 ### motion correction
-nb_void = 0                       # first frames not registered (low counts)
+nb_void = 7                       # first frames not registered (low counts)
 crop_for_MoCo = 'auto'            # 'auto' / 'manual': crop drawn in freeview; 'none' to run without display
 
 ### parametric images
@@ -58,7 +58,7 @@ srtm = False
 reference_signal = 'unknown'
 DV_time = 0
 
-Skip_step = ['pvc', 9]
+Skip_step = [1,2,3,4,5,'pvc', 9]
 _0_Pipeline_launcher.preprocess_pet(
     Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endpet, tracer,
     animalPosition, humanPosition, orientation,
@@ -68,6 +68,8 @@ _0_Pipeline_launcher.preprocess_pet(
     SUV=SUV, bratio=bratio, SUV_window=SUV_window, Do_cut=Do_cut, duration=duration,
     srtm=srtm, reference_signal=reference_signal, DV_time=DV_time,
     export_resolution='pet', selected_atlases='all',
+    coreg_metric='mattes', type_of_transform_template='SyNRA',
+    coreg_transform = 'Similarity',
     atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
     reference='EDNiX', list_to_keep=list_to_keep, list_to_remove=list_to_remove,
     Need_check_orient=Need_check_orient, Need_check_MC=False, Need_check_coreg=False)
