@@ -36,7 +36,7 @@ def _phantom():
     return brain, lab, blob, csf
 
 
-def _image(rng, lab, csf, scale, effect=0.0, blob=None):
+def _image(rng, lab, csf, scale, effect=0.0):
     uptake = np.zeros(SHAPE, np.float32)
     uptake[lab == 1] = 8.0
     uptake[lab == 3] = 8.0 * (1 - effect)
@@ -49,13 +49,13 @@ def _image(rng, lab, csf, scale, effect=0.0, blob=None):
     return img
 
 
-def make_study(root, n_per_group=8, effect=0.15, seed=0, with_roi=True, pet_voxels=None):
+def make_study(root, n_per_group=8, effect=0.15, seed=0, with_roi=True):
     rng = np.random.default_rng(seed)
     brain, lab, blob, csf = _phantom()
     rows = []
     k = 0
     for g in ('patient', 'control'):
-        for i in range(n_per_group):
+        for _ in range(n_per_group):
             k += 1
             sub, ses = f'{k:02d}', '1'
             scale = rng.uniform(0.6, 1.6)                                  # SUV differs between subjects
@@ -95,7 +95,7 @@ def test_glm_matches_scipy_two_sample_and_regression():
     tab = pd.DataFrame(dict(group=['a'] * 7 + ['b'] * 9, age=rng.uniform(20, 70, 16)))
     Y = rng.normal(size=(16, 50))
     Y[:7] += 0.8
-    X, c, names, rows = _glm.design_matrix(tab, 'two-sample', 'group', ['a', 'b'])
+    X, c, _, _ = _glm.design_matrix(tab, 'two-sample', 'group', ['a', 'b'])
     cope, t, _ = _glm.GLM(X, c).fit(Y)
     ref = stats.ttest_ind(Y[:7], Y[7:], axis=0)
     assert np.allclose(t, ref.statistic) and np.allclose(cope, Y[:7].mean(0) - Y[7:].mean(0))
@@ -165,7 +165,7 @@ def test_reference_normalisation_removes_the_global_scale(tmp_path):
     files = G.template_files(imgs)
     brain = G.mask_on_grid(files['brain'], ref)
     cer = G.reference_mask({'type': 'atlas', 'atlas': 'PH', 'level': 0, 'labels': [7], 'name': 'Cer'}, ref, files)
-    norm, vals = G.normalise(data, 'reference', brain, cer)
+    norm, _ = G.normalise(data, 'reference', brain, cer)
     ctx = (G.labels_on_grid(files['atlases']['PH'], 0, ref) == 1)
     suvr = [norm[..., k][ctx].mean() for k in range(6)]
     assert np.std(suvr) < 0.01 and abs(np.mean(suvr) - 8 / 7) < 0.02
@@ -178,7 +178,7 @@ def test_analysis_mask_excludes_csf_and_background(tmp_path):
     data, ref = G.load_on_grid(list(imgs.image))
     brain = G.mask_on_grid(G.template_files(imgs)['brain'], ref)
     norm, _ = G.normalise(data, 'global', brain)
-    m, rep = G.analysis_mask(norm, brain, 0.8)
+    m, _ = G.analysis_mask(norm, brain, 0.8)
     assert not (m & ph['csf']).any() and not (m & ~ph['brain']).any()
     assert (m & (ph['lab'] == 1)).sum() > 0.95 * (ph['lab'] == 1).sum()
 
@@ -195,7 +195,7 @@ def test_images_on_different_grids_are_resampled(tmp_path):
     rs = resample_img(im, target_affine=aff, target_shape=tuple(2 * s for s in im.shape), interpolation='continuous',
                       force_resample=True, copy_header=True)
     nib.save(rs, f)
-    data, ref = G.load_on_grid(list(imgs.image))
+    data, _ = G.load_on_grid(list(imgs.image))
     assert data.shape == SHAPE + (4,)
     assert np.corrcoef(data[..., 1].ravel(), orig.ravel())[0, 1] > 0.95
 
@@ -238,7 +238,7 @@ def test_null_study_gives_no_significant_cluster(tmp_path):
 def test_paired_sessions_and_selection(tmp_path):
     make_study(tmp_path, n_per_group=4, effect=0.0, with_roi=False)
     rng = np.random.default_rng(0)
-    brain, lab, blob, csf = _phantom()
+    _, lab, _, csf = _phantom()
     for sub in [f'{k:02d}' for k in range(1, 9)]:                     # second session with a 20 % blob decrease
         t = tmp_path / f'sub-{sub}' / 'ses-2' / 'pet' / 'templates' / TEMPLATE
         (t / 'labels').mkdir(parents=True)
@@ -279,7 +279,7 @@ def test_roi_reference_is_the_voxel_weighted_mean_of_its_labels():
     ses = pd.DataFrame(dict(subject=['1', '1', '1'], session=['1'] * 3, label=[6, 1006, 5],
                             region=['L', 'R', 'x'], n_valid=[100, 300, 50], n_voxels=[100, 300, 50],
                             volume_mm3=[1, 1, 1], mean=[2.0, 4.0, 7.0]))
-    out, ref = R.normalise_regions(ses, [6, 1006])
+    _, ref = R.normalise_regions(ses, [6, 1006])
     assert ref.normalising_value.iloc[0] == pytest.approx((100 * 2 + 300 * 4) / 400)
 
 
