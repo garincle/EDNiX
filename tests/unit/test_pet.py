@@ -224,6 +224,121 @@ def test_rigid_pet_to_anatomy_registration_recovers_the_pose(tmp_path):
     assert max(err) < 1.0, err                           # < half a PET voxel
 
 
+def _mstart_error(chain, R, t):
+    """Largest error (mm) of a PET -> AC-PC chain at points of the brain of the phantom."""
+    trs = [ants.read_transform(f) for f, _ in chain['to']]
+    err = []
+    for q in ([0, 0, 0], [15, 10, -5], [-12, -20, 10], [5, -25, -12]):
+        q = np.asarray(q, float)
+        p = tuple(P.F @ q)
+        for tr in trs:
+            p = tr.apply_to_point(p)
+        err.append(np.linalg.norm(R.T @ (q - t) - P.F @ np.asarray(p)))
+    return max(err)
+
+
+def _render(shape, A, R, t, lut, extra=(), smooth_mm=3.0, ss=2):
+    """Phantom on the grid A (pose x_acpc = R x + t), tissue values `lut`, plus ellipsoids (centre, radii, value) in
+    AC-PC coordinates painted over the head (extracerebral uptake, torso, bed)."""
+    from scipy.ndimage import gaussian_filter
+    Af = A.copy()
+    Af[:3, :3] = A[:3, :3] / ss
+    Af[:3, 3] = A[:3, 3] - (ss - 1) / (2.0 * ss) * np.diag(A[:3, :3])
+    fine = tuple(n * ss for n in shape)
+    q = P.world_points(fine, Af) @ R.T + t
+    v = np.asarray(lut, np.float32)[P.tissues(q)]
+    for c, r, val in extra:
+        v[P._ell(q, c, r)] = val
+    v = v.reshape(fine).reshape(shape[0], ss, shape[1], ss, shape[2], ss).mean(axis=(1, 3, 5))
+    return gaussian_filter(v, smooth_mm / A[0, 0]).astype(np.float32) if smooth_mm else v.astype(np.float32)
+
+
+@pytest.mark.slow
+def test_multistart_registration_of_a_pet_with_the_torso_in_the_field_of_view(tmp_path):
+    # 160 mm field of view: head + torso + heart (FDG); the centre-of-mass start of ANTs is pulled to the torso
+    files, _, _ = P.anat_derivative(str(tmp_path / 'bids'))
+    torso = [((0, -10, -80), (40, 35, 40), 900.0), ((0, 0, -85), (14, 14, 14), 9000.0)]
+    A = P.grid(80, 2.0, center=(0, 0, -30))
+    for rot, tr in (((8, -5, 12), (6, -9, 4)), ((5, 5, -25), (-40, 30, 70))):
+        R, t = P.pose(rot, tr)
+        pet = P.save(_render((80,) * 3, A, R, t, [P.PET[k] for k in range(7)], torso), A,
+                     str(tmp_path / 'pet.nii.gz'))
+        prefix = str(tmp_path / 'r_')
+        chain = coreg2anat.rigid_to(files['acpc'], pet, prefix, 'mattes', mask_file=files['mask'])
+        assert _mstart_error(chain, R, t) < 1.0, (rot, tr)
+        with open(prefix + 'candidates.json') as f:
+            starts = json.load(f)
+        assert {s['init'] for s in starts['starts']} >= {'com', 'fov'}
+        # the kept start has the best mutual information among the starts that cover the brain
+        ok = [s for s in starts['starts'] if s['coverage'] >= 0.9]
+        assert starts['kept'] == min(ok, key=lambda s: s['metric'])['init']
+    # the AC-PC matrix of the anatomy is a start when given
+    cands = coreg2anat.init_candidates(ants.image_read(files['acpc']), None, ants.image_read(pet),
+                                       str(tmp_path / 'c_'), 'auto', opj(files['dir_transfo'], 'acpc_0GenericAffine.mat'))
+    assert [c[0] for c in cands] == ['com', 'fov', 'acpc', 'identity']
+    with pytest.raises(ValueError):
+        coreg2anat.init_candidates(ants.image_read(files['acpc']), None, ants.image_read(pet), str(tmp_path / 'c_'),
+                                   'bad')
+
+
+@pytest.mark.slow
+def test_ct_to_anatomy_centre_of_mass_and_bed(tmp_path):
+    # CT in HU (air -1000) with the bed under the head, off-centre field of view: the centre of mass of the raw CT
+    # is far from the head; the CT shifted to >= 0 and restricted to the head is registered within half a voxel
+    files, _, _ = P.anat_derivative(str(tmp_path / 'bids'))
+    hu = [-1000.0, 40.0, 1200.0, 5.0, 38.0, 30.0, 38.0]
+    bed = [((0, -45, -40), (60, 4, 80), 400.0)]
+    R, t = P.pose((10, -6, 8), (12, 20, -15))
+    A = P.grid(70, 2.0, center=(20, -25, 10))
+    ct = _render((70,) * 3, A, R, t, hu, bed, smooth_mm=1.0)
+    ctf = P.save(ct, A, str(tmp_path / 'ct.nii.gz'))
+    img = ants.image_read(ctf)
+    head = coreg2anat.ct_head_mask(img)
+    q = P.world_points((70,) * 3, A) @ R.T + t
+    in_bed = P._ell(q, *bed[0][:2]).reshape((70,) * 3)
+    assert head.numpy()[in_bed].mean() < 0.05                        # the bed is not in the head mask
+    com_raw = np.asarray(ants.get_center_of_mass(img))
+    com_pos = np.asarray(ants.get_center_of_mass(coreg2anat._nonnegative(img) * head))
+    head_c = P.F @ (R.T @ (np.zeros(3) - t))                          # centre of the head in the CT (LPS)
+    assert np.linalg.norm(com_raw - head_c) > 2 * np.linalg.norm(com_pos - head_c)
+    chain = coreg2anat.rigid_to(files['acpc'], ctf, str(tmp_path / 'ct_'), 'mattes', mask_file=files['mask'],
+                                dilate_mm=10.0, moving_mask=head)
+    assert _mstart_error(chain, R, t) < 1.0
+
+
+@pytest.mark.slow
+def test_pet_masks_second_pass_and_synthetic_target(tmp_path):
+    # head PET with hot extracerebral structures next to the cortex (temporal muscle, glands, neck)
+    files, _, _ = P.anat_derivative(str(tmp_path / 'bids'))
+    hot = [((29, 0, -6), (5, 16, 14), 4500.0), ((-12, 33, -10), (6, 5, 5), 6000.0),
+           ((12, 33, -10), (6, 5, 5), 6000.0), ((0, -20, -33), (14, 8, 6), 3500.0)]
+    R, t = P.pose((-6, 10, -8), (-5, 7, -3))
+    A = P.grid(40, 2.5)
+    pet = P.save(_render((40,) * 3, A, R, t, [P.PET[k] for k in range(7)], hot, smooth_mm=2.1), A,
+                 str(tmp_path / 'pet.nii.gz'))
+    # threshold mask: one component, covers the brain, excludes the air
+    m = coreg2anat.threshold_mask(pet, 50.0, 0.0).numpy() > 0
+    truth = P.tissues(P.world_points((40,) * 3, A) @ R.T + t).reshape((40,) * 3)
+    assert m[truth >= 4].mean() > 0.9 and m[truth == 0].mean() < 0.1
+    out = coreg2anat.pet_mask('threshold', pet, str(tmp_path / 'm.nii.gz'), 50.0, 2.0)
+    assert os.path.isfile(out) and coreg2anat.pet_mask('none', pet, '') is None
+    with pytest.raises(ValueError):
+        coreg2anat.pet_mask('bad', pet, '')
+    first = coreg2anat.rigid_to(files['acpc'], pet, str(tmp_path / 'p1_'), 'mattes', mask_file=files['mask'])
+    second = coreg2anat.refine_in_brain(files['acpc'], files['mask'], pet, first, str(tmp_path / 'p2_'), 'mattes',
+                                        3.0, 'Rigid', str(tmp_path / 'brain_pet.nii.gz'))
+    assert _mstart_error(second, R, t) < 1.0
+    bm = nib.load(str(tmp_path / 'brain_pet.nii.gz')).get_fdata() > 0
+    assert bm[truth >= 3].mean() > 0.95 and bm[truth == 0].mean() < 0.05
+    # FDG-like target from the tissue masks: grey > white > CSF, registration within half a PET voxel
+    syn = coreg2anat.synthetic_pet(files, (2.5, 2.5, 2.5), str(tmp_path / 'syn.nii.gz'))
+    s = nib.load(syn).get_fdata()
+    tt = P.tissues(P.world_points(s.shape, nib.load(syn).affine)).reshape(s.shape)
+    assert s[tt == 4].mean() > s[tt == 5].mean() > s[tt == 0].mean()
+    chain = coreg2anat.rigid_to(syn, pet, str(tmp_path / 's_'), 'mattes', mask_file=files['mask'])
+    assert _mstart_error(chain, R, t) < 1.25
+
+
 # ------------------------------------------------------------------------------------------------ end to end
 @pytest.mark.slow
 def test_pipeline_1v2a_end_to_end_on_a_phantom(tmp_path, monkeypatch):
@@ -533,10 +648,20 @@ def test_ct_study_template_without_anatomy_2v2(tmp_path, monkeypatch):
     L.preprocess_pet([], main, bids, 'Testmonkey', table, '*_trc-FDG_*pet.nii.gz', 'FDG', [''], [''], '', 'T1w', 'T1w',
                      False, False, IhaveanANAT=False, IhaveaCT=True, crop_for_MoCo='none',
                      selected_atlases=[['TEST', 'all']], atlas_followers=[['TEST'], ['txt'], [2], [1]])
+    from modalities.pet import bridge
+    assert os.path.isfile(bridge.record_path(opj(bids, 'sty_template', 'pet'), 'EDNiX'))
     for sub in ('01', '02'):
         paths = getpath.pet(s[sub]['dp'], 'EDNiX')
         rec = transfo.read_record(coreg2anat.record_path(paths, f'sub-{sub}_ses-1_trc-FDG'))
-        assert rec['scenario'] == '2v2' and list(rec['targets']) == ['studyTemplate']
+        # step 'bridge': the CT study template is linked to the reference template through the PET study template
+        assert rec['scenario'] == '2v2' and sorted(rec['targets']) == ['EDNiX', 'studyTemplate']
+        err = _chain_error(rec['targets']['EDNiX']['to'], _template_truth(s[sub]['R'], s[sub]['t']))
+        assert err < 2.0, err
+        atlas = nib.load(rec['pet_space']['atlases']['TEST']).get_fdata()[..., 0]
+        A = nib.load(rec['reference']).affine
+        truth = P.tissues(P.world_points(atlas.shape, A) @ s[sub]['R'].T + s[sub]['t']).reshape(atlas.shape)
+        dice = 2 * ((atlas == 7) & (truth == 6)).sum() / ((atlas == 7).sum() + (truth == 6).sum())
+        assert dice > 0.7, dice
         assert os.path.isfile(pu.out_name(opj(paths['templates'], 'studyTemplate'), f'sub-{sub}_ses-1_trc-FDG',
                                           desc='activity-mean', space='studyTemplate'))
     # both subjects in the study template: their exported means agree

@@ -69,7 +69,11 @@ _0_Pipeline_launcher.preprocess_pet(
     srtm=srtm, reference_signal=reference_signal, DV_time=DV_time,
     export_resolution='pet', selected_atlases='all',
     coreg_metric='mattes', type_of_transform_template='SyNRA',
-    coreg_transform = 'Similarity',
+    # PET -> T1w: rigid (same subject; 'Similarity' adds a scale that can shrink the PET brain into the MRI brain),
+    # multi-start initialisation, PET restricted to the brain of the anatomy in a second pass (extracerebral FDG
+    # uptake of the macaque: temporal muscles, Harderian glands, eye muscles)
+    coreg_transform='Rigid', coreg_init='auto', pet_coreg_mask='anat', pet_mask_dilate_mm=3.0,
+    coreg_target='anat',
     atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
     reference='EDNiX', list_to_keep=list_to_keep, list_to_remove=list_to_remove,
     Need_check_orient=Need_check_orient, Need_check_MC=False, Need_check_coreg=False)
