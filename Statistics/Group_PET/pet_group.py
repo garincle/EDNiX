@@ -273,7 +273,6 @@ def assign_groups(table, group_assignment, group_col='group'):
 def load_on_grid(files, ref_img=None):
     """4D array (X, Y, Z, n) of 3D images on the grid of ref_img (default: the first image). Images on
     another grid are resampled linearly (images exported at the PET resolution of different scanners)."""
-    from nilearn.image import resample_to_img
     ref = nib.load(ref_img or files[0])
     out = np.zeros(ref.shape[:3] + (len(files),), np.float32)
     n_rs = 0
@@ -284,7 +283,7 @@ def load_on_grid(files, ref_img=None):
         if im.ndim != 3:
             raise ValueError(f'{f} is not a 3D image')
         if im.shape[:3] != ref.shape[:3] or not np.allclose(im.affine, ref.affine, atol=1e-3):
-            im = resample_to_img(im, ref, interpolation='continuous', force_resample=True, copy_header=True)
+            im = resample_to_ref(im, ref, order=1)
             n_rs += 1
         out[..., k] = np.asarray(im.dataobj, np.float32)
     if n_rs:
@@ -292,23 +291,29 @@ def load_on_grid(files, ref_img=None):
     return out, ref
 
 
+def resample_to_ref(img, ref, order=1):
+    """img resampled to the grid of ref (3D), order 0 = nearest neighbour, 1 = trilinear; 0 outside the field
+    of view. nibabel.processing (stable since nibabel 2.1) rather than nilearn.image.resample_to_img, whose
+    keywords changed between versions (force_resample / copy_header exist only from nilearn 0.11)."""
+    from nibabel.processing import resample_from_to
+    return resample_from_to(img, (ref.shape[:3], ref.affine), order=order, mode='constant', cval=0.0)
+
+
 def mask_on_grid(mask_file, ref, interp='nearest'):
-    from nilearn.image import resample_to_img
     m = nib.load(mask_file)
     if m.ndim == 4:
         m = nib.Nifti1Image(np.asarray(m.dataobj)[..., 0], m.affine, m.header)
     if m.shape[:3] != ref.shape[:3] or not np.allclose(m.affine, ref.affine, atol=1e-3):
         if interp == 'nearest':
-            m = resample_to_img(m, ref, interpolation='nearest', force_resample=True, copy_header=True)
+            m = resample_to_ref(m, ref, order=0)
             return np.asarray(m.dataobj) > 0
-        m = resample_to_img(m, ref, interpolation='continuous', force_resample=True, copy_header=True)
+        m = resample_to_ref(m, ref, order=1)
         return np.asarray(m.dataobj) >= 0.5
     return np.asarray(m.dataobj) > 0
 
 
 def labels_on_grid(atlas_file, level, ref):
     """Integer label volume of one level of an atlas, resampled (nearest) to the grid of ref."""
-    from nilearn.image import resample_to_img
     a = nib.load(atlas_file)
     data = np.asarray(a.dataobj)
     if data.ndim == 4:
@@ -317,7 +322,7 @@ def labels_on_grid(atlas_file, level, ref):
         raise ValueError(f'{atlas_file} has one level; level {level} requested')
     a3 = nib.Nifti1Image(np.rint(data).astype(np.int32), a.affine)
     if a3.shape != ref.shape[:3] or not np.allclose(a3.affine, ref.affine, atol=1e-3):
-        a3 = resample_to_img(a3, ref, interpolation='nearest', force_resample=True, copy_header=True)
+        a3 = resample_to_ref(a3, ref, order=0)
     return np.rint(np.asarray(a3.dataobj)).astype(np.int64)
 
 

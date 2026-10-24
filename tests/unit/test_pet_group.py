@@ -195,9 +195,8 @@ def test_images_on_different_grids_are_resampled(tmp_path):
     orig = np.asarray(im.dataobj).copy()
     aff = im.affine.copy()
     aff[:3, :3] *= 0.5                                         # finer voxels (another scanner)
-    from nilearn.image import resample_img
-    rs = resample_img(im, target_affine=aff, target_shape=tuple(2 * s for s in im.shape), interpolation='continuous',
-                      force_resample=True, copy_header=True)
+    from nibabel.processing import resample_from_to
+    rs = resample_from_to(im, (tuple(2 * s for s in im.shape), aff), order=1)
     nib.save(rs, f)
     data, _ = G.load_on_grid(list(imgs.image))
     assert data.shape == SHAPE + (4,)
@@ -365,3 +364,24 @@ def test_participants_table_with_another_id_column(tmp_path):
     assert t.age.dtype.kind == 'f' and t.age.isna().sum() == 1 and set(t.group) == {'patient', 'control'}
     with pytest.raises(KeyError, match="available: .*'age'"):
         G.subject_table(imgs, str(tmp_path), ['weight'])
+
+
+def test_resampling_does_not_depend_on_the_nilearn_version(monkeypatch):
+    """Resampling through nibabel.processing: nilearn's resample_to_img (keywords changed in 0.11) is not used.
+    Trilinear resampling of a linear ramp is exact; nearest keeps the labels."""
+    import nilearn.image
+
+    def _fail(*a, **k):
+        raise AssertionError('nilearn.image.resample_to_img called')
+    monkeypatch.setattr(nilearn.image, 'resample_to_img', _fail)
+    ijk = np.indices(SHAPE).astype(np.float32)
+    ramp = nib.Nifti1Image((2 * ijk[0] + ijk[1] - ijk[2]).astype(np.float32), AFF)
+    aff2 = AFF.copy()
+    aff2[:3, 3] += VOX / 2                                                 # half-voxel shift
+    ref = nib.Nifti1Image(np.zeros(SHAPE, np.float32), aff2)
+    out = np.asarray(G.resample_to_ref(ramp, ref, order=1).dataobj)
+    inner = (slice(1, -2),) * 3
+    assert np.allclose(out[inner], (2 * ijk[0] + ijk[1] - ijk[2] + 0.5 * (2 + 1 - 1))[inner], atol=1e-4)
+    lab = nib.Nifti1Image(np.rint(ijk[0] / 6).astype(np.int16), AFF)
+    labs = np.unique(np.asarray(G.resample_to_ref(lab, ref, order=0).dataobj))
+    assert set(labs) <= set(np.unique(np.asarray(lab.dataobj)))

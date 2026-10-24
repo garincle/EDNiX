@@ -1,5 +1,9 @@
 # Changelog
 
+## PET group analyses: nilearn-independent resampling, October 2026
+
+- `Statistics/Group_PET` resampled with `nilearn.image.resample_to_img(..., force_resample=True, copy_header=True)`: these keywords exist only from nilearn 0.11, so with an older nilearn (`requirements.txt`: `nilearn>=0.9`) the analysis stopped with `TypeError: unexpected keyword argument 'copy_header'`. Resampling now uses `nibabel.processing.resample_from_to` (`pet_group.resample_to_ref`; trilinear for images and probabilistic masks, nearest neighbour for labels and binary masks; 0 outside the field of view). Images on another grid are now resampled trilinearly, as the log already said, instead of with the cubic spline of nilearn's `'continuous'` (no overshoot at the brain edge). Tests pass with nilearn 0.10.3 and 0.14.1.
+
 ## PET group analyses of dynamic runs, October 2026
 
 - `pet_group.collect_images` / `pet_roi_group.collect_roi_tables`: `desc='bratio'` (or `'SUV'`) also finds the `desc-bratio-mean` images and tables of dynamic runs (and the reverse); each session uses the one it has and the choice is printed. Before, a dynamic study failed with `no image with desc-SUV`.
