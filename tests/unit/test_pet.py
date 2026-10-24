@@ -19,7 +19,11 @@ opj = os.path.join
 opb = os.path.basename
 
 # reproducible registrations (ANTs random sampling, one thread): the pose tolerances below are not flaky
-ants.config.set_ants_deterministic(True, 123)
+if hasattr(ants, 'config'):                    # antspyx >= 0.6
+    ants.config.set_ants_deterministic(True, 123)
+else:                                          # antspyx 0.5: same settings by hand
+    os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = '1'
+    np.random.seed(123)
 
 
 # ------------------------------------------------------------------------------------------------ helpers

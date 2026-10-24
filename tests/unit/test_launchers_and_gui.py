@@ -56,8 +56,10 @@ def test_qc_scan_table_and_path_safety(tmp_path):
     pd.DataFrame({'subject': [f'{i:02d}' for i in range(10)],
                   'mean_FD': [0.05, 0.06, 0.05, 0.04, 0.05, 0.06, 0.05, 0.05, 0.04, 0.9]}).to_csv(tmp_path / 'QC' / 'm.csv', index=False)
     scan = G.qc_scan(tmp_path)
-    assert scan['steps'][0]['images'] == ['skullstrip_step1/sub-01.png'] and scan['tables'] == ['m.csv']
-    t = G.qc_table(tmp_path, 'm.csv')
+    # paths relative to the BIDS folder (the scan also lists the per-subject reports outside QC/)
+    assert scan['steps'][0]['images'] == ['QC/skullstrip_step1/sub-01.png']
+    assert scan['tables'] == [dict(rel='QC/m.csv', name='m.csv')]
+    t = G.qc_table(tmp_path, 'QC/m.csv')
     assert t['n_flagged_rows'] == 1 and t['flags'][9][1]
     with pytest.raises(ValueError):
         G.qc_path(tmp_path, '../../etc/passwd')

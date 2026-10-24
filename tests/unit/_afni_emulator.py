@@ -107,11 +107,11 @@ def make_subject(T=200, tr=2.0, seed=0, censor=True, header_tr=None):
     np.savetxt(os.path.join(dirs['mat'], rs + '_space-func_desc-motion_correction.1D'), motion)
     return dirs, rs, keep
 
-def run(method, normalize='zscore', T=200, tr=2.0, band='0.01 0.1', GS=True, Vc=True, NonB=False, censor=True, header_tr=None, **kw):
+def run(method, normalize='zscore', T=200, tr=2.0, band='0.01 0.1', GS=True, Vc=True, censor=True, header_tr=None, **kw):
     MSG.clear()
     dirs, rs, keep = make_subject(T, tr, censor=censor, header_tr=header_tr)
     N.signal_regression(dirs['proc'], dirs['ica'], dirs['masks'], dirs['raw'], 1, [rs + '.nii.gz'], 0, tr, 'Skip',
-                        NonB, True, normalize, 'sub-01', method, False, band, Vc, GS,
+                        True, normalize, 'sub-01', method, False, band, Vc, GS,
                         dirs['post'], dirs['mat'], ' -overwrite', '', '', 'diary.txt', **kw)
     res = os.path.join(dirs['post'], rs + '_space-acpc-func_desc-fMRI_residual.nii.gz')
     out = _load(res) if os.path.exists(res) else None
