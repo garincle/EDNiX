@@ -48,10 +48,14 @@ def test_too_many_regressors_is_an_error(emu, monkeypatch):
         emu.run('fMRIPrep_style', 'zscore', T=120, tr=1.0)
 
 
-def test_exterior_csf_is_refused(emu):
-    # no step produces its mask and the signals come from skull-stripped data: a silent skip would hide it
-    with pytest.raises(ValueError, match='extract_exterior_CSF'):
-        emu.run('AFNI', 'zscore', NonB=True)
+def test_exterior_csf_is_not_a_parameter():
+    # no step produces its mask and the signals come from skull-stripped data: the option was removed from
+    # the denoising step and from preprocess_fmri (a launcher passing it gets the unknown-argument warning)
+    import inspect
+    from modalities.fMRI import _0_Pipeline_launcher as L
+    from modalities.fMRI import _7_post_TTT as N
+    assert 'extract_exterior_CSF' not in inspect.signature(N.signal_regression).parameters
+    assert 'extract_exterior_CSF' not in inspect.signature(L.preprocess_fmri).parameters
 
 
 def _out_of_band_fraction(out, tr, lo, hi):

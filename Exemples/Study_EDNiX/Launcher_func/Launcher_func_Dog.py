@@ -77,7 +77,7 @@ _0_Pipeline_launcher.preprocess_fmri(
                     doWARPonfunc=doWARPonfunc, registration_type='V2', type_of_transform=type_of_transform, n_for_ANTS='lanczosWindowedSinc', aff_metric_ants=aff_metric_ants, aff_metric_ants_Transl=aff_metric_ants_Transl, dilate_mask=dilate_mask,
                     list_to_keep=list_to_keep, list_to_remove=list_to_remove, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
                     reference='EDNiX', post_treatment_method='fMRIPrep_style',
-                    band='0.01', blur=0, do_not_correct_signal = False, extract_exterior_CSF = False, extract_WM=True, extract_Vc = True, extract_GS = False,
+                    band='0.01', blur=0, do_not_correct_signal = False, extract_WM=True, extract_Vc = True, extract_GS = False,
                     use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
                     selected_atlases_matrix='all', wanted_level_matrix='all', matrix_fit=['correlation', 'partial correlation'],
                     selected_atlases_SBA=[['EDNIxCSCLR', 3], ['EDNIxCSC', 3]], panda_files_SBA=[[162, 1162], [162, 164]],

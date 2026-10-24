@@ -249,13 +249,11 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         ANTs transform of the motion correction ('Rigid').
     coreg_metric : str, optional
         Metric of the rigid registrations (motion, PET -> anatomy / CT): 'mattes' (mutual information).
-    coreg_transform = 'Rigid'         # ANY ANTs type_of_transform, e.g.:
-                                  #   'Rigid'      - 6 DOF, standard PET -> anatomy same subject
-                                  #   'Affine'     - 12 DOF, size difference (atrophy, FOV)
-                                  #   'TRSAA'      - Translation + Rigid + Affine (cascade ANTs)
-                                  #   'SyNRA'      - Rigid + Affine + SyN (cascade ANTs), slow
-                                  #   'SyNCC'      - SyN with cross-correlation, slow
-                                  #   'BsplineSyN' - non-linear, slow
+    coreg_transform : str, optional
+        ANTs type_of_transform of the PET -> anatomy / CT registration ('Rigid' by default):
+        'Rigid' (6 DOF, standard for PET -> anatomy of the same subject), 'Affine' (12 DOF: size difference,
+        atrophy, field of view), 'TRSAA' (translation + rigid + affine cascade), 'SyNRA' (rigid + affine + SyN,
+        slow), 'SyNCC' (SyN with cross-correlation, slow), 'BsplineSyN' (non-linear, slow).
     type_of_transform_template : str, optional
         ANTs transform of the PET -> PET template registration (scenario 3v1):
         'SyNRA' (default: rigid + affine + SyN stages). ANTsPy's 'SyN' and 'Affine' start with a single affine

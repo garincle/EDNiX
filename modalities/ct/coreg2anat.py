@@ -117,9 +117,14 @@ def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, referenc
         # CT and anatomy in different spaces: rigid (or higher) CT -> anatomy, with a brain mask dilated
         # by 10 mm (skull included: the bone edges constrain the registration)
         prefix = opj(mat_dir, base + '_from-ct-to-' + T_CT + '_')
+        # min_quality=0: keep the registration with `metric` (mutual information). The quality score of
+        # rigid_to (mean of the resampled image in the brain / mean of its positive voxels) assumes a bright
+        # brain, as in PET; in a CT the brain (~30 HU) is far below the bone (~1000 HU), so a correct
+        # registration scores ~0.2 and the 'meansquares' retry was kept instead: mean squares compares
+        # intensities directly, which is not valid between a CT and a T1w (11 mm error on the test phantom).
         acpc = rigid_to(anat['acpc'], work, prefix, metric,
                         mask_file=anat['mask'], dilate_mm=10.0,
-                        coreg_transform=coreg_transform)
+                        coreg_transform=coreg_transform, min_quality=0.0)
         if do_manual:
             # manual correction done on the full CT so the engineer sees the skull; the chain is
             # world-to-world, valid either way, and the re-registration uses initial_transform
