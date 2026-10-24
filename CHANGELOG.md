@@ -1,5 +1,10 @@
 # Changelog
 
+## Cross-species regional profiles, October 2026
+
+- `Plotting/Plot_interspecies_regional_profiles.py`: gathers the ROI tables of the PET pipeline (`ROI_analysis/*_seg-<atlas>-lvl<k>_desc-<desc>_ROIs.tsv`) for several species and compares them on the regions of the EDNiX atlas (shared label table, so regions are matched by name). One subject = one sample (runs averaged), hemispheres merged by valid-voxel weighting or kept separate, optional ratio to reference regions or within-subject z-score. Regions kept when present in every species with >= 10 voxels per label in every subject (rule of the former `3_correct_atlas_for_small_V.py`); optional size threshold in FWHM units against partial volume. Per region, each species vs the reference species: permutation test (or Welch / Mann-Whitney), Hedges g with 95% CI, Benjamini-Hochberg FDR. Profile similarity: Pearson / Spearman r with subject-bootstrap CI, split-half reliabilities and noise ceiling. Figures: polar fingerprint + polar effect sizes, grouped bars with every subject, region-mean scatter; each with a .txt legend, plus an Excel workbook and a methods text.
+- Example `Exemples/Study_EDNiX/analysis/PET_interspecies_profiles.py` (CERMEP human vs BIDS_Tremblay macaque, FDG). Tests `tests/unit/test_interspecies_profiles.py`.
+
 ## PET and CT pipelines, October 2026
 
 Import of the PET engineer's version (`modalities/pet`, `modalities/ct`), reviewed and corrected: the detail of every change is in [docs/PET_CT_review_journal.md](docs/PET_CT_review_journal.md), the methods in [docs/pet_pipeline.md](docs/pet_pipeline.md).
