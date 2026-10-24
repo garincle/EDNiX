@@ -24,7 +24,7 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
                   IhaveanANAT=True, anat_ct_same_space=False,
                   template_CT='', creat_study_template_ct=False, studyT_transform='SyNRA',
                   type_of_transform_template='SyNRA', coreg_metric='mattes',
-                  CT_header_wrong=False, deoblique='WARP', do_manual=False,
+                  CT_header_wrong=False, deoblique='WARP', do_manual=False, coreg_transform='Rigid', coreg_init='auto',
                   Need_check_orient=False, Need_check_coreg=False,
                   reference='EDNiX', atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
                   use_erode_WM_func_masks=True, use_erode_V_func_masks=True,
@@ -93,6 +93,14 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
         'WARP' resamples an oblique CT on a cardinal grid (3dWarp, as the anatomy); 'header' drops the obliquity.
     do_manual : bool, optional
         Manual correction of the CT -> anatomy registration in freeview.
+    coreg_transform : str, optional
+        ANTsPy type_of_transform of the CT -> anatomy registration ('Rigid': the CT and the MRI of one subject differ
+        by a rigid motion).
+    coreg_init : str, optional
+        Initialisation of the CT -> anatomy registration: 'auto' (centres of mass of the CT head without the bed and
+        of the anatomy, centres of the fields of view, AC-PC matrix of the anatomy, identity; the start with the
+        highest mutual information covering the brain is kept, scores in ct/orig/matrices/*candidates.json), 'com',
+        'fov', 'acpc' or 'identity'.
     Need_check_orient, Need_check_coreg : bool, optional
         Open freeview to check the orientation and the registration.
     reference : str, optional
@@ -217,4 +225,5 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
                                         reference, 'Final', species, s['diary'])
         coreg2anat.register(sc, s['ct'], s['raw'], s['base'], s['paths'], s['anat'], packages, template_CT, reference,
                             study_template, T_CT, coreg_metric, type_of_transform_template, do_manual,
-                            Need_check_coreg, bids_dir, s['diary'], sing_fs, template_mask=BASE_mask)
+                            Need_check_coreg, bids_dir, s['diary'], sing_fs, template_mask=BASE_mask,
+                            coreg_transform=coreg_transform, coreg_init=coreg_init)

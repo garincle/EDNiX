@@ -39,6 +39,8 @@ Identifiers accepted by `Skip_step`: the listed steps are skipped.
 | `CT_header_wrong` | `False` | The reconstruction wrote a wrong orientation: the orientation code of the raw anatomy of the same scanner space is copied before the reorientation (with anat_ct_same_space). |
 | `deoblique` | `'WARP'` | 'WARP' resamples an oblique CT on a cardinal grid (3dWarp, as the anatomy); 'header' drops the obliquity. |
 | `do_manual` | `False` | Manual correction of the CT -> anatomy registration in freeview. |
+| `coreg_transform` | `'Rigid'` | ANTsPy type_of_transform of the CT -> anatomy registration ('Rigid': the CT and the MRI of one subject differ by a rigid motion). |
+| `coreg_init` | `'auto'` | Initialisation of the CT -> anatomy registration: 'auto' (centres of mass of the CT head without the bed and of the anatomy, centres of the fields of view, AC-PC matrix of the anatomy, identity; the start with the highest mutual information covering the brain is kept, scores in ct/orig/matrices/*candidates.json), 'com', 'fov', 'acpc' or 'identity'. |
 | `Need_check_orient` | `False` | Open freeview to check the orientation and the registration. |
 | `Need_check_coreg` | `False` | Open freeview to check the orientation and the registration. |
 | `reference` | `'EDNiX'` | Reference template ('EDNiX'). |

@@ -22,21 +22,19 @@ modalities/anat/loop3/backtonative.get (template, study template, reference sess
 used by the functional pipeline.
 
 Registration of 1v2a and pet_to_ct (1v2b, 2v1, 2v2) goes through `rigid_to`:
-    - species-adaptive pyramid (`_adaptive_reg_params`): the coarsest shrink level always keeps at
-      least 32 voxels per dimension, so the same code works on a mouse (50^3), a macaque cropped to
-      the brain (73x54x39) or a human (256^3);
-    - `coreg_transform` option (any ANTs `type_of_transform`: 'Rigid', 'Affine', 'TRSAA', 'SyNRA',
-      'BsplineSyN', 'SyNCC'...) to escalate the transform when a rigid alignment is not enough
-      (atrophy between sessions, cross-scanner PET/MR, template building);
-    - automatic quality check (`_registration_quality`) + retry with a fallback metric (meansquares):
-      the moving image must cover the target mask, otherwise the registration is retried and the
-      best result is kept;
-    - **no double composition**: ANTs already includes `initial_transform` in the affine it writes at
-      `outprefix`; the chain returned by `transfo.registration(prefix)` is the full transformation.
-      Composing the translation with it would apply the translation twice (bug from an earlier
-      implementation).
+    - multi-start initialisation (`coreg_init`): centres of mass of the masked images, centres of the fields of
+      view, AC-PC matrix of the anatomy (the PET is near the native anatomy), identity; the start with the highest
+      mutual information that covers the brain is kept (`<prefix>candidates.json`);
+    - optional mask of the PET (`pet_coreg_mask`): percentile threshold + largest cluster, a mask file, or the
+      brain of the anatomy back-projected after a first pass ('anat', second pass in the brain);
+    - optional FDG-like target built from the tissue masks of the anatomy (`coreg_target='synthetic'`);
+    - species-adaptive pyramid (`_adaptive_reg_params`): the coarsest shrink level keeps at least 32 voxels per
+      dimension (mouse 50^3, macaque cropped to the brain, human 256^3);
+    - ANTs includes `initial_transform` in the affine it writes at `outprefix`: the chain returned by
+      `transfo.registration(prefix)` is the full transformation (no explicit composition).
 """
 import os
+import json
 import shutil
 
 import numpy as np
@@ -84,13 +82,61 @@ def scenario(IhaveanANAT, anat_pet_same_space, IhaveaCT, ct_targets, pet_templat
 
 
 # ---------------------------------------------------------------------------
-# Helpers: mask dilation, adaptive pyramid, quality, transform validation
+# Helpers: masks, adaptive pyramid, transform validation
 # ---------------------------------------------------------------------------
 
-def _dilated(mask_file, mm):
-    m = ants.image_read(mask_file)
+def _read(img):
+    return ants.image_read(img) if isinstance(img, str) else img
+
+
+def _binary(img):
+    return ants.threshold_image(img, 0.5, 1e30, 1, 0)
+
+
+def _dilated(mask, mm):
+    """Binary mask (path or ANTsImage) dilated by mm (at least one voxel)."""
+    m = _binary(_read(mask))
     r = max(1, int(round(mm / min(m.spacing[:3]))))
-    return ants.iMath(ants.threshold_image(m, 0.5, 1e9, 1, 0), 'MD', r)
+    return ants.iMath(m, 'MD', r)
+
+
+def _on_grid(mask, ref):
+    """Binary mask (path or ANTsImage, any grid) resampled on the grid of `ref` by world coordinates."""
+    return _binary(ants.resample_image_to_target(_read(mask), ref, interp_type='nearestNeighbor'))
+
+
+def _nonnegative(img):
+    """Image shifted so that its minimum is 0. The centre of mass used to initialise a registration is
+    intensity-weighted: in a CT in HU the air (-1000 HU) is a negative mass larger than the head, and the centre
+    of mass of the whole image ends up on the far side of the field of view, away from the head."""
+    mn = float(img.min())
+    return img - mn if mn < 0 else img
+
+
+def threshold_mask(img, percentile=30.0, dilate_mm=3.0):
+    """
+    Mask of the brightest connected object of an image (PET, or CT shifted to >= 0): voxels above the
+    `percentile` of the positive voxels, largest connected component, holes filled, dilated by dilate_mm. Same
+    recipe as the previous PET scripts (np.percentile + nilearn threshold_img(cluster_threshold) + 3dmask_tool
+    -fill_holes). For an FDG image of the head the brain is the brightest large object; with the torso in the
+    field of view, crop first (crop_for_MoCo) or give the mask as a file.
+    """
+    img = _read(img)
+    a = img.numpy()
+    pos = a[np.isfinite(a) & (a > 0)]
+    if pos.size == 0:
+        raise ValueError('threshold_mask: the image has no positive voxel')
+    m = ants.threshold_image(img, float(np.percentile(pos, percentile)), 1e30, 1, 0)
+    m = ants.iMath(ants.iMath(m, 'GetLargestComponent'), 'FillHoles')
+    return _dilated(m, dilate_mm) if dilate_mm > 0 else m
+
+
+def ct_head_mask(ct, hu=-500.0):
+    """Head (and body) of a CT in HU: > -500 HU, largest connected component (removes the bed and the head
+    holder, which are separated from the head by air), holes filled (sinuses, airways)."""
+    ct = _read(ct)
+    m = ants.threshold_image(ct, hu, 1e30, 1, 0)
+    return ants.iMath(ants.iMath(m, 'GetLargestComponent'), 'FillHoles')
 
 
 def _adaptive_reg_params(fixed_img, moving_img):
@@ -114,203 +160,292 @@ def _adaptive_reg_params(fixed_img, moving_img):
                 aff_iterations=(250,), aff_random_sampling_rate=1.0)
 
 
-def _registration_quality(warped_moving, brain_mask):
-    """Quality = mean intensity of the resampled moving inside the target mask, normalised by the
-    mean of the moving on its positive voxels. Close to 1 when the PET covers the brain (good
-    registration), close to 0 when it is placed outside (failed registration)."""
-    w = warped_moving.numpy()
-    m = brain_mask.numpy() > 0.5
-    if m.sum() == 0:
-        return 0.0
-    inside = w[m]
-    inside = inside[np.isfinite(inside)]
-    positive = w[np.isfinite(w) & (w > 0)]
-    if inside.size == 0 or positive.size == 0:
-        return 0.0
-    denom = float(np.mean(positive))
-    return float(np.mean(inside)) / denom if denom > 0 else 0.0
-
-
-# Any value accepted by ants.registration(type_of_transform=...). Composite types cascade
-# internally in ANTs: e.g. 'SyNRA' = Rigid + Affine + SyN, 'TRSAA' = Translation + Rigid + Affine.
+# Values accepted by ants.registration(type_of_transform=...) in ANTsPy (allowable_tx of ants.registration).
+# Composite types cascade internally in ANTs: e.g. 'SyNRA' = Rigid + Affine + SyN, 'TRSAA' = Translation + Rigid +
+# Similarity + Affine + Affine.
 ANTS_TRANSFORMS = (
-    'Translation', 'Rigid', 'Similarity', 'Affine', 'AffineFast',
+    'Translation', 'Rigid', 'Similarity', 'Affine', 'AffineFast', 'BOLDAffine',
     'QuickRigid', 'DenseRigid', 'BOLDRigid', 'TRSAA',
-    'Bspline', 'BsplineSyN', 'SyN', 'SyNRA', 'SyNOnly', 'SyNCC',
-    'Exponential', 'Polynomial', 'TVMSQ', 'TVMSQC', 'SyNBoldAff', 'SyNBoldAff', "SyNRA"
+    'SyN', 'SyNRA', 'SyNOnly', 'SyNCC', 'SyNAggro', 'SyNLessAggro', 'SyNabp', 'SyNBold', 'SyNBoldAff',
+    'ElasticSyN', 'Elastic', 'TVMSQ', 'TVMSQC',
 )
+LINEAR_TRANSFORMS = ('Translation', 'Rigid', 'Similarity', 'Affine', 'AffineFast', 'BOLDAffine', 'QuickRigid',
+                     'DenseRigid', 'BOLDRigid', 'TRSAA')
 
-# transforms that are slow: warn if chosen
-SLOW_TRANSFORMS = ('SyN', 'SyNRA', 'SyNOnly', 'SyNCC', 'BsplineSyN', 'TVMSQ', 'TVMSQC', 'Exponential', 'Polynomial')
+
+def _msg(text, diary_name, code='ENDC'):
+    """run_cmd.msg, printed only when there is no diary (functions called outside a pipeline run)."""
+    if diary_name:
+        run_cmd.msg(text, diary_name, code)
+    else:
+        run_cmd.printcolor(text, code)
 
 
-def _validate_coreg_transform(t):
+def _validate_coreg_transform(t, diary_name=''):
     if t not in ANTS_TRANSFORMS:
-        raise ValueError(f'coreg_transform={t!r}: expected one of ANTs type_of_transform {ANTS_TRANSFORMS}')
-    if t in SLOW_TRANSFORMS:
-        run_cmd.msg(f'WARNING: coreg_transform={t!r} is a non-linear ANTs transform: expect 5-10x the '
-                    f'rigid time. Inspect the QC carefully (PET has little structural contrast in the '
-                    f'cortex; deformations can be non-physiological).', '', 'WARNING')
+        raise ValueError(f'coreg_transform={t!r}: expected one of the ANTsPy type_of_transform {ANTS_TRANSFORMS}')
+    if t not in LINEAR_TRANSFORMS:
+        _msg(f'WARNING: coreg_transform={t!r} is non-linear: a PET or a CT of the same subject differs from '
+                    f'its MRI by a rigid motion (plus small scanner scale errors); a deformation fitted on the low '
+                    f'cortical contrast of a PET is not physiological. Inspect the QC.', diary_name, 'WARNING')
+    elif t not in ('Translation', 'Rigid', 'QuickRigid', 'DenseRigid', 'BOLDRigid'):
+        _msg(f'WARNING: coreg_transform={t!r} has scaling parameters: for the same subject they can absorb a '
+                    f'misregistration (the PET brain shrunk or enlarged into the MRI brain); prefer Rigid unless a '
+                    f'scanner scale error is documented.', diary_name, 'WARNING')
     return t
 
 
 # ---------------------------------------------------------------------------
-# Debug: log every ANTs call
+# Initialisation candidates and multi-start registration
 # ---------------------------------------------------------------------------
 
-import functools
+INIT_MODES = ('auto', 'com', 'fov', 'acpc', 'identity')
 
 
-def _log_ants_calls(enable=True):
-    """Patch ants.registration / ants.apply_transforms to print their arguments.
-    Idempotent: enabling twice does not stack the patches."""
-    if getattr(_log_ants_calls, '_patched', False) == enable:
-        return
-    if enable:
-        _log_ants_calls._orig_reg = ants.registration
-        _log_ants_calls._orig_apply = ants.apply_transforms
-
-        @functools.wraps(_log_ants_calls._orig_reg)
-        def reg_log(*args, **kwargs):
-            print('[ants.registration] args=', args, 'kwargs=', kwargs)
-            return _log_ants_calls._orig_reg(*args, **kwargs)
-
-        @functools.wraps(_log_ants_calls._orig_apply)
-        def apply_log(*args, **kwargs):
-            print('[ants.apply_transforms] args=', args, 'kwargs=', kwargs)
-            return _log_ants_calls._orig_apply(*args, **kwargs)
-
-        ants.registration = reg_log
-        ants.apply_transforms = apply_log
-        _log_ants_calls._patched = True
-    else:
-        ants.registration = _log_ants_calls._orig_reg
-        ants.apply_transforms = _log_ants_calls._orig_apply
-        _log_ants_calls._patched = False
+def _grid_center(img):
+    """World (ANTs, LPS) coordinates of the centre of the grid of img."""
+    sp = np.asarray(img.spacing[:3], float)
+    n = np.asarray(img.shape[:3], float) - 1.0
+    return np.asarray(img.origin[:3], float) + np.asarray(img.direction, float)[:3, :3] @ (sp * n / 2.0)
 
 
-# ---------------------------------------------------------------------------
-# rigid_to: translation + coreg_transform, adaptive pyramid, quality check
-# ---------------------------------------------------------------------------
+def _translation_file(path, t):
+    """ANTs matrix file of the translation x -> x + t (fixed points -> moving points, LPS)."""
+    tr = ants.create_ants_transform(transform_type='AffineTransform', dimension=3,
+                                    translation=tuple(float(v) for v in t))
+    ants.write_transform(tr, path)
+    return path
+
+
+def init_candidates(fixed, fixed_mask, moving, prefix, init='auto', acpc=None, initial=None):
+    """
+    Initial transforms (fixed points -> moving points) of rigid_to, as a list of (name, [files]):
+      com       centres of mass of the fixed image in its mask and of the (masked) moving image: moments
+                initialisation (Alpert et al. 1990, J Nucl Med 31:1717; AFNI 3dAllineate -cmass);
+      fov       centres of the two fields of view (the moving image cropped to its mask): 'FOV to FOV', for images
+                whose intensity distributions are too different for the moments;
+      acpc      AC-PC matrix of the anatomy: the PET / CT is assumed to be near the native anatomy (consistent scanner
+                coordinates, similar head position), the matrix the anatomical pipeline already estimated is reused;
+      identity  world coordinates of the headers as they are;
+      initial   a given transform (manual correction, first pass).
+    init: 'auto' (every available one), one of the names above, or 'initial' (only `initial`).
+    """
+    if init not in INIT_MODES + ('initial',):
+        raise ValueError(f'coreg_init={init!r}: expected one of {INIT_MODES}')
+    names = ('com', 'fov', 'acpc', 'identity') if init == 'auto' else (init,)
+    out = []
+    if initial:
+        out.append(('initial', [initial] if isinstance(initial, str) else list(initial)))
+    if init == 'initial':
+        if not out:
+            raise ValueError('init_candidates: init="initial" without an initial transform')
+        return out
+    fx = _nonnegative(fixed)
+    for name in names:
+        if name == 'com':
+            f = fx * fixed_mask if fixed_mask is not None else fx
+            t = np.asarray(ants.get_center_of_mass(moving)) - np.asarray(ants.get_center_of_mass(f))
+            out.append((name, [_translation_file(prefix + 'init-com.mat', t)]))
+        elif name == 'fov':
+            t = _grid_center(moving) - _grid_center(fixed)
+            out.append((name, [_translation_file(prefix + 'init-fov.mat', t)]))
+        elif name == 'acpc':
+            if acpc and opi(acpc):
+                out.append((name, [acpc]))
+            elif init == 'acpc':
+                raise FileNotFoundError(f'coreg_init="acpc" but no AC-PC matrix: {acpc}')
+        elif name == 'identity':
+            out.append((name, [_translation_file(prefix + 'init-identity.mat', (0.0, 0.0, 0.0))]))
+    return out
+
+
+def _score(fixed, moving, chain, fixed_mask, coverage_mask, moving_support):
+    """(Mattes mutual information, coverage) of a registration: the ANTs metric value of the fixed image and the
+    resampled moving image in the fixed mask (negative: lower is better), and the fraction of `coverage_mask`
+    (brain of the fixed image) inside the resampled support of the moving image (its mask / field of view).
+    MI can be increased by sliding the object out of the mask, hence the coverage condition."""
+    warped = transfo.apply(fixed, moving, chain, 'to', 'linear')
+    mi = float(ants.image_similarity(fixed, warped, metric_type='MattesMutualInformation', fixed_mask=fixed_mask))
+    sup = transfo.apply(fixed, moving_support, chain, 'to', 'linear').numpy() > 0.5
+    cm = coverage_mask.numpy() > 0.5
+    cov = float(np.logical_and(sup, cm).sum()) / max(1.0, float(cm.sum()))
+    return mi, cov
+
 
 def rigid_to(fixed_file, moving_file, prefix, metric, mask_file=None, dilate_mm=5.0, initial=None,
-             save_translated=True, translated_interp='linear', verbose=True, min_quality=0.3,
-             coreg_transform='Rigid'):
+             coreg_transform='Rigid', moving_mask=None, init='auto', acpc=None, min_coverage=0.9, diary_name='',
+             verbose=False):
     """
-    PET -> target registration with species-adaptive parameters and automatic metric retry.
+    Registration moving (PET, CT) -> fixed (anatomy, CT), multi-start; returns the chains of `prefix`.
 
-    1. Translation (coarse pre-alignment), then `coreg_transform`, with a pyramid whose coarsest
-       level keeps >= 32 voxels per dimension (see `_adaptive_reg_params`): same code for a mouse,
-       a macaque, a human, or a PET cropped to the brain. ANTs composes `initial_transform` with
-       the found transform internally; the chain returned by `transfo.registration(prefix)` is
-       already the full translation + transform (no explicit compose).
+    mask_file   brain mask of the fixed image: path (dilated by dilate_mm) or ANTsImage (used as is). The metric is
+                computed in it.
+    moving_mask mask of the moving image (path or ANTsImage, any grid; 3dAllineate -source_mask): the moving image
+                is multiplied by it and cropped to its box, and the metric ignores the voxels outside it. Removes
+                the torso, the bed and the extracerebral uptake from both the metric and the initialisation.
+    init        initialisation candidates (init_candidates): 'auto' = centres of mass, centres of the fields of
+                view, AC-PC matrix (`acpc`), identity, plus `initial` if given.
 
-    2. Quality check: the resampled moving image must cover the target mask. On failure, retry
-       with the same transform but the `meansquares` metric (the Mattes mutual information is
-       undefined when the overlap is empty). The best of the two is kept.
-
-    Parameters
-    ----------
-    coreg_transform : str
-        Any ANTsPy `type_of_transform` (see ANTS_TRANSFORMS above). Common choices for PET -> anatomy:
-          'Rigid'  (default) rigid 6 DOF, standard for PET -> anatomy on the same subject;
-          'Affine'          12 DOF, when the two brains differ in size (atrophy between sessions, scanner FOV);
-          'SyNRA'           rigid + affine + SyN in one call (ANTs cascade): rare, template building
-                            or cross-scanner PET/MR; slow, inspect the QC;
-          'TRSAA'           translation + rigid + affine in one call: linear alternative to SyNRA.
-        Any other ANTs transform (BsplineSyN, SyNCC, TVMSQ...) is passed verbatim.
+    For every candidate: Translation, then `coreg_transform`, with the adaptive pyramid; ANTs includes the initial
+    transform in the matrix it writes. The candidate kept has the lowest Mattes metric value (highest mutual
+    information, Wells et al. 1996; Maes et al. 1997) among those whose moving image covers at least
+    `min_coverage` of the fixed brain; a multi-start search against the local optima of mutual information
+    (Jenkinson & Smith 2001, FLIRT; AFNI 3dAllineate -twobest). Scores in <prefix>candidates.json.
     """
-    _validate_coreg_transform(coreg_transform)
+    _validate_coreg_transform(coreg_transform, diary_name)
+    fixed = _read(fixed_file)
+    moving = _nonnegative(_read(moving_file))
+    if moving.dimension == 4:
+        raise ValueError(f'rigid_to: the moving image must be 3D ({moving_file})')
 
-    fixed_img = ants.image_read(fixed_file) if isinstance(fixed_file, str) else fixed_file
-    moving_img = ants.image_read(moving_file) if isinstance(moving_file, str) else moving_file
+    # mask of the fixed image (metric) and brain of the fixed image (coverage)
+    fmask, cover = None, None
+    if isinstance(mask_file, ants.ANTsImage):
+        fmask = _binary(mask_file)
+        cover = fmask
+    elif mask_file and opi(mask_file):
+        cover = _binary(ants.image_read(mask_file))
+        fmask = _dilated(cover, dilate_mm)
+
+    # moving image masked and cropped to its mask (the transforms are world-to-world: valid for the full image)
+    mmask = None
+    if moving_mask is not None and not (isinstance(moving_mask, str) and not moving_mask):
+        mmask = _on_grid(moving_mask, moving)
+        if float(mmask.sum()) == 0:
+            raise ValueError('rigid_to: the moving mask does not overlap the moving image')
+        moving = ants.crop_image(moving * mmask, label_image=mmask, label=1)
+        mmask = ants.crop_image(mmask, label_image=mmask, label=1)
+    support = mmask if mmask is not None else moving * 0 + 1
+    if cover is None:
+        cover = _binary(_nonnegative(fixed) * 0 + 1)
 
     kw = {}
-    brain_mask_quality = None
-    if isinstance(mask_file, ants.ANTsImage):
-        kw['mask'] = mask_file
-        brain_mask_quality = mask_file
-    elif mask_file and opi(mask_file):
-        brain_mask_quality = ants.image_read(mask_file)
-        kw['mask'] = _dilated(mask_file, dilate_mm)
+    if fmask is not None:
+        kw['mask'] = fmask
+    if mmask is not None:
+        kw['moving_mask'] = mmask
+    adaptive = _adaptive_reg_params(fixed, moving)
+    cands = init_candidates(fixed, fmask, moving, prefix, init, acpc, initial)
 
-    adaptive = _adaptive_reg_params(fixed_img, moving_img)
-    if verbose:
-        _log_ants_calls(True)
-        print(f'[rigid_to] fixed       shape  = {fixed_img.shape}')
-        print(f'[rigid_to] moving      shape  = {moving_img.shape}')
-        print(f'[rigid_to] metric             = {metric}')
-        print(f'[rigid_to] coreg_transform    = {coreg_transform}')
-        print(f'[rigid_to] pyramid            = {adaptive["aff_shrink_factors"]}')
-
-    # 1. Translation (pre-alignment)
-    trans_prefix = prefix + 'desc-translation_'
-    trans_chain = transfo.register(fixed_file, moving_file, trans_prefix, 'Translation',
-                                    aff_metric=metric, **adaptive, **kw)
-    trans_files = [f for f, _ in trans_chain['to']]
-    if verbose:
-        print(f'[rigid_to] translation        -> {trans_files[0]}')
-
-    if save_translated:
-        translated_out = prefix + 'desc-translation.nii.gz'
-        transfo.apply(fixed_file, moving_file, trans_chain, 'to', translated_interp, out=translated_out)
-        if verbose:
-            print(f'[rigid_to] translated image   -> {translated_out}  (exists={opi(translated_out)})')
-
-    # 2. Two attempts with the user-chosen transform: metric, then meansquares fallback
-    init_list = ([initial] if isinstance(initial, str) else list(initial or [])) + trans_files
-    attempts = [('metric', metric), ('meansquares', 'meansquares')]
-
-    best = None
-    best_quality = -1.0
-    for name, met in attempts:
-        attempt_prefix = prefix + 'attempt-' + coreg_transform.lower() + '-' + name + '_'
+    results = []
+    for name, init_files in cands:
+        cp = prefix + 'init-' + name + '_'
         try:
-            if verbose:
-                print(f'[rigid_to] attempt {coreg_transform}/{name} (metric={met})')
-            # ANTs already includes initial_transform in the affine it writes: chain is the full
-            # translation + transform, no explicit compose needed.
-            chain = transfo.register(fixed_file, moving_file, attempt_prefix, coreg_transform,
-                                      aff_metric=met, initial_transform=init_list, **adaptive, **kw)
-            if brain_mask_quality is not None:
-                warped = transfo.apply(fixed_file, moving_file, chain, 'to', translated_interp)
-                q = _registration_quality(warped, brain_mask_quality)
-            else:
-                q = 1.0
-            if verbose:
-                print(f'[rigid_to] attempt {coreg_transform}/{name}: quality = {q:.3f}')
-            if q > best_quality:
-                best_quality = q
-                best = (coreg_transform.lower() + '-' + name, chain)
-            if q >= min_quality:
-                break
-        except Exception as e:
-            if verbose:
-                print(f'[rigid_to] attempt {coreg_transform}/{name} failed: {e}')
+            transfo.register(fixed, moving, cp + 'desc-translation_', 'Translation', aff_metric=metric,
+                             initial_transform=init_files, **adaptive, **kw)
+            chain = transfo.register(fixed, moving, cp, coreg_transform, aff_metric=metric,
+                                     initial_transform=[cp + 'desc-translation_' + transfo.ANTS_AFF], **adaptive, **kw)
+            mi, cov = _score(fixed, moving, chain, fmask, cover, support)
+        except Exception as e:                           # a start that diverges (empty overlap) is skipped
+            _msg(f'WARNING: registration start {name} failed: {e}', diary_name, 'WARNING')
+            continue
+        results.append(dict(init=name, init_files=init_files, metric=mi, coverage=cov, prefix=cp))
+        if verbose:
+            print(f'[rigid_to] {opb(prefix)} start {name}: MI metric {mi:.4f}, coverage {cov:.3f}')
+    if not results:
+        raise RuntimeError(f'registration failed for every start: {moving_file} -> {fixed_file}')
 
-    if best is None:
-        raise RuntimeError(f'registration failed for {moving_file}: all attempts raised')
+    valid = [r for r in results if r['coverage'] >= min_coverage]
+    best = min(valid, key=lambda r: r['metric']) if valid else max(results, key=lambda r: r['coverage'])
+    msg = ', '.join(f"{r['init']}: MI {r['metric']:.4f} / coverage {r['coverage']:.2f}" for r in results)
+    _msg(f"INFO: {opb(prefix)}: starts [{msg}] -> kept {best['init']}", diary_name, 'OKGREEN')
+    if not valid:
+        _msg(f"WARNING: no start covers {min_coverage:.0%} of the brain of {opb(str(fixed_file))}: kept the "
+                    f"best coverage ({best['coverage']:.2f}); check the orientation of the images, the masks and the "
+                    f"QC (do_manual=True to correct by hand)", diary_name, 'WARNING')
 
-    name, _ = best
-    if verbose:
-        print(f'[rigid_to] best = {name} (quality {best_quality:.3f})')
-    if best_quality < min_quality:
-        run_cmd.msg(f'WARNING: registration quality {best_quality:.3f} < {min_quality} '
-                    f'({opb(moving_file)} -> {opb(fixed_file)}): result may be wrong; '
-                    f'consider a stronger coreg_transform (Affine, SyNRA) or do_manual=True', '', 'WARNING')
-
-    # 3. Copy the winning attempt files under the standard prefix
     transfo.clear(prefix)
     for suffix in (transfo.ANTS_AFF, transfo.ANTS_WARP, transfo.ANTS_INVWARP):
-        src = prefix + 'attempt-' + name + '_' + suffix
-        if opi(src):
-            shutil.copyfile(src, prefix + suffix)
-
-    if verbose:
-        _log_ants_calls(False)
-    # ANTs includes initial_transform in the affine at prefix: the chain is the full PET -> target
-    # transformation. DO NOT compose with trans_chain again (would apply the translation twice).
+        if opi(best['prefix'] + suffix):
+            shutil.copyfile(best['prefix'] + suffix, prefix + suffix)
+    for r in results:                                    # the starts that were not kept
+        transfo.clear(r['prefix'])
+        transfo.clear(r['prefix'] + 'desc-translation_')
+    with open(prefix + 'candidates.json', 'w') as f:
+        json.dump(dict(fixed=str(fixed_file), moving=str(moving_file), transform=coreg_transform, metric=metric,
+                       kept=best['init'], starts=[{k: v for k, v in r.items() if k != 'prefix'} for r in results]),
+                  f, indent=2)
     return transfo.registration(prefix)
+
+
+# ---------------------------------------------------------------------------
+# PET mask, second pass in the brain, synthetic FDG target
+# ---------------------------------------------------------------------------
+
+PET_MASKS = ('none', 'threshold', 'anat')
+
+
+def pet_mask(mode, pet, out, percentile=30.0, dilate_mm=3.0):
+    """
+    Mask of the PET used by the registration (moving mask, `pet_coreg_mask`):
+      'none'       no mask (the crop box of the motion correction is still applied by loop2);
+      'threshold'  percentile threshold + largest connected component + filled holes (threshold_mask);
+      'anat'       no mask for the first pass, then the brain of the anatomy back-projected (refine_in_brain);
+      <file>       a mask drawn on the PET (any grid in the PET world space).
+    Returns the mask file or None.
+    """
+    if not mode or mode in ('none', 'anat'):
+        return None
+    if mode == 'threshold':
+        ants.image_write(threshold_mask(pet, percentile, dilate_mm), out, ri=False)
+        pu.write_json(out, [pet], f'PET mask for the registration: > {percentile} percentile of the positive voxels, '
+                                  f'largest component, holes filled, dilated {dilate_mm} mm.')
+        return out
+    if opi(mode):
+        return mode
+    raise ValueError(f'pet_coreg_mask={mode!r}: expected {PET_MASKS} or a mask file')
+
+
+def refine_in_brain(fixed, brain_mask, moving, chain, prefix, metric, dilate_mm, coreg_transform, out_mask,
+                    diary_name=''):
+    """
+    Second pass in the brain: the brain mask of the anatomy is brought into the PET space with the first
+    registration (chain), dilated by dilate_mm (PET resolution, residual error of the first pass), and the
+    registration is estimated again from the first one on the PET brain only (moving mask) within the same dilated
+    brain of the anatomy (fixed mask). The extracerebral uptake (temporal muscles, Harderian / lacrimal glands, eye
+    muscles, nasal mucosa) and the scalp no longer pull the cortex of the PET onto the CSF or the skull of the MRI.
+    Same idea as the previous PET scripts (template mask back-projected to the subject, 3dAllineate -source_mask).
+    """
+    mv = _read(moving)
+    bm = _dilated(_binary(transfo.apply(mv, brain_mask, chain, 'from', 'linear')), dilate_mm)
+    ants.image_write(bm, out_mask, ri=False)
+    pu.write_json(out_mask, [brain_mask, moving], f'Brain of the anatomy in the PET space (first registration), '
+                                                  f'dilated {dilate_mm} mm: moving mask of the second pass.')
+    return rigid_to(fixed, moving, prefix, metric, mask_file=_dilated(brain_mask, dilate_mm),
+                    initial=[f for f, _ in chain['to']], init='initial', moving_mask=bm,
+                    coreg_transform=coreg_transform, diary_name=diary_name)
+
+
+COREG_TARGETS = ('anat', 'brain', 'synthetic')
+FDG_WEIGHTS = dict(GM=1.0, WM=0.35, CSF=0.05)
+
+
+def synthetic_pet(anat, pet_spacing, out, fwhm_mm=None):
+    """
+    FDG-like image of the anatomy (coreg_target='synthetic'): grey matter 1, white matter 0.35, CSF and the rest of
+    the brain 0.05, outside the brain 0 (grey / white FDG uptake ratio about 3, Phelps et al. 1979; Heiss et al.
+    1984), smoothed to the PET resolution (Gaussian of FWHM fwhm_mm, default twice the largest PET voxel). The PET is
+    registered to an image of its own contrast built from the segmentation of the MRI (Ashburner & Friston 1997,
+    NeuroImage 6:209): the position of the cortical ribbon drives the alignment, not the T1 contrast of the skull
+    and scalp. FDG only (other tracers have other grey / white contrasts).
+    """
+    brain = _binary(ants.image_read(anat['mask']))
+    gm_f = next((f for f in (anat.get('gray_wb'), anat.get('gray')) if f and opi(f)), '')
+    wm_f = next((f for f in (anat.get('white_full'), anat.get('white')) if f and opi(f)), '')
+    if not gm_f or not wm_f:
+        raise FileNotFoundError("coreg_target='synthetic' needs the grey and white matter masks of the anatomy")
+    gm = _on_grid(gm_f, brain).numpy() > 0
+    wm = _on_grid(wm_f, brain).numpy() > 0
+    s = np.where(brain.numpy() > 0, FDG_WEIGHTS['CSF'], 0.0).astype(np.float32)
+    s[wm] = FDG_WEIGHTS['WM']
+    s[gm] = FDG_WEIGHTS['GM']
+    fwhm = fwhm_mm or 2.0 * float(max(pet_spacing[:3]))
+    img = ants.smooth_image(brain.new_image_like(s), fwhm / (2.0 * np.sqrt(2.0 * np.log(2.0))),
+                            sigma_in_physical_coordinates=True)
+    ants.image_write(img, out, ri=False)
+    pu.write_json(out, [anat['mask'], gm_f, wm_f], f'Synthetic FDG image of the anatomy (GM {FDG_WEIGHTS["GM"]}, '
+                                                   f'WM {FDG_WEIGHTS["WM"]}, CSF {FDG_WEIGHTS["CSF"]}), FWHM {fwhm} mm.')
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -346,7 +481,8 @@ def manual_correction(pet_mean, fixed_file, chain, prefix, pet_in_fixed, imgtype
 def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_template, reference,
              study_template, T_PET, ct_pet_same_space, coreg_metric, type_of_transform_template, do_manual,
              Need_check_coreg, bids_dir, diary_name, sing_fs, template_mask='', anchor=None,
-             moving_for_estimate=None, coreg_transform='Rigid'):
+             moving_for_estimate=None, coreg_transform='Rigid', coreg_init='auto', pet_coreg_mask='none',
+             pet_mask_percentile=30.0, pet_mask_dilate_mm=3.0, coreg_target='anat', synthetic_fwhm=None):
     """
     Registration of the session (scenario `sc`); writes and returns the registration record.
 
@@ -406,8 +542,22 @@ def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_te
         PET -> anatomy on the same subject; 'Affine' compensates a size difference; 'SyNRA' is a
         composite (rigid + affine + SyN) for rare cross-scanner cases (slow). Scenario 3v1 uses
         `type_of_transform_template` instead.
+    coreg_init : str
+        Initialisation of the PET -> anatomy / CT registration (init_candidates): 'auto' (centres of mass, centres
+        of the fields of view, AC-PC matrix of the anatomy, identity; the best start is kept), 'com', 'fov', 'acpc'
+        or 'identity'.
+    pet_coreg_mask : str
+        Mask of the PET for the registration (pet_mask): 'none', 'threshold' (pet_mask_percentile, largest cluster,
+        filled holes, dilated pet_mask_dilate_mm), 'anat' (second pass on the brain of the anatomy back-projected
+        into the PET and dilated pet_mask_dilate_mm), or a mask file in the PET space.
+    coreg_target : str
+        Fixed image of the 1v2a registration: 'anat' (AC-PC head image), 'brain' (skull-stripped anatomy) or
+        'synthetic' (FDG-like image of the tissue masks, synthetic_pet; FDG only, smoothed to synthetic_fwhm mm,
+        default twice the largest PET voxel).
     """
-    _validate_coreg_transform(coreg_transform)
+    _validate_coreg_transform(coreg_transform, diary_name)
+    if coreg_target not in COREG_TARGETS:
+        raise ValueError(f'coreg_target={coreg_target!r}: expected one of {COREG_TARGETS}')
 
     nl = 'Registration of the PET session ' + session + ' (scenario ' + sc + ' of pet4.svg)'
     run_cmd.msg(nl, diary_name, 'HEADER')
@@ -427,10 +577,13 @@ def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_te
         ct_img = ct_record['reference']
         if ct_pet_same_space:
             return anchor or {'to': [], 'from': []}
-        ct = ants.image_read(ct_img)
-        head = ants.iMath(ants.threshold_image(ct, -500.0, 1e9, 1, 0), 'MD', 3)   # head of the CT (> -500 HU)
+        head = _dilated(ct_head_mask(ct_img), 3.0)          # head of the CT (> -500 HU, without the bed)
         return rigid_to(ct_img, moving, opj(mat_dir, session + '_from-pet-to-ct_'), coreg_metric,
-                        mask_file=head, coreg_transform=coreg_transform)
+                        mask_file=head, coreg_transform=coreg_transform, init=coreg_init,
+                        moving_mask=pet_mask(pet_coreg_mask if pet_coreg_mask != 'anat' else 'none', moving,
+                                             opj(paths['orig_formc'], session + '_desc-coreg_mask.nii.gz'),
+                                             pet_mask_percentile, pet_mask_dilate_mm),
+                        diary_name=diary_name)
 
     # ------------------------------------------------------------------
     # Branch 1: anatomy present (1v1, 1v2a, 1v2b)
@@ -444,10 +597,31 @@ def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_te
                 acpc = transfo.compose(anchor, acpc)
 
         elif sc == '1v2a':
-            # anatomy from another session: rigid (or higher) PET -> anatomy, then optional manual correction
+            # anatomy from another session: rigid PET -> anatomy (multi-start, optional PET mask / second pass in the
+            # brain / FDG-like target), then optional manual correction
             prefix = opj(mat_dir, session + '_from-pet-to-' + T_PET + '_')
-            acpc = rigid_to(anat['acpc'], moving, prefix, coreg_metric,
-                            mask_file=anat['mask'], coreg_transform=coreg_transform)
+            os.makedirs(paths['orig_formc'], exist_ok=True)
+            if coreg_target == 'synthetic':
+                fixed = synthetic_pet(anat, ants.image_read(moving).spacing,
+                                      opj(paths['orig_formc'], session + '_desc-synthetic_' + T_PET + '.nii.gz'),
+                                      synthetic_fwhm)
+            else:
+                fixed = anat['brain'] if coreg_target == 'brain' else anat['acpc']
+            run_cmd.msg(f'INFO: PET -> anatomy: target {coreg_target} ({opb(fixed)}), init {coreg_init}, PET mask '
+                        f'{pet_coreg_mask}', diary_name, 'OKGREEN')
+            acpc_mat = opj(anat['dir_transfo'], 'acpc_0GenericAffine.mat')
+            two_pass = pet_coreg_mask == 'anat'
+            acpc = rigid_to(fixed, moving, prefix + ('pass-1_' if two_pass else ''), coreg_metric,
+                            mask_file=anat['mask'], coreg_transform=coreg_transform, init=coreg_init,
+                            acpc=acpc_mat if opi(acpc_mat) else None,
+                            moving_mask=pet_mask(pet_coreg_mask, moving,
+                                                 opj(paths['orig_formc'], session + '_desc-coreg_mask.nii.gz'),
+                                                 pet_mask_percentile, pet_mask_dilate_mm),
+                            diary_name=diary_name)
+            if two_pass:
+                acpc = refine_in_brain(fixed, anat['mask'], moving, acpc, prefix, coreg_metric, pet_mask_dilate_mm,
+                                       coreg_transform,
+                                       opj(paths['orig_formc'], session + '_desc-coregbrain_mask.nii.gz'), diary_name)
             if do_manual:
                 # manual correction done on the FULL session mean so the engineer sees the whole field
                 # of view; the chain is world-to-world, valid either way, and the re-registration uses
@@ -517,7 +691,8 @@ def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_te
         transfo.check(t)
 
     record = dict(modality='pet', scenario=sc, session=session, reference=session_mean, targets=targets,
-                  coreg_transform=coreg_transform, created=pu.now())
+                  coreg_transform=coreg_transform, coreg_init=coreg_init, pet_coreg_mask=pet_coreg_mask,
+                  coreg_target=coreg_target, created=pu.now())
     rec_file = record_path(paths, session)
     transfo.write_record(rec_file, record)
 

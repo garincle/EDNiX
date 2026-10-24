@@ -24,7 +24,7 @@ opi = os.path.isfile
 from Tools import run_cmd, QC_plot
 from modalities.pet import petutils as pu
 from modalities.pet import transfo
-from modalities.pet.coreg2anat import (manual_correction, qc_contour, rigid_to,
+from modalities.pet.coreg2anat import (manual_correction, qc_contour, rigid_to, ct_head_mask,
                                        _validate_coreg_transform)
 from modalities.anat.freesurfer import FS_freeview
 
@@ -45,7 +45,7 @@ def record_path(paths, base):
 
 def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, reference, study_template, T_CT, metric,
              type_of_transform_template, do_manual, Need_check_coreg, bids_dir, diary_name, sing_fs,
-             template_mask='', coreg_transform='Rigid'):
+             template_mask='', coreg_transform='Rigid', coreg_init='auto'):
     """Registration of the CT (scenario sc); writes and returns the registration record.
 
     Parameters
@@ -97,8 +97,12 @@ def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, referenc
         'Affine' compensates a size difference (atrophy, scanner FOV); 'SyNRA' is rare (cross-scanner,
         template building). Scenario 2v1 uses `type_of_transform_template`; 'anat_same_space' and
         '2v2' do not use it.
+    coreg_init : str
+        Initialisation of the CT -> anatomy registration (modalities.pet.coreg2anat.init_candidates): 'auto'
+        (centres of mass of the CT head without the bed and of the anatomy, centres of the fields of view, AC-PC
+        matrix of the anatomy, identity; the best start is kept), 'com', 'fov', 'acpc' or 'identity'.
     """
-    _validate_coreg_transform(coreg_transform)
+    _validate_coreg_transform(coreg_transform, diary_name)
 
     nl = 'Registration of the CT ' + base + ' (scenario ' + sc + ')'
     run_cmd.msg(nl, diary_name, 'HEADER')
@@ -114,12 +118,18 @@ def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, referenc
         acpc = transfo.check(transfo.affine(opj(anat['dir_transfo'], 'acpc_0GenericAffine.mat')))
 
     elif sc == '1v2b':
-        # CT and anatomy in different spaces: rigid (or higher) CT -> anatomy, with a brain mask dilated
-        # by 10 mm (skull included: the bone edges constrain the registration)
+        # CT and anatomy in different spaces: rigid CT -> anatomy, metric in the brain mask of the anatomy dilated
+        # by 10 mm (skull included: the bone edges constrain the registration), CT restricted to the head (the bed
+        # and the head holder removed, > -500 HU, largest component), multi-start initialisation. rigid_to shifts
+        # the CT to >= 0 for the centre of mass: in HU the air (-1000) is a negative mass larger than the head, and
+        # the centre of mass of the raw CT lies away from the head (ANTs' default initialisation).
         prefix = opj(mat_dir, base + '_from-ct-to-' + T_CT + '_')
-        acpc = rigid_to(anat['acpc'], work, prefix, metric,
-                        mask_file=anat['mask'], dilate_mm=10.0,
-                        coreg_transform=coreg_transform)
+        head = ct_head_mask(work)
+        ants.image_write(head, opj(paths['orig_formc'], base + '_desc-head_mask.nii.gz'), ri=False)
+        acpc_mat = opj(anat['dir_transfo'], 'acpc_0GenericAffine.mat')
+        acpc = rigid_to(anat['acpc'], work, prefix, metric, mask_file=anat['mask'], dilate_mm=10.0,
+                        coreg_transform=coreg_transform, moving_mask=head, init=coreg_init,
+                        acpc=acpc_mat if opi(acpc_mat) else None, diary_name=diary_name)
         if do_manual:
             # manual correction done on the full CT so the engineer sees the skull; the chain is
             # world-to-world, valid either way, and the re-registration uses initial_transform
