@@ -1027,3 +1027,47 @@ def test_within_run_motion_estimates_are_accurate(tmp_path):
                 est = P.F @ np.asarray(T[j].apply_to_point(Ti.apply_to_point(tuple(P.F @ p))))
                 errs.append(np.linalg.norm(true - est))
     assert np.mean(errs) < 0.6 and np.max(errs) < 1.5, (np.mean(errs), np.max(errs))
+
+
+def test_session_crop_redrawn_when_the_session_image_changed(tmp_path, monkeypatch):
+    # two sessions of one subject with different head positions: each keeps its own crop; a crop drawn before step 1
+    # was run again with another orientation (session 1) no longer matches its image and is drawn again
+    from Tools import getpath
+    drawn = []
+    diary = str(tmp_path / 'diary.txt')
+
+    def draw(image, crop, diary, sing_fs, redo=False):               # freeview replaced by a box around the head
+        if os.path.isfile(crop) and not redo:
+            return crop
+        img = ants.image_read(image)
+        head = MoCo.head_mask(img, 0.3, 0)
+        ants.image_write(ants.crop_image(img, label_image=head, label=1), crop, ri=False)
+        drawn.append(os.path.basename(crop))
+        return crop
+    monkeypatch.setattr(studyT, 'manual_crop_session', draw)
+    lut = [P.PET[k] for k in range(7)]
+    A = P.grid(48, 2.0)
+    boxes = {}
+    for ses, pose in (('1', ((5, 0, 0), (8, -6, 4))), ('2', ((-8, 4, 0), (-10, 5, -3)))):
+        dp = str(tmp_path / 'bids' / 'sub-01' / f'ses-{ses}')
+        paths = getpath.pet(dp, 'EDNiX')
+        os.makedirs(paths['orig_formc'], exist_ok=True)
+        mean = P.save(_render((48,) * 3, A, *P.pose(*pose), lut), A, os.path.join(paths['orig_formc'], 'mean.nii.gz'))
+        base = f'sub-01_ses-{ses}_trc-FDG'
+        boxes[ses] = (loop2.crop_for_session('auto', '', base, paths, mean, diary, '', False), mean, paths, base)
+        assert os.path.isfile(os.path.join(paths['qc'], base + '_desc-cropbox_pet.png'))
+    assert drawn == ['sub-01_ses-1_trc-FDG_desc-crop_pet.nii.gz', 'sub-01_ses-2_trc-FDG_desc-crop_pet.nii.gz']
+    assert os.path.isfile(str(tmp_path / 'bids' / 'QC' / 'pet_crop' / 'sub-01_ses-1_trc-FDG_desc-cropbox_pet.png'))
+    # same images: the crops are reused
+    for ses in ('1', '2'):
+        _, mean, paths, base = boxes[ses]
+        loop2.crop_for_session('auto', '', base, paths, mean, diary, '', False)
+    assert len(drawn) == 2
+    # session 1 reoriented again (axes flipped: other world coordinates for the same voxels): drawn again
+    _, mean, paths, base = boxes['1']
+    img = nib.load(mean)
+    nib.save(nib.Nifti1Image(np.asarray(img.dataobj)[::-1, :, ::-1], img.affine), mean)
+    box = loop2.crop_for_session('auto', '', base, paths, mean, diary, '', False)
+    assert drawn[-1] == 'sub-01_ses-1_trc-FDG_desc-crop_pet.nii.gz' and len(drawn) == 3
+    head = MoCo.head_mask(ants.image_read(mean), 0.3, 0).numpy() > 0
+    assert (ants.image_read(box).numpy() > 0)[head].mean() > 0.99

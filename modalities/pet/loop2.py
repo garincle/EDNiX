@@ -12,7 +12,10 @@ opd = os.path.dirname
 ope = os.path.exists
 opi = os.path.isfile
 
-from Tools import run_cmd
+import numpy as np
+import ants
+
+from Tools import run_cmd, QC_plot
 from modalities.pet import petutils as pu
 from modalities.pet import studyT, MoCo, coreg2anat, preproPET, norm2template, roi_signal, transfo
 from modalities.pet import cut_func, pvc as pvcmod
@@ -34,18 +37,69 @@ def _mean_of(img, desc_mean):
     return m if pu.is_dynamic(img) else img
 
 
+def _crop_matches(crop, image, min_r=0.9):
+    """True when the crop drawn in freeview (a cropped copy of the session image) still matches the session image at
+    the same world coordinates; False when step 1 was run again with another orientation since (the box would land
+    elsewhere in the head)."""
+    c = ants.image_read(crop)
+    img = ants.image_read(image)
+    img = ants.slice_image(img, axis=3, idx=0) if img.dimension == 4 else img
+    c = ants.slice_image(c, axis=3, idx=0) if c.dimension == 4 else c
+    a = c.numpy().ravel()
+    b = ants.resample_image_to_target(img, c, interp_type='linear').numpy().ravel()
+    if a.std() == 0 or b.std() == 0:
+        return False
+    return float(np.corrcoef(a, b)[0, 1]) >= min_r
+
+
+def _check_box(box_file, image, session, paths, diary_file, min_head=0.3):
+    """Fraction of the head of `image` (MoCo.head_mask) inside the crop box, a warning below min_head, and a QC image
+    (pet/QC/<session>_desc-cropbox_pet.png, also in <BIDS>/QC/pet_crop) of the box over the image."""
+    img = ants.image_read(image)
+    img = ants.slice_image(img, axis=3, idx=0) if img.dimension == 4 else img
+    head = MoCo.head_mask(img).numpy() > 0
+    inside = ants.image_read(box_file).numpy() > 0
+    frac = float((head & inside).sum()) / max(1.0, float(head.sum()))
+    if frac < min_head:
+        run_cmd.msg(f'WARNING: {session}: the crop box contains {frac:.0%} of the activity above 10% of the maximum '
+                    f'of {opb(image)}: check the QC image, draw it again with redo_crop=True', diary_file, 'WARNING')
+    else:
+        run_cmd.msg(f'INFO: {session}: crop box with {frac:.0%} of the activity above 10% of the maximum (head and '
+                    f'body in the field of view)', diary_file, 'OKGREEN')
+    os.makedirs(paths['qc'], exist_ok=True)
+    png = opj(paths['qc'], session + '_desc-cropbox_pet.png')
+    QC_plot.mosaic(image, box_file, png)
+    qc_dir = opj(opd(opd(opd(paths['path']))), 'QC', 'pet_crop')      # <BIDS>/sub-*/ses-*/pet
+    os.makedirs(qc_dir, exist_ok=True)
+    shutil.copyfile(png, opj(qc_dir, opb(png)))
+    return frac
+
+
 def crop_for_session(crop_for_MoCo, study_crop, session, paths, first_mean, diary_file, sing_fs, redo_crop):
-    """Crop box (file) in the space of the first run of the session, or None."""
+    """
+    Crop box (file) in the space of the first run of the session, or None. 'auto': crop of the PET study template
+    brought through the session -> template registration when both exist; otherwise (and with 'manual') the crop
+    drawn on the mean image of the session, drawn again when it no longer matches that image (step 1 run again with
+    another orientation: other world coordinates). The box is shown in pet/QC (warning when it misses the activity).
+    """
     if crop_for_MoCo == 'none':
         return None
     prefix = opj(paths['orig_matrices'], session + '_to_studyTemplate_')
     out = opj(paths['orig_formc'], session + '_desc-cropbox_mask.nii.gz')
     os.makedirs(paths['orig_formc'], exist_ok=True)
     if crop_for_MoCo == 'auto' and study_crop and opi(study_crop) and opi(prefix + transfo.ANTS_AFF):
-        return studyT.crop_mask(study_crop, first_mean, out, transfo.registration(prefix))
-    crop = opj(paths['orig_formc'], session + '_desc-crop_pet.nii.gz')
-    studyT.manual_crop_session(first_mean, crop, diary_file, sing_fs, redo=redo_crop)
-    return studyT.crop_mask(crop, first_mean, out)
+        box = studyT.crop_mask(study_crop, first_mean, out, transfo.registration(prefix))
+    else:
+        crop = opj(paths['orig_formc'], session + '_desc-crop_pet.nii.gz')
+        redo = bool(redo_crop)
+        if not redo and opi(crop) and not _crop_matches(crop, first_mean):
+            run_cmd.msg(f'WARNING: {session}: the crop {opb(crop)} no longer matches {opb(first_mean)} (step 1 run '
+                        f'again with another orientation?): drawn again', diary_file, 'WARNING')
+            redo = True
+        studyT.manual_crop_session(first_mean, crop, diary_file, sing_fs, redo=redo)
+        box = studyT.crop_mask(crop, first_mean, out)
+    _check_box(box, first_mean, session, paths, diary_file)
+    return box
 
 
 def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, opts, reg, diary_file,
