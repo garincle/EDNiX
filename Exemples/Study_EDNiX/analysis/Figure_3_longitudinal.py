@@ -954,11 +954,9 @@ FIG3_EXTRA_PANEL = {'Macaque': 'surface'}
 
 def plot_figure3_combined(species_rows, out_path, region='Isocortex',
                           atlas_level=ATLAS_LEVEL, hemisphere='left',
-                          min_sessions=MIN_SESSIONS, modalities=FIG3_MODALITIES,
-                          extra_panel=FIG3_EXTRA_PANEL,
-                          primary_regions=PRIMARY_REGIONS,
-                          association_regions=ASSOCIATION_REGIONS,
-                          panel_w=3.4, panel_h=2.7):
+                          min_sessions=MIN_SESSIONS, modalities=None,
+                          extra_panel=None, primary_regions=None,
+                          association_regions=None, panel_w=3.4, panel_h=2.7):
     """
     Figure 3 as one figure. Rows, top to bottom:
       1..S      trajectories per species (spline LMM fit ± 95% CI, individual subjects),
@@ -971,8 +969,15 @@ def plot_figure3_combined(species_rows, out_path, region='Isocortex',
 
     species_rows : list of (species, morph_dict, age_df, age_col, row_label)
     out_path     : output path without extension; .png (300 dpi) and .pdf are written
+    modalities, extra_panel, primary_regions, association_regions : None = module
+                   defaults (FIG3_MODALITIES, FIG3_EXTRA_PANEL, PRIMARY_REGIONS,
+                   ASSOCIATION_REGIONS)
     Returns the list of written paths.
     """
+    modalities          = FIG3_MODALITIES if modalities is None else modalities
+    extra_panel         = FIG3_EXTRA_PANEL if extra_panel is None else extra_panel
+    primary_regions     = PRIMARY_REGIONS if primary_regions is None else primary_regions
+    association_regions = ASSOCIATION_REGIONS if association_regions is None else association_regions
     import string
     import matplotlib.pyplot as plt
     import matplotlib.gridspec as gridspec
