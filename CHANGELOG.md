@@ -1,5 +1,11 @@
 # Changelog
 
+## PET group means for small groups, October 2026
+
+- `pet_group.run_group_mean`: group mean, SD and coefficient-of-variation maps of PET images in a template space (any n >= 1, no statistics), with the analysis mask and smoothing of `run_group_analysis` and one value per subject; `pet_roi_group.run_roi_mean`: regional means / SD / CV per region (regions of >= `min_voxels` PET voxels). For a species with a few animals, e.g. the mean brain ratio projected on the surfaces (`pet_surface.render_pet_surfaces(..., maps=['mean_all', 'cv_all'])`).
+- Design names with `_` (`'one_sample'`) are accepted by `run_group_analysis` / `run_roi_analysis`; an unknown design lists the valid ones.
+- `Launcher_PET_group_Tremblay.py`: group mean of the brain ratio, its surfaces and the regional means; the GLM runs only with `RUN_GLM = True` and at least `MIN_SUBJECTS` animals.
+
 ## PET group analyses: nilearn-independent resampling, October 2026
 
 - `Statistics/Group_PET` resampled with `nilearn.image.resample_to_img(..., force_resample=True, copy_header=True)`: these keywords exist only from nilearn 0.11, so with an older nilearn (`requirements.txt`: `nilearn>=0.9`) the analysis stopped with `TypeError: unexpected keyword argument 'copy_header'`. Resampling now uses `nibabel.processing.resample_from_to` (`pet_group.resample_to_ref`; trilinear for images and probabilistic masks, nearest neighbour for labels and binary masks; 0 outside the field of view). Images on another grid are now resampled trilinearly, as the log already said, instead of with the cubic spline of nilearn's `'continuous'` (no overshoot at the brain edge). Tests pass with nilearn 0.10.3 and 0.14.1.

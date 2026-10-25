@@ -479,6 +479,73 @@ def plot_map(path, bg, title, out_png, threshold=None, cut_coords=7, display_mod
 
 
 # ======================================================================================================= main
+def _design_name(design):
+    """'one_sample' / 'One-Sample' -> 'one-sample' (the names of _glm.DESIGNS)."""
+    d = str(design).strip().lower().replace('_', '-')
+    if d not in _glm.DESIGNS:
+        raise ValueError(f'design={design!r}: expected one of {_glm.DESIGNS}')
+    return d
+
+
+def run_group_mean(bids_dir, template, desc=None, brain_mask=None, tissue_mask=None, rel_threshold=0.8, fwhm=None,
+                   list_to_keep=None, list_to_remove=None, output_dir=None, output_suffix=None, background=None):
+    """
+    Group mean (and SD, coefficient of variation) image of the PET images in a template space, without
+    statistics: the descriptive map of a group too small for a GLM (any n >= 1), e.g. the mean brain ratio of a
+    species. Same inputs as run_group_analysis with normalization='none' (use a ratio image: desc='bratio',
+    'bratio-PVC'...): analysis mask (brain x coverage x relative threshold [x tissue]), smoothing inside the mask,
+    runs of a session then sessions of a subject averaged (one value per subject, so that an animal scanned
+    several times does not weigh more). Outputs in <bids_dir>/Results/Grp_PET_mean_desc-<desc>[_<suffix>]/:
+    group-all_mean / _sd / _cv (SD / mean, %) .nii.gz, inputs_4D, inputs.tsv, mask_group and a PNG of the mean.
+    Returns dict(output_dir, maps={'mean_all', 'sd_all', 'cv_all'}, n) for pet_surface.render_pet_surfaces.
+    """
+    images = collect_images(bids_dir, template, desc, list_to_keep, list_to_remove)
+    desc = images.attrs.get('desc') or images.desc.iloc[0]
+    table = images.copy()
+    files = template_files(images)
+    out = output_dir or opj(bids_dir, 'Results', f'Grp_PET_mean_desc-{desc}' + (f'_{output_suffix}' if output_suffix
+                                                                                  else ''))
+    os.makedirs(out, exist_ok=True)
+    data, ref = load_on_grid(list(table.image))
+    zooms = ref.header.get_zooms()[:3]
+    brain_file = brain_mask or files['brain']
+    if not brain_file:
+        raise FileNotFoundError(f'no brain mask in {opd(images.image.iloc[0])}/masks: give brain_mask')
+    brain = mask_on_grid(brain_file, ref, interp='linear')
+    data = np.nan_to_num(data, nan=0.0)
+    table['normalising_value'] = 1.0                            # no normalisation (_observations needs it)
+    tissue = mask_on_grid(tissue_mask, ref, interp='linear') if tissue_mask else None
+    mask, mrep = analysis_mask(data, brain, rel_threshold, tissue)
+    fwhm = 2 * float(min(zooms)) if fwhm is None else fwhm
+    sm = smooth_in_mask(data, mask, fwhm, zooms)
+    del data
+    table['_col'] = np.arange(len(table))
+    obs, Y = _observations(table, sm, mask, 'one-sample', 'subject', 'session', None)
+    n = len(obs)
+    _log(f'PET group mean: {len(images)} image(s), {n} subject(s), desc-{desc}, template {template}\n'
+         f'  output: {out}\n  brain mask: {brain_file}\n  analysis mask (voxels): {mrep}; smoothing {fwhm:g} mm')
+    if n < 8:
+        _log(f'  NOTE: {n} subject(s): descriptive map only (inter-individual variability not estimable'
+             + (' with one subject)' if n == 1 else ' reliably)'))
+    obs.drop(columns=['_col', 'normalising_value'], errors='ignore').to_csv(opj(out, 'inputs.tsv'), sep='\t',
+                                                                          index=False)
+    _write(sm[..., list(table._col)] * 1, ref, opj(out, 'inputs_4D.nii.gz'))
+    _write(mask.astype(np.uint8), ref, opj(out, 'mask_group.nii.gz'))
+    maps = _descriptive(obs, Y, mask, ref, out, 'one-sample', None, None)
+    if n > 1:
+        m, sd = Y.mean(0), Y.std(0, ddof=1)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            cv = np.where(m > 0, 100 * sd / m, 0)
+        maps['cv_all'] = _write(_vol(cv, mask), ref, opj(out, 'group-all_cv.nii.gz'))
+    with open(opj(out, 'summary.json'), 'w') as f:
+        json.dump(dict(desc=desc, template=template, n_subjects=n, n_images=int(len(images)), fwhm_mm=fwhm,
+                       mask=mrep, subjects=list(map(str, obs.subject))), f, indent=2,
+                  default=lambda o: o.item() if isinstance(o, np.generic) else str(o))
+    plot_map(maps['mean_all'], background, f'mean desc-{desc} (n = {n})',
+             maps['mean_all'].replace('.nii.gz', '.png'), symmetric=False, cmap='hot', threshold=1e-6)
+    return dict(output_dir=out, maps=maps, n=n)
+
+
 def _needed_columns(design, group_col, groups, covariates, paired_col, group_assignment):
     """(group_col, groups, columns to read from participants.tsv / sessions.tsv)."""
     if group_assignment:
@@ -566,6 +633,7 @@ def run_group_analysis(bids_dir, template, design, desc=None, group_col=None, gr
     -------
     dict: output_dir, contrast, maps (paths), clusters (DataFrame), summary (dict).
     """
+    design = _design_name(design)
     if cluster_method not in CLUSTER_METHODS:
         raise ValueError(f'cluster_method={cluster_method!r}: expected one of {CLUSTER_METHODS}')
     if aggregate not in ('subject', 'session'):

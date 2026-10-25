@@ -385,3 +385,32 @@ def test_resampling_does_not_depend_on_the_nilearn_version(monkeypatch):
     lab = nib.Nifti1Image(np.rint(ijk[0] / 6).astype(np.int16), AFF)
     labs = np.unique(np.asarray(G.resample_to_ref(lab, ref, order=0).dataobj))
     assert set(labs) <= set(np.unique(np.asarray(lab.dataobj)))
+
+
+# ------------------------------------------------------------------------------------------------- group mean
+@pytest.mark.parametrize('n', [1, 2])
+def test_group_mean_for_small_groups_with_surfaces(tmp_path, monkeypatch, n):
+    """n = 1 or 2 (no GLM possible): mean / SD / CV maps of the ratio image, regional means, surfaces of the
+    mean; design names with '_' are accepted by the GLM functions."""
+    from Tools import niftotoWBsurface
+    from Statistics.Group_PET import pet_surface
+    ph = make_study(tmp_path, n_per_group=1, effect=0.0, dynamic={1, 2})     # 2 subjects, desc-SUV-mean
+    keep = [('01', '1')] if n == 1 else None
+    res = G.run_group_mean(str(tmp_path), TEMPLATE, 'SUV', list_to_keep=keep, output_dir=str(tmp_path / 'mean'))
+    assert res['n'] == n and ('sd_all' in res['maps']) == (n > 1) and ('cv_all' in res['maps']) == (n > 1)
+    m = np.asarray(nib.load(res['maps']['mean_all']).dataobj)
+    mask = np.asarray(nib.load(os.path.join(res['output_dir'], 'mask_group.nii.gz')).dataobj) > 0
+    assert not (mask & ph['csf']).any() and np.all(m[~mask] == 0)
+    assert m[mask & (ph['lab'] == 1)].mean() > m[mask & (ph['lab'] == 7)].mean()   # cortex 8 > cerebellum 7
+    calls = []
+    monkeypatch.setattr(niftotoWBsurface, 'nifti_to_surface_wb', lambda **k: calls.append(k))
+    done = pet_surface.render_pet_surfaces(res, 'Macaque', '/atlas', 'atlas/mammals/primates/Macaque', 'wb ',
+                                           maps=['mean_all', 'cv_all'])
+    assert 'mean_all' in done and calls[0]['palette_name'] == 'videen_style' and not calls[0]['display_negative']
+    roi = R.run_roi_mean(str(tmp_path), 'PH', 0, 'SUV', list_to_keep=keep, output_dir=str(tmp_path / 'roi'))
+    st = roi['stats'].set_index('region')
+    assert set(st.n) == {n} and 'tiny' in st.index and st.loc['cortex', 'mean'] > st.loc['white', 'mean']
+    assert os.path.isfile(os.path.join(roi['output_dir'], 'regions_mean.tsv'))
+    assert G._design_name('one_sample') == 'one-sample'
+    with pytest.raises(ValueError, match='expected one of'):
+        G._design_name('mean')
