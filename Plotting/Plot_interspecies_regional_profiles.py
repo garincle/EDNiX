@@ -86,7 +86,9 @@ ROI_SUBDIR = opj('pet', 'orig', 'postprocessing', 'ROI_analysis')
 _HEMI = re.compile(r'^([LlRr])_')
 
 
-def species_color(sp, i=0):
+def species_color(sp, i=0, colors=None):
+    if colors and sp in colors:
+        return colors[sp]
     return SPECIES_COLORS.get(sp, PALETTE[(i + len(SPECIES_COLORS)) % len(PALETTE)])
 
 
@@ -456,49 +458,63 @@ def plot_fingerprint(prof, stats, ref_species, pre, ylabel, alpha=0.05, legend_e
     _save(fig, pre, legend)
 
 
-def plot_bars(prof, stats, ref_species, pre, ylabel, alpha=0.05, per_row=24, legend_extra=''):
+def draw_bars(ax, prof, stats, ref_species, ylabel, regions=None, alpha=0.05, colors=None, ylim=None,
+              legend=True, fontsize=7):
+    """Grouped bars of `regions` (default: all columns of prof) on one axis: mean +- SEM drawn from the baseline,
+    every subject as a dot, FDR stars of each species vs ref_species. colors: {species: colour} overriding
+    SPECIES_COLORS. ylim: (low, high) shared across axes; computed from prof when None."""
+    regs = list(regions) if regions is not None else list(prof.columns)
+    species = list(prof.index.get_level_values(0).unique())
+    st = stats.set_index(['species', 'region'])
+    w = 0.8 / len(species)
+    rng = np.random.default_rng(0)
+    base = _baseline(ylabel)
+    if ylim is None:
+        vals = prof.values[np.isfinite(prof.values)]
+        ylo, yhi = min(np.min(vals), base), max(np.max(vals), base)
+        span = yhi - ylo if yhi > ylo else 1
+        ylim = (ylo - 0.05 * span, yhi + 0.15 * span)
+    span = (ylim[1] - ylim[0]) / 1.2
+    x = np.arange(len(regs))
+    for i, sp in enumerate(species):
+        d = prof.loc[sp, regs]
+        c = species_color(sp, i, colors)
+        xs = x - 0.4 + w * (i + 0.5)
+        # bars start at the baseline (1 = whole-brain mean, 0 for z-scores): their length is the
+        # deviation from it, so the axis can be zoomed without truncating a bar drawn from 0
+        ax.bar(xs, d.mean().values - base, w * 0.9, bottom=base, yerr=d.sem().values, color=c, alpha=0.55,
+               edgecolor=c, error_kw=dict(lw=0.8, capsize=1.5), label=f'{sp} (n={d.shape[0]})')
+        for j, reg in enumerate(regs):
+            v = d[reg].dropna().values
+            ax.scatter(xs[j] + rng.uniform(-w * 0.25, w * 0.25, len(v)), v, s=6, color=c,
+                       edgecolors='white', linewidths=0.3, zorder=3)
+    for j, reg in enumerate(regs):
+        t = ' '.join(_stars(st.loc[(sp, reg), 'q_fdr'], alpha) for sp in species if sp != ref_species).strip()
+        if t:
+            ax.text(x[j], ylim[1] - 0.1 * span, t, ha='center', va='bottom', fontsize=fontsize)
+    ax.axhline(base, color='k', lw=0.6, ls='--')
+    ax.set_xticks(x)
+    ax.set_xticklabels([_short(r, 28) for r in regs], rotation=60, ha='right', fontsize=fontsize)
+    ax.set_xlim(-0.6, len(regs) - 0.4)
+    ax.set_ylim(*ylim)
+    ax.set_ylabel(ylabel, fontsize=fontsize + 1)
+    ax.tick_params(axis='y', labelsize=fontsize)
+    ax.spines[['top', 'right']].set_visible(False)
+    if legend:
+        ax.legend(fontsize=fontsize, frameon=False, ncol=len(species), loc='upper left', bbox_to_anchor=(0, 1.25))
+    return ylim
+
+
+def plot_bars(prof, stats, ref_species, pre, ylabel, alpha=0.05, per_row=24, legend_extra='', colors=None):
     """Grouped bars (mean +- SEM) with every subject, regions in atlas order, wrapped every per_row regions."""
     regions = list(prof.columns)
     species = list(prof.index.get_level_values(0).unique())
     rows = [regions[i:i + per_row] for i in range(0, len(regions), per_row)]
-    st = stats.set_index(['species', 'region'])
-    w = 0.8 / len(species)
-    rng = np.random.default_rng(0)
     fig, axes = plt.subplots(len(rows), 1, figsize=(max(6.0, 0.42 * min(per_row, len(regions)) * len(species)),
                                                      3.2 * len(rows)), squeeze=False)
-    vals = prof.values[np.isfinite(prof.values)]
-    ylo, yhi = np.min(vals), np.max(vals)
-    base = _baseline(ylabel)
-    ylo, yhi = min(ylo, base), max(yhi, base)
-    span = yhi - ylo if yhi > ylo else 1
-    for ax, regs in zip(axes[:, 0], rows):
-        x = np.arange(len(regs))
-        for i, sp in enumerate(species):
-            d = prof.loc[sp, regs]
-            c = species_color(sp, i)
-            xs = x - 0.4 + w * (i + 0.5)
-            # bars start at the baseline (1 = whole-brain mean, 0 for z-scores): their length is the
-            # deviation from it, so the axis can be zoomed without truncating a bar drawn from 0
-            ax.bar(xs, d.mean().values - base, w * 0.9, bottom=base, yerr=d.sem().values, color=c, alpha=0.55,
-                   edgecolor=c,
-                   error_kw=dict(lw=0.8, capsize=1.5), label=f'{sp} (n={d.shape[0]})' if regs is rows[0] else None)
-            for j, reg in enumerate(regs):
-                v = d[reg].dropna().values
-                ax.scatter(xs[j] + rng.uniform(-w * 0.25, w * 0.25, len(v)), v, s=6, color=c,
-                           edgecolors='white', linewidths=0.3, zorder=3)
-        for j, reg in enumerate(regs):
-            t = ' '.join(_stars(st.loc[(sp, reg), 'q_fdr'], alpha) for sp in species if sp != ref_species).strip()
-            if t:
-                ax.text(x[j], yhi + 0.04 * span, t, ha='center', va='bottom', fontsize=7)
-        ax.axhline(_baseline(ylabel), color='k', lw=0.6, ls='--')
-        ax.set_xticks(x)
-        ax.set_xticklabels([_short(r, 28) for r in regs], rotation=60, ha='right', fontsize=7)
-        ax.set_xlim(-0.6, len(regs) - 0.4)
-        ax.set_ylim(ylo - 0.05 * span, yhi + 0.15 * span)
-        ax.set_ylabel(ylabel, fontsize=8)
-        ax.tick_params(axis='y', labelsize=7)
-        ax.spines[['top', 'right']].set_visible(False)
-    axes[0, 0].legend(fontsize=7, frameon=False, ncol=len(species), loc='upper left', bbox_to_anchor=(0, 1.25))
+    ylim = None
+    for k, (ax, regs) in enumerate(zip(axes[:, 0], rows)):
+        ylim = draw_bars(ax, prof, stats, ref_species, ylabel, regs, alpha, colors, ylim, legend=(k == 0))
     fig.tight_layout()
     legend = (f'Regional {ylabel} in {", ".join(species)}: bars, mean across subjects +- SEM, drawn from the '
               f'baseline ({_baseline(ylabel):g}) so that their length is the deviation from it; dots, one subject '

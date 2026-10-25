@@ -1,5 +1,11 @@
 # Changelog
 
+## Figure XX: multimodal multi-species profiles, October 2026
+
+- `Exemples/Study_EDNiX/analysis/Figure_XX_multimodal.py` + `multimodal_profiles.py`: (A) group-mean bratio surfaces of human and macaque on one shared colour scale; (B) cross-species bratio of the level-2 cortical regions (bilateral), bars and permutation / FDR statistics of `Plot_interspecies_regional_profiles`; (C) one radar per species with the within-subject z-scored profiles of morphometry (% of brain volume, ventricles / CSF excluded), FC (average connectivity, mean Fisher z) and metabolism (bratio). Region names mapped to the canonical names of `Atlas_nomenclature`; `LEVEL` is the 1-based hierarchy level (volume `LEVEL-1` of the 4D atlases). Article species colours. Tests `tests/unit/test_multimodal_profiles.py`.
+- `Plot_interspecies_regional_profiles.draw_bars` (axis-level bars, used by `plot_bars` and panel B) and `colors=` overrides of the species colours.
+- `pet_surface.render_pet_surfaces(ranges=...)`: fixed colour scale per map (same bratio scale across species).
+
 ## PET group means for small groups, October 2026
 
 - `pet_group.run_group_mean`: group mean, SD and coefficient-of-variation maps of PET images in a template space (any n >= 1, no statistics), with the analysis mask and smoothing of `run_group_analysis` and one value per subject; `pet_roi_group.run_roi_mean`: regional means / SD / CV per region (regions of >= `min_voxels` PET voxels). For a species with a few animals, e.g. the mean brain ratio projected on the surfaces (`pet_surface.render_pet_surfaces(..., maps=['mean_all', 'cv_all'])`).
