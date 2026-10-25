@@ -29,6 +29,8 @@ DEFAULT_MAPS = {
     'percent_difference': ('ROY-BIG-BL', True),
     'mean_all': ('videen_style', False),
 }
+# other maps (rendered when asked with maps=[...]): group mean images of pet_group.run_group_mean
+PALETTES = dict(DEFAULT_MAPS, sd_all=('videen_style', False), cv_all=('videen_style', False))
 
 
 def render_pet_surfaces(result, species, atlas_lib, species_fragment, sing_wb, scene_template=None,
@@ -42,7 +44,8 @@ def render_pet_surfaces(result, species, atlas_lib, species_fragment, sing_wb, s
                       (Exemples/Study_EDNiX/analysis/Figure_5_SBA.py); the scene template must use
                       '<species>.thickness.dscalar.nii' as placeholder (<species>_thickness.scene of the atlas
                       library). Without scene, only the .dscalar.nii files are written.
-    maps            : keys of result['maps'] to render (default: those of DEFAULT_MAPS present)
+    maps            : keys of result['maps'] to render (default: those of DEFAULT_MAPS present; a result of
+                      pet_group.run_group_mean: 'mean_all', plus 'sd_all' / 'cv_all' if asked)
     projection      : 'ribbon' (default), 'ribbon_dil', 'enclosing', 'vox'... (niftotoWBsurface)
     Returns {key: dscalar path} (the PNG has the same name, .png, when a scene is given).
     """
@@ -61,7 +64,7 @@ def render_pet_surfaces(result, species, atlas_lib, species_fragment, sing_wb, s
         if nz.size == 0:
             print(f'  [surface] {opb(path)} is empty (no significant cluster): skipped', flush=True)
             continue
-        palette, symmetric = DEFAULT_MAPS.get(k, ('ROY-BIG-BL', True))
+        palette, symmetric = PALETTES.get(k, ('ROY-BIG-BL', True))
         if symmetric:
             vmax = float(np.percentile(np.abs(nz), 99))
             pos_max, neg_max = vmax, -vmax

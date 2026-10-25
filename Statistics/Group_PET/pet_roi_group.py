@@ -27,7 +27,7 @@ import pandas as pd
 
 from Statistics.Group_PET import _glm
 from Statistics.Group_PET.pet_group import (_path_entities, _filter, subject_table, _log, desc_alternatives,
-                                            pick_desc, assign_groups, _needed_columns)
+                                            pick_desc, assign_groups, _needed_columns, _design_name)
 
 opj = os.path.join
 opb = os.path.basename
@@ -135,6 +135,7 @@ def run_roi_analysis(bids_dir, atlas, level, desc, design, group_col=None, group
     min_voxels   : minimum number of valid PET voxels of a region in every session (10: earlier rule)
     Returns dict(output_dir, values (subjects x regions), stats (one row per region), report).
     """
+    design = _design_name(design)
     covariates = list(covariates or [])
     long = collect_roi_tables(bids_dir, atlas, level, desc, list_to_keep, list_to_remove)
     ses = session_values(long)
@@ -248,3 +249,41 @@ def _plot_effects(res, png, title, q, n_max=40):
         plt.close(fig)
     except Exception as e:
         _log(f'  [plot] WARNING: {e}')
+
+
+def run_roi_mean(bids_dir, atlas, level, desc, normalization='none', min_voxels=10, list_to_keep=None,
+                 list_to_remove=None, output_dir=None, output_suffix=None):
+    """
+    Regional group means without statistics (any n >= 1): regional tables of the PET space, regions with fewer
+    than min_voxels PET voxels in a session dropped, normalisation as run_roi_analysis ('none' for a ratio image),
+    sessions of a subject averaged. Writes values_raw / values_normalised (one row per session), values_subjects
+    (one row per subject), regions_voxel_counts.tsv and regions_mean.tsv (mean, SD, CV %, n per region, sorted by
+    mean), in <bids_dir>/Results/Grp_PET_ROI_mean_seg-<atlas>-lvl<level>_desc-<desc>[_<suffix>]/.
+    Returns dict(output_dir, values (subjects x regions), stats, report).
+    """
+    long = collect_roi_tables(bids_dir, atlas, level, desc, list_to_keep, list_to_remove)
+    ses = session_values(long)
+    kept, report = filter_regions(ses, min_voxels)
+    norm, _ = normalise_regions(kept, normalization, all_regions=ses)
+    out = output_dir or opj(bids_dir, 'Results', f'Grp_PET_ROI_mean_seg-{atlas}-lvl{level}_desc-{desc}'
+                            + (f'_{output_suffix}' if output_suffix else ''))
+    os.makedirs(out, exist_ok=True)
+    names = kept.groupby('label')['region'].first()
+    wide_raw = kept.pivot_table(index=['subject', 'session'], columns='label', values='mean')
+    wide = norm.pivot_table(index=['subject', 'session'], columns='label', values='value')
+    subj = wide.groupby(level='subject').mean()
+    for w, f in ((wide_raw, 'values_raw'), (wide, 'values_normalised'), (subj, 'values_subjects')):
+        w2 = w.copy()
+        w2.columns = [f'{names[c]} ({c})' for c in w2.columns]
+        w2.to_csv(opj(out, f + '.tsv'), sep='\t')
+    report.to_csv(opj(out, 'regions_voxel_counts.tsv'), sep='\t', index=False)
+    n = subj.shape[0]
+    stats = pd.DataFrame(dict(label=subj.columns, region=[names[c] for c in subj.columns],
+                              mean=subj.mean(0).to_numpy(), sd=subj.std(0, ddof=1).to_numpy() if n > 1 else np.nan,
+                              n=subj.notna().sum(0).to_numpy()))
+    stats['cv_percent'] = 100 * stats['sd'] / stats['mean']
+    stats = stats.sort_values('mean', ascending=False).reset_index(drop=True)
+    stats.to_csv(opj(out, 'regions_mean.tsv'), sep='\t', index=False)
+    _log(f'ROI group mean {atlas} level {level} desc-{desc}: {n} subject(s), {len(stats)} of {len(report)} regions '
+         f'kept (>= {min_voxels} PET voxels in every session)\n  output: {out}')
+    return dict(output_dir=out, values=subj, stats=stats, report=report)
