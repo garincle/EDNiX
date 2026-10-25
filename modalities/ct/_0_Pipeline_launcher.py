@@ -100,8 +100,11 @@ def preprocess_ct(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endc
     coreg_init : str, optional
         Initialisation of the CT -> anatomy registration: 'auto' (centres of mass of the CT head without the bed and
         of the anatomy, centres of the fields of view, AC-PC matrix of the anatomy, identity, search over the
-        rotations; the start with the highest mutual information covering the brain is kept, scores in
-        ct/orig/matrices/*candidates.json), 'com', 'fov', 'acpc', 'identity' or 'search'.
+        rotations, centroids of the intracranial cavity of the CT (skull ring filled slice by slice, written as
+        ct/orig/preprocessing/forMC/*_desc-intracranial_mask) and of the brain of the anatomy; the start with the
+        highest mutual information covering the brain is kept, scores in ct/orig/matrices/*candidates.json), 'com',
+        'fov', 'acpc', 'identity', 'search' or 'brain'. 'acpc' alone works only when the CT and the anatomy share
+        scanner coordinates (same session); otherwise the CT is outside the mask of the anatomy from that start.
     ct_brain_refine : bool, optional
         Second pass of the CT -> anatomy registration (1v2b) in the brain: CT in the brain window (0-80 HU, bone set
         to 0) within the brain of the anatomy brought into the CT, from the head registration. The grey / white

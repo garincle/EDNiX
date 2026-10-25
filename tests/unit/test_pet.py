@@ -275,7 +275,7 @@ def test_multistart_registration_of_a_pet_with_the_torso_in_the_field_of_view(tm
     # the AC-PC matrix of the anatomy is a start when given
     cands = coreg2anat.init_candidates(ants.image_read(files['acpc']), None, ants.image_read(pet),
                                        str(tmp_path / 'c_'), 'auto', opj(files['dir_transfo'], 'acpc_0GenericAffine.mat'))
-    assert [c[0] for c in cands] == ['com', 'fov', 'acpc', 'identity', 'search']
+    assert [c[0] for c in cands] == ['com', 'fov', 'acpc', 'identity', 'search']   # 'brain' needs both brains
     with pytest.raises(ValueError):
         coreg2anat.init_candidates(ants.image_read(files['acpc']), None, ants.image_read(pet), str(tmp_path / 'c_'),
                                    'bad')
@@ -339,6 +339,42 @@ def test_ct_large_rotation_search_and_brain_window_pass(tmp_path):
     second = coreg2anat.refine_in_brain(files['acpc'], files['mask'], win, chain, str(tmp_path / 'b_'), 'mattes',
                                         3.0, 'Rigid', str(tmp_path / 'bm.nii.gz'))
     assert _mstart_error(second, R, t) < 1.0
+
+
+@pytest.mark.slow
+def test_ct_with_neck_and_shoulders_intracranial_start(tmp_path):
+    # CT field of view down to the shoulders (CERMEP-like): the centres of mass and of the field of view are pulled
+    # to the body and those starts converge with half of the brain outside; the intracranial cavity (skull ring
+    # filled slice by slice) gives the 'brain' start
+    files, _, _ = P.anat_derivative(str(tmp_path / 'bids'))
+    hu = [-1000.0, 40.0, 1200.0, 5.0, 38.0, 30.0, 38.0]
+    body = [((0, -5, -60), (18, 18, 30), 40.0), ((0, -12, -55), (5, 5, 30), 700.0),
+            ((0, -5, -115), (70, 30, 35), 40.0), ((0, -38, -5), (34, 4, 36), 150.0),
+            ((0, -48, -60), (80, 4, 100), 400.0)]
+    A = P.grid(96, 2.0, center=(10, -15, -45))
+    R, t = P.pose((-25, 10, 0), (12, 20, -15))
+    ct = _render((96,) * 3, A, R, t, hu, body, smooth_mm=1.0)
+    ct = ct + np.random.default_rng(0).normal(0, 25, ct.shape).astype(np.float32)
+    ctf = P.save(ct, A, str(tmp_path / 'ct.nii.gz'))
+    img = ants.image_read(ctf)
+    cav = coreg2anat.ct_intracranial_mask(img)
+    lab = P.tissues(P.world_points((96,) * 3, A) @ R.T + t).reshape((96,) * 3)
+    c = cav.numpy() > 0
+    assert c[lab <= 2].mean() < 0.01 and c[lab >= 3].sum() > 1000            # inside the skull only
+    prefix = str(tmp_path / 'ct_')
+    chain = coreg2anat.rigid_to(files['acpc'], ctf, prefix, 'mattes', mask_file=files['mask'], dilate_mm=10.0,
+                                moving_mask=coreg2anat.ct_head_mask(img), moving_brain=cav)
+    with open(prefix + 'candidates.json') as f:
+        starts = {s['init']: s for s in json.load(f)['starts']}
+    assert starts['com']['coverage'] < 0.9 and starts['brain']['coverage'] >= 0.9
+    assert _mstart_error(chain, R, t) < 1.0
+    # a start that leaves the CT outside the mask of the anatomy (AC-PC matrix of other scanner coordinates) fails
+    # with an explicit reason instead of the ITK 'zero-valued spacing' error
+    far = coreg2anat._translation_file(str(tmp_path / 'far.mat'), (400.0, 0.0, 0.0))
+    with pytest.raises(RuntimeError, match='no overlap'):
+        coreg2anat.rigid_to(files['acpc'], ctf, str(tmp_path / 'f_'), 'mattes', mask_file=files['mask'],
+                            dilate_mm=10.0, moving_mask=coreg2anat.ct_head_mask(img), init='acpc', acpc=far)
+    assert coreg2anat.ct_intracranial_mask(img * 0 - 1000.0) is None          # no skull: no cavity
 
 
 @pytest.mark.slow

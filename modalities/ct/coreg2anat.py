@@ -25,7 +25,7 @@ from Tools import run_cmd, QC_plot
 from modalities.pet import petutils as pu
 from modalities.pet import transfo
 from modalities.pet.coreg2anat import (manual_correction, qc_contour, rigid_to, ct_head_mask, refine_in_brain,
-                                       _validate_coreg_transform)
+                                       ct_intracranial_mask, _validate_coreg_transform)
 from modalities.anat.freesurfer import FS_freeview
 
 CT_CLIP = (-1000.0, 2000.0)
@@ -77,6 +77,20 @@ def head_image(ct_file, out, pad_mm=5.0):
     pu.write_json(out, [ct_file], f'CT restricted to the head (> -500 HU, largest component, dilated {pad_mm} mm; '
                                   f'outside -1000 HU), cropped: input of the CT study template.')
     return out
+
+
+def intracranial(ct_file, out, diary_name):
+    """Intracranial cavity of the CT (ct_intracranial_mask) written to `out`, or None (warning) without a closed
+    skull."""
+    cavity = ct_intracranial_mask(ct_file)
+    if cavity is None:
+        run_cmd.msg('WARNING: no closed skull found in the CT (bone > 300 HU): no intracranial start', diary_name,
+                    'WARNING')
+        return None
+    ants.image_write(cavity, out, ri=False)
+    pu.write_json(out, [ct_file], 'Intracranial cavity of the CT (bone > 300 HU closed 2 mm, filled slice by slice, '
+                                  'largest component): start of the CT -> anatomy registration.')
+    return cavity
 
 
 def record_path(paths, base):
@@ -140,8 +154,9 @@ def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, referenc
     coreg_init : str
         Initialisation of the CT -> anatomy registration (modalities.pet.coreg2anat.init_candidates): 'auto'
         (centres of mass of the CT head without the bed and of the anatomy, centres of the fields of view, AC-PC
-        matrix of the anatomy, identity, search over the rotations; the best start is kept), 'com', 'fov', 'acpc',
-        'identity' or 'search'.
+        matrix of the anatomy, identity, search over the rotations, centroids of the intracranial cavity of the CT
+        and of the brain of the anatomy; the best start is kept), 'com', 'fov', 'acpc', 'identity', 'search' or
+        'brain'.
     ct_brain_refine : bool
         Scenario 1v2b: second pass in the brain after the head registration: CT in the brain window (brain_window)
         within the brain of the anatomy brought into the CT and dilated by 3 mm (refine_in_brain), from the first
@@ -171,10 +186,13 @@ def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, referenc
         prefix = opj(mat_dir, base + '_from-ct-to-' + T_CT + '_')
         head = ct_head_mask(work)
         ants.image_write(head, opj(paths['orig_formc'], base + '_desc-head_mask.nii.gz'), ri=False)
+        # intracranial cavity (skull ring filled slice by slice): 'brain' start and centre of the rotation search,
+        # independent of the face, neck and shoulders in the field of view
+        cavity = intracranial(work, opj(paths['orig_formc'], base + '_desc-intracranial_mask.nii.gz'), diary_name)
         acpc_mat = opj(anat['dir_transfo'], 'acpc_0GenericAffine.mat')
         acpc = rigid_to(anat['acpc'], work, prefix, metric, mask_file=anat['mask'], dilate_mm=10.0,
                         coreg_transform=coreg_transform, moving_mask=head, init=coreg_init,
-                        acpc=acpc_mat if opi(acpc_mat) else None, diary_name=diary_name)
+                        acpc=acpc_mat if opi(acpc_mat) else None, diary_name=diary_name, moving_brain=cavity)
         if ct_brain_refine:
             win = brain_window(work, opj(paths['orig_formc'], base + '_desc-brainwindow_ct.nii.gz'))
             acpc = refine_in_brain(anat['acpc'], anat['mask'], win, acpc, prefix + 'desc-brain_', metric, 3.0,

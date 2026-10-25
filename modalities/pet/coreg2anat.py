@@ -139,6 +139,80 @@ def ct_head_mask(ct, hu=-500.0):
     return ants.iMath(ants.iMath(m, 'GetLargestComponent'), 'FillHoles')
 
 
+def _axial_axis(img):
+    """Array axis closest to the head-foot axis of the world (z)."""
+    return int(np.argmax(np.abs(np.asarray(img.direction, float)[2, :3])))
+
+
+def _upper_part(mask, fraction=0.5):
+    """Mask restricted to its axial slices whose area is at least `fraction` of the largest one: the part of the
+    brain above the skull base, the same anatomy in a CT (intracranial cavity found from the skull ring) and in
+    an MRI brain mask, whatever the field of view below (face, neck, shoulders)."""
+    a = _read(mask).numpy() > 0.5
+    ax = _axial_axis(_read(mask))
+    area = a.sum(axis=tuple(i for i in range(3) if i != ax))
+    keep = area >= fraction * area.max() if area.max() > 0 else area > 0
+    sl = [slice(None)] * 3
+    out = np.zeros_like(a)
+    for k in np.nonzero(keep)[0]:
+        sl[ax] = k
+        out[tuple(sl)] = a[tuple(sl)]
+    return _read(mask).new_image_like(out.astype(np.float32))
+
+
+def _centroid(mask):
+    """World (LPS) centroid of a binary mask (geometric, not intensity-weighted)."""
+    m = _read(mask)
+    idx = np.argwhere(m.numpy() > 0.5)
+    if idx.size == 0:
+        raise ValueError('_centroid: empty mask')
+    sp = np.asarray(m.spacing[:3], float)
+    return np.asarray(m.origin[:3], float) + np.asarray(m.direction, float)[:3, :3] @ (sp * idx.mean(axis=0))
+
+
+def _largest(mask):
+    """Largest connected component of a boolean array."""
+    from scipy import ndimage
+    lab, n = ndimage.label(mask)
+    if n == 0:
+        return mask
+    return lab == (int(np.argmax(ndimage.sum(mask, lab, range(1, n + 1)))) + 1)
+
+
+def _ring_interior(bone, min_vox):
+    """Largest region enclosed by the bone of one slice, if it has at least min_vox voxels (else empty)."""
+    from scipy import ndimage
+    inside = ndimage.binary_fill_holes(bone) & ~bone if bone.any() else bone
+    big = _largest(inside)
+    return big if big.sum() >= min_vox else np.zeros_like(bone)
+
+
+def ct_intracranial_mask(ct, bone_hu=300.0, min_area_cm2=20.0):
+    """
+    Intracranial cavity of a CT in HU, for the initialisation of the CT -> anatomy registration: in every axial
+    slice of the head (ct_head_mask) the bone (> bone_hu, closed by 2 mm to bridge the sutures and the thin bone)
+    is a ring around the brain; its filled interior minus the bone is the cavity. Slices where the ring is open
+    (orbits, skull base) or only encloses the spinal canal (neck) give no or a small area and are dropped
+    (< min_area_cm2). Largest 3D component. The centre of mass of the whole CT is pulled by the face, the neck, the
+    shoulders and the head holder; the cavity (at least its upper part) is inside the skull. Returns None when no
+    slice has a closed ring.
+    """
+    from scipy import ndimage
+    ct = _read(ct)
+    arr = ct.numpy()
+    bone = (arr > bone_hu) & (ct_head_mask(ct).numpy() > 0)
+    r = max(1, int(round(2.0 / min(ct.spacing[:3]))))
+    bone = ndimage.binary_closing(bone, structure=ndimage.generate_binary_structure(3, 1), iterations=r)
+    ax = _axial_axis(ct)
+    sp = [ct.spacing[i] for i in range(3) if i != ax]
+    min_vox = min_area_cm2 * 100.0 / (sp[0] * sp[1])
+    cav = np.moveaxis(np.stack([_ring_interior(b, min_vox) for b in np.moveaxis(bone, ax, 0)]), 0, ax)
+    if not cav.any():
+        return None
+    cav = _largest(cav)
+    return ct.new_image_like(cav.astype(np.float32))
+
+
 def _adaptive_reg_params(fixed_img, moving_img):
     """Registration parameters adapted to the smaller of the two images: the shrink factors are
     chosen so that the coarsest pyramid level keeps at least 32 voxels per dimension. This is what
@@ -199,7 +273,7 @@ def _validate_coreg_transform(t, diary_name=''):
 # Initialisation candidates and multi-start registration
 # ---------------------------------------------------------------------------
 
-INIT_MODES = ('auto', 'com', 'fov', 'acpc', 'identity', 'search')
+INIT_MODES = ('auto', 'com', 'fov', 'acpc', 'identity', 'search', 'brain')
 
 
 def _grid_center(img):
@@ -238,7 +312,10 @@ def rotation_search(fixed, fixed_mask, moving, path, step_deg=15.0, arc_fraction
     result is reduced to its rotation (_rigid_part) and written to `path`.
     """
     vox = voxel_mm or max(3.0 * min(fixed.spacing[:3]), max(moving.spacing[:3]))
-    f = ants.resample_image(_nonnegative(fixed), (vox,) * 3, use_voxels=False, interp_type=0)
+    fixed = _nonnegative(fixed)
+    if fixed_mask is not None:                       # the search starts from the centres of mass: brain region only
+        fixed = fixed * _on_grid(_dilated(fixed_mask, 10.0), fixed)
+    f = ants.resample_image(fixed, (vox,) * 3, use_voxels=False, interp_type=0)
     m = ants.resample_image(moving, (vox,) * 3, use_voxels=False, interp_type=0)
     mask = None
     if fixed_mask is not None:
@@ -251,7 +328,8 @@ def rotation_search(fixed, fixed_mask, moving, path, step_deg=15.0, arc_fraction
     return path
 
 
-def init_candidates(fixed, fixed_mask, moving, prefix, init='auto', acpc=None, initial=None):
+def init_candidates(fixed, fixed_mask, moving, prefix, init='auto', acpc=None, initial=None, fixed_brain=None,
+                    moving_brain=None):
     """
     Initial transforms (fixed points -> moving points) of rigid_to, as a list of (name, [files]):
       com       centres of mass of the fixed image in its mask and of the (masked) moving image: moments
@@ -262,12 +340,16 @@ def init_candidates(fixed, fixed_mask, moving, prefix, init='auto', acpc=None, i
                 coordinates, similar head position), the matrix the anatomical pipeline already estimated is reused;
       identity  world coordinates of the headers as they are;
       search    best start of a search over the rotations (rotation_search): large rotations between the images;
+                with `moving_brain`, the moving image is restricted to that brain dilated by 30 mm for the search;
+      brain     centroids of the upper brain (_upper_part: axial slices of at least half the largest area) of
+                `fixed_brain` and `moving_brain` (CT: ct_intracranial_mask): geometric, independent of the face,
+                the neck and the shoulders in the field of view;
       initial   a given transform (manual correction, first pass).
     init: 'auto' (every available one), one of the names above, or 'initial' (only `initial`).
     """
     if init not in INIT_MODES + ('initial',):
         raise ValueError(f'coreg_init={init!r}: expected one of {INIT_MODES}')
-    names = ('com', 'fov', 'acpc', 'identity', 'search') if init == 'auto' else (init,)
+    names = ('com', 'fov', 'acpc', 'identity', 'search', 'brain') if init == 'auto' else (init,)
     out = []
     if initial:
         out.append(('initial', [initial] if isinstance(initial, str) else list(initial)))
@@ -275,25 +357,53 @@ def init_candidates(fixed, fixed_mask, moving, prefix, init='auto', acpc=None, i
         if not out:
             raise ValueError('init_candidates: init="initial" without an initial transform')
         return out
-    fx = _nonnegative(fixed)
+    ctx = dict(fixed=fixed, fixed_mask=fixed_mask, moving=moving, prefix=prefix, acpc=acpc, fixed_brain=fixed_brain,
+               moving_brain=moving_brain)
     for name in names:
-        if name == 'com':
-            f = fx * fixed_mask if fixed_mask is not None else fx
-            t = np.asarray(ants.get_center_of_mass(moving)) - np.asarray(ants.get_center_of_mass(f))
-            out.append((name, [_translation_file(prefix + 'init-com.mat', t)]))
-        elif name == 'fov':
-            t = _grid_center(moving) - _grid_center(fixed)
-            out.append((name, [_translation_file(prefix + 'init-fov.mat', t)]))
-        elif name == 'acpc':
-            if acpc and opi(acpc):
-                out.append((name, [acpc]))
-            elif init == 'acpc':
-                raise FileNotFoundError(f'coreg_init="acpc" but no AC-PC matrix: {acpc}')
-        elif name == 'identity':
-            out.append((name, [_translation_file(prefix + 'init-identity.mat', (0.0, 0.0, 0.0))]))
-        elif name == 'search':
-            out.append((name, [rotation_search(fixed, fixed_mask, moving, prefix + 'init-search.mat')]))
+        files = _START[name](**ctx)
+        if files:
+            out.append((name, files))
+        elif init == name:
+            err = FileNotFoundError if name == 'acpc' else ValueError
+            raise err(f'coreg_init={name!r}: this start is not available ({_START_NEEDS[name]}: {acpc})')
     return out
+
+
+def _start_com(fixed, fixed_mask, moving, prefix, **_):
+    fx = _nonnegative(fixed)
+    f = fx * fixed_mask if fixed_mask is not None else fx
+    t = np.asarray(ants.get_center_of_mass(moving)) - np.asarray(ants.get_center_of_mass(f))
+    return [_translation_file(prefix + 'init-com.mat', t)]
+
+
+def _start_fov(fixed, moving, prefix, **_):
+    return [_translation_file(prefix + 'init-fov.mat', _grid_center(moving) - _grid_center(fixed))]
+
+
+def _start_acpc(acpc, **_):
+    return [acpc] if acpc and opi(acpc) else None
+
+
+def _start_identity(prefix, **_):
+    return [_translation_file(prefix + 'init-identity.mat', (0.0, 0.0, 0.0))]
+
+
+def _start_search(fixed, fixed_mask, moving, prefix, moving_brain, **_):
+    mv = moving * _on_grid(_dilated(moving_brain, 30.0), moving) if moving_brain is not None else moving
+    return [rotation_search(fixed, fixed_mask, mv, prefix + 'init-search.mat')]
+
+
+def _start_brain(prefix, fixed_brain, moving_brain, **_):
+    if fixed_brain is None or moving_brain is None:
+        return None
+    t = _centroid(_upper_part(moving_brain)) - _centroid(_upper_part(fixed_brain))
+    return [_translation_file(prefix + 'init-brain.mat', t)]
+
+
+_START = dict(com=_start_com, fov=_start_fov, acpc=_start_acpc, identity=_start_identity, search=_start_search,
+              brain=_start_brain)
+_START_NEEDS = dict(acpc='no AC-PC matrix of the anatomy, given', brain='needs the brain of both images (CT: no closed '
+                    'skull found)')
 
 
 def _score(fixed, moving, chain, fixed_mask, coverage_mask, moving_support):
@@ -309,9 +419,43 @@ def _score(fixed, moving, chain, fixed_mask, coverage_mask, moving_support):
     return mi, cov
 
 
+def _fixed_masks(fixed, mask_file, dilate_mm):
+    """(metric mask, brain for the coverage, whether a brain mask was given) of the fixed image of rigid_to: a path
+    is the brain, dilated by dilate_mm for the metric; an ANTsImage is used as is for both; none: the whole grid."""
+    if isinstance(mask_file, ants.ANTsImage):
+        m = _binary(mask_file)
+        return m, m, True
+    if mask_file and opi(mask_file):
+        cover = _binary(ants.image_read(mask_file))
+        return _dilated(cover, dilate_mm), cover, True
+    return None, _binary(_nonnegative(fixed) * 0 + 1), False
+
+
+def _masked_moving(moving, moving_mask):
+    """Moving image multiplied by its mask and cropped to the box of the mask, with the cropped mask (the transforms
+    are world-to-world: valid for the full image); (moving, None) without a mask."""
+    if moving_mask is None or (isinstance(moving_mask, str) and not moving_mask):
+        return moving, None
+    mmask = _on_grid(moving_mask, moving)
+    if float(mmask.sum()) == 0:
+        raise ValueError('rigid_to: the moving mask does not overlap the moving image')
+    return (ants.crop_image(moving * mmask, label_image=mmask, label=1),
+            ants.crop_image(mmask, label_image=mmask, label=1))
+
+
+def _failure_reason(e):
+    """Readable reason of a failed registration start. Mattes MI builds a joint histogram whose bin width is the
+    intensity range of the moving samples in the fixed mask: 0, and ITK's 'zero-valued spacing' error, when no
+    moving voxel falls in it."""
+    if 'spacing' in str(e).lower():
+        return ('no overlap: from this start the moving image lies outside the mask of the fixed image (start too '
+                'far, e.g. an AC-PC matrix of an anatomy in other scanner coordinates)')
+    return str(e).strip().splitlines()[-1] if str(e).strip() else repr(e)
+
+
 def rigid_to(fixed_file, moving_file, prefix, metric, mask_file=None, dilate_mm=5.0, initial=None,
              coreg_transform='Rigid', moving_mask=None, init='auto', acpc=None, min_coverage=0.9, diary_name='',
-             verbose=False, same_subject=True):
+             verbose=False, same_subject=True, moving_brain=None):
     """
     Registration moving (PET, CT) -> fixed (anatomy, CT), multi-start; returns the chains of `prefix`.
 
@@ -328,6 +472,7 @@ def rigid_to(fixed_file, moving_file, prefix, metric, mask_file=None, dilate_mm=
     information, Wells et al. 1996; Maes et al. 1997) among those whose moving image covers at least
     `min_coverage` of the fixed brain; a multi-start search against the local optima of mutual information
     (Jenkinson & Smith 2001, FLIRT; AFNI 3dAllineate -twobest). Scores in <prefix>candidates.json.
+    moving_brain brain of the moving image (CT: ct_intracranial_mask), for the 'brain' start and the rotation search.
     same_subject=False (template to template): no warning on the scale / non-linear transforms.
     """
     if same_subject:
@@ -339,26 +484,9 @@ def rigid_to(fixed_file, moving_file, prefix, metric, mask_file=None, dilate_mm=
     if moving.dimension == 4:
         raise ValueError(f'rigid_to: the moving image must be 3D ({moving_file})')
 
-    # mask of the fixed image (metric) and brain of the fixed image (coverage)
-    fmask, cover = None, None
-    if isinstance(mask_file, ants.ANTsImage):
-        fmask = _binary(mask_file)
-        cover = fmask
-    elif mask_file and opi(mask_file):
-        cover = _binary(ants.image_read(mask_file))
-        fmask = _dilated(cover, dilate_mm)
-
-    # moving image masked and cropped to its mask (the transforms are world-to-world: valid for the full image)
-    mmask = None
-    if moving_mask is not None and not (isinstance(moving_mask, str) and not moving_mask):
-        mmask = _on_grid(moving_mask, moving)
-        if float(mmask.sum()) == 0:
-            raise ValueError('rigid_to: the moving mask does not overlap the moving image')
-        moving = ants.crop_image(moving * mmask, label_image=mmask, label=1)
-        mmask = ants.crop_image(mmask, label_image=mmask, label=1)
+    fmask, cover, has_brain = _fixed_masks(fixed, mask_file, dilate_mm)
+    moving, mmask = _masked_moving(moving, moving_mask)
     support = mmask if mmask is not None else moving * 0 + 1
-    if cover is None:
-        cover = _binary(_nonnegative(fixed) * 0 + 1)
 
     kw = {}
     if fmask is not None:
@@ -366,9 +494,11 @@ def rigid_to(fixed_file, moving_file, prefix, metric, mask_file=None, dilate_mm=
     if mmask is not None:
         kw['moving_mask'] = mmask
     adaptive = _adaptive_reg_params(fixed, moving)
-    cands = init_candidates(fixed, fmask, moving, prefix, init, acpc, initial)
+    mbrain = _on_grid(moving_brain, moving) if moving_brain is not None else None
+    cands = init_candidates(fixed, fmask, moving, prefix, init, acpc, initial,
+                            fixed_brain=cover if has_brain else None, moving_brain=mbrain)
 
-    results = []
+    results, failed = [], []
     for name, init_files in cands:
         cp = prefix + 'init-' + name + '_'
         try:
@@ -378,13 +508,16 @@ def rigid_to(fixed_file, moving_file, prefix, metric, mask_file=None, dilate_mm=
                                      initial_transform=[cp + 'desc-translation_' + transfo.ANTS_AFF], **adaptive, **kw)
             mi, cov = _score(fixed, moving, chain, fmask, cover, support)
         except Exception as e:                           # a start that diverges (empty overlap) is skipped
-            _msg(f'WARNING: registration start {name} failed: {e}', diary_name, 'WARNING')
+            why = _failure_reason(e)
+            _msg(f'WARNING: registration start {name} failed: {why}', diary_name, 'WARNING')
+            failed.append(f'{name}: {why}')
             continue
         results.append(dict(init=name, init_files=init_files, metric=mi, coverage=cov, prefix=cp))
         if verbose:
             print(f'[rigid_to] {opb(prefix)} start {name}: MI metric {mi:.4f}, coverage {cov:.3f}')
     if not results:
-        raise RuntimeError(f'registration failed for every start: {moving_file} -> {fixed_file}')
+        raise RuntimeError(f'registration failed for every start: {moving_file} -> {fixed_file} '
+                           f'[{"; ".join(failed)}]; with coreg_init other than "auto", try "auto"')
 
     valid = [r for r in results if r['coverage'] >= min_coverage]
     best = min(valid, key=lambda r: r['metric']) if valid else max(results, key=lambda r: r['coverage'])
