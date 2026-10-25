@@ -14,7 +14,7 @@ before calling these functions.
 
 Functions
 ---------
-fit_gamm(df, metric_col, age_col)       → dict with GAMM fit results
+fit_gamm(df, metric_col, age_col)       → dict with spline-LMM fit results (historical name)
 fit_lme(df, metric_col, age_col)        → dict with LME fit results
 draw_longitudinal(ax, ...)               → trajectory panel into an existing axis
 draw_pct_change(ax, ...)                 → % change panel into an existing axis
@@ -49,7 +49,7 @@ try:
     _HAS_GAM = True
 except ImportError:
     _HAS_GAM = False
-    warnings.warn("pygam not found — GAMM replaced by cubic LME. pip install pygam")
+    # pygam is not used by fit_gamm (spline LMM, statsmodels/patsy only)
 
 try:
     from Exemples.Study_EDNiX.analysis.ednix_bids_tools import PAPER_RC
@@ -162,6 +162,9 @@ def fit_gamm(df: pd.DataFrame,
     minimum of the individual coefficient p-values (random-effect variance term
     included), which gave ~19% false positives at alpha = 0.05 under the null.
 
+    Non-linearity: LRT spline vs linear-age model (same random intercept),
+    spline_df - 1 degrees of freedom (p_nonlinear).
+
     Predictions use the spline basis of the fitted data (same knots) and the
     full fixed-effect covariance for the confidence band.
     """
@@ -187,6 +190,8 @@ def fit_gamm(df: pd.DataFrame,
         Xg = np.asarray(build_design_matrices([X.design_info], pd.DataFrame({'age_z': grid_z}))[0])
         ll1, beta, cov, kind = _ml_random_intercept(y, X.to_numpy(), groups)
         ll0, _, _, _ = _ml_random_intercept(y, np.ones((len(y), 1)), groups)
+        ll_lin, _, _, _ = _ml_random_intercept(
+            y, np.column_stack([np.ones(len(y)), age_z['age_z'].to_numpy()]), groups)
         dof = spline_df
         method = f'{kind.split(" (")[0]}, cubic B-spline age basis (df={spline_df}), LRT vs intercept-only'
     except Exception as e:
@@ -195,16 +200,19 @@ def fit_gamm(df: pd.DataFrame,
         Xg = np.column_stack([np.ones_like(grid_z), grid_z])
         ll1, beta, cov, kind = _ml_random_intercept(y, X, groups)
         ll0, _, _, _ = _ml_random_intercept(y, X[:, :1], groups)
+        ll_lin = ll1
         dof = 1
         method = f'{kind.split(" (")[0]}, linear age (fallback), LRT vs intercept-only'
 
     lr = max(2.0 * (ll1 - ll0), 0.0)
+    lr_nl = max(2.0 * (ll1 - ll_lin), 0.0)   # spline vs linear age (non-linearity), dof-1 df
     pred = Xg @ beta
     se = np.sqrt(np.clip(np.einsum('ij,jk,ik->i', Xg, cov, Xg), 0, None))
     return dict(
         age_grid=grid_z * age_sd + age_mu, pred=pred,
         ci_lower=pred - 1.96 * se, ci_upper=pred + 1.96 * se,
         p_age=float(chi2.sf(lr, dof)), lr_stat=lr,
+        p_nonlinear=float(chi2.sf(lr_nl, dof - 1)) if dof > 1 else np.nan, lr_nonlinear=lr_nl,
         edf=float(dof), method=method, n=len(sub),
     )
 
@@ -217,7 +225,8 @@ def fit_lme(df: pd.DataFrame,
 
     Returns
     -------
-    dict with keys: slope, p_slope, intercept, r2_marginal, n
+    dict with keys: slope (per SD of age), slope_per_unit (per age unit, e.g. per
+    year), se_per_unit, p_slope, intercept, r2_marginal, n
     """
     if not _HAS_SMF:
         return {}
@@ -237,6 +246,8 @@ def fit_lme(df: pd.DataFrame,
 
         slope = md.params.get('age_z', np.nan)
         pval  = md.pvalues.get('age_z', np.nan)
+        age_sd = tmp[age_col].std() + 1e-9
+        se_z  = md.bse.get('age_z', np.nan)
         inter = md.params.get('Intercept', np.nan)
         # Marginal R² (Nakagawa & Schielzeth 2013)
         # variance of the fixed-effect prediction X*beta (fittedvalues - resid = 2*fitted - y was used before)
@@ -244,8 +255,8 @@ def fit_lme(df: pd.DataFrame,
         var_re  = float(md.cov_re.values[0][0]) if hasattr(md, 'cov_re') else 0.0
         var_res = float(md.scale)
         r2_m    = var_fe / (var_fe + var_re + var_res + 1e-9)
-        return dict(slope=slope, p_slope=pval, intercept=inter,
-                    r2_marginal=r2_m, n=len(sub))
+        return dict(slope=slope, slope_per_unit=slope / age_sd, se_per_unit=se_z / age_sd,
+                    p_slope=pval, intercept=inter, r2_marginal=r2_m, n=len(sub))
     except Exception as e:
         warnings.warn(f"fit_lme error — {metric_col}: {e}")
         return {}
@@ -254,6 +265,15 @@ def fit_lme(df: pd.DataFrame,
 # ══════════════════════════════════════════════════════════════════════════════
 # PLOTS
 # ══════════════════════════════════════════════════════════════════════════════
+
+def _fmt_p(p):
+    return 'p<0.001' if p < 0.001 else f'p={p:.3f}'
+
+
+def _unit_of(label):
+    """'Volume (mm³)' -> 'mm³'; '' if no unit in parentheses."""
+    return label.split('(')[-1].rstrip(')') if label and '(' in label else ''
+
 
 def draw_longitudinal(ax,
                       df: pd.DataFrame,
@@ -264,9 +284,14 @@ def draw_longitudinal(ax,
                       age_label: str = 'Age (years)',
                       metric_label: str = None,
                       stats_fontsize: float = 8,
-                      show_method: bool = True):
+                      inset: str = 'full'):
     """
-    Draw individual trajectories + spline-LMM fit + 95% CI + stats inset into `ax`.
+    Draw individual trajectories + spline-LMM fit + 95% CI into `ax`.
+    inset: 'full'  = spline-LMM LRT, n, linear-LME slope/p, R²m (per-panel PNGs)
+           'slope' = paper figure: linear-LME slope per age unit and its p, or, when
+                     the spline departs from linearity (p_nonlinear < 0.05), the
+                     non-linearity LRT p instead (a linear slope would misdescribe it)
+           None    = no text
     Subject colours: tab20 over the sorted subject list (same as draw_pct_change).
     """
     sub_df = df[[age_col, metric_col, 'subject']].dropna()
@@ -288,23 +313,30 @@ def draw_longitudinal(ax,
 
     if gamm_result:
         ax.plot(gamm_result['age_grid'], gamm_result['pred'],
-                color='black', lw=2.5, zorder=6, label='GAMM fit')
+                color='black', lw=2.5, zorder=6, label='Spline LMM fit')
         ax.fill_between(gamm_result['age_grid'],
                         gamm_result['ci_lower'], gamm_result['ci_upper'],
                         color='black', alpha=0.15, zorder=5)
 
     lines = []
-    if gamm_result:
-        p = gamm_result['p_age']
-        lines += [f"GAMM  p{'<0.001' if p < 0.001 else f'={p:.3f}'}  "
-                  f"edf={gamm_result['edf']:.1f}"]
-        lines += ([f"n={gamm_result['n']}  ({gamm_result['method']})"] if show_method
-                  else [f"n={gamm_result['n']} sessions, {sub_df['subject'].nunique()} subjects"])
-    if lme_result:
-        p = lme_result.get('p_slope', np.nan)
-        lines += [f"LME slope={lme_result.get('slope', np.nan):.3f}  "
-                  f"p{'<0.001' if p < 0.001 else f'={p:.3f}'}",
-                  f"R²_m={lme_result.get('r2_marginal', np.nan):.3f}"]
+    if inset == 'full':
+        if gamm_result:
+            lines += [f"Spline LMM (LRT)  {_fmt_p(gamm_result['p_age'])}  df={gamm_result['edf']:.0f}",
+                      f"n={gamm_result['n']} sessions, {sub_df['subject'].nunique()} subjects"]
+        if lme_result:
+            lines += [f"Linear LME slope={lme_result.get('slope', np.nan):.3f}/SD  "
+                      f"{_fmt_p(lme_result.get('p_slope', np.nan))}",
+                      f"R²_m={lme_result.get('r2_marginal', np.nan):.3f}"]
+    elif (inset == 'slope' and gamm_result
+          and gamm_result.get('p_nonlinear', np.nan) < 0.05):
+        lines += ['non-linear', f"{_fmt_p(gamm_result['p_nonlinear'])} (LRT)"]
+    elif inset == 'slope' and lme_result and 'slope_per_unit' in lme_result:
+        unit = _unit_of(metric_label)
+        t_unit = _unit_of(age_label).rstrip('s') or 'unit'   # years -> year
+        v = lme_result['slope_per_unit']
+        v_str = f"{v:.0f}" if abs(v) >= 100 else f"{v:.3g}"
+        lines += [f"slope = {v_str} {unit}/{t_unit}",
+                  _fmt_p(lme_result.get('p_slope', np.nan))]
     if lines:
         ax.text(0.03, 0.97, '\n'.join(lines), transform=ax.transAxes,
                 va='top', fontsize=stats_fontsize, zorder=10,
@@ -326,7 +358,7 @@ def plot_longitudinal(df: pd.DataFrame,
                       age_label: str = 'Age (years)',
                       metric_label: str = None):
     """
-    Individual trajectories + GAMM fit + 95% CI + stats inset (one PNG).
+    Individual trajectories + spline-LMM fit + 95% CI + stats inset (one PNG).
     """
     if df[[age_col, metric_col, 'subject']].dropna().empty:
         return
@@ -533,7 +565,7 @@ def run_longitudinal(
 
     Returns
     -------
-    DataFrame with one row per region containing GAMM and LME stats.
+    DataFrame with one row per region containing spline-LMM and linear-LME stats.
     """
     merged = prepare_longitudinal(df_morph, df_age, age_col, atlas_level=atlas_level,
                                   hemisphere=hemisphere, regions=regions,
