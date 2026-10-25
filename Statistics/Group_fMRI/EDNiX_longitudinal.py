@@ -16,8 +16,11 @@ Functions
 ---------
 fit_gamm(df, metric_col, age_col)       → dict with GAMM fit results
 fit_lme(df, metric_col, age_col)        → dict with LME fit results
-plot_longitudinal(...)                   → trajectory figure
-plot_pct_change(...)                     → % change figure
+draw_longitudinal(ax, ...)               → trajectory panel into an existing axis
+draw_pct_change(ax, ...)                 → % change panel into an existing axis
+plot_longitudinal(...)                   → trajectory figure (one PNG)
+plot_pct_change(...)                     → % change figure (one PNG)
+prepare_longitudinal(...)                → filter + age merge + min-sessions
 run_longitudinal(...)                    → main runner for one species/dataset
 """
 
@@ -252,6 +255,66 @@ def fit_lme(df: pd.DataFrame,
 # PLOTS
 # ══════════════════════════════════════════════════════════════════════════════
 
+def draw_longitudinal(ax,
+                      df: pd.DataFrame,
+                      metric_col: str,
+                      age_col: str,
+                      gamm_result: dict = None,
+                      lme_result:  dict = None,
+                      age_label: str = 'Age (years)',
+                      metric_label: str = None,
+                      stats_fontsize: float = 8,
+                      show_method: bool = True):
+    """
+    Draw individual trajectories + spline-LMM fit + 95% CI + stats inset into `ax`.
+    Subject colours: tab20 over the sorted subject list (same as draw_pct_change).
+    """
+    sub_df = df[[age_col, metric_col, 'subject']].dropna()
+    if sub_df.empty:
+        return False
+
+    subjects = sorted(sub_df['subject'].unique())
+    colors   = plt.cm.tab20(np.linspace(0, 1, max(len(subjects), 1)))
+    sp_col   = dict(zip(subjects, colors))
+
+    for subj in subjects:
+        sdf = sub_df[sub_df['subject'] == subj].sort_values(age_col)
+        kw  = dict(color=sp_col[subj], alpha=0.55, zorder=4)
+        if len(sdf) < 2:
+            ax.scatter(sdf[age_col], sdf[metric_col], s=30, **kw)
+        else:
+            ax.plot(sdf[age_col], sdf[metric_col],
+                    'o-', markersize=4, linewidth=1, **kw)
+
+    if gamm_result:
+        ax.plot(gamm_result['age_grid'], gamm_result['pred'],
+                color='black', lw=2.5, zorder=6, label='GAMM fit')
+        ax.fill_between(gamm_result['age_grid'],
+                        gamm_result['ci_lower'], gamm_result['ci_upper'],
+                        color='black', alpha=0.15, zorder=5)
+
+    lines = []
+    if gamm_result:
+        p = gamm_result['p_age']
+        lines += [f"GAMM  p{'<0.001' if p < 0.001 else f'={p:.3f}'}  "
+                  f"edf={gamm_result['edf']:.1f}"]
+        lines += ([f"n={gamm_result['n']}  ({gamm_result['method']})"] if show_method
+                  else [f"n={gamm_result['n']} sessions, {sub_df['subject'].nunique()} subjects"])
+    if lme_result:
+        p = lme_result.get('p_slope', np.nan)
+        lines += [f"LME slope={lme_result.get('slope', np.nan):.3f}  "
+                  f"p{'<0.001' if p < 0.001 else f'={p:.3f}'}",
+                  f"R²_m={lme_result.get('r2_marginal', np.nan):.3f}"]
+    if lines:
+        ax.text(0.03, 0.97, '\n'.join(lines), transform=ax.transAxes,
+                va='top', fontsize=stats_fontsize, zorder=10,
+                bbox=dict(facecolor='white', alpha=0.85, edgecolor='none'))
+
+    ax.set_xlabel(age_label)
+    ax.set_ylabel(metric_label or metric_col.replace('_', ' ').capitalize())
+    return True
+
+
 def plot_longitudinal(df: pd.DataFrame,
                       metric_col: str,
                       age_col: str,
@@ -263,58 +326,97 @@ def plot_longitudinal(df: pd.DataFrame,
                       age_label: str = 'Age (years)',
                       metric_label: str = None):
     """
-    Individual trajectories + GAMM fit + 95% CI + stats inset.
+    Individual trajectories + GAMM fit + 95% CI + stats inset (one PNG).
     """
-    sub_df = df[[age_col, metric_col, 'subject']].dropna()
-    if sub_df.empty:
+    if df[[age_col, metric_col, 'subject']].dropna().empty:
         return
-
-    subjects = sorted(sub_df['subject'].unique())
-    colors   = plt.cm.tab20(np.linspace(0, 1, max(len(subjects), 1)))
-    sp_col   = dict(zip(subjects, colors))
-
     with plt.rc_context(PAPER_RC):
         fig, ax = plt.subplots(figsize=(8, 5))
-
-        for subj in subjects:
-            sdf = sub_df[sub_df['subject'] == subj].sort_values(age_col)
-            kw  = dict(color=sp_col[subj], alpha=0.55, zorder=4)
-            if len(sdf) < 2:
-                ax.scatter(sdf[age_col], sdf[metric_col], s=30, **kw)
-            else:
-                ax.plot(sdf[age_col], sdf[metric_col],
-                        'o-', markersize=4, linewidth=1, **kw)
-
-        if gamm_result:
-            ax.plot(gamm_result['age_grid'], gamm_result['pred'],
-                    color='black', lw=2.5, zorder=6, label='GAMM fit')
-            ax.fill_between(gamm_result['age_grid'],
-                            gamm_result['ci_lower'], gamm_result['ci_upper'],
-                            color='black', alpha=0.15, zorder=5)
-
-        lines = []
-        if gamm_result:
-            p = gamm_result['p_age']
-            lines += [f"GAMM  p={'<0.001' if p < 0.001 else f'{p:.3f}'}  "
-                      f"edf={gamm_result['edf']:.1f}",
-                      f"n={gamm_result['n']}  ({gamm_result['method']})"]
-        if lme_result:
-            p = lme_result.get('p_slope', np.nan)
-            lines += [f"LME slope={lme_result.get('slope', np.nan):.3f}  "
-                      f"p={'<0.001' if p < 0.001 else f'{p:.3f}'}",
-                      f"R²_m={lme_result.get('r2_marginal', np.nan):.3f}"]
-        if lines:
-            ax.text(0.03, 0.97, '\n'.join(lines), transform=ax.transAxes,
-                    va='top', fontsize=8,
-                    bbox=dict(facecolor='white', alpha=0.85, edgecolor='none'))
-
-        ax.set_xlabel(age_label, fontsize=10)
-        ax.set_ylabel(metric_label or metric_col.replace('_', ' ').capitalize(),
-                      fontsize=10)
+        draw_longitudinal(ax, df, metric_col, age_col, gamm_result, lme_result,
+                          age_label, metric_label)
+        ax.xaxis.label.set_size(10)
+        ax.yaxis.label.set_size(10)
         plt.tight_layout()
         os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
         fig.savefig(output_path, dpi=200, bbox_inches='tight')
         plt.close(fig)
+
+
+def pct_change_table(df: pd.DataFrame,
+                     metric_col: str,
+                     age_col: str) -> pd.DataFrame:
+    """
+    % change from each subject's first session (subjects with >= 2 sessions).
+    Adds columns pct_change and age_from_start.
+    """
+    sub_df = df[[age_col, metric_col, 'subject']].dropna().copy()
+    pct_rows = []
+    for subj, grp in sub_df.groupby('subject'):
+        grp      = grp.sort_values(age_col)
+        baseline = grp[metric_col].iloc[0]
+        if abs(baseline) < 1e-9 or len(grp) < 2:
+            continue
+        grp = grp.copy()
+        grp['pct_change']     = 100.0 * (grp[metric_col] - baseline) / abs(baseline)
+        grp['age_from_start'] = grp[age_col] - grp[age_col].iloc[0]
+        pct_rows.append(grp)
+    return pd.concat(pct_rows, ignore_index=True) if pct_rows else pd.DataFrame()
+
+
+def draw_pct_change(ax,
+                    df: pd.DataFrame,
+                    metric_col: str,
+                    age_col: str,
+                    age_label: str = 'Age (years)',
+                    min_n_mean: int = 3):
+    """
+    Draw % change from each subject's first session into `ax`:
+    individual curves + mean ± SEM on a common time-from-baseline grid.
+    Mean/SEM are drawn only where >= min_n_mean subjects are observed
+    (the tail of the grid otherwise rests on 1–2 subjects).
+    """
+    pct_df = pct_change_table(df, metric_col, age_col)
+    if pct_df.empty:
+        return False
+
+    # same subject -> colour mapping as draw_longitudinal (all subjects of df)
+    all_subjects = sorted(df[[age_col, metric_col, 'subject']].dropna()['subject'].unique())
+    colors   = plt.cm.tab20(np.linspace(0, 1, max(len(all_subjects), 1)))
+    sp_col   = dict(zip(all_subjects, colors))
+    subjects = sorted(pct_df['subject'].unique())
+
+    for subj in subjects:
+        sdf = pct_df[pct_df['subject'] == subj].sort_values('age_from_start')
+        ax.plot(sdf['age_from_start'], sdf['pct_change'],
+                'o-', color=sp_col[subj], alpha=0.5, markersize=3.5, linewidth=1)
+
+    # Mean ± SEM across subjects on a common grid
+    grid = np.linspace(0, pct_df['age_from_start'].max(), 100)
+    mat  = []
+    for subj in subjects:
+        sdf = pct_df[pct_df['subject'] == subj].sort_values('age_from_start')
+        if len(sdf) < 2:
+            continue
+        mat.append(np.interp(grid, sdf['age_from_start'].values,
+                             sdf['pct_change'].values, left=np.nan, right=np.nan))
+
+    if len(mat) >= 2:
+        mat    = np.array(mat)
+        mean_y = np.nanmean(mat, axis=0)
+        n_ok   = np.sum(~np.isnan(mat), axis=0)
+        sem_y  = np.nanstd(mat, axis=0) / np.sqrt(np.maximum(n_ok, 1))
+        low_n  = n_ok < min_n_mean
+        mean_y[low_n] = np.nan
+        sem_y[low_n]  = np.nan
+        ax.plot(grid, mean_y, color='black', lw=2.5, zorder=6, label='Mean')
+        ax.fill_between(grid, mean_y - sem_y, mean_y + sem_y,
+                        color='black', alpha=0.2, zorder=5)
+
+    ax.axhline(0, color='gray', lw=0.8, linestyle='--')
+    unit = age_label.split('(')[-1].rstrip(')') if '(' in age_label else age_label
+    ax.set_xlabel(f'Time from baseline ({unit})')
+    ax.set_ylabel('% change from baseline')
+    return True
 
 
 def plot_pct_change(df: pd.DataFrame,
@@ -325,62 +427,16 @@ def plot_pct_change(df: pd.DataFrame,
                     output_path: str,
                     age_label: str = 'Age (years)'):
     """
-    % change from each subject's first session.
+    % change from each subject's first session (one PNG).
     Shows individual curves + mean ± SEM on a common time-from-baseline grid.
     """
-    sub_df = df[[age_col, metric_col, 'subject']].dropna().copy()
-    sub_df = sub_df.sort_values(age_col)
-
-    pct_rows = []
-    for subj, grp in sub_df.groupby('subject'):
-        grp      = grp.sort_values(age_col)
-        baseline = grp[metric_col].iloc[0]
-        if abs(baseline) < 1e-9 or len(grp) < 2:
-            continue
-        grp = grp.copy()
-        grp['pct_change']      = 100.0 * (grp[metric_col] - baseline) / abs(baseline)
-        grp['age_from_start'] = grp[age_col] - grp[age_col].iloc[0]
-        pct_rows.append(grp)
-
-    if not pct_rows:
+    if pct_change_table(df, metric_col, age_col).empty:
         return
-
-    pct_df   = pd.concat(pct_rows, ignore_index=True)
-    subjects = sorted(pct_df['subject'].unique())
-    colors   = plt.cm.tab20(np.linspace(0, 1, max(len(subjects), 1)))
-
     with plt.rc_context(PAPER_RC):
         fig, ax = plt.subplots(figsize=(8, 5))
-
-        for subj, color in zip(subjects, colors):
-            sdf = pct_df[pct_df['subject'] == subj].sort_values('age_from_start')
-            ax.plot(sdf['age_from_start'], sdf['pct_change'],
-                    'o-', color=color, alpha=0.5, markersize=3.5, linewidth=1)
-
-        # Mean ± SEM across subjects on a common grid
-        grid = np.linspace(0, pct_df['age_from_start'].max(), 100)
-        mat  = []
-        for subj in subjects:
-            sdf = pct_df[pct_df['subject'] == subj].sort_values('age_from_start')
-            if len(sdf) < 2:
-                continue
-            yi = np.interp(grid, sdf['age_from_start'].values,
-                           sdf['pct_change'].values, left=np.nan, right=np.nan)
-            mat.append(yi)
-
-        if len(mat) >= 2:
-            mat    = np.array(mat)
-            mean_y = np.nanmean(mat, axis=0)
-            n_ok   = np.sum(~np.isnan(mat), axis=0)
-            sem_y  = np.nanstd(mat, axis=0) / np.sqrt(np.maximum(n_ok, 1))
-            ax.plot(grid, mean_y, color='black', lw=2.5, zorder=6, label='Mean')
-            ax.fill_between(grid, mean_y - sem_y, mean_y + sem_y,
-                            color='black', alpha=0.2, zorder=5)
-
-        ax.axhline(0, color='gray', lw=0.8, linestyle='--')
-        unit = age_label.split('(')[-1].rstrip(')') if '(' in age_label else age_label
-        ax.set_xlabel(f'Time from baseline ({unit})', fontsize=10)
-        ax.set_ylabel('% change from baseline', fontsize=10)
+        draw_pct_change(ax, df, metric_col, age_col, age_label)
+        ax.xaxis.label.set_size(10)
+        ax.yaxis.label.set_size(10)
         ax.set_title(f'{species} — {region} — % change',
                      fontweight='bold', fontsize=11)
         plt.tight_layout()
@@ -392,6 +448,52 @@ def plot_pct_change(df: pd.DataFrame,
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN RUNNER
 # ══════════════════════════════════════════════════════════════════════════════
+
+def prepare_longitudinal(df_morph:     pd.DataFrame,
+                         df_age:       pd.DataFrame,
+                         age_col:      str,
+                         atlas_level:  int  = 1,
+                         hemisphere:   str  = 'left',
+                         regions:      list = None,
+                         min_sessions: int  = MIN_SESSIONS,
+                         label:        str  = '') -> pd.DataFrame:
+    """
+    Filter (atlas level / hemisphere / regions), merge with the age table on
+    subject (+ session when both tables have it), keep subjects with
+    >= min_sessions sessions. Returns an empty DataFrame when nothing is left.
+    """
+    df = _filter_df(df_morph, atlas_level=atlas_level,
+                    hemisphere=hemisphere, regions=regions)
+    if df.empty:
+        print(f"  [{label}] empty after filters — skipping")
+        return pd.DataFrame()
+
+    merge_on = ['subject']
+    if 'session' in df_age.columns and 'session' in df.columns:
+        merge_on.append('session')
+
+    df['subject'] = df['subject'].astype(str)
+    df_age        = df_age.copy()
+    df_age['subject'] = df_age['subject'].astype(str)
+    if 'session' in df_age.columns:
+        df_age['session'] = df_age['session'].astype(str)
+    if 'session' in df.columns:
+        df['session'] = df['session'].astype(str)
+
+    merged = pd.merge(df, df_age, on=merge_on, how='inner')
+    if merged.empty:
+        print(f"  [{label}] no rows after merge with age table")
+        return pd.DataFrame()
+
+    print(f"  [{label}] {len(merged)} rows  "
+          f"{merged['subject'].nunique()} subjects  "
+          f"{merged['region'].nunique() if 'region' in merged.columns else '?'} regions")
+
+    merged = _keep_longitudinal(merged, age_col, min_sessions)
+    if merged.empty:
+        print(f"  [{label}] no subjects with ≥{min_sessions} sessions")
+    return merged
+
 
 def run_longitudinal(
     label:        str,
@@ -433,39 +535,10 @@ def run_longitudinal(
     -------
     DataFrame with one row per region containing GAMM and LME stats.
     """
-    # ── Apply filters ─────────────────────────────────────────────────────────
-    df = _filter_df(df_morph, atlas_level=atlas_level,
-                    hemisphere=hemisphere, regions=regions)
-    if df.empty:
-        print(f"  [{label}] empty after filters — skipping")
-        return pd.DataFrame()
-
-    # ── Merge with age table ──────────────────────────────────────────────────
-    merge_on = ['subject']
-    if 'session' in df_age.columns and 'session' in df.columns:
-        merge_on.append('session')
-
-    df['subject'] = df['subject'].astype(str)
-    df_age        = df_age.copy()
-    df_age['subject'] = df_age['subject'].astype(str)
-    if 'session' in df_age.columns:
-        df_age['session'] = df_age['session'].astype(str)
-    if 'session' in df.columns:
-        df['session'] = df['session'].astype(str)
-
-    merged = pd.merge(df, df_age, on=merge_on, how='inner')
+    merged = prepare_longitudinal(df_morph, df_age, age_col, atlas_level=atlas_level,
+                                  hemisphere=hemisphere, regions=regions,
+                                  min_sessions=min_sessions, label=label)
     if merged.empty:
-        print(f"  [{label}] no rows after merge with age table")
-        return pd.DataFrame()
-
-    print(f"  [{label}] {len(merged)} rows  "
-          f"{merged['subject'].nunique()} subjects  "
-          f"{merged['region'].nunique() if 'region' in merged.columns else '?'} regions")
-
-    # ── Filter longitudinal subjects ──────────────────────────────────────────
-    merged = _keep_longitudinal(merged, age_col, min_sessions)
-    if merged.empty:
-        print(f"  [{label}] no subjects with ≥{min_sessions} sessions")
         return pd.DataFrame()
 
     os.makedirs(out_dir, exist_ok=True)

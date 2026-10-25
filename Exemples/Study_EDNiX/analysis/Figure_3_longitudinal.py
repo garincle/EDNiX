@@ -255,61 +255,33 @@ def format_human_age(bids_dirs: list, age_prefix: str = 'AgeMRI_W') -> pd.DataFr
 # STEP 3 — FIG 3D: Association vs Primary Cortex comparison
 # ══════════════════════════════════════════════════════════════════════════════
 
-def run_fig3d_assoc_vs_primary(morph_data, age_df, out_dir, primary_regions, association_regions,
-                                species_label="Macaque", data_key="surface"):
-    """
-    Fig 3D: Compare % surface-area growth of association vs primary cortex.
-    Robust to column name variations.
+_FIG3D_METRICS = {
+    'surface':   ('surface_area_mm2', 'Surface area'),
+    'volume':    ('volume_mm3',       'Volume'),
+    'thickness': ('thickness_mm',     'Thickness'),
+}
+FIG3D_COLORS = {"Association": "#2E86C1", "Primary": "#E67E22"}  # blue vs orange
 
-    Parameters
-    ----------
-    morph_data : dict
-        Dictionary containing DataFrames (keys: 'surface', 'volume', 'thickness')
-    age_df : DataFrame
-        Age table with columns: subject, session, age_*
-    out_dir : str
-        Output directory for figures
-    primary_regions : list
-        List of primary region names
-    association_regions : list
-        List of association region names
-    species_label : str
-        Label for the species (e.g., "Macaque", "Human")
-    data_key : str
-        Which data to use: 'surface', 'volume', or 'thickness'
-    """
-    import matplotlib.pyplot as plt
-    from scipy import stats as _st
 
+def assoc_primary_trajectories(morph_data, age_df, primary_regions, association_regions,
+                               species_label="Macaque", data_key="surface"):
+    """
+    Per-subject % change from baseline of the summed association and summed primary
+    regions (Fig 3D data). Returns (assoc_df, prim_df, metric_label) or None.
+    Each df: subject, age_years, <metric_col>, pct, group.
+    """
     df = morph_data.get(data_key, pd.DataFrame())
     if df is None or df.empty:
         print(f"  [Fig3D] {species_label}: no {data_key} data")
-        return None, None
+        return None
 
-    # Determine metric column name based on data_key
-    if data_key == 'surface':
-        metric_col = 'surface_area_mm2'
-        metric_label = 'Surface area'
-    elif data_key == 'volume':
-        metric_col = 'volume_mm3'
-        metric_label = 'Volume'
-    elif data_key == 'thickness':
-        metric_col = 'thickness_mm'
-        metric_label = 'Thickness'
-    else:
-        metric_col = data_key
-        metric_label = data_key
+    metric_col, metric_label = _FIG3D_METRICS.get(data_key, (data_key, data_key))
 
     # ── Find age column name ──────────────────────────────────────────────────
-    age_col = None
-    for col in age_df.columns:
-        if 'age' in col.lower():
-            age_col = col
-            break
-
+    age_col = next((c for c in age_df.columns if 'age' in c.lower()), None)
     if age_col is None:
         print(f"  [Fig3D] {species_label}: No age column found in age_df")
-        return None, None
+        return None
 
     print(f"  [Fig3D] {species_label}: Using age column: '{age_col}'")
     print(f"  [Fig3D] {species_label}: Using metric: '{metric_col}'")
@@ -317,33 +289,22 @@ def run_fig3d_assoc_vs_primary(morph_data, age_df, out_dir, primary_regions, ass
     # ── DIAGNOSTIC ────────────────────────────────────────────────────────────
     print(f"  [Fig3D] {species_label}: Total rows in {data_key}: {len(df)}")
     if "atlas_level" in df.columns:
-        levels = sorted(df["atlas_level"].unique())
-        print(f"  [Fig3D] Available atlas_levels: {levels}")
+        print(f"  [Fig3D] Available atlas_levels: {sorted(df['atlas_level'].unique())}")
     if "hemisphere" in df.columns:
-        hemis = sorted(df["hemisphere"].unique())
-        print(f"  [Fig3D] Available hemispheres: {hemis}")
+        print(f"  [Fig3D] Available hemispheres: {sorted(df['hemisphere'].unique())}")
     if "region" in df.columns:
-        regions = sorted(df["region"].unique())
-        print(f"  [Fig3D] Available regions (first 10): {regions[:10]}")
+        print(f"  [Fig3D] Available regions (first 10): {sorted(df['region'].unique())[:10]}")
 
     # ── Auto-detect atlas_level ──────────────────────────────────────────────
     available_levels = sorted(df["atlas_level"].unique()) if "atlas_level" in df.columns else []
-    target_level = None
-    for lvl in [3, 4, 2]:
-        if lvl in available_levels:
-            target_level = lvl
-            break
-
+    target_level = next((lvl for lvl in [3, 4, 2] if lvl in available_levels), None)
     if target_level is None:
         print(f"  [Fig3D] {species_label}: No suitable atlas_level found")
-        return None, None
-
+        return None
     print(f"  [Fig3D] {species_label}: Using atlas_level={target_level}")
 
     # ── Filter ────────────────────────────────────────────────────────────────
-    if "atlas_level" in df.columns:
-        df = df[df["atlas_level"] == target_level]
-
+    df = df[df["atlas_level"] == target_level]
     if "hemisphere" in df.columns:
         hemis = sorted(df["hemisphere"].unique())
         if "left" in hemis:
@@ -357,8 +318,7 @@ def run_fig3d_assoc_vs_primary(morph_data, age_df, out_dir, primary_regions, ass
 
     if df.empty:
         print(f"  [Fig3D] {species_label}: No data after filtering")
-        return None, None
-
+        return None
     print(f"  [Fig3D] {species_label}: After filtering: {len(df)} rows")
 
     # ── Match regions ─────────────────────────────────────────────────────────
@@ -382,7 +342,6 @@ def run_fig3d_assoc_vs_primary(morph_data, age_df, out_dir, primary_regions, ass
     print(f"  [Fig3D] {species_label}: Matched ASSOCIATION: {assoc_regions}")
 
     if not prim_regions or not assoc_regions:
-        # Try harder: check if any of the regions exist directly
         for reg in primary_regions:
             if reg in df['region'].values and reg not in prim_regions:
                 prim_regions.append(reg)
@@ -394,7 +353,7 @@ def run_fig3d_assoc_vs_primary(morph_data, age_df, out_dir, primary_regions, ass
 
     if not prim_regions or not assoc_regions:
         print(f"  [Fig3D] {species_label}: region matching failed")
-        return None, None
+        return None
 
     # ── Merge with age ────────────────────────────────────────────────────────
     df = df.copy()
@@ -411,8 +370,7 @@ def run_fig3d_assoc_vs_primary(morph_data, age_df, out_dir, primary_regions, ass
     merged = df.merge(age_df, on=merge_on, how="inner")
     if merged.empty:
         print(f"  [Fig3D] {species_label}: merge with age table empty")
-        return None, None
-
+        return None
     print(f"  [Fig3D] {species_label}: After merge: {len(merged)} rows, {merged['subject'].nunique()} subjects")
 
     # ── Compute % change from baseline ──────────────────────────────────────
@@ -420,11 +378,10 @@ def run_fig3d_assoc_vs_primary(morph_data, age_df, out_dir, primary_regions, ass
         sub = merged[merged["region"].isin(regions)]
         if sub.empty:
             return pd.DataFrame()
-
         g = sub.groupby(["subject", age_col])[metric_col].sum().reset_index()
         g = g.rename(columns={age_col: "age_years"})
         rows_traj = []
-        for s, gs in g.groupby("subject"):
+        for _, gs in g.groupby("subject"):
             gs = gs.sort_values("age_years")
             base = gs[metric_col].iloc[0]
             if base <= 0 or len(gs) < 2:
@@ -437,28 +394,25 @@ def run_fig3d_assoc_vs_primary(morph_data, age_df, out_dir, primary_regions, ass
 
     assoc = _grp_traj(assoc_regions, "Association")
     prim = _grp_traj(prim_regions, "Primary")
-
     if assoc.empty or prim.empty:
         print(f"  [Fig3D] {species_label}: insufficient data (assoc={len(assoc)}, prim={len(prim)})")
-        return None, None
-
+        return None
     print(f"  [Fig3D] {species_label}: assoc rows: {len(assoc)}, prim rows: {len(prim)}")
+    return assoc, prim, metric_label
 
-    # ── Plot ──────────────────────────────────────────────────────────────────
-    fig, ax = plt.subplots(figsize=(7, 5))
 
-    # Colors matching your SPECIES_COLORS style
-    colors = {"Association": "#2E86C1", "Primary": "#E67E22"}  # Blue vs Orange
-
-    for traj, color, lbl in [(assoc, colors["Association"], "Association"),
-                              (prim, colors["Primary"], "Primary")]:
-        # Individual subject traces
+def draw_assoc_vs_primary(ax, assoc, prim, metric_label, age_label="Age (years)",
+                          legend_fontsize=11, min_n_mean=3):
+    """
+    Fig 3D panel: individual traces + mean ± SEM of % change, association vs primary.
+    Mean/SEM drawn only where >= min_n_mean subjects are observed.
+    """
+    for traj, lbl in [(assoc, "Association"), (prim, "Primary")]:
+        color = FIG3D_COLORS[lbl]
         for _, gs in traj.groupby("subject"):
             ax.plot(gs["age_years"], gs["pct"], "-", color=color, alpha=0.2, lw=0.8)
 
-        # Mean ± SEM
-        age_min, age_max = traj["age_years"].min(), traj["age_years"].max()
-        grid = np.linspace(age_min, age_max, 50)
+        grid = np.linspace(traj["age_years"].min(), traj["age_years"].max(), 50)
         mat = []
         for _, gs in traj.groupby("subject"):
             gs = gs.sort_values("age_years")
@@ -469,15 +423,47 @@ def run_fig3d_assoc_vs_primary(morph_data, age_df, out_dir, primary_regions, ass
             mean = np.nanmean(mat, axis=0)
             n_ok = np.sum(~np.isnan(mat), axis=0)
             sem = np.nanstd(mat, axis=0) / np.sqrt(np.maximum(n_ok, 1))
+            mean[n_ok < min_n_mean] = np.nan
+            sem[n_ok < min_n_mean] = np.nan
             ax.plot(grid, mean, color=color, lw=2.5, label=lbl, zorder=5)
             ax.fill_between(grid, mean - sem, mean + sem, color=color, alpha=0.2)
 
     ax.axhline(0, color="gray", lw=0.8, ls="--")
-    ax.set_xlabel("Age (years)", fontsize=12)
-    ax.set_ylabel(f"% {metric_label} change from baseline", fontsize=12)
-    ax.legend(fontsize=11, frameon=False)
+    ax.set_xlabel(age_label)
+    ax.set_ylabel(f"% {metric_label} change from baseline")
+    ax.legend(fontsize=legend_fontsize, frameon=False)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
+
+
+def run_fig3d_assoc_vs_primary(morph_data, age_df, out_dir, primary_regions, association_regions,
+                                species_label="Macaque", data_key="surface"):
+    """
+    Fig 3D: Compare % growth of association vs primary cortex (one PNG + stats).
+
+    Parameters
+    ----------
+    morph_data : dict of DataFrames (keys: 'surface', 'volume', 'thickness')
+    age_df : DataFrame with subject, session, age_*
+    out_dir : output directory for the figure
+    primary_regions, association_regions : lists of region names
+    species_label : e.g. "Macaque", "Human"
+    data_key : 'surface', 'volume' or 'thickness'
+    """
+    import matplotlib.pyplot as plt
+    from scipy import stats as _st
+
+    res = assoc_primary_trajectories(morph_data, age_df, primary_regions, association_regions,
+                                     species_label=species_label, data_key=data_key)
+    if res is None:
+        return None, None
+    assoc, prim, metric_label = res
+
+    # ── Plot ──────────────────────────────────────────────────────────────────
+    fig, ax = plt.subplots(figsize=(7, 5))
+    draw_assoc_vs_primary(ax, assoc, prim, metric_label)
+    ax.xaxis.label.set_size(12)
+    ax.yaxis.label.set_size(12)
     plt.tight_layout()
 
     os.makedirs(out_dir, exist_ok=True)
@@ -952,6 +938,136 @@ def generate_report(all_stats, out_dir, mac_age=None, hum_age=None,
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# STEP 6 — Combined Figure 3 (one figure, metrics aligned in columns)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# (modality key, metric column, y label, column title) — column order of the figure
+FIG3_MODALITIES = [
+    ('surface',   'surface_area_mm2', 'Surface area (mm²)',      'Surface area'),
+    ('thickness', 'thickness_mm',     'Cortical thickness (mm)', 'Cortical thickness'),
+    ('volume',    'volume_mm3',       'Volume (mm³)',            'Volume'),
+]
+# Extra panel appended to a species' trajectory row: association vs primary % change
+# (Fig 3D) on this modality. Species not listed get no extra panel.
+FIG3_EXTRA_PANEL = {'Macaque': 'surface'}
+
+
+def plot_figure3_combined(species_rows, out_path, region='Isocortex',
+                          atlas_level=ATLAS_LEVEL, hemisphere='left',
+                          min_sessions=MIN_SESSIONS, modalities=FIG3_MODALITIES,
+                          extra_panel=FIG3_EXTRA_PANEL,
+                          primary_regions=PRIMARY_REGIONS,
+                          association_regions=ASSOCIATION_REGIONS,
+                          panel_w=3.4, panel_h=2.7):
+    """
+    Figure 3 as one figure. Rows, top to bottom:
+      1..S      trajectories per species (spline LMM fit ± 95% CI, individual subjects),
+                + optional association-vs-primary panel (FIG3_EXTRA_PANEL)
+      S+1..2S   % change from each subject's first session, same species order
+    Columns = modalities (surface | thickness | volume [| assoc vs primary]), so a given
+    metric is vertically aligned across all rows. Panels lettered a, b, c, … row-wise.
+    Panel drawing reuses draw_longitudinal / draw_pct_change / draw_assoc_vs_primary
+    (identical content to the per-panel PNGs written by run_longitudinal / Fig 3D).
+
+    species_rows : list of (species, morph_dict, age_df, age_col, row_label)
+    out_path     : output path without extension; .png (300 dpi) and .pdf are written
+    Returns the list of written paths.
+    """
+    import string
+    import matplotlib.pyplot as plt
+    import matplotlib.gridspec as gridspec
+    from Statistics.Group_fMRI.EDNiX_longitudinal import (
+        prepare_longitudinal, fit_gamm, fit_lme, draw_longitudinal, draw_pct_change)
+    from Exemples.Study_EDNiX.analysis.ednix_bids_tools import PAPER_RC
+
+    n_mod   = len(modalities)
+    has_ext = any(sp in extra_panel for sp, *_ in species_rows)
+    ncols   = n_mod + int(has_ext)
+    nrows   = 2 * len(species_rows)
+
+    # ── data: one filtered/merged table per species x modality ────────────────
+    prepared = {}
+    for sp, morph, age_df, age_col, _ in species_rows:
+        for mod, metric_col, _, _ in modalities:
+            df_mod = morph.get(mod, pd.DataFrame()) if morph else pd.DataFrame()
+            if df_mod is None or df_mod.empty:
+                prepared[(sp, mod)] = None
+                continue
+            m = prepare_longitudinal(df_mod, age_df, age_col, atlas_level=atlas_level,
+                                     hemisphere=hemisphere, regions=[region],
+                                     min_sessions=min_sessions, label=f'Fig3/{sp}_{mod}')
+            prepared[(sp, mod)] = None if m.empty else m[m['region'] == region].copy()
+
+    rc = dict(PAPER_RC)
+    rc.update({"font.size": 8, "axes.labelsize": 8, "axes.titlesize": 9,
+               "xtick.labelsize": 7, "ytick.labelsize": 7, "axes.linewidth": 0.8,
+               "xtick.major.width": 0.8, "ytick.major.width": 0.8})
+    letters = iter(string.ascii_lowercase)
+    written = []
+
+    with plt.rc_context(rc):
+        fig = plt.figure(figsize=(panel_w * ncols + 0.6, panel_h * nrows))
+        gs  = gridspec.GridSpec(nrows, ncols, figure=fig, hspace=0.55, wspace=0.42,
+                                left=0.09, right=0.99, top=0.96, bottom=0.05)
+
+        def _letter(ax):
+            ax.text(-0.27, 1.10, next(letters), transform=ax.transAxes,
+                    fontsize=12, fontweight='bold', va='bottom', ha='left')
+
+        def _empty(ax, msg):
+            ax.text(0.5, 0.5, msg, ha='center', va='center', fontsize=7,
+                    color='0.5', transform=ax.transAxes)
+            ax.set_xticks([]); ax.set_yticks([])
+
+        for kind in ('traj', 'pct'):
+            for i, (sp, morph, age_df, age_col, row_label) in enumerate(species_rows):
+                r = i if kind == 'traj' else len(species_rows) + i
+                for c, (mod, metric_col, metric_label, col_title) in enumerate(modalities):
+                    ax = fig.add_subplot(gs[r, c])
+                    _letter(ax)
+                    rdf = prepared[(sp, mod)]
+                    if rdf is None:
+                        _empty(ax, f'no {mod} data')
+                    elif kind == 'traj':
+                        gamm = fit_gamm(rdf, metric_col, age_col, min_sessions)
+                        lme  = fit_lme(rdf, metric_col, age_col, min_sessions)
+                        draw_longitudinal(ax, rdf, metric_col, age_col, gamm, lme,
+                                          age_label='Age (years)', metric_label=metric_label,
+                                          stats_fontsize=6, show_method=False)
+                    else:
+                        if not draw_pct_change(ax, rdf, metric_col, age_col, 'Age (years)'):
+                            _empty(ax, 'no subject with ≥ 2 sessions')
+                    if r == 0:
+                        ax.set_title(col_title, fontweight='bold', pad=12)
+                    if c == 0:
+                        ax.annotate(f"{row_label}\n{'trajectories' if kind == 'traj' else '% change'}",
+                                    xy=(-0.42, 0.5), xycoords='axes fraction', rotation=90,
+                                    ha='center', va='center', fontsize=9, fontweight='bold')
+
+                if kind == 'traj' and sp in extra_panel:
+                    ax = fig.add_subplot(gs[r, n_mod])
+                    _letter(ax)
+                    res = assoc_primary_trajectories(morph, age_df, primary_regions,
+                                                     association_regions, species_label=sp,
+                                                     data_key=extra_panel[sp])
+                    if res is None:
+                        _empty(ax, 'association / primary regions not found')
+                    else:
+                        draw_assoc_vs_primary(ax, *res, legend_fontsize=7)
+                    ax.set_title('Association vs primary', fontweight='bold', pad=12)
+
+        os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+        for ext, kw in (('png', dict(dpi=300)), ('pdf', {})):
+            path = f'{out_path}.{ext}'
+            fig.savefig(path, bbox_inches='tight', **kw)
+            written.append(path)
+        plt.close(fig)
+
+    print(f"  [Fig3 combined] → {', '.join(written)}")
+    return written
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # MAIN
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1095,5 +1211,17 @@ if __name__ == '__main__':
             mac_volume=mac_morph.get('volume') if mac_morph else None,
             hum_volume=hum_morph.get('volume') if hum_morph else None,
         )
+
+    # ── Combined Figure 3: human on top, macaque below, then % change rows ──
+    print("\n" + "=" * 64)
+    print("  FIGURE 3 — combined")
+    print("=" * 64)
+    plot_figure3_combined(
+        species_rows=[
+            ('Human',   hum_morph, hum_age, 'age',       'Human'),
+            ('Macaque', mac_morph, mac_age, 'age_years', 'Macaque'),
+        ],
+        out_path=opj(OUT_DIR, 'Figure3_combined'),
+    )
 
     print("\n  Done.")
