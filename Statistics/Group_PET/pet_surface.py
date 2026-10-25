@@ -35,7 +35,7 @@ PALETTES = dict(DEFAULT_MAPS, sd_all=('videen_style', False), cv_all=('videen_st
 
 def render_pet_surfaces(result, species, atlas_lib, species_fragment, sing_wb, scene_template=None,
                         scene_label='New Scene 1', maps=None, projection='ribbon', surface_type='inflated',
-                        output_dir=None, png_width=1200, png_height=400, delete_surf_file=True):
+                        output_dir=None, png_width=1200, png_height=400, delete_surf_file=True, ranges=None):
     """
     Projects maps of a group result onto the surfaces of the species and renders them.
 
@@ -47,6 +47,8 @@ def render_pet_surfaces(result, species, atlas_lib, species_fragment, sing_wb, s
     maps            : keys of result['maps'] to render (default: those of DEFAULT_MAPS present; a result of
                       pet_group.run_group_mean: 'mean_all', plus 'sd_all' / 'cv_all' if asked)
     projection      : 'ribbon' (default), 'ribbon_dil', 'enclosing', 'vox'... (niftotoWBsurface)
+    ranges          : {key: (neg_max, pos_max)} fixed colour scale (e.g. the same bratio range for every species of
+                      a cross-species figure); default: 1st / 99th percentile of each map (symmetric: 99th of |x|)
     Returns {key: dscalar path} (the PNG has the same name, .png, when a scene is given).
     """
     from Tools import niftotoWBsurface
@@ -65,7 +67,9 @@ def render_pet_surfaces(result, species, atlas_lib, species_fragment, sing_wb, s
             print(f'  [surface] {opb(path)} is empty (no significant cluster): skipped', flush=True)
             continue
         palette, symmetric = PALETTES.get(k, ('ROY-BIG-BL', True))
-        if symmetric:
+        if ranges and k in ranges:
+            neg_max, pos_max = (float(v) for v in ranges[k])
+        elif symmetric:
             vmax = float(np.percentile(np.abs(nz), 99))
             pos_max, neg_max = vmax, -vmax
         else:
