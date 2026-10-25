@@ -79,6 +79,20 @@ def head_image(ct_file, out, pad_mm=5.0):
     return out
 
 
+def intracranial(ct_file, out, diary_name):
+    """Intracranial cavity of the CT (ct_intracranial_mask) written to `out`, or None (warning) without a closed
+    skull."""
+    cavity = ct_intracranial_mask(ct_file)
+    if cavity is None:
+        run_cmd.msg('WARNING: no closed skull found in the CT (bone > 300 HU): no intracranial start', diary_name,
+                    'WARNING')
+        return None
+    ants.image_write(cavity, out, ri=False)
+    pu.write_json(out, [ct_file], 'Intracranial cavity of the CT (bone > 300 HU closed 2 mm, filled slice by slice, '
+                                  'largest component): start of the CT -> anatomy registration.')
+    return cavity
+
+
 def record_path(paths, base):
     return opj(paths['orig_matrices'], base + '_desc-registration_ct.json')
 
@@ -174,12 +188,7 @@ def register(sc, ct_img, raw, base, paths, anat, packages, template_CT, referenc
         ants.image_write(head, opj(paths['orig_formc'], base + '_desc-head_mask.nii.gz'), ri=False)
         # intracranial cavity (skull ring filled slice by slice): 'brain' start and centre of the rotation search,
         # independent of the face, neck and shoulders in the field of view
-        cavity = ct_intracranial_mask(work)
-        if cavity is not None:
-            ants.image_write(cavity, opj(paths['orig_formc'], base + '_desc-intracranial_mask.nii.gz'), ri=False)
-        else:
-            run_cmd.msg('WARNING: no closed skull found in the CT (bone > 300 HU): no intracranial start',
-                        diary_name, 'WARNING')
+        cavity = intracranial(work, opj(paths['orig_formc'], base + '_desc-intracranial_mask.nii.gz'), diary_name)
         acpc_mat = opj(anat['dir_transfo'], 'acpc_0GenericAffine.mat')
         acpc = rigid_to(anat['acpc'], work, prefix, metric, mask_file=anat['mask'], dilate_mm=10.0,
                         coreg_transform=coreg_transform, moving_mask=head, init=coreg_init,

@@ -170,6 +170,23 @@ def _centroid(mask):
     return np.asarray(m.origin[:3], float) + np.asarray(m.direction, float)[:3, :3] @ (sp * idx.mean(axis=0))
 
 
+def _largest(mask):
+    """Largest connected component of a boolean array."""
+    from scipy import ndimage
+    lab, n = ndimage.label(mask)
+    if n == 0:
+        return mask
+    return lab == (int(np.argmax(ndimage.sum(mask, lab, range(1, n + 1)))) + 1)
+
+
+def _ring_interior(bone, min_vox):
+    """Largest region enclosed by the bone of one slice, if it has at least min_vox voxels (else empty)."""
+    from scipy import ndimage
+    inside = ndimage.binary_fill_holes(bone) & ~bone if bone.any() else bone
+    big = _largest(inside)
+    return big if big.sum() >= min_vox else np.zeros_like(bone)
+
+
 def ct_intracranial_mask(ct, bone_hu=300.0, min_area_cm2=20.0):
     """
     Intracranial cavity of a CT in HU, for the initialisation of the CT -> anatomy registration: in every axial
@@ -189,26 +206,10 @@ def ct_intracranial_mask(ct, bone_hu=300.0, min_area_cm2=20.0):
     ax = _axial_axis(ct)
     sp = [ct.spacing[i] for i in range(3) if i != ax]
     min_vox = min_area_cm2 * 100.0 / (sp[0] * sp[1])
-    cav = np.zeros_like(bone)
-    sl = [slice(None)] * 3
-    for k in range(arr.shape[ax]):
-        sl[ax] = k
-        b = bone[tuple(sl)]
-        if not b.any():
-            continue
-        inside = ndimage.binary_fill_holes(b) & ~b
-        lab, n = ndimage.label(inside)
-        if n == 0:
-            continue
-        sizes = ndimage.sum(inside, lab, range(1, n + 1))
-        big = int(np.argmax(sizes)) + 1
-        if sizes[big - 1] >= min_vox:
-            cav[tuple(sl)] = lab == big
+    cav = np.moveaxis(np.stack([_ring_interior(b, min_vox) for b in np.moveaxis(bone, ax, 0)]), 0, ax)
     if not cav.any():
         return None
-    lab, n = ndimage.label(cav)
-    sizes = ndimage.sum(cav, lab, range(1, n + 1))
-    cav = lab == (int(np.argmax(sizes)) + 1)
+    cav = _largest(cav)
     return ct.new_image_like(cav.astype(np.float32))
 
 
