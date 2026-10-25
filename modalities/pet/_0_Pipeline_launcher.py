@@ -178,6 +178,25 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
     in the PET space, 7 parametric images and regional values, 8 kinetic models, 'pvc' partial-volume
     correction, 9 PET during the fMRI runs, 10 export to the anatomical and template spaces.
 
+    Templates and sessions, at a glance (declares = describes what the anatomical pipeline did, must be the value of
+    the anatomical launcher; triggers = makes the PET pipeline do something):
+
+      creat_study_template         declares  the anatomical pipeline used an anatomical study template: where the
+                                             anatomy -> template transforms are read (backtonative.get)
+      coregistration_longitudinal  declares  the anatomical pipeline registered the sessions of a subject to its
+                                             reference session: idem
+      creat_study_template_pet     triggers  step 2, a PET study template built from the session means: crop of
+                                             crop_for_MoCo='auto' brought to every session, and the common space of
+                                             scenario 3v2 only (no anatomy, CT or PET template). It is not registered
+                                             to the anatomy: with an anatomy every session goes PET -> its anatomy
+      (PET longitudinal)           none      the PET sessions of a subject are not registered to each other: each one
+                                             is registered to the anatomy of its session (or of another session of the
+                                             subject when it has none); they meet in the AC-PC / template spaces
+                                             through the anatomical chain, longitudinal if the anatomy was
+      crop_for_MoCo / redo_crop    triggers  head box of steps 4-6: drawn in freeview on the session mean at the first
+                                             of steps 4, 5, 6 that runs (or the crop of the PET study template);
+                                             redo_crop redraws the study-template crop (step 3) and the session crops
+
     Parameters
     ----------
     Skip_step : list
@@ -207,9 +226,13 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
     type_norm : str
         Anatomical contrast of the normalisation of the anatomical pipeline (same value as there).
     creat_study_template : bool
-        Whether the anatomical pipeline used a study template (same value as there; anatomy -> template bridge).
+        Declaration, not an action: whether the ANATOMICAL pipeline used an anatomical study template (same value as
+        in the anatomical launcher). Tells where the anatomy -> template transforms are; builds nothing for the PET
+        (see creat_study_template_pet).
     coregistration_longitudinal : bool
-        Whether the anatomical pipeline used a longitudinal registration (same value as there).
+        Declaration, not an action: whether the ANATOMICAL pipeline registered the sessions of a subject to its
+        reference session (same value as in the anatomical launcher). The PET sessions are not registered to each
+        other: each one goes to the anatomy of its session.
     IhaveanANAT : bool, optional
         The subjects have an anatomical MRI processed by the anatomical pipeline (scenario 1 of pet4.svg).
     anat_pet_same_space : bool, optional
@@ -223,8 +246,11 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
     template_PET : str, optional
         PET template in the space of the reference template (scenario 3v1, no anatomy, no CT).
     creat_study_template_pet : bool, optional
-        Build a PET study template (step 2): used to crop the images for the motion correction and, without
-        anatomy, CT or PET template, as the common space (3v2, no atlas).
+        Action: build a PET study template (step 2) from the session means. Used for the crop of
+        crop_for_MoCo='auto' (drawn once on it, step 3, and brought to every session) and, without anatomy, CT or PET
+        template, as the common space (3v2, no atlas). It is not registered to the anatomy: with an anatomy the
+        sessions are registered to their anatomy as without it. False: a crop of a study template left on disk by an
+        earlier run is not used.
     studyT_transform : str, optional
         ANTs transform of the PET study template registrations:
         'SyNRA' (default: rigid + affine + SyN stages). ANTsPy's 'SyN' and 'Affine' start with a single affine
@@ -243,10 +269,16 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         Number of first frames not registered by the motion correction (they get the transform of the first
         registered frame).
     crop_for_MoCo : str, optional
-        Head box used by the motion correction: 'auto' (crop of the study template if it exists, else drawn on the
-        session), 'manual' (drawn on every session, freeview), 'none' (whole field of view).
+        Head box used by the motion correction and the registration: 'auto' (crop of the PET study template brought
+        to every session when creat_study_template_pet=True, else drawn on the session), 'manual' (drawn on every
+        session, freeview), 'none' (whole field of view). A session crop that no longer matches the reoriented image
+        of its session (step 1 run again with another orientation) is drawn again. The box is shown in
+        pet/QC/<session>_desc-cropbox_pet.png (and <BIDS>/QC/pet_crop), with a warning when it misses the activity.
     redo_crop : bool, optional
-        Draw the crops again (they are kept from one run to the next otherwise).
+        Draw the crops again: the crop of the PET study template (step 3) and the crop of every session
+        (<session>_desc-crop_pet.nii.gz in pet/orig/preprocessing/forMC, drawn in freeview at the first of steps 4,
+        5, 6 that runs). They are kept from one run to the next otherwise; a session crop that no longer matches the
+        reoriented image of its session (step 1 run again with another orientation) is drawn again.
     MoCo_transform : str, optional
         ANTs transform of the motion correction ('Rigid').
     coreg_metric : str, optional
@@ -555,6 +587,14 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
             run_cmd.msg(pu.step_header(3), study_diary, 'HEADER')
             studyT.manual_crop(study_template, study_diary, sing_fs, redo=redo_crop)
     study_crop = studyT.crop_name(study_template) if opi(studyT.crop_name(study_template)) else ''
+    if creat_study_template_pet and IhaveanANAT:
+        run_cmd.msg('INFO: creat_study_template_pet=True with an anatomy: the PET study template is used for the crop '
+                    'only; every session is registered to its anatomy', study_diary, 'OKGREEN')
+    if study_crop and not creat_study_template_pet:
+        # a crop of a study template left by an earlier run: its session registrations may be stale
+        run_cmd.msg('INFO: creat_study_template_pet=False: the crop of the PET study template on disk (' +
+                    opb(study_crop) + ') is not used; every session uses its own crop', study_diary, 'OKGREEN')
+        study_crop = ''
 
     # ======================================================================================== block 2 (steps 4-10)
     study_template_atlas_folder = opj(bids_dir, 'sty_template')

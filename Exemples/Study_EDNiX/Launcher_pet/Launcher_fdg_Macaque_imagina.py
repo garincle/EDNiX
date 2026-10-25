@@ -34,17 +34,25 @@ animalPosition = ['']             # '' = humanlike
 orientation = 'RIP'               # code forced on the header ('' to use the positions): CHECK it on one subject
 Need_check_orient = False         # True: freeview after the reorientation
 
-### anatomy (same values as in the anatomical launcher)
+### anatomy: DECLARATIONS of what the anatomical pipeline did (same values as in the anatomical launcher); they only
+### tell where the anatomy -> template transforms are, they build nothing for the PET
 type_norm = 'T1w'
 T_PET = 'T1w'                     # anatomical image the PET is registered to
-creat_study_template = False
-coregistration_longitudinal = False
+creat_study_template = False      # the ANATOMICAL pipeline used an anatomical study template
+coregistration_longitudinal = False  # the ANATOMICAL pipeline registered the sessions to a reference session
+# PET sessions are not registered to each other: each one goes to the anatomy of its session (1v2a here) and they
+# meet in the AC-PC / template spaces through the anatomical chain. A PET study template (creat_study_template_pet,
+# not set here: False) only serves the crop and the scenario without anatomy (3v2); it is not registered to the anatomy.
 IhaveanANAT = True
 anat_pet_same_space = False       # True only for a hybrid PET-MR acquisition (scenario 1v1)
 
 ### motion correction
 nb_void = 7                       # first frames not registered (low counts)
-crop_for_MoCo = 'auto'            # 'auto' / 'manual': crop drawn in freeview; 'none' to run without display
+crop_for_MoCo = 'auto'            # head box: without PET study template, drawn in freeview on the session mean at the
+                                  # first of steps 4/5/6 that runs, saved in pet/orig/preprocessing/forMC/
+                                  # <session>_desc-crop_pet.nii.gz and reused; QC in pet/QC/*_desc-cropbox_pet.png;
+                                  # 'none' to run without display
+redo_crop = False                 # True: draw every crop again (session crops and study-template crop)
 
 ### parametric images
 SUV = True                        # needs the injected radioactivity (sidecar) and the body weight (participants.tsv)
@@ -64,7 +72,7 @@ _0_Pipeline_launcher.preprocess_pet(
     animalPosition, humanPosition, orientation,
     T_PET, type_norm, creat_study_template, coregistration_longitudinal,
     IhaveanANAT=IhaveanANAT, anat_pet_same_space=anat_pet_same_space,
-    isotope=isotope, nb_void=nb_void, crop_for_MoCo=crop_for_MoCo,
+    isotope=isotope, nb_void=nb_void, crop_for_MoCo=crop_for_MoCo, redo_crop=redo_crop,
     SUV=SUV, bratio=bratio, SUV_window=SUV_window, Do_cut=Do_cut, duration=duration,
     srtm=srtm, reference_signal=reference_signal, DV_time=DV_time,
     export_resolution='pet', selected_atlases='all',
