@@ -1073,16 +1073,16 @@ def test_session_crop_redrawn_when_the_session_image_changed(tmp_path, monkeypat
     assert (ants.image_read(box).numpy() > 0)[head].mean() > 0.99
 
 
-def _folded_brain(out, sp=0.5, fwhm=3.0, gap_mm=2.0):
+def _folded_brain(out, sp=0.5, fwhm=3.0, gap_mm=2.0, muscles='lateral'):
     """Macaque-like brain (ellipsoid 60 x 50 x 44 mm) with a 2 mm cortex folded by radial sulci, its T1, its masks
     (names of the anatomical pipeline) and an FDG PET (grey 1, white 0.35, CSF 0.05, temporal muscles 0.6 at
     gap_mm outside the brain) smoothed to fwhm and sampled at 1 mm."""
     from scipy import ndimage
     from modalities.pet import boundary
-    n = (150, 130, 120)
+    n = (170, 150, 140)
     g = (np.indices(n).T - np.array(n) / 2).T * sp
     r = np.sqrt((g[0] / 30) ** 2 + (g[1] / 25) ** 2 + (g[2] / 22) ** 2)
-    brain, head = r < 1, r < 1.25
+    brain, head = r < 1, r < 1.35
     theta, phi = np.arctan2(g[1], g[0]), np.arctan2(g[2], np.hypot(g[0], g[1]))
     sulc = np.zeros(n, bool)
     for k in range(0, 10, 2):
@@ -1090,8 +1090,8 @@ def _folded_brain(out, sp=0.5, fwhm=3.0, gap_mm=2.0):
     sulc = (sulc | ((np.abs(np.sin(4 * phi)) < 0.04) & (r > 0.7))) & brain
     gm = brain & ~sulc & (ndimage.distance_transform_edt(~(sulc | ~brain), sampling=sp) < 2.0)
     wm = brain & ~sulc & ~gm
-    muscle = (head & (ndimage.distance_transform_edt(~brain, sampling=sp) > gap_mm) & (np.abs(g[0]) > 22)
-              & (np.abs(g[2]) < 12))
+    muscle = head & (ndimage.distance_transform_edt(~brain, sampling=sp) > gap_mm)
+    muscle &= (np.abs(g[0]) > 22) & (np.abs(g[2]) < 12) if muscles == 'lateral' else g[2] < 15   # 'all': not dorsal
     def img(a):
         return ants.from_numpy(a.astype('float32'), spacing=(sp,) * 3)
     f = dict(mask=opj(out, 'M_space-acpc_mask.nii.gz'), gm=opj(out, 'M_desc-Whole_Brain_Gray_mask.nii.gz'),
@@ -1137,10 +1137,27 @@ def test_boundary_check_separates_partial_volume_from_misregistration(tmp_path):
     crown, bank = truth['gm'] & (depth < 1.0), truth['gm'] & (depth > 3) & (depth < 6)
     assert pet_a[crown].mean() / pet_a[bank].mean() < 0.75
 
+    assert set(ok['clean_sectors']) >= {'+y', '-y', '+z', '-z'}             # no muscle there
     big = record('S2', np.eye(3) * 0.96, [0, 0, 0])      # samples the PET 4 % closer to the centre: PET 4 % larger
     assert big['dilation_mm'] > 0.5 and 'larger' in big['verdict']
-    moved = record('S3', np.eye(3), [1.5, 0, 0])         # PET content 1.5 mm towards -x
-    assert moved['translation_mm']['x'] < -0.7 and 'along x' in moved['verdict']
+    moved = record('S3', np.eye(3), [0, 1.5, 0])         # PET content 1.5 mm towards -y
+    assert moved['translation_mm']['y'] < -0.7 and 'along y' in moved['verdict']
+
+
+def test_boundary_check_leaves_out_sectors_with_extracerebral_uptake(tmp_path):
+    """Muscles beside every sector but the dorsal one and a 6.5-mm PET, exact registration: the uptake pulls the
+    PET edge about 1 mm inward (a false 'PET smaller than the MRI'); those sectors are left out and the verdict is
+    'not measurable', with the dorsal shift near 0."""
+    from modalities.pet import boundary
+    f, _, centre = _folded_brain(str(tmp_path), fwhm=6.5, gap_mm=2.5, muscles='all')
+    p = str(tmp_path / 'id.mat')
+    ants.write_transform(ants.create_ants_transform(transform_type='AffineTransform', dimension=3, matrix=np.eye(3),
+                                                    translation=[0, 0, 0], center=centre), p)
+    res = boundary.check(f['t1'], f['mask'], f['pet'], {'to': [[p, False]], 'from': [[p, True]]},
+                         str(tmp_path / 'S_'), 6.5, anat=dict(gray_wb=f['gm'], white_full=f['wm']))
+    assert min(res['shifts_mm'][s] for s in ('+x', '-x', '+y', '-y', '-z')) < -0.7      # the bias, left out
+    assert res['clean_sectors'] == ['+z'] and abs(res['shifts_mm']['+z']) < 0.3
+    assert res['dilation_mm'] is None and res['verdict'].startswith('not measurable')
 
 
 def test_pvc_resolution_auto_reads_the_estimate_and_keeps_the_filter(tmp_path):

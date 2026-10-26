@@ -20,13 +20,17 @@ coreg2anat.synthetic_pet) smoothed to the PET resolution, or the smoothed brain 
 both profiles the edge is the half-maximum point of the outer fall (between the maximum inside and the minimum just
 outside): smoothing a step leaves its half maximum on the step, whatever the width, so the difference of the two
 edges is the displacement of the PET boundary in that sector, positive when the PET brain extends beyond the MRI
-brain. Median of the six = dilation (scale-like error); half difference of opposite sectors = translation.
+brain. A sector with signal 3-5 mm outside the brain that the brain does not explain (outside_excess >=
+MAX_EXCESS: temporal or neck muscles, glands, or a brain mask cut through the brainstem) is left out: that uptake
+raises the outer side of the observed profile and pulls its half-maximum point inward (about -1 mm on a phantom with
+a 6.5-mm FWHM and muscles 2.5 mm outside the brain, with an exact registration). From the clean sectors: median =
+dilation (scale-like error, three clean sectors needed), half difference of two clean opposite sectors = translation;
+fewer than three clean sectors: not measurable.
 
-Accuracy on a folded-cortex phantom (2 mm cortex, PET FWHM 3-4.5 mm, tests/unit/test_pet.py): within 0.1 mm of 0 for
-a correct registration in the sectors without extracerebral uptake; 70-85 % of the true mean normal displacement for
-a 4 % scale or a 1.5 mm shift (the estimate is conservative); an assumed FWHM of 2 to 6 mm for a true 4.5 mm changes
-the shifts by < 0.1 mm. An uptake 2 mm outside the brain (temporal muscles) biases its sectors inward by 0.3-0.4 mm:
-the dorsal sector (+z) is the most reliable.
+Accuracy on a folded-cortex phantom (2 mm cortex, PET FWHM 3-6.5 mm, tests/unit/test_pet.py): within 0.05 mm of 0
+for a correct registration; 55-85 % of the true mean normal displacement for a 4 % scale or a 1.5 mm shift (the
+estimate is conservative); an assumed FWHM of 2 to 6 mm for a true 4.5 mm changes the shifts by < 0.1 mm. Outside
+excess: < 0.15 in the clean sectors, misregistered or not; > 0.45 beside the muscles.
 """
 import json
 import os
@@ -45,6 +49,8 @@ SECTORS = tuple(s + a for a in AXES for s in '+-')
 STEP_MM = 0.5
 RANGE_MM = (-6.0, 5.0)          # profile: 6 mm inside the brain, 5 mm outside
 EDGE_MM = (-4.0, 4.5)           # edge search window around the boundary of the MRI brain
+OUT_MM = (3.0, 5.0)             # outside band of the extracerebral-uptake test
+MAX_EXCESS = 0.25               # unexplained outside signal (fraction of the inner maximum) of a clean sector
 
 
 def _gauss(img, fwhm_mm):
@@ -80,10 +86,10 @@ def estimate_fwhm(tissue, brain, pet, chain, dilate_mm=2.0, grid=None):
     """
     Effective resolution of the PET (FWHM, mm), estimated from the data: the FDG-like image of the anatomy is smoothed
     at every FWHM of `grid` (1-10 mm by 0.5), brought on the PET grid with the registration, and the FWHM kept is the
-    one whose image correlates best with the PET in the brain dilated by dilate_mm (the extracerebral uptake further
-    out is not modelled). The resolution of a PET-MRI pair matched by smoothing the segmented MRI to the PET (as the
-    effective-resolution estimate of Joshi et al. 2009 on a phantom). An upper bound: a residual misregistration and a
-    grey / white contrast other than 1 / 0.35 are compensated by more smoothing. Returns (fwhm, {fwhm: r}).
+    one whose image correlates best with the PET in the brain dilated by dilate_mm (the idea of matching a smoothed
+    reference to the PET, Joshi et al. 2009). Approximate: exact on the phantom for a correct registration (3.0, 4.0,
+    4.5, 6.5 mm), but a misregistration biases it either way (1.5-mm shift: 3.0 -> 3.5 mm; PET 4 % too large:
+    6.5 -> 4.0 mm) and an extracerebral uptake beside the brain lowers it (6.5 -> 5.5 mm). Returns (fwhm, {fwhm: r}).
     """
     from modalities.pet import coreg2anat
     pet_img = ants.image_read(pet) if isinstance(pet, str) else pet
@@ -161,25 +167,56 @@ def edge_shift(d, observed, expected):
     return round(s, 2) if np.isfinite(s) else 0.0
 
 
-def summary(shifts):
-    """Dilation (median of the six shifts: two sectors biased by an extracerebral uptake, e.g. the temporal
-    muscles, do not move it) and translation per axis (half difference of opposite sectors) from the shifts."""
-    dil = float(np.median([shifts[s] for s in SECTORS]))
-    tr = {a: round(0.5 * (shifts['+' + a] - shifts['-' + a]), 2) for a in AXES}
-    return round(dil, 2), tr
+def outside_excess(d, observed, expected):
+    """Signal outside the brain not explained by the brain: mean of the profile OUT_MM outside the boundary, relative
+    to its maximum inside, observed minus expected (extracerebral uptake, or a brain mask cut through the brainstem)."""
+    out = (d >= OUT_MM[0]) & (d <= OUT_MM[1])
+    inner = (d >= EDGE_MM[0]) & (d <= 0)
+
+    def rel(p):
+        return float(np.nanmean(p[out]) / max(1e-12, np.nanmax(p[inner])))
+    return round(rel(observed) - rel(expected), 3)
 
 
-def _verdict(dil, tr, tol_mm):
-    """Text of the result: scale error, translation, or partial volume."""
-    worst_tr = max(abs(v) for v in tr.values())
-    if abs(dil) > tol_mm and abs(dil) >= worst_tr:
+def summary(shifts, clean):
+    """Dilation (median of the shifts of the clean sectors, None with fewer than three) and translation per axis
+    (half difference of opposite sectors, only when both are clean)."""
+    ok = [shifts[s] for s in SECTORS if s in clean]
+    dil = round(float(np.median(ok)), 2) if len(ok) >= 3 else None
+    tr = {a: round(0.5 * (shifts['+' + a] - shifts['-' + a]), 2) for a in AXES
+          if '+' + a in clean and '-' + a in clean}
+    return dil, tr
+
+
+def _registration_error(dil, tr, tol_mm):
+    """Text of a scale error or a translation beyond tol_mm, else ''."""
+    worst_tr = max([abs(v) for v in tr.values()] or [0.0])
+    if dil is not None and abs(dil) > tol_mm and abs(dil) >= worst_tr:
         return (f'PET brain {"larger" if dil > 0 else "smaller"} than the MRI brain by {abs(dil):.1f} mm per side: '
                 f'scale error (check the PET voxel size; coreg_transform="Similarity")')
     if worst_tr > tol_mm:
         ax = max(tr, key=lambda a: abs(tr[a]))
         return f'PET shifted by {tr[ax]:+.1f} mm along {ax}: registration error (QC, coreg_init, pet_coreg_mask)'
-    return (f'PET boundary on the MRI boundary (within {tol_mm:.1f} mm): a dim outer cortex is partial volume, '
-            f'not registration (step pvc with pvc_fwhm)')
+    return ''
+
+
+def _verdict(dil, tr, shifts, clean, tol_mm):
+    """Text of the result: scale error, translation, partial volume, or not measurable."""
+    error = _registration_error(dil, tr, tol_mm)
+    if error:
+        return error
+    if dil is None:
+        vals = ', '.join(f'{s} {shifts[s]:+.1f}' for s in clean) or 'none'
+        return (f'not measurable: extracerebral uptake (or a brain mask cut through the brainstem) beside '
+                f'{6 - len(clean)} of the 6 sectors; clean sectors: {vals} mm')
+    untested = ', '.join(a for a in AXES if a not in tr)
+    return (f'PET boundary on the MRI boundary (within {tol_mm:.1f} mm, {len(clean)} clean sectors'
+            + (f'; translation along {untested} not tested' if untested else '')
+            + '): a dim outer cortex is partial volume, not registration (step pvc with pvc_fwhm)')
+
+
+def _image(x):
+    return ants.image_read(x) if isinstance(x, str) else x
 
 
 def check(anat_image, brain_mask, pet, chain, out_prefix, fwhm_mm=None, anat=None, tol_mm=0.5):
@@ -190,9 +227,8 @@ def check(anat_image, brain_mask, pet, chain, out_prefix, fwhm_mm=None, anat=Non
     the data (fwhm_estimated_mm, estimate_fwhm). fwhm_mm: PET resolution of the expected profile (pvc_fwhm); None:
     the estimated one.
     """
-    brain = ants.image_read(brain_mask) if isinstance(brain_mask, str) else brain_mask
-    fixed = ants.image_read(anat_image) if isinstance(anat_image, str) else anat_image
-    brain = ants.resample_image_to_target(brain, fixed, interp_type='nearestNeighbor')
+    fixed = _image(anat_image)
+    brain = ants.resample_image_to_target(_image(brain_mask), fixed, interp_type='nearestNeighbor')
     tissue, model = tissue_image(anat or {}, brain)
     est, curve = estimate_fwhm(tissue, brain, pet, chain)
     fwhm = float(fwhm_mm) if fwhm_mm else est
@@ -202,15 +238,20 @@ def check(anat_image, brain_mask, pet, chain, out_prefix, fwhm_mm=None, anat=Non
     d, obs = profiles(pet_in, dist, sec)
     _, exp = profiles(_gauss(tissue, fwhm).numpy(), dist, sec)
     shifts = {s: edge_shift(d, obs[s], exp[s]) for s in SECTORS}
-    dil, tr = summary(shifts)
-    verdict = _verdict(dil, tr, tol_mm)
+    excess = {s: outside_excess(d, obs[s], exp[s]) for s in SECTORS}
+    clean = [s for s in SECTORS if excess[s] < MAX_EXCESS]
+    dil, tr = summary(shifts, clean)
+    verdict = _verdict(dil, tr, shifts, clean, tol_mm)
     res = dict(fwhm_mm=fwhm, fwhm_estimated_mm=est, fwhm_correlation=curve, model=model, shifts_mm=shifts,
-               dilation_mm=dil, translation_mm=tr, tolerance_mm=tol_mm, verdict=verdict,
-               note='positive shift: the PET brain extends beyond the MRI brain in that sector; fwhm_estimated_mm: '
-                    'upper bound of the PET resolution (best correlation with the smoothed tissue image)')
+               outside_excess=excess, clean_sectors=clean, dilation_mm=dil, translation_mm=tr, tolerance_mm=tol_mm,
+               verdict=verdict,
+               note='positive shift: the PET brain extends beyond the MRI brain in that sector; outside_excess >= '
+                    f'{MAX_EXCESS}: signal 3-5 mm outside the brain not explained by the brain (extracerebral uptake, '
+                    'brain mask cut through the brainstem), sector left out (its shift is biased); fwhm_estimated_mm: '
+                    'best correlation with the smoothed tissue image, approximate')
     with open(out_prefix + 'boundary.json', 'w') as f:
         json.dump(res, f, indent=2)
-    _plot(d, obs, exp, shifts, verdict, out_prefix + 'boundary.png')
+    _plot(d, obs, exp, shifts, clean, verdict, out_prefix + 'boundary.png')
     return res
 
 
@@ -219,7 +260,7 @@ def _unit(v, ok):
     return (v - np.nanmin(v[ok])) / max(1e-12, np.nanmax(v[ok]) - np.nanmin(v[ok]))
 
 
-def _plot(d, obs, exp, shifts, title, png):
+def _plot(d, obs, exp, shifts, clean, title, png):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -231,7 +272,8 @@ def _plot(d, obs, exp, shifts, title, png):
             ax.plot(d, _unit(o, ok), 'k-', label='PET')
             ax.plot(d, _unit(e, ok), 'C1--', label='expected')
         ax.axvline(0, color='0.6', lw=0.8)
-        ax.set_title(f'{s}: {shifts[s]:+.1f} mm', fontsize=9)
+        ax.set_title(f'{s}: {shifts[s]:+.1f} mm' + ('' if s in clean else ' (outside uptake: left out)'),
+                     fontsize=9, color='k' if s in clean else '0.5')
     axs[0, 0].legend(fontsize=8)
     for ax in axs[1]:
         ax.set_xlabel('distance to the brain boundary (mm)')

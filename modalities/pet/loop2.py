@@ -114,7 +114,7 @@ def pvc_resolution(pvc_fwhm, rec_file, infos, diary_file):
     with open(js) as f:
         est = float(json.load(f)['fwhm_estimated_mm'])
     fw = max(est, filt)
-    run_cmd.msg(f'INFO: pvc_fwhm auto = {fw:.1f} mm (estimated from the data {est:.1f} mm, an upper bound; '
+    run_cmd.msg(f'INFO: pvc_fwhm auto = {fw:.1f} mm (estimated from the data {est:.1f} mm, approximate; '
                 f'sidecar filter {filt:.1f} mm)', diary_file, 'WARNING')
     return fw
 

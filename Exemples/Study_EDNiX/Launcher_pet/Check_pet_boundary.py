@@ -27,9 +27,9 @@ def report(rec, pet_fwhm, bids_dir):
         print(f'{rec}: not checked ({e})')
         return
     sh = ', '.join(f'{k} {v:+.1f}' for k, v in res['shifts_mm'].items())
-    print(f"{os.path.basename(rec)}\n    PET edge - MRI edge (mm): {sh}\n    dilation {res['dilation_mm']:+.2f} mm, "
-          f"translation {res['translation_mm']} mm (FWHM {res['fwhm_mm']:.1f} mm, model {res['model']})\n"
-          f"    -> {res['verdict']}")
+    print(f"{os.path.basename(rec)}\n    PET edge - MRI edge (mm): {sh}\n    clean sectors (no extracerebral uptake "
+          f"beside): {res['clean_sectors']}; dilation {res['dilation_mm']} mm, translation {res['translation_mm']} mm "
+          f"(FWHM {res['fwhm_mm']:.1f} mm, model {res['model']})\n    -> {res['verdict']}")
 
 
 def records_of(bids_dir):

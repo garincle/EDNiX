@@ -363,7 +363,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         header: the sidecar gives only the filter, ReconFilterSize): partial-volume correction (PETPVC) of the static
         images; None = no correction. 'auto': the resolution estimated from the data at step 6 (the FDG-like image
         of the anatomy smoothed until it correlates best with the registered PET, boundary.estimate_fwhm), never below
-        ReconFilterSize; an upper bound (a residual misregistration adds smoothing), reported in the diary: prefer
+        ReconFilterSize; approximate (a misregistration or an extracerebral uptake biases it), in the diary: prefer
         the value of the scanner when known. Also the smoothing of the synthetic target (unless synthetic_fwhm) and
         of the expected profile of the boundary check of step 6 (None / 'auto': the estimated resolution).
     pvc_method : str, optional
