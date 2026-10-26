@@ -1128,7 +1128,7 @@ def test_boundary_check_separates_partial_volume_from_misregistration(tmp_path):
     assert ok['model'] == 'grey / white matter'
     assert ok['fwhm_estimated_mm'] == pytest.approx(3.0, abs=0.5)        # resolution of the phantom PET
     assert abs(ok['dilation_mm']) < 0.3 and all(abs(v) < 0.45 for v in ok['shifts_mm'].values())
-    assert ok['verdict'].startswith('PET boundary on the MRI boundary')
+    assert ok['verdict'].startswith('registration correct within 1.0 mm') and ok['tolerance_mm'] == 1.0
     assert os.path.isfile(opj(str(tmp_path), 'QC', 'pet_boundary', 'S1_desc-registration_boundary.png'))
     assert os.path.isfile(opj(str(tmp_path), 'sub-M', 'ses-1', 'pet', 'QC', 'S1_desc-registration_boundary.png'))
     # partial volume alone: with the correct registration the gyral crowns are far below the sulcal banks
@@ -1138,10 +1138,12 @@ def test_boundary_check_separates_partial_volume_from_misregistration(tmp_path):
     assert pet_a[crown].mean() / pet_a[bank].mean() < 0.75
 
     assert set(ok['clean_sectors']) >= {'+y', '-y', '+z', '-z'}             # no muscle there
-    big = record('S2', np.eye(3) * 0.96, [0, 0, 0])      # samples the PET 4 % closer to the centre: PET 4 % larger
-    assert big['dilation_mm'] > 0.5 and 'larger' in big['verdict']
-    moved = record('S3', np.eye(3), [0, 1.5, 0])         # PET content 1.5 mm towards -y
-    assert moved['translation_mm']['y'] < -0.7 and 'along y' in moved['verdict']
+    big = record('S2', np.eye(3) * 0.92, [0, 0, 0])      # samples the PET 8 % closer to the centre: PET 8 % larger
+    assert big['dilation_mm'] > 1.0 and 'larger' in big['verdict']
+    moved = record('S3', np.eye(3), [0, 3.0, 0])         # PET content 3 mm towards -y
+    assert moved['translation_mm']['y'] < -1.4 and 'along y' in moved['verdict']
+    small = record('S4', np.eye(3) * 0.96, [0, 0, 0])    # 4 %: about 0.7 mm per side, below one PET voxel
+    assert 0.4 < small['dilation_mm'] < 1.0 and small['verdict'].startswith('registration correct')
 
 
 def test_boundary_check_leaves_out_sectors_with_extracerebral_uptake(tmp_path):
@@ -1171,3 +1173,73 @@ def test_pvc_resolution_auto_reads_the_estimate_and_keeps_the_filter(tmp_path):
     filt = [{'ReconFilterType': 'Gaussian', 'ReconFilterSize': 5.0}]
     assert loop2.pvc_resolution('auto', rec, filt, diary) == 5.0                  # never below the filter
     assert loop2.pvc_resolution(4.0, rec, filt, diary) == 4.0                     # a value given is kept
+
+
+def _pvc_phantom(fwhm, muscles):
+    """Folded cortex (2 mm) at 0.5 mm, PET at 1.5 mm = block mean of the smoothed uptake (grey 1, white 0.35, CSF
+    0.05, muscles 0.6 outside the brain), tissue fractions = block means of the masks."""
+    from scipy import ndimage
+    from modalities.pet import pvc
+    sp, n, k = 0.5, (168, 150, 138), 3
+    g = (np.indices(n).T - np.array(n) / 2).T * sp
+    r = np.sqrt((g[0] / 30) ** 2 + (g[1] / 25) ** 2 + (g[2] / 22) ** 2)
+    brain, head = r < 1, r < 1.35
+    theta, phi = np.arctan2(g[1], g[0]), np.arctan2(g[2], np.hypot(g[0], g[1]))
+    sulc = np.zeros(n, bool)
+    for j in range(0, 10, 2):
+        sulc |= (np.abs(np.sin(5 * theta + j)) < 0.04) & (r > 0.7)
+    sulc = (sulc | ((np.abs(np.sin(4 * phi)) < 0.04) & (r > 0.7))) & brain
+    gm = brain & ~sulc & (ndimage.distance_transform_edt(~(sulc | ~brain), sampling=sp) < 2.0)
+    wm = brain & ~sulc & ~gm
+    act = np.where(brain, 0.05, 0.0)
+    act[wm], act[gm] = 0.35, 1.0
+    if muscles:
+        act[head & (ndimage.distance_transform_edt(~brain, sampling=sp) > 2.5) & (g[2] < 15)] = 0.6
+
+    def down(a):
+        return a.reshape(n[0] // k, k, n[1] // k, k, n[2] // k, k).mean(axis=(1, 3, 5))
+    pet = down(pvc.blur(act, [fwhm] * 3, [sp] * 3))
+    fg, fw, fb = down(gm.astype(float)), down(wm.astype(float)), down(brain.astype(float))
+    depth = down(ndimage.distance_transform_edt(brain, sampling=sp))
+    return pet, dict(GM=fg, WM=fw, brain=fb), depth, [sp * k] * 3
+
+
+@pytest.mark.parametrize('fwhm,muscles', [(3.0, False), (6.5, True)])
+def test_python_pvc_recovers_the_grey_matter_of_a_phantom(tmp_path, fwhm, muscles):
+    """RBV and MG in Python (no petpvc program): pure grey matter back to its true uptake, gyral crowns back to the
+    level of the sulcal banks; GTM class means close to the truth. Through pvc.correct (files, sidecar)."""
+    from modalities.pet import pvc
+    pet, fr, depth, spc = _pvc_phantom(fwhm, muscles)
+    aff = np.diag(spc + [1.0])
+    files = {}
+    for key, a in [('pet', pet)] + list(fr.items()):
+        files[key] = str(tmp_path / f'{key}.nii.gz')
+        nib.save(nib.Nifti1Image(a.astype(np.float32), aff), files[key])
+    diary = str(tmp_path / 'diary.txt')
+    open(diary, 'w').close()
+    pure = fr['GM'] > 0.9
+    crown, bank = pure & (depth < 1.5), pure & (depth > 3) & (depth < 6)
+    assert pet[pure].mean() < 0.85 and pet[crown].mean() / pet[bank].mean() < 0.8         # partial volume
+    for algo in ('RBV', 'MG'):
+        out = pvc.correct(files['pet'], {k: files[k] for k in fr}, fwhm, str(tmp_path / f'{algo}.nii.gz'), diary,
+                          algo, engine='python')
+        c = np.asarray(nib.load(out).dataobj)
+        assert c[pure].mean() == pytest.approx(1.0, abs=0.04)
+        assert c[crown].mean() / c[bank].mean() == pytest.approx(1.0, abs=0.06)
+        side = pu.read_json(out.replace('.nii.gz', '.json'))
+        assert side['PVCEngine'] == 'python'
+        assert side['ClassMeansGTM']['GM'] == pytest.approx(1.0, abs=0.03)
+        assert side['ClassMeansGTM']['WM'] == pytest.approx(0.35, abs=0.02)
+
+
+def test_pvc_engine_choice(monkeypatch):
+    from modalities.pet import pvc
+    import shutil
+    monkeypatch.setattr(shutil, 'which', lambda name: None)
+    assert pvc.engine_for('RBV', 'auto') == 'python'
+    with pytest.raises(ValueError, match='needs the PETPVC program'):
+        pvc.engine_for('IY', 'auto')
+    with pytest.raises(FileNotFoundError, match='conda install'):
+        pvc.engine_for('RBV', 'petpvc')
+    monkeypatch.setattr(shutil, 'which', lambda name: '/usr/bin/petpvc')
+    assert pvc.engine_for('IY', 'auto') == 'petpvc' and pvc.engine_for('RBV', 'python') == 'python'

@@ -50,6 +50,7 @@ STEP_MM = 0.5
 RANGE_MM = (-6.0, 5.0)          # profile: 6 mm inside the brain, 5 mm outside
 EDGE_MM = (-4.0, 4.5)           # edge search window around the boundary of the MRI brain
 OUT_MM = (3.0, 5.0)             # outside band of the extracerebral-uptake test
+MIN_TOL_MM = 1.0                # smallest tolerance of the verdict (mm)
 MAX_EXCESS = 0.25               # unexplained outside signal (fraction of the inner maximum) of a clean sector
 
 
@@ -210,22 +211,28 @@ def _verdict(dil, tr, shifts, clean, tol_mm):
         return (f'not measurable: extracerebral uptake (or a brain mask cut through the brainstem) beside '
                 f'{6 - len(clean)} of the 6 sectors; clean sectors: {vals} mm')
     untested = ', '.join(a for a in AXES if a not in tr)
-    return (f'PET boundary on the MRI boundary (within {tol_mm:.1f} mm, {len(clean)} clean sectors'
+    return (f'registration correct within {tol_mm:.1f} mm ({len(clean)} clean sectors'
             + (f'; translation along {untested} not tested' if untested else '')
-            + '): a dim outer cortex is partial volume, not registration (step pvc with pvc_fwhm)')
+            + '): a dim outer cortex is partial volume (step pvc with pvc_fwhm)')
 
 
 def _image(x):
     return ants.image_read(x) if isinstance(x, str) else x
 
 
-def check(anat_image, brain_mask, pet, chain, out_prefix, fwhm_mm=None, anat=None, tol_mm=0.5):
+def _pet3d(img):
+    return ants.slice_image(img, axis=3, idx=0) if img.dimension == 4 else img
+
+
+def check(anat_image, brain_mask, pet, chain, out_prefix, fwhm_mm=None, anat=None, tol_mm=None):
     """
     Boundary check of the registration `chain` (PET -> anatomy, 'to' direction) of the PET image `pet`.
     Writes <out_prefix>boundary.json and <out_prefix>boundary.png; returns the result dict with
     shifts (mm per sector, positive outward), dilation_mm, translation_mm, verdict, and the resolution estimated from
     the data (fwhm_estimated_mm, estimate_fwhm). fwhm_mm: PET resolution of the expected profile (pvc_fwhm); None:
-    the estimated one.
+    the estimated one. tol_mm: displacement below which the registration is called correct; None: the largest PET
+    voxel, at least 1 mm (an edge displacement below one PET voxel is below what the PET can show and below the
+    accuracy of retrospective PET-MRI registration, about 2 mm: West et al. 1997, J Comput Assist Tomogr 21:554).
     """
     fixed = _image(anat_image)
     brain = ants.resample_image_to_target(_image(brain_mask), fixed, interp_type='nearestNeighbor')
@@ -241,6 +248,8 @@ def check(anat_image, brain_mask, pet, chain, out_prefix, fwhm_mm=None, anat=Non
     excess = {s: outside_excess(d, obs[s], exp[s]) for s in SECTORS}
     clean = [s for s in SECTORS if excess[s] < MAX_EXCESS]
     dil, tr = summary(shifts, clean)
+    if tol_mm is None:
+        tol_mm = max(MIN_TOL_MM, float(max(_pet3d(_image(pet)).spacing[:3])))
     verdict = _verdict(dil, tr, shifts, clean, tol_mm)
     res = dict(fwhm_mm=fwhm, fwhm_estimated_mm=est, fwhm_correlation=curve, model=model, shifts_mm=shifts,
                outside_excess=excess, clean_sectors=clean, dilation_mm=dil, translation_mm=tr, tolerance_mm=tol_mm,

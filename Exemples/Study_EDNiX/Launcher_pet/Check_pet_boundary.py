@@ -6,6 +6,8 @@ opj = os.path.join
 MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
 sys.path.insert(1, opj(MAIN_PATH))
 
+import numpy as np
+
 from modalities.pet import boundary
 
 ######################################################################################################################
@@ -25,11 +27,29 @@ def report(rec, pet_fwhm, bids_dir):
         res = boundary.check_record(rec, pet_fwhm, bids_dir)
     except Exception as e:
         print(f'{rec}: not checked ({e})')
-        return
+        return None
     sh = ', '.join(f'{k} {v:+.1f}' for k, v in res['shifts_mm'].items())
     print(f"{os.path.basename(rec)}\n    PET edge - MRI edge (mm): {sh}\n    clean sectors (no extracerebral uptake "
           f"beside): {res['clean_sectors']}; dilation {res['dilation_mm']} mm, translation {res['translation_mm']} mm "
           f"(FWHM {res['fwhm_mm']:.1f} mm, model {res['model']})\n    -> {res['verdict']}")
+    return res
+
+
+def group_summary(results):
+    """Mean and 95 % confidence interval (Student t) over the sessions of the dilation and of the translation along
+    each axis, where measured: a systematic offset of the dataset shows as an interval that excludes 0, even when every
+    session is within the tolerance."""
+    from scipy import stats
+    rows = [('dilation', [r['dilation_mm'] for r in results if r['dilation_mm'] is not None])]
+    rows += [('translation ' + a, [r['translation_mm'][a] for r in results if a in r['translation_mm']])
+             for a in 'xyz']
+    for name, v in rows:
+        if len(v) < 3:
+            print(f'    {name}: {len(v)} session(s) measured, no group estimate')
+            continue
+        m, se = float(np.mean(v)), float(np.std(v, ddof=1) / np.sqrt(len(v)))
+        h = float(stats.t.ppf(0.975, len(v) - 1)) * se
+        print(f'    {name}: {m:+.2f} mm, 95 % CI [{m - h:+.2f}, {m + h:+.2f}] (n = {len(v)})')
 
 
 def records_of(bids_dir):
@@ -40,6 +60,7 @@ def records_of(bids_dir):
 for bids_dir, pet_fwhm in datasets.items():
     records = records_of(bids_dir)
     print(f'{bids_dir}: {len(records)} registration records')
-    for rec in records:
-        report(rec, pet_fwhm, bids_dir)
+    results = [r for r in (report(rec, pet_fwhm, bids_dir) for rec in records) if r is not None]
+    print(f'{bids_dir}: group summary')
+    group_summary(results)
 

@@ -16,6 +16,7 @@ from modalities.anat.loop3 import backtonative
 from modalities.fMRI import chooseanat
 from modalities.pet import petutils as pu
 from modalities.pet import loop1, loop2, studyT, coreg2anat, transfo, reorient, bridge
+from modalities.pet import pvc as pvcmod
 from atlases import getlabels
 from modalities.pet.coreg2anat import ANTS_TRANSFORMS
 
@@ -158,7 +159,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
                    ct_template_bridge=True, bridge_transform='Affine',
                    SUV=True, bratio=True, SUV_window=None, Do_cut=False, duration=10,
                    srtm=False, reference_signal='unknown', DV_time=0, DV_k2ref=None, kinetic_end=None,
-                   pvc_fwhm=None, pvc_method='RBV',
+                   pvc_fwhm=None, pvc_method='RBV', pvc_engine='auto',
                    do_pet_to_func=False, endfmri='*_bold.nii.gz', T1_eq=0,
                    export_resolution='pet', export_dynamic=False,
                    selected_atlases='all', atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
@@ -368,6 +369,10 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         of the expected profile of the boundary check of step 6 (None / 'auto': the estimated resolution).
     pvc_method : str, optional
         PETPVC method that writes an image ('RBV', 'MG', 'LABBE+RBV', 'IY'...; see PVC_METHODS).
+    pvc_engine : str, optional
+        'auto' (default): the PETPVC program when `petpvc` is on the PATH, else the Python implementation of
+        modalities/pet/pvc.py (RBV and MG only, same definitions, no external program); 'python' or 'petpvc' to force
+        one. The engine used is written in the JSON sidecar of the corrected image.
     do_pet_to_func : bool, optional
         Simultaneous PET-MR: mean PET during every fMRI run of the session (step 9).
     endfmri : str, optional
@@ -423,6 +428,10 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         raise ValueError(f"export_resolution={export_resolution!r}: expected 'pet' or 'target'")
     if isinstance(pvc_fwhm, str) and pvc_fwhm != 'auto':
         raise ValueError(f"pvc_fwhm={pvc_fwhm!r}: expected a FWHM in mm (one or three values), 'auto' or None")
+    if pvc_engine not in pvcmod.ENGINES:
+        raise ValueError(f'pvc_engine={pvc_engine!r}: expected one of {pvcmod.ENGINES}')
+    if pvc_fwhm is not None and pvc_engine == 'python' and pvc_method not in pvcmod.PYTHON_METHODS:
+        raise ValueError(f"pvc_method={pvc_method!r} with pvc_engine='python': expected one of {pvcmod.PYTHON_METHODS}")
     if pvc_fwhm is not None and pvc_method not in PVC_METHODS:
         raise ValueError(f'pvc_method={pvc_method!r}: expected one of {PVC_METHODS} (GTM writes a table of regional '
                          f'values and STC a 3D mask, not an image)')
@@ -466,7 +475,8 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
                 studyT_transform=studyT_transform, do_manual=do_manual, Need_check_MC=Need_check_MC,
                 Need_check_coreg=Need_check_coreg, SUV=SUV, bratio=bratio, SUV_window=SUV_window, Do_cut=Do_cut,
                 duration=duration, srtm=srtm, reference_signal=reference_signal, DV_time=DV_time, DV_k2ref=DV_k2ref,
-                kinetic_end=kinetic_end, pvc_fwhm=pvc_fwhm, pvc_method=pvc_method, do_pet_to_func=do_pet_to_func,
+                kinetic_end=kinetic_end, pvc_fwhm=pvc_fwhm, pvc_method=pvc_method, pvc_engine=pvc_engine,
+                do_pet_to_func=do_pet_to_func,
                 endfmri=endfmri, T1_eq=int(T1_eq), export_resolution=export_resolution, export_dynamic=export_dynamic,
                 isotope=isotope)
 
