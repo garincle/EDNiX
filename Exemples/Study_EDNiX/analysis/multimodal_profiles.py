@@ -18,8 +18,10 @@ LEVELS. `level` is the hierarchy level of Atlas_nomenclature.py (1 = coarsest ..
 Figure_2_anat.py. The pipelines index the 4D atlases from 0: level 2 is volume 1 of the dseg, `lvl1` of the PET
 tables and `<atlas>_1_run_*` of the FC matrices.
 
-REGION NAMES. Label names of the label files (L_Frontal_lobe...) are mapped to the canonical names of
-Atlas_nomenclature.DLABEL_NAME_ALIASES, so that the three modalities and the species share the same keys.
+REGION NAMES. A region is keyed by the base name of its label (label name without the L_ / R_ prefix), the
+names of the Figure 5 connectivity fingerprints (base_name of SBA_Region_Profile_Index profiles). The canonical
+names of Atlas_nomenclature.DLABEL_NAME_ALIASES serve only to sort the regions and to tell cortical regions
+(Atlas_nomenclature level<k>_cortical) from the others.
 """
 import os
 import re
@@ -47,10 +49,23 @@ MODALITY_LABEL = {'morphometry': 'volume (% brain)', 'FC': 'average connectivity
 MODALITY_COLORS = {'morphometry': '#0072B2', 'FC': '#009E73', 'metabolism': '#D55E00'}
 
 
+def region_key(name):
+    """Base name of a label (hemisphere prefix removed): the region names of the Figure 5 fingerprints."""
+    return re.sub(r'^[lLrR]_', '', str(name)).strip()
+
+
 def canonical(name):
-    """Canonical EDNiX region name of a label name (hemisphere prefix removed)."""
+    """Canonical EDNiX region name of a label name (Atlas_nomenclature), for sorting and classification."""
     n = AN._norm(name)
-    return AN.DLABEL_NAME_ALIASES_NORM.get(n, re.sub(r'^[lLrR]_', '', str(name)))
+    return AN.DLABEL_NAME_ALIASES_NORM.get(n, region_key(name))
+
+
+def cortical_regions(names, level):
+    """Region keys of `names` whose canonical name is a cortical region of `level` (Atlas_nomenclature), sorted
+    by the order of Atlas_nomenclature (lobes grouped), then by name."""
+    order = AN.get_level_regions(level, cortical_only=True)
+    keep = [n for n in dict.fromkeys(names) if canonical(n) in order]
+    return sorted(keep, key=lambda n: (order.index(canonical(n)), n))
 
 
 def _entity(path, key):
@@ -70,7 +85,7 @@ def find_dseg(bids_dir, atlas):
 
 
 def volume_percent(dseg, label_df, level):
-    """% of brain volume of every canonical region (L + R) of one 4D dseg at `level` (1-based)."""
+    """% of brain volume of every region (L + R) of one 4D dseg at `level` (1-based)."""
     img = nib.load(dseg)
     lab = np.asarray(img.dataobj)
     if lab.ndim == 4:
@@ -81,8 +96,8 @@ def volume_percent(dseg, label_df, level):
     ids, counts = np.unique(lab[lab > 0], return_counts=True)
     names = dict(zip(label_df['label_id'].astype(int), label_df['region_name']))
     df = pd.DataFrame({'label': ids, 'n': counts})
-    df['region'] = [canonical(names.get(int(i), f'label_{i}')) for i in df['label']]
-    df = df[~df['region'].str.contains(NON_BRAIN)]
+    df['region'] = [region_key(names.get(int(i), f'label_{i}')) for i in df['label']]
+    df = df[~df['region'].map(canonical).str.contains(NON_BRAIN) & ~df['region'].str.contains(NON_BRAIN)]
     tot = df['n'].sum()
     return (df.groupby('region')['n'].sum() / tot * 100.0).rename('value')
 
@@ -133,7 +148,7 @@ def fc_table(sources, atlas, level, fit_kind='correlation'):
             print(f'  [FC] {sp}: {len(files)} matrices in {bd}')
             for f in files:
                 s = node_strength(f)
-                v = pd.DataFrame({'region': [canonical(n) for n in s.index], 'value': s.values})
+                v = pd.DataFrame({'region': [region_key(n) for n in s.index], 'value': s.values})
                 v = v.groupby('region', as_index=False)['value'].mean()          # L and R averaged
                 v['species'], v['bids_dir'] = sp, opb(os.path.normpath(bd))
                 v['subject'], v['session'] = _entity(f, 'sub'), _entity(f, 'ses') or '1'
@@ -157,7 +172,7 @@ def metabolism_table(sources, atlas, level, desc=('bratio', 'bratio-mean'), min_
             df = PIRP.collect({sp: bd}, atlas, level - 1, desc)
             sub = PIRP.subject_level(df, 'merge')
             sub.loc[sub['min_label_voxels'] < min_voxels, 'value'] = np.nan
-            sub['region'] = sub['region_key'].map(canonical)
+            sub['region'] = sub['region_key'].map(region_key)
             sub['bids_dir'] = opb(os.path.normpath(bd))
             rows.append(sub[['species', 'bids_dir', 'subject', 'region', 'value']])
     return pd.concat(rows, ignore_index=True)
@@ -228,8 +243,10 @@ def cross_modal_correlations(prof):
 
 
 # ===================================================================================================== panels
-def short_name(region):
-    return AN.ABBREV.get(region, region.replace('_', ' '))
+def short_name(region, width=14):
+    """Display name: the fingerprint name with spaces, wrapped on lines of `width` characters."""
+    import textwrap
+    return '\n'.join(textwrap.wrap(region.replace('_', ' '), width)) or region
 
 
 def draw_radar(ax, mods, regions, title, color_title='black', fontsize=7, rlim=None):
@@ -247,18 +264,34 @@ def draw_radar(ax, mods, regions, title, color_title='black', fontsize=7, rlim=N
         ax.plot(angc, np.r_[m, m[:1]], color=c, lw=1.5, label=f'{mod} (n={len(w)})')
         ax.fill_between(angc, np.r_[m - s, m[:1] - s[:1]], np.r_[m + s, m[:1] + s[:1]], color=c, alpha=0.2, lw=0)
     ax.plot(np.linspace(0, 2 * np.pi, 200), np.zeros(200), 'k--', lw=0.6)
+    ax.set_theta_offset(np.pi / 2)          # first region at the top, clockwise (as the fingerprints)
+    ax.set_theta_direction(-1)
     if rlim:
         ax.set_ylim(*rlim)
     ax.set_xticks(ang)
     ax.set_xticklabels([short_name(r) for r in regions], fontsize=fontsize)
     ax.tick_params(axis='y', labelsize=fontsize - 1)
-    ax.set_title(title, fontsize=fontsize + 2, color=color_title, fontweight='bold', pad=14)
+    ax.set_title(title, fontsize=fontsize + 2, color=color_title, fontweight='bold', pad=6)
+
+
+def autocrop(img, tol=0.02):
+    """Image without its uniform border (background colour of the corner pixel), so that the brain fills the panel."""
+    rgb = img[..., :3].astype(float)
+    if rgb.max() > 1:
+        rgb = rgb / 255.0
+    diff = np.abs(rgb - rgb[0, 0]).max(axis=2) > tol
+    if img.shape[-1] == 4:
+        diff &= img[..., 3] > 0
+    rows, cols = np.where(diff.any(axis=1))[0], np.where(diff.any(axis=0))[0]
+    if not len(rows) or not len(cols):
+        return img
+    return img[rows[0]:rows[-1] + 1, cols[0]:cols[-1] + 1]
 
 
 def draw_surface(ax, png, title, fontsize=8):
     ax.axis('off')
     if png and os.path.isfile(png):
-        ax.imshow(plt.imread(png))
+        ax.imshow(autocrop(plt.imread(png)))
     else:
         ax.text(0.5, 0.5, f'surface not rendered\n{opb(png) if png else ""}', ha='center', va='center',
                 fontsize=fontsize, color='0.4', transform=ax.transAxes)
