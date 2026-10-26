@@ -103,8 +103,10 @@ def test_node_strength_is_mean_fisher_z_without_diagonal(tmp_path):
 def test_profiles_and_figure(cfg, tmp_path):
     from Exemples.Study_EDNiX.analysis import Figure_XX_multimodal as F
     t = MP.collect_modalities(cfg)
-    F.REGIONS = REGIONS
-    prof_b, stats_b = F.metabolism_stats(t['metabolism'])
+    F.REGIONS, F.LEVEL = None, 2
+    assert F.select_regions(t) == ['Frontal_lobe', 'Insular_lobe', 'Temporal_lobe', 'Parietal_lobe',
+                                   'Occipital_lobe']                      # Atlas_nomenclature order, no Brainstem
+    prof_b, stats_b = F.metabolism_stats(t['metabolism'], REGIONS)
     assert list(prof_b.columns) == REGIONS
     occ = stats_b.set_index('region').loc['Occipital_lobe']
     assert occ.q_fdr < 0.05 and occ.difference > 0.2
@@ -117,3 +119,11 @@ def test_profiles_and_figure(cfg, tmp_path):
     fig = F.build_figure({}, (0.5, 1.5), prof_b, stats_b, prof_c, regions_c)
     fig.savefig(tmp_path / 'fig.png')
     assert 'Figure XX' in F.legend_text(prof_b, stats_b, prof_c, regions_c, (0.5, 1.5), cmc)
+
+
+def test_fingerprint_names_are_kept_and_classified_at_level_3():
+    names = ['L_Orbital_frontal_cortex_(oFC)', 'R_Prefrontal_cortex_(PFC)', 'L_Thalamus', 'R_Striate_Cx']
+    keys = [MP.region_key(n) for n in names]
+    assert keys[0] == 'Orbital_frontal_cortex_(oFC)'                     # base name, as the Fig 5 profiles
+    assert MP.cortical_regions(keys, 3) == ['Orbital_frontal_cortex_(oFC)', 'Prefrontal_cortex_(PFC)',
+                                            'Striate_Cx']

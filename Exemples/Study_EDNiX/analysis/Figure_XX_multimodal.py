@@ -3,7 +3,7 @@ Figure XX -- Multimodal, multi-species imaging approaches to build an intersecti
 
  A  surface maps of the group-mean brain ratio of FDG uptake (bratio), human and macaque, same colour scale
     (Statistics/Group_PET: pet_group.run_group_mean + pet_surface.render_pet_surfaces, ribbon projection);
- B  cross-species comparison of glucose metabolism in the cortical regions of level 2 (bilateral): bars and
+ B  cross-species comparison of glucose metabolism in the cortical regions of LEVEL (bilateral): bars and
     statistics of Plotting/Plot_interspecies_regional_profiles.py (same rendering as F2_bars);
  C  per-region multimodal profile (morphometry, FC, metabolism) on radar axes, one radar per species: each
     modality z-scored across the regions within each subject, mean +- SEM across subjects.
@@ -38,8 +38,11 @@ from Plotting import Plot_interspecies_regional_profiles as PIRP
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════ CONFIG
 ATLAS_LIB = opj(MAIN_PATH, 'Atlases_library')
 ATLAS = 'EDNIxCSCLR'
-LEVEL = 2                                   # hierarchy level (1-4) of Atlas_nomenclature / Figure_2_anat
-REGIONS = list(AN.level2_cortical)          # cortical regions of level 2
+LEVEL = 3                                   # hierarchy level (1-4, 1-based) of the Figure 5 connectivity fingerprints
+                                            # (Launcher_Fig5 ATLAS_LEVEL=3) = volume 2 of the 4D atlases, the FC
+                                            # matrices <atlas>_2_run_* of Figure_2_anat (CORR_ATLAS_LEVEL=2, 0-based)
+REGIONS = None                              # None: every cortical region of LEVEL present in all modalities and
+                                            # species (fingerprint names = label base names); or a list of names
 SPECIES = ['Human', 'Macaque']              # first = reference of the statistics of panel B
 DESC = ('bratio', 'bratio-mean')            # static human run / dynamic macaque run (window SUV_window)
 OUT_DIR = '/scratch2/EDNiX/results/EDNiX_Figures/Figure_XX_multimodal'
@@ -81,6 +84,7 @@ SPECIES_COLORS = {"Mouse": "#1A5276", "Rat": "#2E86C1", "Bat": "#00A896", "Mouse
 
 MM = 1 / 25.4
 FIG_W = 183 * MM                            # Nature double column
+FIG_H = 245 * MM                            # full page (Nature maximum 247 mm)
 
 
 # ═════════════════════════════════════════════════════════════════════════════════════════════════ panel A
@@ -129,11 +133,19 @@ def surface_pngs():
 
 
 # ═════════════════════════════════════════════════════════════════════════════════════════════════ panel B
-def metabolism_stats(met):
-    """Subjects x regions bratio (level-2 cortical regions present in every subject of both species) and the
-    species comparison of Plot_interspecies_regional_profiles."""
-    w = MP.subject_matrix(met, REGIONS)
-    regions = [r for r in REGIONS if r in w.columns and w[r].notna().all()]
+def select_regions(tables):
+    """REGIONS, or every cortical region of LEVEL found in the tables (Atlas_nomenclature order)."""
+    if REGIONS:
+        return list(REGIONS)
+    names = pd.concat([t['region'] for t in tables.values()]).unique()
+    return MP.cortical_regions(names, LEVEL)
+
+
+def metabolism_stats(met, regions):
+    """Subjects x regions bratio (regions present in every subject of both species) and the species comparison of
+    Plot_interspecies_regional_profiles."""
+    w = MP.subject_matrix(met, regions)
+    regions = [r for r in regions if r in w.columns and w[r].notna().all()]
     w = w[regions].reindex(SPECIES, level=0)
     stats = PIRP.compare_species(w, SPECIES[0], TEST, N_PERM)
     return w, stats
@@ -141,45 +153,59 @@ def metabolism_stats(met):
 
 # ═════════════════════════════════════════════════════════════════════════════════════════════════ figure
 def build_figure(pngs, rng, prof_b, stats_b, prof_c, regions_c):
+    """A: one full-width row per species (surfaces as large as the page allows); B: bars; C: the two radars with
+    the modality legend between them."""
     with plt.rc_context(PAPER_RC):
-        fig = plt.figure(figsize=(FIG_W, FIG_W * 1.2))
-        gs = gridspec.GridSpec(3, 2, figure=fig, height_ratios=[0.6, 1.1, 1.5], hspace=0.62, wspace=0.45)
-        # A
+        n_sp = len(SPECIES)
+        fig = plt.figure(figsize=(FIG_W, FIG_H))
+        # rows: surfaces of each species, bars, room for the bar labels, radars
+        gs = gridspec.GridSpec(n_sp + 3, 1, figure=fig, height_ratios=[0.8] * n_sp + [1.0, 0.5, 1.35], hspace=0.12,
+                               left=0.07, right=0.99, top=0.98, bottom=0.03)
+        # A: species name on the left, surface image over the whole width
         axa = []
         for k, sp in enumerate(SPECIES):
-            ax = fig.add_subplot(gs[0, k])
+            ax = fig.add_subplot(gs[k, 0])
             n = prof_b.loc[sp].shape[0] if sp in prof_b.index.get_level_values(0) else 0
-            MP.draw_surface(ax, pngs.get(sp), f'{sp} (n = {n})')
-            ax.title.set_color(SPECIES_COLORS.get(sp, 'black'))
+            MP.draw_surface(ax, pngs.get(sp), '')
+            ax.text(-0.01, 0.5, f'{sp}\nn = {n}', transform=ax.transAxes, rotation=90, ha='right', va='center',
+                    fontsize=8, fontweight='bold', color=SPECIES_COLORS.get(sp, 'black'))
             axa.append(ax)
-        axa[0].text(1.0 + fig.subplotpars.wspace / 2, -0.08, f'bratio {rng[0]:.2f} - {rng[1]:.2f}, same scale',
-                    transform=axa[0].transAxes, ha='center', va='top', fontsize=7)
+        axa[-1].text(0.0, -0.02, f'bratio {rng[0]:.2f} - {rng[1]:.2f}, same scale for both species',
+                     transform=axa[-1].transAxes, ha='left', va='top', fontsize=6.5)
         # B
-        axb = fig.add_subplot(gs[1, :])
+        axb = fig.add_subplot(gs[n_sp, 0])
         PIRP.draw_bars(axb, prof_b, stats_b, SPECIES[0], 'ratio to whole-brain mean', alpha=ALPHA,
-                       colors=SPECIES_COLORS, fontsize=7)
-        axb.set_xticklabels([MP.short_name(r) for r in prof_b.columns], rotation=0, ha='center')
-        # C
+                       colors=SPECIES_COLORS, fontsize=6.5, legend=False)
+        axb.set_xticklabels([MP.short_name(r, 30) for r in prof_b.columns], rotation=40, ha='right',
+                            rotation_mode='anchor', fontsize=5.5)
+        axb.legend(fontsize=6.5, frameon=False, ncol=len(SPECIES), loc='lower right', bbox_to_anchor=(1, 1.0))
+        # C: radar | legend | radar
+        # side columns leave room for the region names, which extend outside the polar axes
+        gsc = gridspec.GridSpecFromSubplotSpec(1, 5, subplot_spec=gs[n_sp + 2, 0],
+                                               width_ratios=[0.22, 1, 0.95, 1, 0.22], wspace=0.0)
         rmax = max(np.nanmax(np.abs(m.mean().values) + np.nan_to_num(m.sem().values))
                    for mods in prof_c.values() for m in mods.values())
         rmax = float(np.ceil(rmax * 2) / 2)
         axc = []
-        for k, sp in enumerate(SPECIES):
-            ax = fig.add_subplot(gs[2, k], projection='polar')
+        for k, sp in enumerate(SPECIES[:2]):
+            ax = fig.add_subplot(gsc[0, 1 + 2 * k], projection='polar')
             ns = ' / '.join(str(len(prof_c[sp][m])) for m in MP.MODALITIES if m in prof_c[sp])
             MP.draw_radar(ax, prof_c[sp], regions_c, f'{sp}\nn = {ns}', SPECIES_COLORS.get(sp, 'black'),
-                          rlim=(-rmax, rmax))
+                          fontsize=5.5, rlim=(-rmax, rmax))
+            ax.set_xticklabels([MP.short_name(r, 15) for r in regions_c], fontsize=5)
             ax.set_yticks([-rmax / 2, 0, rmax / 2])
-            ax.set_yticklabels([f'{-rmax / 2:g}', '0', f'{rmax / 2:g}'], fontsize=6, color='0.4')
+            ax.set_yticklabels([f'{-rmax / 2:g}', '0', f'{rmax / 2:g}'], fontsize=5, color='0.4')
             ax.set_rlabel_position(90 / len(regions_c))
             axc.append(ax)
-        handles = [plt.Line2D([], [], color=MP.MODALITY_COLORS[m], lw=1.5) for m in MP.MODALITIES]
-        axc[-1].legend(handles, [MP.MODALITY_LABEL[m] for m in MP.MODALITIES], loc='upper left',
-                       bbox_to_anchor=(1.08, 1.1), fontsize=6.5, frameon=False, title='z across regions',
-                       title_fontsize=6.5)
+        axl = fig.add_subplot(gsc[0, 2])
+        axl.axis('off')
+        handles = [plt.Line2D([], [], color=MP.MODALITY_COLORS[m], lw=1.8) for m in MP.MODALITIES]
+        axl.legend(handles, [MP.MODALITY_LABEL[m].replace(' (', '\n(') for m in MP.MODALITIES], loc='center',
+                   fontsize=6, frameon=False, title='z across regions\n(within subject)', title_fontsize=6,
+                   handlelength=1.5, labelspacing=1.2)
         for lab, ax in zip('ABC', [axa[0], axb, axc[0]]):
             bb = ax.get_position()
-            fig.text(0.02, bb.y1 + 0.03, lab, fontsize=12, fontweight='bold', va='bottom')
+            fig.text(0.02, bb.y1 + 0.012, lab, fontsize=12, fontweight='bold', va='bottom')
         return fig
 
 
@@ -194,19 +220,19 @@ def legend_text(prof_b, stats_b, prof_c, regions_c, rng, cmc):
         f'mapping), same colour scale for both species ({rng[0]:.2f}-{rng[1]:.2f}); '
         + ', '.join(f'{sp} n = {n[sp]}' for sp in SPECIES) + '. '
         f'(B) Cross-species comparison of glucose metabolism (bratio) in the cortical regions of the EDNiX atlas, '
-        f'level 2, bilateral (valid-voxel-weighted mean of the left and right labels, native PET space). Bars, mean '
+        f'level {LEVEL}, bilateral (valid-voxel-weighted mean of the left and right labels, native PET space). Bars, mean '
         f'across subjects +- SEM drawn from the whole-brain mean (1); dots, one subject (sessions averaged); stars, '
         f'{TEST} test of {", ".join(SPECIES[1:])} vs {SPECIES[0]}, Benjamini-Hochberg q < {ALPHA} (*), '
         f'< {ALPHA / 5:g} (**), < {ALPHA / 50:g} (***) across {prof_b.shape[1]} regions '
         f'({len(sig)} significant). '
-        f'(C) Per-region multimodal profile of each species on radar axes (level 2, bilateral, {len(regions_c)} '
+        f'(C) Per-region multimodal profile of each species on radar axes (level {LEVEL}, bilateral, {len(regions_c)} '
         f'cortical regions): morphometry, region volume in % of total brain volume (ventricles and CSF excluded); '
         f'FC, average connectivity (mean Fisher z of the resting-state correlations of the region with every other '
         f'region); metabolism, bratio. Each modality is z-scored across regions within each subject, so radii '
         f'compare the shape of the profiles, not absolute levels; line, mean; band, SEM across subjects ('
         + '; '.join(f'{sp}: ' + ', '.join(f'{m} n = {k}' for m, k in nc[sp].items()) for sp in SPECIES)
-        + '). Modalities come from different datasets of each species (multimodal_profiles.py). '
-        f'Region abbreviations: ' + ', '.join(f'{MP.short_name(r)}, {r.replace("_", " ")}' for r in regions_c) + '.'
+        + '). Modalities come from different datasets of each species (multimodal_profiles.py). Region names: '
+        f'those of the connectivity fingerprints (EDNiX atlas labels, level {LEVEL}).'
     )
     if len(cmc):
         txt += (' Cross-modal Spearman r between mean profiles (descriptive): '
@@ -220,8 +246,9 @@ def main():
     cfg = dict(SOURCES=SOURCES, ATLAS=ATLAS, LEVEL=LEVEL, ATLAS_LIB=ATLAS_LIB, DESC=DESC, FIT_KIND=FIT_KIND,
                MIN_VOXELS=MIN_VOXELS)
     tables = MP.collect_modalities(cfg)
-    prof_b, stats_b = metabolism_stats(tables['metabolism'])
-    prof_c, regions_c = MP.multimodal_profiles(tables, REGIONS, SPECIES)
+    regions = select_regions(tables)
+    prof_b, stats_b = metabolism_stats(tables['metabolism'], regions)
+    prof_c, regions_c = MP.multimodal_profiles(tables, regions, SPECIES)
     cmc = MP.cross_modal_correlations(prof_c)
     pngs, rng = surface_pngs()
     fig = build_figure(pngs, rng, prof_b, stats_b, prof_c, regions_c)
