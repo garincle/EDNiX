@@ -24,10 +24,10 @@ ope = os.path.exists
 
 # map key of pet_group.run_group_analysis -> (palette, symmetric scale)
 DEFAULT_MAPS = {
-    'zstat_thresholded': ('ROY-BIG-BL', True),
-    'zstat': ('ROY-BIG-BL', True),
-    'percent_difference': ('ROY-BIG-BL', True),
-    'mean_all': ('videen_style', False),
+    'zstat_thresholded': ('JET256', True),
+    'zstat': ('JET256', True),
+    'percent_difference': ('JET256', True),
+    'mean_all': ('JET256', False),
 }
 # other maps (rendered when asked with maps=[...]): group mean images of pet_group.run_group_mean
 PALETTES = dict(DEFAULT_MAPS, sd_all=('videen_style', False), cv_all=('videen_style', False))

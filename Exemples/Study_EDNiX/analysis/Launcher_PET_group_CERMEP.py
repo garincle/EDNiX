@@ -42,6 +42,19 @@ COVARIATES = ['age', 'sex']
 label_tables = {a: parse_label_file(get_atlas_label_path(ATLAS_LIB, species_fragment, a))
                 for a in ('EDNIxCSCLR', 'EDNIxCSC')}
 DESC = 'bratio'                                     # static run: desc-bratio (desc-bratio-mean for a dynamic run)
+TISSUE_MASK = opj(atlas_ednix, 'volumes', 'masks', species + '_desc-Whole_Brain_Gray_mask.nii.gz')
+BACKGROUND = opj(atlas_ednix, 'volumes', species + '_space-acpc_desc-SS_T1w.nii.gz')
+SCENE = opj(atlas_ednix, 'surfaces', 'Native_resol', species + '_thickness.scene')
+FWHM= 4
+# ---------------------------------------------------------------------------------------- 1 group mean
+mean = pet_group.run_group_mean(
+    bids_dir, template, DESC, tissue_mask=TISSUE_MASK, rel_threshold=0, fwhm=FWHM, background=BACKGROUND)
+sing_wb = Load_EDNiX_requirement.load_requirement(MAIN_PATH, ATLAS_LIB, bids_dir, 'yes')[4]
+
+# ---------------------------------------------------------------------------------------- 2 surfaces of the mean
+pet_surface.render_pet_surfaces(
+    mean, species, ATLAS_LIB, species_fragment, sing_wb, scene_template=SCENE, scene_label='New Scene 1',
+    maps=['mean_all', 'cv_all'], projection='ribbon', surface_type='inflated')
 
 # ---------------------------------------------------------------------------------------- 1 voxel-wise
 res = pet_group.run_group_analysis(

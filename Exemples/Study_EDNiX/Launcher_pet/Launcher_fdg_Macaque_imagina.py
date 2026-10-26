@@ -66,7 +66,7 @@ srtm = False
 reference_signal = 'unknown'
 DV_time = 0
 
-Skip_step = [1,2,3,4,5,'pvc', 9]
+Skip_step = [1,2,3,4,'pvc', 9]
 _0_Pipeline_launcher.preprocess_pet(
     Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endpet, tracer,
     animalPosition, humanPosition, orientation,
@@ -81,7 +81,7 @@ _0_Pipeline_launcher.preprocess_pet(
     # multi-start initialisation, PET restricted to the brain of the anatomy in a second pass (extracerebral FDG
     # uptake of the macaque: temporal muscles, Harderian glands, eye muscles)
     coreg_transform='Rigid', coreg_init='auto', pet_coreg_mask='anat', pet_mask_dilate_mm=3.0,
-    coreg_target='anat',
+    coreg_target='synthetic',
     atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
     reference='EDNiX', list_to_keep=list_to_keep, list_to_remove=list_to_remove,
     Need_check_orient=Need_check_orient, Need_check_MC=False, Need_check_coreg=False)

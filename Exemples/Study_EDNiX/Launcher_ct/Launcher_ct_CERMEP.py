@@ -32,12 +32,12 @@ creat_study_template = False
 coregistration_longitudinal = True
 IhaveanANAT = True
 
-Skip_step = []
+Skip_step = [1,2]
 _0_Pipeline_launcher.preprocess_ct(
     Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endct,
     animalPosition, humanPosition, orientation,
     T_CT, type_norm, creat_study_template, coregistration_longitudinal,
-    IhaveanANAT=IhaveanANAT, reference='EDNiX',
+    IhaveanANAT=IhaveanANAT, reference='EDNiX', coreg_metric='mattes', coreg_init='auto',
     atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]],
     list_to_keep=list_to_keep, list_to_remove=list_to_remove,
-    Need_check_orient=False, Need_check_coreg=True)
+    Need_check_orient=False, Need_check_coreg=False)

@@ -51,7 +51,7 @@ sing_wb = Load_EDNiX_requirement.load_requirement(MAIN_PATH, ATLAS_LIB, bids_dir
 
 # ---------------------------------------------------------------------------------------- 1 group mean
 mean = pet_group.run_group_mean(
-    bids_dir, template, DESC, tissue_mask=TISSUE_MASK, rel_threshold=0.8, fwhm=FWHM, background=BACKGROUND)
+    bids_dir, template, DESC, tissue_mask=TISSUE_MASK, rel_threshold=0, fwhm=FWHM, background=BACKGROUND)
 
 # ---------------------------------------------------------------------------------------- 2 surfaces of the mean
 pet_surface.render_pet_surfaces(

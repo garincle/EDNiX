@@ -49,16 +49,15 @@ OUT_DIR = '/scratch2/EDNiX/results/EDNiX_Figures/Figure_XX_multimodal'
 
 SOURCES = {
     'morphometry': {
-        'Human': ['/scratch2/EDNiX/Human/BIDS_Merida', '/scratch2/EDNiX/Human/BIDS_Park',
+        'Human': ['/scratch2/EDNiX/Human/BIDS_Merida',
                   '/scratch2/EDNiX/Human/BIDS_Castrillon', '/scratch2/EDNiX/Human/BIDS_Babayan'],
         'Macaque': ['/scratch2/EDNiX/Macaque/BIDS_Tremblay', '/scratch2/EDNiX/Macaque/BIDS_BenHamed',
                     '/scratch2/EDNiX/Macaque/BIDS_Zhu_Garin'],
     },
     'FC': {
-        'Human': ['/scratch2/EDNiX/Human/BIDS_Park', '/scratch2/EDNiX/Human/BIDS_Castrillon',
+        'Human': ['/scratch2/EDNiX/Human/BIDS_Castrillon',
                   '/scratch2/EDNiX/Human/BIDS_Babayan'],
-        'Macaque': ['/scratch2/EDNiX/Macaque/BIDS_BenHamed', '/scratch2/EDNiX/Macaque/BIDS_Zhu_Garin',
-                    '/scratch2/EDNiX/Macaque/BIDS_Tremblay'],
+        'Macaque': ['/scratch2/EDNiX/Macaque/BIDS_BenHamed', '/scratch2/EDNiX/Macaque/BIDS_Zhu_Garin',],
     },
     'metabolism': {
         'Human': ['/scratch2/EDNiX/Human/BIDS_Merida'],
@@ -98,7 +97,7 @@ def surface_pngs():
         atlas_ednix = opj(ATLAS_LIB, SPECIES_FRAGMENT[sp], 'EDNiX')
         if RUN_SURFACES:
             means[sp] = pet_group.run_group_mean(
-                bids, SURFACE_TEMPLATE, 'bratio', rel_threshold=0.8,
+                bids, SURFACE_TEMPLATE, 'bratio', rel_threshold=0,
                 tissue_mask=opj(atlas_ednix, 'volumes', 'masks', sp + '_desc-Whole_Brain_Gray_mask.nii.gz'),
                 background=opj(atlas_ednix, 'volumes', sp + '_space-acpc_desc-SS_T1w.nii.gz'))
         else:

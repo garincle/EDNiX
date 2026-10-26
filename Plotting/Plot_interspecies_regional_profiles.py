@@ -2,7 +2,7 @@
 Cross-species regional profiles: fingerprints and bar plots (e.g. FDG-PET, human vs macaque).
 
 The PET pipeline writes one table per run, atlas and level (modalities/pet/roi_signal.py):
-    <bids>/derivatives/sub-*/ses-*/pet/orig/postprocessing/ROI_analysis/
+    <bids>/sub-*/ses-*/pet/orig/postprocessing/ROI_analysis/
         <base>_seg-<atlas>-lvl<k>_desc-<desc>_ROIs.tsv     label, region, n_voxels, n_valid, mean, sd, median
 This module gathers those tables for several species and compares them region by region.
 
@@ -159,10 +159,11 @@ def species_color(sp, i=0, colors=None):
 
 # ======================================================================================================== data
 def find_roi_tables(bids_dir, atlas, level, desc):
-    """ROI tables of every run under <bids_dir>/derivatives (or bids_dir itself when it is the derivatives
+    """ROI tables of every run under <bids_dir>
     folder) for one atlas, level and desc (exact desc: 'bratio' does not match 'bratio-mean')."""
-    root = opj(bids_dir, 'derivatives') if os.path.isdir(opj(bids_dir, 'derivatives')) else bids_dir
+    root = opj(bids_dir) if os.path.isdir(opj(bids_dir)) else bids_dir
     pat = opj(root, '**', ROI_SUBDIR, f'*_seg-{atlas}-lvl{level}_desc-{desc}_ROIs.tsv')
+    print('looking for' + opj(root, '**', ROI_SUBDIR, f'*_seg-{atlas}-lvl{level}_desc-{desc}_ROIs.tsv'))
     return sorted(glob.glob(pat, recursive=True))
 
 
