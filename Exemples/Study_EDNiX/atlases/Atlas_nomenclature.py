@@ -1219,3 +1219,69 @@ def build_flat_atlas_config(surface_only: bool = True) -> dict:
         "dlabel_aliases":     DLABEL_NAME_ALIASES_NORM,  # ← key addition
         "is_flat_atlas":      True,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# §6  ORDER OF THE REGIONS IN THE FIGURES (radars, bar plots)
+# ═══════════════════════════════════════════════════════════════════════════════
+# Level-2 parents in the order of the atlas sunburst of Figure 1 (Figure_1_atlases.color_data: first wedge at the
+# top, counter-clockwise), cortical then non-cortical. Every radar and region axis of the article sorts its
+# regions with atlas_order() so that a region sits in its lobe, at the same place, in every figure.
+ATLAS_FIGURE_ORDER = [
+    "Frontal_lobe", "Insular_lobe", "Temporal_lobe", "Paleocortex", "Archicortex", "Cortical_subplate",
+    "Periarchicortex", "Parietal_lobe", "Occipital_lobe",
+    "Cerebral_nuclei", "Diencephalon", "Brainstem", "Cerebellum", "Cerebellum_White", "White_matter",
+    "Lateral_ventricules", "3rde_ventricules", "CSF",
+]
+# colours of these wedges in Figure 1 (RGB 0-255)
+LOBE_COLORS = {
+    "Frontal_lobe": (220, 50, 50), "Insular_lobe": (180, 100, 200), "Temporal_lobe": (50, 100, 220),
+    "Paleocortex": (150, 150, 200), "Archicortex": (130, 130, 130), "Cortical_subplate": (200, 150, 100),
+    "Periarchicortex": (140, 170, 140), "Parietal_lobe": (255, 215, 0), "Occipital_lobe": (50, 180, 50),
+    "Cerebral_nuclei": (140, 70, 140), "Diencephalon": (38, 72, 67), "Brainstem": (255, 215, 0),
+    "Cerebellum": (162, 167, 169), "Cerebellum_White": (160, 160, 160), "White_matter": (192, 192, 192),
+    "Lateral_ventricules": (128, 128, 128), "3rde_ventricules": (150, 150, 150), "CSF": (98, 0, 103),
+}
+
+
+def canonical_region(name: str) -> str:
+    """Canonical EDNiX name of a label name (hemisphere prefix removed, DLABEL_NAME_ALIASES applied):
+    'L_Orbital_frontal_cortex_(oFC)' -> 'oFC'."""
+    base = _re.sub(r"^[lLrR]_", "", str(name)).strip()
+    return DLABEL_NAME_ALIASES_NORM.get(_norm(base), base)
+
+
+def lobe_of(name: str) -> str | None:
+    """Level-2 parent (entry of ATLAS_FIGURE_ORDER) of a region of any level, or None (level 1, unknown name)."""
+    r = canonical_region(name)
+    while r is not None and r not in ATLAS_FIGURE_ORDER:
+        r = get_parent(r)
+    return r
+
+
+def _rank_in_level(region):
+    for lvl in (3, 4):
+        regs = get_level_regions(lvl)
+        if region in regs:
+            return regs.index(region)
+    return 0
+
+
+def atlas_key(name: str) -> tuple:
+    """Sort key of a region: lobe in the order of Figure 1, then the order of Atlas_nomenclature inside the lobe
+    (level 3, then level 4). Regions without a lobe (level 1, unknown names) come last."""
+    r = canonical_region(name)
+    path = []
+    while r is not None and r not in ATLAS_FIGURE_ORDER:
+        path.append(r)
+        r = get_parent(r)
+    if r is None:
+        return (len(ATLAS_FIGURE_ORDER),)
+    return (ATLAS_FIGURE_ORDER.index(r),) + tuple(_rank_in_level(p) for p in reversed(path))
+
+
+def atlas_order(names) -> list:
+    """`names` (label names or canonical names, any level, duplicates removed) sorted by lobe as in the atlas
+    figure (atlas_key); ties and unknown names keep their input order."""
+    names = list(dict.fromkeys(names))
+    return sorted(names, key=lambda n: (atlas_key(n), names.index(n)))

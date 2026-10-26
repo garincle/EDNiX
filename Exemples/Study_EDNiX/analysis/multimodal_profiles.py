@@ -56,16 +56,15 @@ def region_key(name):
 
 def canonical(name):
     """Canonical EDNiX region name of a label name (Atlas_nomenclature), for sorting and classification."""
-    n = AN._norm(name)
-    return AN.DLABEL_NAME_ALIASES_NORM.get(n, region_key(name))
+    return AN.canonical_region(name)
 
 
 def cortical_regions(names, level):
-    """Region keys of `names` whose canonical name is a cortical region of `level` (Atlas_nomenclature), sorted
-    by the order of Atlas_nomenclature (lobes grouped), then by name."""
-    order = AN.get_level_regions(level, cortical_only=True)
-    keep = [n for n in dict.fromkeys(names) if canonical(n) in order]
-    return sorted(keep, key=lambda n: (order.index(canonical(n)), n))
+    """Region keys of `names` whose canonical name is a cortical region of `level` (Atlas_nomenclature), grouped
+    by lobe in the order of the atlas figure (Atlas_nomenclature.atlas_order), then by name."""
+    cortical = set(AN.get_level_regions(level, cortical_only=True))
+    keep = sorted(n for n in dict.fromkeys(names) if canonical(n) in cortical)
+    return AN.atlas_order(keep)
 
 
 def _entity(path, key):
@@ -282,11 +281,16 @@ def short_name(region, width=14):
     return '\n'.join(textwrap.wrap(region.replace('_', ' '), width)) or region
 
 
-def draw_radar(ax, mods, regions, title, color_title='black', fontsize=7, rlim=None):
+def draw_radar(ax, mods, regions, title, color_title='black', fontsize=7, rlim=None, width=14):
     """One species: one closed line per modality (mean within-subject z across subjects +- SEM band) on radial
-    axes = regions."""
+    axes = regions (atlas order, first region at the top, counter-clockwise, lobe ring: PIRP.setup_radar); region
+    names wrapped every `width` characters."""
     n = len(regions)
-    ang = np.linspace(0, 2 * np.pi, n, endpoint=False)
+    if rlim is None:
+        v = [np.abs(mods[m].reindex(columns=regions).mean().values) for m in MODALITIES if m in mods]
+        r = float(np.ceil(np.nanmax(np.concatenate(v)) * 1.2 * 2) / 2) if v else 1.0
+        rlim = (-r, r)
+    ang = PIRP.setup_radar(ax, regions, rlim)          # top, counter-clockwise, lobe ring (atlas figure)
     angc = np.r_[ang, ang[:1]]
     for mod in MODALITIES:
         if mod not in mods:
@@ -297,14 +301,11 @@ def draw_radar(ax, mods, regions, title, color_title='black', fontsize=7, rlim=N
         ax.plot(angc, np.r_[m, m[:1]], color=c, lw=1.5, label=f'{mod} (n={len(w)})')
         ax.fill_between(angc, np.r_[m - s, m[:1] - s[:1]], np.r_[m + s, m[:1] + s[:1]], color=c, alpha=0.2, lw=0)
     ax.plot(np.linspace(0, 2 * np.pi, 200), np.zeros(200), 'k--', lw=0.6)
-    ax.set_theta_offset(np.pi / 2)          # first region at the top, clockwise (as the fingerprints)
-    ax.set_theta_direction(-1)
-    if rlim:
-        ax.set_ylim(*rlim)
-    ax.set_xticks(ang)
-    ax.set_xticklabels([short_name(r) for r in regions], fontsize=fontsize)
+    labels = [short_name(r, width) for r in regions]
+    PIRP.radar_labels(ax, ang, labels, fontsize=fontsize)
     ax.tick_params(axis='y', labelsize=fontsize - 1)
-    ax.set_title(title, fontsize=fontsize + 2, color=color_title, fontweight='bold', pad=6)
+    top = labels[0].count('\n') + 1 if labels else 0           # lines of the name at the top, above the circle
+    ax.set_title(title, fontsize=fontsize + 2, color=color_title, fontweight='bold', pad=4 + 1.25 * fontsize * top)
 
 
 def autocrop(img, tol=0.02):
