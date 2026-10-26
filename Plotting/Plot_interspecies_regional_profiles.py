@@ -73,6 +73,11 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from scipy import stats as sstats
 
+try:                                        # region hierarchy of the EDNiX atlases (order of the atlas figure)
+    from Exemples.Study_EDNiX.atlases import Atlas_nomenclature as _AN
+except ImportError:                         # pragma: no cover
+    _AN = None
+
 opj = os.path.join
 opb = os.path.basename
 
@@ -84,6 +89,66 @@ SPECIES_COLORS = {n: PALETTE[i % len(PALETTE)] for i, n in enumerate(sorted(set(
 
 ROI_SUBDIR = opj('pet', 'orig', 'postprocessing', 'ROI_analysis')
 _HEMI = re.compile(r'^([LlRr])_')
+
+
+def atlas_sorted(regions):
+    """Regions grouped by lobe in the order of the atlas sunburst (Figure 1, Atlas_nomenclature.atlas_order);
+    names unknown to the atlas hierarchy keep their input order, at the end."""
+    if _AN is None:
+        return list(dict.fromkeys(regions))
+    return _AN.atlas_order(regions)
+
+
+def lobe_colors(regions):
+    """Colour (RGB 0-1) of the lobe of each region in the atlas figure, None when unknown."""
+    out = []
+    for r in regions:
+        lobe = _AN.lobe_of(r) if _AN is not None else None
+        out.append(tuple(c / 255 for c in _AN.LOBE_COLORS[lobe]) if lobe in getattr(_AN, 'LOBE_COLORS', {}) else None)
+    return out
+
+
+def setup_radar(ax, regions, rlim, ring=0.04):
+    """Polar axes of every EDNiX radar: first region at the top, counter-clockwise (as the atlas sunburst of
+    Figure 1), radial limits rlim, and a ring of the lobe colours of Figure 1 along the rim (`ring`, fraction of
+    the radial range; 0 = none). Returns the angle of each region."""
+    n = len(regions)
+    ang = np.linspace(0, 2 * np.pi, n, endpoint=False)
+    ax.set_theta_offset(np.pi / 2)
+    ax.set_theta_direction(1)
+    ax.set_ylim(*rlim)
+    if ring and n:
+        h = ring * (rlim[1] - rlim[0])
+        for a, c in zip(ang, lobe_colors(regions)):
+            if c is not None:
+                ax.bar(a, h, width=2 * np.pi / n, bottom=rlim[1] - h, color=c, lw=0, zorder=0.5)
+    return ang
+
+
+def radar_labels(ax, ang, labels, fontsize=7, pad=0):
+    """Region names around a radar of setup_radar, aligned away from the circle (left-aligned on the right half,
+    right-aligned on the left half, centred at the top and bottom) so that a long name never overlaps the axes."""
+    ax.set_xticks(ang)
+    ax.set_xticklabels(labels, fontsize=fontsize)
+    ax.tick_params(axis='x', pad=pad, length=0)
+    for a, t in zip(ang, ax.get_xticklabels()):
+        x, y = -np.sin(a), np.cos(a)                 # display direction (top, counter-clockwise)
+        t.set_ha('left' if x > 0.15 else 'right' if x < -0.15 else 'center')
+        t.set_va('bottom' if y > 0.15 else 'top' if y < -0.15 else 'center')
+        t.set_multialignment(t.get_ha() if t.get_ha() != 'center' else 'center')
+
+
+def draw_lobe_strip(ax, regions, lw=3.0):
+    """Strip of the lobe colours of the atlas figure under the x axis of a region bar plot (one segment per region,
+    `lw` points thick, just below the axis); the tick labels are moved down to make room for it."""
+    import matplotlib.transforms as mtransforms
+    tr = mtransforms.offset_copy(mtransforms.blended_transform_factory(ax.transData, ax.transAxes),
+                                 fig=ax.figure, y=-(lw / 2 + 1), units='points')
+    for j, c in enumerate(lobe_colors(regions)):
+        if c is not None:
+            ax.plot([j - 0.5, j + 0.5], [0, 0], transform=tr, color=c, lw=lw, solid_capstyle='butt',
+                    clip_on=False)
+    ax.tick_params(axis='x', pad=lw + 3)
 
 
 def species_color(sp, i=0, colors=None):
@@ -212,8 +277,8 @@ def filter_regions(sub, min_voxels=10, fwhm_mm=None, min_size_fwhm=None, exclude
     Regions kept for the comparison: present in every species, >= min_voxels valid voxels in every subject (in
     each hemisphere label when the hemispheres are merged, as the old per-label rule),
     not matched by exclude_regex, and (fwhm_mm {species: FWHM in mm} and min_size_fwhm given) equivalent cube
-    side (median volume ** 1/3) >= min_size_fwhm x FWHM in every species. Returns (kept keys in atlas order,
-    report table).
+    side (median volume ** 1/3) >= min_size_fwhm x FWHM in every species. Returns (kept keys grouped by lobe as
+    in the atlas figure, atlas_sorted; unknown names in label order), report table).
     """
     species = list(dict.fromkeys(sub['species']))
     rep = (sub.groupby(['region_key', 'species'])
@@ -237,7 +302,7 @@ def filter_regions(sub, min_voxels=10, fwhm_mm=None, min_size_fwhm=None, exclude
     if exclude_regex:
         keep &= ~keep.index.to_series().str.contains(exclude_regex, flags=re.IGNORECASE, regex=True)
     order = rep.groupby('region_key')['label'].min().sort_values()
-    kept = [k for k in order.index if keep.get(k, False)]
+    kept = atlas_sorted([k for k in order.index if keep.get(k, False)])
     rep['kept'] = rep['region_key'].isin(kept)
     rep['present_in_all_species'] = rep['region_key'].map(present)
     return kept, rep.sort_values(['label', 'species']).reset_index(drop=True)
@@ -399,24 +464,25 @@ def plot_fingerprint(prof, stats, ref_species, pre, ylabel, alpha=0.05, legend_e
     (b) polar bars of Hedges' g (species - reference), filled when q < alpha."""
     regions = list(prof.columns)
     n = len(regions)
-    ang = np.linspace(0, 2 * np.pi, n, endpoint=False)
-    angc = np.r_[ang, ang[:1]]
     species = list(prof.index.get_level_values(0).unique())
     others = [s for s in species if s != ref_species]
     fig = plt.figure(figsize=(7.2 + 3.6 * len(others), 7.2))
     ax = fig.add_subplot(1, 1 + len(others), 1, projection='polar')
     mx = []
+    for sp in species:
+        m, s = prof.loc[sp].mean().values, np.nan_to_num(prof.loc[sp].sem().values)
+        mx.append(np.nanmax(m + s))
+        mx.append(np.nanmin(m - s))
+    lo, hi = min(mx), max(mx)
+    pad = 0.12 * (hi - lo if hi > lo else 1)
+    ang = setup_radar(ax, regions, (lo - pad, hi + 2 * pad))
+    angc = np.r_[ang, ang[:1]]
     for i, sp in enumerate(species):
         m, s = prof.loc[sp].mean().values, prof.loc[sp].sem().values
         s = np.nan_to_num(s)
         c = species_color(sp, i)
         ax.plot(angc, np.r_[m, m[:1]], color=c, lw=1.8, label=f'{sp} (n={prof.loc[sp].shape[0]})')
         ax.fill_between(angc, np.r_[m - s, m[:1] - s[:1]], np.r_[m + s, m[:1] + s[:1]], color=c, alpha=0.25, lw=0)
-        mx.append(np.nanmax(m + s))
-        mx.append(np.nanmin(m - s))
-    lo, hi = min(mx), max(mx)
-    pad = 0.12 * (hi - lo if hi > lo else 1)
-    ax.set_ylim(lo - pad, hi + 2 * pad)
     ax.plot(np.linspace(0, 2 * np.pi, 200), np.full(200, _baseline(ylabel)), 'k--', lw=0.7)
     st = stats.set_index(['species', 'region'])
     for sp in others:
@@ -425,8 +491,7 @@ def plot_fingerprint(prof, stats, ref_species, pre, ylabel, alpha=0.05, legend_e
             if t:
                 ax.text(a_, hi + 1.4 * pad, t, ha='center', va='center', fontsize=7,
                         color=species_color(sp, species.index(sp)))
-    ax.set_xticks(ang)
-    ax.set_xticklabels([_short(r) for r in regions], fontsize=6 if n > 20 else 8)
+    radar_labels(ax, ang, [_short(r) for r in regions], fontsize=6 if n > 20 else 8)
     ax.tick_params(axis='y', labelsize=6)
     ax.set_title(f'a  regional profile ({ylabel})', loc='left', fontsize=9)
     ax.legend(loc='upper right', bbox_to_anchor=(1.25, 1.12), fontsize=7, frameon=False)
@@ -437,21 +502,21 @@ def plot_fingerprint(prof, stats, ref_species, pre, ylabel, alpha=0.05, legend_e
         sig = s['q_fdr'].values < alpha
         width = 2 * np.pi / n * 0.85
         base = np.nanmax(np.abs(g)) if np.isfinite(g).any() else 1
+        setup_radar(bx, regions, (0, base * 1.1))
         c = species_color(sp, species.index(sp))
         cref = species_color(ref_species, species.index(ref_species))
         cols = [c if v > 0 else cref for v in np.nan_to_num(g)]
         bx.bar(ang, np.abs(np.nan_to_num(g)), width=width, color=cols, alpha=0.9,
                edgecolor=cols, linewidth=0.6, fill=False)
         bx.bar(ang[sig], np.abs(g[sig]), width=width, color=np.array(cols, dtype=object)[sig], alpha=0.9)
-        bx.set_ylim(0, base * 1.1)
-        bx.set_xticks(ang)
-        bx.set_xticklabels([_short(r) for r in regions], fontsize=6 if n > 20 else 8)
+        radar_labels(bx, ang, [_short(r) for r in regions], fontsize=6 if n > 20 else 8)
         bx.tick_params(axis='y', labelsize=6)
         bx.set_title(f'{"bcdefg"[k]}  |Hedges g|, {sp} vs {ref_species}\n'
                      f'colour = higher species; filled = q < {alpha}', loc='left', fontsize=9)
     fig.tight_layout()
     legend = (f'Fingerprint of the regional {ylabel} in {", ".join(species)}. (a) Mean across subjects '
-              f'(line) +- SEM (band) of each region, regions in atlas order; dashed circle: baseline '
+              f'(line) +- SEM (band) of each region; regions grouped by lobe, counter-clockwise from the top in the order '
+              f'of the atlas figure (rim colour = lobe); dashed circle: baseline '
               f'({_baseline(ylabel):g}); stars: Benjamini-Hochberg q < {alpha} (*), < {alpha / 5:g} (**), '
               f'< {alpha / 50:g} (***), test {stats["test"].iat[0]}, each species vs {ref_species}. '
               f'(b-) Absolute Hedges g per region (species - {ref_species}); bar colour = the species with the '
@@ -461,30 +526,34 @@ def plot_fingerprint(prof, stats, ref_species, pre, ylabel, alpha=0.05, legend_e
 
 
 def draw_bars(ax, prof, stats, ref_species, ylabel, regions=None, alpha=0.05, colors=None, ylim=None,
-              legend=True, fontsize=7):
-    """Grouped bars of `regions` (default: all columns of prof) on one axis: mean +- SEM drawn from the baseline,
-    every subject as a dot, FDR stars of each species vs ref_species. colors: {species: colour} overriding
-    SPECIES_COLORS. ylim: (low, high) shared across axes; computed from prof when None."""
+              legend=True, fontsize=7, bar_from=None, lobes=True):
+    """Grouped bars of `regions` (default: all columns of prof) on one axis: mean +- SEM, every subject as a dot,
+    FDR stars of each species vs ref_species, dashed line at the baseline (1 = whole-brain mean, 0 for z-scores).
+    bar_from: value the bars start from (None = the baseline, so that a bar is the deviation from it; 0 = the
+    absolute value, e.g. a bratio read as on the surface maps). colors: {species: colour} overriding
+    SPECIES_COLORS. ylim: (low, high) shared across axes; computed from prof when None. lobes: strip of the lobe
+    colours of the atlas figure under the axis."""
     regs = list(regions) if regions is not None else list(prof.columns)
     species = list(prof.index.get_level_values(0).unique())
     st = stats.set_index(['species', 'region'])
     w = 0.8 / len(species)
     rng = np.random.default_rng(0)
     base = _baseline(ylabel)
+    b0 = base if bar_from is None else bar_from
     if ylim is None:
         vals = prof.values[np.isfinite(prof.values)]
-        ylo, yhi = min(np.min(vals), base), max(np.max(vals), base)
+        ylo, yhi = min(np.min(vals), base, b0), max(np.max(vals), base, b0)
         span = yhi - ylo if yhi > ylo else 1
-        ylim = (ylo - 0.05 * span, yhi + 0.15 * span)
+        ylim = (ylo if ylo == b0 else ylo - 0.05 * span, yhi + 0.15 * span)
     span = (ylim[1] - ylim[0]) / 1.2
     x = np.arange(len(regs))
     for i, sp in enumerate(species):
         d = prof.loc[sp, regs]
         c = species_color(sp, i, colors)
         xs = x - 0.4 + w * (i + 0.5)
-        # bars start at the baseline (1 = whole-brain mean, 0 for z-scores): their length is the
-        # deviation from it, so the axis can be zoomed without truncating a bar drawn from 0
-        ax.bar(xs, d.mean().values - base, w * 0.9, bottom=base, yerr=d.sem().values, color=c, alpha=0.55,
+        # bars start at b0 (the baseline by default: their length is the deviation from it, so the axis can be
+        # zoomed without truncating a bar drawn from 0)
+        ax.bar(xs, d.mean().values - b0, w * 0.9, bottom=b0, yerr=d.sem().values, color=c, alpha=0.55,
                edgecolor=c, error_kw=dict(lw=0.8, capsize=1.5), label=f'{sp} (n={d.shape[0]})')
         for j, reg in enumerate(regs):
             v = d[reg].dropna().values
@@ -499,6 +568,8 @@ def draw_bars(ax, prof, stats, ref_species, ylabel, regions=None, alpha=0.05, co
     ax.set_xticklabels([_short(r, 28) for r in regs], rotation=60, ha='right', fontsize=fontsize)
     ax.set_xlim(-0.6, len(regs) - 0.4)
     ax.set_ylim(*ylim)
+    if lobes:
+        draw_lobe_strip(ax, regs)
     ax.set_ylabel(ylabel, fontsize=fontsize + 1)
     ax.tick_params(axis='y', labelsize=fontsize)
     ax.spines[['top', 'right']].set_visible(False)

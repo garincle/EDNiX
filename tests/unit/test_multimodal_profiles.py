@@ -143,3 +143,42 @@ def test_fingerprint_names_are_kept_and_classified_at_level_3():
     assert keys[0] == 'Orbital_frontal_cortex_(oFC)'                     # base name, as the Fig 5 profiles
     assert MP.cortical_regions(keys, 3) == ['Orbital_frontal_cortex_(oFC)', 'Prefrontal_cortex_(PFC)',
                                             'Striate_Cx']
+
+
+def test_regions_follow_the_lobe_order_of_the_atlas_figure():
+    from Exemples.Study_EDNiX.atlases import Atlas_nomenclature as AN
+    names = ['R_Visual_striate_cortex', 'L_Somatosensory_cortex', 'Prefrontal_cortex_(PFC)', 'Thalamus',
+             'Auditory_cortex_(Superior_temporal)', 'Insula_and_others_in_lateral_sulcus', 'unknown_x',
+             'Orbital_frontal_cortex_(oFC)']
+    assert [AN.lobe_of(n) for n in AN.atlas_order(names)] == [
+        'Frontal_lobe', 'Frontal_lobe', 'Insular_lobe', 'Temporal_lobe', 'Parietal_lobe', 'Occipital_lobe',
+        'Diencephalon', None]
+    assert AN.atlas_order(names)[:2] == ['Orbital_frontal_cortex_(oFC)', 'Prefrontal_cortex_(PFC)']
+    # Figure XX and the cross-species fingerprints use the same order
+    keys = [MP.region_key(n) for n in names]
+    assert MP.cortical_regions(keys, 3) == [k for k in PIRP.atlas_sorted(keys) if k not in ('Thalamus', 'unknown_x')]
+
+
+def test_radar_starts_at_top_counter_clockwise_with_lobe_ring():
+    import matplotlib.pyplot as plt
+    regions = ['Orbital_frontal_cortex_(oFC)', 'Insula_and_others_in_lateral_sulcus',
+               'Auditory_cortex_(Superior_temporal)', 'Visual_striate_cortex']
+    ax = plt.figure().add_subplot(projection='polar')
+    ang = PIRP.setup_radar(ax, regions, (-1, 1))
+    assert np.isclose(ax.get_theta_offset(), np.pi / 2) and ax.get_theta_direction() == 1
+    assert len(ax.patches) == 4                                  # one rim segment per region (lobe colour)
+    PIRP.radar_labels(ax, ang, regions)
+    assert [t.get_ha() for t in ax.get_xticklabels()] == ['center', 'right', 'center', 'left']
+    plt.close('all')
+
+
+def test_bars_can_start_from_zero():
+    import matplotlib.pyplot as plt
+    idx = pd.MultiIndex.from_tuples([(sp, f'{sp}{i}') for sp in ('Human', 'Macaque') for i in range(3)])
+    prof = pd.DataFrame({'Frontal_lobe': [0.9, 0.95, 0.92, 1.1, 1.2, 1.15]}, index=idx)
+    st = PIRP.compare_species(prof, 'Human', 'permutation', 50)
+    ax = plt.figure().add_subplot()
+    PIRP.draw_bars(ax, prof, st, 'Human', 'bratio', bar_from=0)
+    bars = [p for p in ax.patches if hasattr(p, 'get_height')]
+    assert all(np.isclose(p.get_y(), 0) for p in bars) and ax.get_ylim()[0] == 0
+    plt.close('all')
