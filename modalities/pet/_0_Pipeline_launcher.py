@@ -309,7 +309,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         (skull-stripped anatomy) or 'synthetic' (FDG-like image of the anatomy: grey matter 1, white matter 0.35,
         CSF 0.05, smoothed to synthetic_fwhm; Ashburner & Friston 1997). FDG only.
     synthetic_fwhm : float, optional
-        FWHM (mm) of the synthetic target; None = twice the largest PET voxel.
+        FWHM (mm) of the synthetic target; None = pvc_fwhm, else twice the largest PET voxel.
     ct_template_bridge : bool, optional
         Scenario 2v2 (CT study template, no anatomy): step 'bridge' links the CT study template to the reference
         template through a PET study template (modalities/pet/bridge.py): steps 4-6 for every session, mean of the
@@ -357,10 +357,15 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         term is omitted (simplified reference Logan, valid when C_ref / C_T is constant after DV_time).
     kinetic_end : float, optional
         End (min after the injection) of the kinetic fits; None = all frames.
-    pvc_fwhm : float or list, optional
+    pvc_fwhm : float or list or str, optional
         Spatial resolution of the reconstructed images (PSF FWHM, mm: scanner, reconstruction and post-reconstruction
-        filter, sqrt(FWHM_scanner^2 + FWHM_filter^2) for Gaussian kernels): partial-volume correction (PETPVC) of the
-        static images; None = no correction.
+        filter, sqrt(FWHM_scanner^2 + FWHM_filter^2) for Gaussian kernels; not the voxel size, and not in the image
+        header: the sidecar gives only the filter, ReconFilterSize): partial-volume correction (PETPVC) of the static
+        images; None = no correction. 'auto': the resolution estimated from the data at step 6 (the FDG-like image
+        of the anatomy smoothed until it correlates best with the registered PET, boundary.estimate_fwhm), never below
+        ReconFilterSize; an upper bound (a residual misregistration adds smoothing), reported in the diary: prefer
+        the value of the scanner when known. Also the smoothing of the synthetic target (unless synthetic_fwhm) and
+        of the expected profile of the boundary check of step 6 (None / 'auto': the estimated resolution).
     pvc_method : str, optional
         PETPVC method that writes an image ('RBV', 'MG', 'LABBE+RBV', 'IY'...; see PVC_METHODS).
     do_pet_to_func : bool, optional
@@ -416,6 +421,8 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         raise ValueError(f"crop_for_MoCo={crop_for_MoCo!r}: expected 'auto', 'manual' or 'none'")
     if export_resolution not in ('pet', 'target'):
         raise ValueError(f"export_resolution={export_resolution!r}: expected 'pet' or 'target'")
+    if isinstance(pvc_fwhm, str) and pvc_fwhm != 'auto':
+        raise ValueError(f"pvc_fwhm={pvc_fwhm!r}: expected a FWHM in mm (one or three values), 'auto' or None")
     if pvc_fwhm is not None and pvc_method not in PVC_METHODS:
         raise ValueError(f'pvc_method={pvc_method!r}: expected one of {PVC_METHODS} (GTM writes a table of regional '
                          f'values and STC a 3D mask, not an image)')

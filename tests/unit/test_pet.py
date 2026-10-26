@@ -1071,3 +1071,86 @@ def test_session_crop_redrawn_when_the_session_image_changed(tmp_path, monkeypat
     assert drawn[-1] == 'sub-01_ses-1_trc-FDG_desc-crop_pet.nii.gz' and len(drawn) == 3
     head = MoCo.head_mask(ants.image_read(mean), 0.3, 0).numpy() > 0
     assert (ants.image_read(box).numpy() > 0)[head].mean() > 0.99
+
+
+def _folded_brain(out, sp=0.5, fwhm=3.0, gap_mm=2.0):
+    """Macaque-like brain (ellipsoid 60 x 50 x 44 mm) with a 2 mm cortex folded by radial sulci, its T1, its masks
+    (names of the anatomical pipeline) and an FDG PET (grey 1, white 0.35, CSF 0.05, temporal muscles 0.6 at
+    gap_mm outside the brain) smoothed to fwhm and sampled at 1 mm."""
+    from scipy import ndimage
+    from modalities.pet import boundary
+    n = (150, 130, 120)
+    g = (np.indices(n).T - np.array(n) / 2).T * sp
+    r = np.sqrt((g[0] / 30) ** 2 + (g[1] / 25) ** 2 + (g[2] / 22) ** 2)
+    brain, head = r < 1, r < 1.25
+    theta, phi = np.arctan2(g[1], g[0]), np.arctan2(g[2], np.hypot(g[0], g[1]))
+    sulc = np.zeros(n, bool)
+    for k in range(0, 10, 2):
+        sulc |= (np.abs(np.sin(5 * theta + k)) < 0.04) & (r > 0.7)
+    sulc = (sulc | ((np.abs(np.sin(4 * phi)) < 0.04) & (r > 0.7))) & brain
+    gm = brain & ~sulc & (ndimage.distance_transform_edt(~(sulc | ~brain), sampling=sp) < 2.0)
+    wm = brain & ~sulc & ~gm
+    muscle = (head & (ndimage.distance_transform_edt(~brain, sampling=sp) > gap_mm) & (np.abs(g[0]) > 22)
+              & (np.abs(g[2]) < 12))
+    def img(a):
+        return ants.from_numpy(a.astype('float32'), spacing=(sp,) * 3)
+    f = dict(mask=opj(out, 'M_space-acpc_mask.nii.gz'), gm=opj(out, 'M_desc-Whole_Brain_Gray_mask.nii.gz'),
+             wm=opj(out, 'M_desc-White_mask.nii.gz'), t1=opj(out, 'M_space-acpc_T1w.nii.gz'), pet=opj(out, 'pet.nii.gz'))
+    for k, a in (('mask', brain), ('gm', gm), ('wm', wm), ('t1', 0.4 * gm + 0.8 * wm + 0.6 * (head & ~brain))):
+        ants.image_write(img(a), f[k])
+    s = np.where(brain, 0.05, 0.0)
+    s[wm], s[gm], s[muscle] = 0.35, 1.0, 0.6
+    pet = ants.resample_image(boundary._gauss(img(s), fwhm), (1.0, 1.0, 1.0), use_voxels=False, interp_type=0)
+    ants.image_write(pet, f['pet'])
+    centre = list(np.array(n) / 2 * sp)
+    return f, dict(brain=brain, gm=gm, sp=sp), centre
+
+
+def test_boundary_check_separates_partial_volume_from_misregistration(tmp_path):
+    """A dim outer cortex with a correct registration is partial volume (verdict: boundary on the MRI boundary); a
+    PET 4 % too large or shifted 1.5 mm is reported as a scale / registration error. Through check_record."""
+    from scipy import ndimage
+    from modalities.pet import boundary
+    f, truth, centre = _folded_brain(str(tmp_path))
+    mat = opj(str(tmp_path), 'sub-M', 'ses-1', 'pet', 'orig', 'matrices')
+    os.makedirs(mat)
+
+    def record(name, matrix, t):
+        p = opj(mat, name + '.mat')
+        ants.write_transform(ants.create_ants_transform(transform_type='AffineTransform', dimension=3, matrix=matrix,
+                                                        translation=t, center=centre), p)
+        rec = opj(mat, name + '_desc-registration_pet.json')
+        transfo.write_record(rec, dict(reference=f['pet'], targets=dict(acpc=dict(
+            image=f['t1'], mask=f['mask'], to=[[p, False]], **{'from': [[p, True]]}))))
+        return boundary.check_record(rec, 3.0, str(tmp_path))
+
+    ok = record('S1', np.eye(3), [0, 0, 0])
+    assert ok['model'] == 'grey / white matter'
+    assert ok['fwhm_estimated_mm'] == pytest.approx(3.0, abs=0.5)        # resolution of the phantom PET
+    assert abs(ok['dilation_mm']) < 0.3 and all(abs(v) < 0.45 for v in ok['shifts_mm'].values())
+    assert ok['verdict'].startswith('PET boundary on the MRI boundary')
+    assert os.path.isfile(opj(str(tmp_path), 'QC', 'pet_boundary', 'S1_desc-registration_boundary.png'))
+    assert os.path.isfile(opj(str(tmp_path), 'sub-M', 'ses-1', 'pet', 'QC', 'S1_desc-registration_boundary.png'))
+    # partial volume alone: with the correct registration the gyral crowns are far below the sulcal banks
+    pet_a = ants.resample_image_to_target(ants.image_read(f['pet']), ants.image_read(f['mask'])).numpy()
+    depth = ndimage.distance_transform_edt(truth['brain'], sampling=truth['sp'])
+    crown, bank = truth['gm'] & (depth < 1.0), truth['gm'] & (depth > 3) & (depth < 6)
+    assert pet_a[crown].mean() / pet_a[bank].mean() < 0.75
+
+    big = record('S2', np.eye(3) * 0.96, [0, 0, 0])      # samples the PET 4 % closer to the centre: PET 4 % larger
+    assert big['dilation_mm'] > 0.5 and 'larger' in big['verdict']
+    moved = record('S3', np.eye(3), [1.5, 0, 0])         # PET content 1.5 mm towards -x
+    assert moved['translation_mm']['x'] < -0.7 and 'along x' in moved['verdict']
+
+
+def test_pvc_resolution_auto_reads_the_estimate_and_keeps_the_filter(tmp_path):
+    rec = str(tmp_path / 'S_desc-registration_pet.json')
+    diary = str(tmp_path / 'diary.txt')
+    open(diary, 'w').close()
+    assert loop2.pvc_resolution('auto', rec, [{}], diary) is None                 # no estimate: skipped
+    with open(rec.replace('_pet.json', '_boundary.json'), 'w') as f:
+        json.dump(dict(fwhm_estimated_mm=3.5), f)
+    assert loop2.pvc_resolution('auto', rec, [{}], diary) == 3.5
+    filt = [{'ReconFilterType': 'Gaussian', 'ReconFilterSize': 5.0}]
+    assert loop2.pvc_resolution('auto', rec, filt, diary) == 5.0                  # never below the filter
+    assert loop2.pvc_resolution(4.0, rec, filt, diary) == 4.0                     # a value given is kept

@@ -75,6 +75,50 @@ def _check_box(box_file, image, session, paths, diary_file, min_head=0.3):
     return frac
 
 
+def _fwhm(pvc_fwhm):
+    """Largest value of pvc_fwhm (one value or three, mm), None when not given or 'auto'."""
+    if pvc_fwhm is None or isinstance(pvc_fwhm, str):
+        return None
+    return float(np.max(np.atleast_1d(np.asarray(pvc_fwhm, dtype=float))))
+
+
+def _filter_fwhm(infos):
+    """Largest post-reconstruction filter FWHM (mm) of the sidecars (ReconFilterSize), 0 without filter."""
+    out = 0.0
+    for info in infos:
+        if str(info.get('ReconFilterType', 'none')).lower() in ('none', '', '["none"]'):
+            continue
+        v = np.atleast_1d(np.asarray(info.get('ReconFilterSize') or 0, dtype=float))
+        out = max(out, float(v.max()) if v.size else 0.0)
+    return out
+
+
+def pvc_resolution(pvc_fwhm, rec_file, infos, diary_file):
+    """
+    PSF FWHM (mm) of the partial-volume correction. A value given is used as is (WARNING if a post-reconstruction
+    filter is in the sidecar: it must be included). 'auto': the resolution estimated from the data at step 6
+    (<session>_desc-registration_boundary.json, boundary.estimate_fwhm), never below the filter of the sidecar
+    (ReconFilterSize); None when there is no estimate (registration without anatomy, step 6 not run again).
+    """
+    filt = _filter_fwhm(infos)
+    if pvc_fwhm != 'auto':
+        if filt:
+            run_cmd.msg(f'INFO: post-reconstruction filter of {filt} mm in the sidecar: pvc_fwhm must include it',
+                        diary_file, 'WARNING')
+        return pvc_fwhm
+    js = rec_file.replace('_desc-registration_pet.json', '_desc-registration_boundary.json')
+    if not opi(js):
+        run_cmd.msg(f"WARNING: pvc_fwhm='auto' but no resolution estimate ({opb(js)}: run step 6 again, needs an "
+                    f"anatomy): partial-volume correction skipped; give pvc_fwhm in mm", diary_file, 'WARNING')
+        return None
+    with open(js) as f:
+        est = float(json.load(f)['fwhm_estimated_mm'])
+    fw = max(est, filt)
+    run_cmd.msg(f'INFO: pvc_fwhm auto = {fw:.1f} mm (estimated from the data {est:.1f} mm, an upper bound; '
+                f'sidecar filter {filt:.1f} mm)', diary_file, 'WARNING')
+    return fw
+
+
 def crop_for_session(crop_for_MoCo, study_crop, session, paths, first_mean, diary_file, sing_fs, redo_crop):
     """
     Crop box (file) in the space of the first run of the session, or None. 'auto': crop of the PET study template
@@ -229,7 +273,7 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
                             pet_mask_percentile=opts.get('pet_mask_percentile', 30.0),
                             pet_mask_dilate_mm=opts.get('pet_mask_dilate_mm', 3.0),
                             coreg_target=opts.get('coreg_target', 'anat'),
-                            synthetic_fwhm=opts.get('synthetic_fwhm'))
+                            synthetic_fwhm=opts.get('synthetic_fwhm'), pet_fwhm=_fwhm(opts.get('pvc_fwhm')))
 
         record = transfo.read_record(rec_file)
         record['pet_space'] = coreg2anat.to_pet_space(record, session, paths, reg['anat'], reg['template_files'],
@@ -280,20 +324,16 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
                            opts.get('DV_k2ref'))
 
     # ---------------------------------------------------------------------------------------- pvc
+    fwhm = None
     if opts['pvc_fwhm'] is not None and not _skip('pvc', Skip_step, diary_file):
-        for info in infos:
-            if str(info.get('ReconFilterType', 'none')).lower() not in ('none', '', '["none"]') and \
-                    info.get('ReconFilterSize'):
-                run_cmd.msg(f"INFO: post-reconstruction filter {info.get('ReconFilterType')} "
-                            f"{info.get('ReconFilterSize')} mm in the sidecar: pvc_fwhm must include it",
-                            diary_file, 'WARNING')
-                break
+        fwhm = pvc_resolution(opts['pvc_fwhm'], rec_file, infos, diary_file)
+    if fwhm is not None:
         for img in between:
             base = pu.base_name(img)
             for desc in ('SUV-mean', 'SUV', 'activity-mean', 'activity'):
                 src = pu.out_name(paths['orig_post'], base, desc=desc)
                 if opi(src) and not pu.is_dynamic(src):
-                    out = pvcmod.correct(src, pet_space.get('probseg', {}), opts['pvc_fwhm'],
+                    out = pvcmod.correct(src, pet_space.get('probseg', {}), fwhm,
                                          pu.out_name(paths['orig_post'], base, desc=desc + '-PVC'), diary_file,
                                          opts['pvc_method'])
                     if atlases:

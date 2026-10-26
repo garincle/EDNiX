@@ -656,7 +656,7 @@ def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_te
              study_template, T_PET, ct_pet_same_space, coreg_metric, type_of_transform_template, do_manual,
              Need_check_coreg, bids_dir, diary_name, sing_fs, template_mask='', anchor=None,
              moving_for_estimate=None, coreg_transform='Rigid', coreg_init='auto', pet_coreg_mask='none',
-             pet_mask_percentile=30.0, pet_mask_dilate_mm=3.0, coreg_target='anat', synthetic_fwhm=None):
+             pet_mask_percentile=30.0, pet_mask_dilate_mm=3.0, coreg_target='anat', synthetic_fwhm=None, pet_fwhm=None):
     """
     Registration of the session (scenario `sc`); writes and returns the registration record.
 
@@ -727,7 +727,11 @@ def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_te
     coreg_target : str
         Fixed image of the 1v2a registration: 'anat' (AC-PC head image), 'brain' (skull-stripped anatomy) or
         'synthetic' (FDG-like image of the tissue masks, synthetic_pet; FDG only, smoothed to synthetic_fwhm mm,
-        default twice the largest PET voxel).
+        default pet_fwhm, else twice the largest PET voxel).
+    pet_fwhm : float | None
+        Resolution of the PET (FWHM, mm; pvc_fwhm of the launcher): smoothing of the synthetic target and of the
+        expected profile of the boundary check (boundary.check, run for every registration to an anatomy; None: the
+        resolution it estimates from the data).
     """
     _validate_coreg_transform(coreg_transform, diary_name)
     if coreg_target not in COREG_TARGETS:
@@ -778,7 +782,7 @@ def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_te
             if coreg_target == 'synthetic':
                 fixed = synthetic_pet(anat, ants.image_read(moving).spacing,
                                       opj(paths['orig_formc'], session + '_desc-synthetic_' + T_PET + '.nii.gz'),
-                                      synthetic_fwhm)
+                                      synthetic_fwhm or pet_fwhm)
             else:
                 fixed = anat['brain'] if coreg_target == 'brain' else anat['acpc']
             run_cmd.msg(f'INFO: PET -> anatomy: target {coreg_target} ({opb(fixed)}), init {coreg_init}, PET mask '
@@ -883,7 +887,24 @@ def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_te
         shutil.copyfile(png, opj(qc_dir, opb(png)))
         if Need_check_coreg:
             FS_freeview.check_coreg(pet_in, t['image'], 'pet', sing_fs, transform_volume=False)
+    if 'acpc' in targets:
+        _boundary_check(rec_file, pet_fwhm, bids_dir, diary_name)
     return rec_file
+
+
+def _boundary_check(rec_file, pet_fwhm, bids_dir, diary_name):
+    """Boundary check of the registration to the anatomy (boundary.check_record); a failure is only reported."""
+    from modalities.pet import boundary
+    try:
+        res = boundary.check_record(rec_file, pet_fwhm, bids_dir)
+    except Exception as e:                               # a diagnostic never stops the pipeline
+        _msg(f'WARNING: boundary check of {opb(rec_file)} not done: {e}', diary_name, 'WARNING')
+        return None
+    sh = ', '.join(f'{k} {v:+.1f}' for k, v in res['shifts_mm'].items())
+    ok = res['verdict'].startswith('PET boundary on')
+    _msg(f"{'INFO' if ok else 'WARNING'}: boundary check (PET edge - MRI edge, mm: {sh}): {res['verdict']}",
+         diary_name, 'OKGREEN' if ok else 'WARNING')
+    return res
 
 
 # ---------------------------------------------------------------------------
