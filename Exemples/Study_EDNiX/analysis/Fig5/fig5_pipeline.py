@@ -31,7 +31,7 @@ Four concrete problems in the previous organisation, all fixed here:
    gone.
 
 3. Two different folder-naming conventions existed at once --
-   Figure_5_SBA.py wrote `Grp_SBA_3dTTEST_All<suffix>` (category glued
+   SBA_group_maps.py (former Figure_5_SBA.py) wrote `Grp_SBA_3dTTEST_All<suffix>` (category glued
    on) while rerun_balanced_by_run wrote `Grp_SBA_3dTTEST_<suffix>`.
    Lookups guessed wrong and silently reported "group map not found at
    None". Here, ONE convention is used everywhere and the resolved path
@@ -91,6 +91,7 @@ import Exemples.Study_EDNiX.analysis.Fig5.fig5_units as fu      # unit aggregati
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_phylo as fp      # Mantel / Blomberg K / PGLS
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_fingerprints as ff  # F6ab, fingerprints, F15-F18
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_paper as fpp         # panels of Figures 5 and 6
+import Exemples.Study_EDNiX.analysis.Fig5.fig5_supp_paper as fsp    # print-size panels, Fig 4 / Supp 10-14
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIG -- everything controllable lives here
@@ -2931,6 +2932,25 @@ def _f4_per_dataset(sri, cfg, fd, sel, selections, final_round, profiles_by_labe
     return own_refs
 
 
+def _paper_out(paths, name):
+    """06_figures/Paper/<name>: print-size panels laid out by analysis/Figure_4_*.py and
+    analysis/Supplementary/Supp_Fig_1*.py."""
+    d = os.path.join(paths["figures"], "Paper")
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, name)
+
+
+def _paper(fn, *a, **k):
+    """A print-size panel failing must not stop the pipeline."""
+    try:
+        return fn(*a, **k)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"  [paper panel] [WARN] {getattr(fn, '__name__', fn)} failed: {e}")
+        return None
+
+
 def _run_figures(sri, st):
     """Part 2: every statistic and figure, from the part-1 state `st` only.
 
@@ -2994,6 +3014,8 @@ def _run_figures(sri, st):
             fa.plot_iterative_selection_convergence(
                 st["conv_df"], output_path=os.path.join(
                     paths["figures"], "F1e_selection_convergence.png"))
+            if cfg.get("RUN_PAPER_FIGURES", True):
+                _paper(fsp.f1e_convergence, st["conv_df"], _paper_out(paths, "F1e_convergence"))
         rel = st.get("reliability")
         if rel and not rel["rel"].empty:
             png = os.path.join(paths["figures"], "F22_profile_reliability_by_method.png")
@@ -3124,6 +3146,10 @@ def _run_figures(sri, st):
             value_col=cfg["VALUE_COL"], zscore=cfg["ZSCORE"],
             title=f"Consensus by BIDS -- all runs (lvl {cfg['ATLAS_LEVEL']}, {unit} level)",
             output_path=os.path.join(fd, "F1c_consensus_by_bids.png"))
+        if cfg.get("RUN_PAPER_FIGURES", True):
+            _paper(fsp.f1c_consensus_by_dataset, ana_species_profiles, common,
+                   species_of_label, cfg["VALUE_COL"], cfg["ZSCORE"],
+                   _paper_out(paths, "F1c_consensus_by_dataset"))
         _write_legend(
             os.path.join(fd, "F1c_consensus_by_bids.txt"),
             "F1c -- Consensus pattern by BIDS (all runs)",
@@ -3200,6 +3226,9 @@ def _run_figures(sri, st):
             sel["rankings"], selections,
             title=f"Consensus score per dataset (lvl {cfg['ATLAS_LEVEL']}, {unit} level)",
             output_path=os.path.join(fd, "F3_score_distributions.png"))
+        if cfg.get("RUN_PAPER_FIGURES", True):
+            _paper(fsp.f3_score_distributions, sel["rankings"], selections,
+                   _paper_out(paths, "F3_score_distributions"))
         _write_legend(
             os.path.join(fd, "F3_score_distributions.txt"),
             "F3 -- Selection score distributions",
@@ -3235,6 +3264,9 @@ def _run_figures(sri, st):
             ss["invariance"], ss["common"], mask=ss["region_mask"],
             title=f"Region invariance across species (lvl {cfg['ATLAS_LEVEL']})",
             output_path=os.path.join(fd, "F5_region_invariance.png"))
+        if cfg.get("RUN_PAPER_FIGURES", True):
+            _paper(fsp.f5_region_invariance, ss["invariance"], ss["common"], ss["region_mask"],
+                   _paper_out(paths, "F5_region_invariance"))
         _write_legend(
             os.path.join(fd, "F5_region_invariance.txt"),
             "F5 -- Cross-species region invariance",
@@ -3545,6 +3577,8 @@ def _run_figures(sri, st):
             fa.plot_run_distance_std_by_bids(
                 dist_df, output_path=os.path.join(
                     paths["figures"], "F9_run_distance_std_by_bids.png"))
+            if cfg.get("RUN_PAPER_FIGURES", True):
+                _paper(fsp.f9_run_distance_sd, dist_df, _paper_out(paths, "F9_run_distance_sd"))
 
             # ---- STEP 9: correlate against external QC metrics ------------
             if df_qc_by_label:
@@ -3564,6 +3598,10 @@ def _run_figures(sri, st):
                         fa.plot_qc_distance_correlation(
                             meta_df, alpha=cfg["QC_META_ALPHA"], output_path=os.path.join(
                                 paths["figures"], "F10_qc_vs_distance_correlation.png"))
+                        if cfg.get("RUN_PAPER_FIGURES", True):
+                            _paper(fsp.f10_qc_vs_distance, meta_df,
+                                   _paper_out(paths, "F10_qc_vs_distance"),
+                                   alpha=cfg["QC_META_ALPHA"])
             else:
                 print("  [SKIP] STEP 9: no df_qc_by_label given to run() -- "
                       "pass QC data to correlate it against the per-run distances")

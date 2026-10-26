@@ -652,7 +652,7 @@ def plot_f6_two_references(dist_df, states, out_png, source, ref_species="Human"
 # Fingerprints -- polar (seed) or matrix (edges)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _spider_axes(ax, labels, rlim, excluded, show_labels=True):
+def _spider_axes(ax, labels, rlim, excluded, show_labels=True, entries=None):
     """Polar axes with one spoke per entry, labelled with the full entry name:
     with a two-channel profile every spoke keeps its channel ('Insula P80',
     'Insula P20' -- or '+' / '−' with fraction_posneg), as in V12, so the
@@ -661,7 +661,9 @@ def _spider_axes(ax, labels, rlim, excluded, show_labels=True):
     n = len(labels)
     theta = np.linspace(0, 2 * np.pi, n, endpoint=False)
     ax.set_theta_offset(np.pi / 2)
-    ax.set_theta_direction(-1)
+    # first spoke at the top, counter-clockwise: same direction as the Figure 1
+    # sunburst and the PET radars (PIRP.setup_radar)
+    ax.set_theta_direction(1 if REGION_ORDER == "atlas" else -1)
     ax.set_xticks(theta)
     ax.set_ylim(*rlim)
     texts = [f"{l}*" if ex else str(l) for l, ex in zip(labels, excluded)]
@@ -673,7 +675,8 @@ def _spider_axes(ax, labels, rlim, excluded, show_labels=True):
         ax.set_xticklabels([])
         lab_r = rlim[1] + 0.05 * (rlim[1] - rlim[0])
         for th, txt, ex in zip(theta, texts, excluded):
-            phi = (90.0 - np.degrees(th)) % 360.0
+            phi = ((90.0 + np.degrees(th)) if REGION_ORDER == "atlas"
+                   else (90.0 - np.degrees(th))) % 360.0
             phi = phi - 360.0 if phi > 180.0 else phi
             if -90.0 <= phi <= 90.0:
                 rot, ha = phi, "left"
@@ -694,6 +697,8 @@ def _spider_axes(ax, labels, rlim, excluded, show_labels=True):
     ax.grid(color="#DDDDDD", lw=_P(0.6, 0.35))
     ax.spines["polar"].set_color("#BBBBBB")
     ax.spines["polar"].set_linewidth(_P(0.8, 0.5))
+    if entries is not None and REGION_ORDER == "atlas":
+        _lobe_ring(ax, entries, theta, rlim)
     return theta
 
 
@@ -741,12 +746,40 @@ def _rlim(arrays):
     return min(lo, 0.0) - pad, hi + pad
 
 
+# Order of the spokes of every fingerprint (5c, 6b, F1, F1c, F15, Figure 4a):
+#   "atlas"     : lobes in the order of the Figure 1 sunburst, then the order of
+#                 Atlas_nomenclature inside a lobe (Atlas_nomenclature.atlas_order) --
+#                 the order of the PET / multimodal radars, so that a region sits at
+#                 the same place in every radar of the article; a ring of the lobe
+#                 colours of Figure 1 runs along the rim.
+#   "consensus" : increasing all-runs consensus value (V12-V15 order).
+# Two-channel profiles: all 'high' channels first, then all 'low' channels.
+REGION_ORDER = "atlas"
+LOBE_RING = 0.045          # thickness of the lobe-colour ring (fraction of the radial range)
+
+
 def _region_order(cons_all, common):
-    """Regions by increasing consensus value; with a two-channel profile, all
-    'high' channels first then all 'low' ones, each block sorted."""
-    key = np.where(np.isfinite(cons_all), cons_all, np.inf)
+    """Spoke order of the fingerprints (REGION_ORDER)."""
     block = np.array([fa._channel_block(c) for c in common])
+    if REGION_ORDER == "atlas":
+        from Exemples.Study_EDNiX.analysis.Fig5.fig5_supp_paper import atlas_entry_order
+        return np.asarray(atlas_entry_order(list(common)), int)
+    key = np.where(np.isfinite(cons_all), cons_all, np.inf)
     return np.lexsort((key, block))
+
+
+def _lobe_ring(ax, entries, theta, rlim):
+    """Ring of the Figure 1 lobe colours at the rim of a fingerprint (one arc per
+    spoke), as on the PET / multimodal radars (Plot_interspecies_regional_profiles)."""
+    if not LOBE_RING or not len(theta):
+        return
+    from Exemples.Study_EDNiX.analysis import paper_style as _ps
+    h = LOBE_RING * (rlim[1] - rlim[0])
+    w = 2 * np.pi / len(theta)
+    for th, e in zip(theta, entries):
+        base = str(e).rpartition("|")[0] or str(e)
+        ax.bar(th, h, width=w, bottom=rlim[1] - h, color=_ps.lobe_color(base), lw=0,
+               zorder=0.5)
 
 
 def is_edge_profile(common):
@@ -837,7 +870,8 @@ def plot_fingerprints(all_profiles, sel_profiles, common, species_of_label, valu
         axes_hdr = []
         for k, (name, vecs) in enumerate(panels):
             ax = fig.add_subplot(1, len(panels), k + 1, projection="polar")
-            theta = _spider_axes(ax, labels, rlim, excluded)
+            theta = _spider_axes(ax, labels, rlim, excluded,
+                                 entries=[common[i] for i in order])
             hs = []
             for lab, vec, col, ls in _entries(vecs, species_of_label, by, divergence):
                 hs.append(_poly(ax, theta, vec[order], color=col, ls=ls, lw=_P(1.5, 0.8),
@@ -951,7 +985,7 @@ def _reference_for(vecs, species_of_label, which, lab, sp, ref_species):
 
 def plot_distance_fingerprint_grid(vecs, dist_df, species_of_label, which, common, order,
                                    region_mask, out_png, ref_species, divergence, source,
-                                   paper=False):
+                                   paper=False, print_width_mm=None, label_first=False):
     """F15: one panel per dataset over its reference, closest first. Both
     vectors are z-scored, so the mean squared gap between them equals
     2 x (1 - r) exactly: the area between the curves (polar) or the energy of
@@ -1011,7 +1045,21 @@ def plot_distance_fingerprint_grid(vecs, dist_df, species_of_label, which, commo
     allv = np.concatenate([np.r_[v[np.isfinite(v)], ref[np.isfinite(ref)]]
                            for _, _, v, ref in pairs])
     rlim = (min(allv.min(), 0) - 0.3, allv.max() + 0.3)
-    if paper:
+    if paper and print_width_mm:
+        # printed size (Figure 4a): print_width_mm wide, radars at 5-7 pt; the spoke
+        # labels are written on the first radar only (label_first)
+        ctx = _print_size()
+        ctx.__enter__()
+        ncols = 6                                       # cell 0 = key radar (labels)
+        nrows = int(np.ceil((len(pairs) + int(label_first)) / ncols))
+        w = print_width_mm * fa.MM
+        cell = w / ncols
+        h = cell * 1.08 * nrows
+        fig = plt.figure(figsize=(w, h))
+        gs = fig.add_gridspec(nrows, ncols, hspace=0.30, wspace=0.30, top=0.95,
+                              bottom=0.02, left=0.04, right=0.96)
+    elif paper:
+        ctx = None
         # same radar size as V12 (~2.9 in); without spoke labels the gaps that
         # held them are closed
         top_in = 0.45
@@ -1020,15 +1068,32 @@ def plot_distance_fingerprint_grid(vecs, dist_df, species_of_label, which, commo
         gs = fig.add_gridspec(nrows, ncols, hspace=0.22, wspace=0.12, top=1 - top_in / h,
                               bottom=0.01, left=0.01, right=0.99)
     else:
+        ctx = None
         top_in = 1.25
         h = 4.5 * nrows + top_in + 0.05
         fig = plt.figure(figsize=(4.4 * ncols, h))
         gs = fig.add_gridspec(nrows, ncols, hspace=0.38, wspace=0.55, top=1 - top_in / h,
                               bottom=0.02, left=0.03, right=0.98)
+    shift = 0
+    if paper and print_width_mm and label_first:
+        # key radar: spoke names and lobe ring only, shrunk so that the names fit the cell
+        kax = fig.add_subplot(gs[0, 0], projection="polar")
+        _spider_axes(kax, labels, rlim, excluded, show_labels=True,
+                     entries=[common[i] for i in order])
+        kax.set_yticklabels([])
+        for t in kax.texts:
+            t.set_fontsize(3.6)
+        bb = kax.get_position()
+        f = 0.55
+        kax.set_position([bb.x0 + bb.width * (1 - f) / 2, bb.y0 + bb.height * (1 - f) / 2,
+                          bb.width * f, bb.height * f])
+        shift = 1
     for k, (r, ref_name, v, ref) in enumerate(pairs):
         sp = r.species
-        ax = fig.add_subplot(gs[k // ncols, k % ncols], projection="polar")
-        theta = _spider_axes(ax, labels, rlim, excluded, show_labels=not paper)
+        kk = k + shift
+        ax = fig.add_subplot(gs[kk // ncols, kk % ncols], projection="polar")
+        theta = _spider_axes(ax, labels, rlim, excluded,
+                             show_labels=not paper, entries=[common[i] for i in order])
         for tl in ax.get_xticklabels():
             tl.set_fontsize(5.5)
         t, a = _close(theta, v[order])
@@ -1038,10 +1103,21 @@ def plot_distance_fingerprint_grid(vecs, dist_df, species_of_label, which, commo
                         lw=0)
         ax.plot(t, b, color="black", ls="--", lw=1.4)
         ax.plot(t, a, color=_color(sp), lw=1.8)
-        ax.set_title(f"{pretty_label(r.label)}\nr = {getattr(r, col):.2f}"
-                     + ("" if paper else f"  (vs {ref_name})"),
-                     fontsize=8.5, fontweight="bold", color=_tcolor(sp),
-                     pad=6 if paper else 14)
+        if paper and print_width_mm:
+            ax.set_title(f"{pretty_label(r.label)}\nr = {getattr(r, col):.2f}", fontsize=5.5,
+                         color=_tcolor(sp), pad=2)
+            ax.tick_params(axis="y", labelsize=4)
+            for ln in ax.lines:
+                ln.set_linewidth(min(ln.get_linewidth(), 0.8))
+        else:
+            ax.set_title(f"{pretty_label(r.label)}\nr = {getattr(r, col):.2f}"
+                         + ("" if paper else f"  (vs {ref_name})"),
+                         fontsize=8.5, fontweight="bold", color=_tcolor(sp),
+                         pad=6 if paper else 14)
+    if ctx is not None:
+        fa.save_paper(fig, out_png)
+        ctx.__exit__(None, None, None)
+        return rows
     if not paper:
         fig.suptitle(
             f"Each dataset (coloured) over its {what} (black dashed), most similar first -- "
@@ -1649,7 +1725,8 @@ def plot_state_effect(df_runs, tests, grp, sel_counts, out_png, fps=None, common
                     else np.asarray(region_mask, bool))
             arrays = [v[o] for v in f["states"].values()] + [
                 a[o] for a in (f["kept"], f["consensus"]) if a is not None]
-            theta = _spider_axes(ax, labels, _rlim(arrays), [not mask[k] for k in o])
+            theta = _spider_axes(ax, labels, _rlim(arrays), [not mask[k] for k in o],
+                                 entries=[common[k] for k in o])
             for tl in ax.get_xticklabels():
                 tl.set_fontsize(6)
             hs = []
@@ -2289,6 +2366,18 @@ def make_fingerprint_figures(*, group_all, group_all_source, ba_all, ba_sel, ba_
             plot_distance_fingerprint_grid(vecs_all, dist_all, species_of_label, which, common,
                                            order, region_mask, opj(fig_dir, f"{tag}.png"),
                                            ref_species, divergence, group_all_source)
+        if cfg.get("RUN_PAPER_FIGURES", True) and not matrix_mode:
+            # Figure 4a: each dataset over the Human datasets, print size, spoke
+            # labels on the first radar
+            os.makedirs(opj(fig_dir, "Paper"), exist_ok=True)
+            try:
+                plot_distance_fingerprint_grid(
+                    vecs_all, dist_all, species_of_label, "reference", common, order,
+                    region_mask, opj(fig_dir, "Paper", "F15b_fingerprint_vs_human"), ref_species,
+                    divergence, group_all_source, paper=True, print_width_mm=183,
+                    label_first=True)
+            except Exception as e:
+                print(f"  [F15b paper] [WARN] failed: {e}")
         _legend(opj(fig_dir, "F15_fingerprint_vs_reference.txt"),
                 "F15a/b -- Each dataset's fingerprint over its reference",
                 f"One panel per dataset ({group_all_source}), closest first. F15a: reference "
@@ -2314,6 +2403,16 @@ def make_fingerprint_figures(*, group_all, group_all_source, ba_all, ba_sel, ba_
         test = sibling_test(D, species_of_label, n_perm=n_perm)
         plot_dataset_proximity(D, dist_all, species_of_label, test,
                                opj(fig_dir, "F16_dataset_proximity.png"), group_all_source)
+        if cfg.get("RUN_PAPER_FIGURES", True):
+            from Exemples.Study_EDNiX.analysis.Fig5 import fig5_supp_paper as _fsp
+            os.makedirs(opj(fig_dir, "Paper"), exist_ok=True)
+            try:
+                _fsp.f16a_proximity_matrix(D, species_of_label,
+                                           opj(fig_dir, "Paper", "F16a_proximity_matrix"))
+                _fsp.f16b_proximity_rows(D, dist_all, species_of_label, test,
+                                         opj(fig_dir, "Paper", "F16b_proximity_rows"))
+            except Exception as e:
+                print(f"  [F16a paper] [WARN] failed: {e}")
         out["distance_matrix"], out["sibling_test"] = D, test
         _legend(opj(fig_dir, "F16_dataset_proximity.txt"),
                 "F16 -- Proximity of each dataset to its sibling and to the other species",
@@ -2445,6 +2544,14 @@ def make_fingerprint_figures(*, group_all, group_all_source, ba_all, ba_sel, ba_
             plot_variability_levels(vt, vdraws, species_of_label,
                                     opj(fig_dir, "F20_selection_vs_variability_levels.png"),
                                     pooled=pooled_v["gap_animal"])
+            if cfg.get("RUN_PAPER_FIGURES", True):
+                from Exemples.Study_EDNiX.analysis.Fig5 import fig5_supp_paper as _fsp
+                os.makedirs(opj(fig_dir, "Paper"), exist_ok=True)
+                try:
+                    _fsp.f20_variability_levels(vt, vdraws, species_of_label,
+                                                opj(fig_dir, "Paper", "F20_variability_levels"))
+                except Exception as e:
+                    print(f"  [F20 paper] [WARN] failed: {e}")
             out["variability_levels"], out["variability_pooled"] = vt, pooled_v
             res_lines = []
             for r in vt.itertuples():
