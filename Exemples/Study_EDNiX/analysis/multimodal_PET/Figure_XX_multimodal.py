@@ -31,7 +31,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from Exemples.Study_EDNiX.analysis import multimodal_profiles as MP
+from Exemples.Study_EDNiX.analysis.multimodal_PET import multimodal_profiles as MP
 from Exemples.Study_EDNiX.analysis.ednix_bids_tools import PAPER_RC
 from Plotting import Plot_interspecies_regional_profiles as PIRP
 
