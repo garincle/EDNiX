@@ -887,14 +887,16 @@ def register(sc, session_mean, session, paths, anat, packages, ct_record, pet_te
         shutil.copyfile(png, opj(qc_dir, opb(png)))
         if Need_check_coreg:
             FS_freeview.check_coreg(pet_in, t['image'], 'pet', sing_fs, transform_volume=False)
-    if 'acpc' in targets:
-        _boundary_check(rec_file, pet_fwhm, bids_dir, diary_name)
+    _boundary_check(rec_file, targets, pet_fwhm, bids_dir, diary_name)
     return rec_file
 
 
-def _boundary_check(rec_file, pet_fwhm, bids_dir, diary_name):
-    """Boundary check of the registration to the anatomy (boundary.check_record); a failure is only reported."""
+def _boundary_check(rec_file, targets, pet_fwhm, bids_dir, diary_name):
+    """Boundary check of the registration to the anatomy (boundary.check_record), when there is one; a failure is
+    only reported."""
     from modalities.pet import boundary
+    if 'acpc' not in targets:
+        return None
     try:
         res = boundary.check_record(rec_file, pet_fwhm, bids_dir)
     except Exception as e:                               # a diagnostic never stops the pipeline

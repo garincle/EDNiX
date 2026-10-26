@@ -51,20 +51,23 @@ def _gauss(img, fwhm_mm):
     return ants.smooth_image(img, fwhm_mm / (2.0 * np.sqrt(2.0 * np.log(2.0))), sigma_in_physical_coordinates=True)
 
 
+def _first_file(*names):
+    """First existing file among `names` ('' if none)."""
+    return next((f for f in names if f and opi(f)), '')
+
+
 def tissue_image(anat, brain):
     """FDG-like image of the anatomy before smoothing (grey / white masks), else the brain mask; with its model."""
     from modalities.pet import coreg2anat
-    gm_f = next((f for f in (anat.get('gray_wb'), anat.get('gray')) if f and opi(f)), '')
-    wm_f = next((f for f in (anat.get('white_full'), anat.get('white')) if f and opi(f)), '')
-    if gm_f and wm_f:
-        w = coreg2anat.FDG_WEIGHTS
-        gm = coreg2anat._on_grid(gm_f, brain).numpy() > 0
-        wm = coreg2anat._on_grid(wm_f, brain).numpy() > 0
-        s = np.where(brain.numpy() > 0, w['CSF'], 0.0).astype(np.float32)
-        s[wm] = w['WM']
-        s[gm] = w['GM']
-        return brain.new_image_like(s), 'grey / white matter'
-    return brain.clone('float'), 'brain mask'
+    gm_f = _first_file(anat.get('gray_wb'), anat.get('gray'))
+    wm_f = _first_file(anat.get('white_full'), anat.get('white'))
+    if not (gm_f and wm_f):
+        return brain.clone('float'), 'brain mask'
+    w = coreg2anat.FDG_WEIGHTS
+    s = np.where(brain.numpy() > 0, w['CSF'], 0.0).astype(np.float32)
+    s[coreg2anat._on_grid(wm_f, brain).numpy() > 0] = w['WM']
+    s[coreg2anat._on_grid(gm_f, brain).numpy() > 0] = w['GM']
+    return brain.new_image_like(s), 'grey / white matter'
 
 
 def expected_image(anat, brain, fwhm_mm):
