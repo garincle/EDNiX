@@ -746,7 +746,7 @@ def _rlim(arrays):
     return min(lo, 0.0) - pad, hi + pad
 
 
-# Order of the spokes of every fingerprint (5c, 6b, F1, F1c, F15, Figure 4a):
+# Order of the spokes of every fingerprint (5c, 6b, F1, F1c, F15, Figure 5a (paper)):
 #   "atlas"     : lobes in the order of the Figure 1 sunburst, then the order of
 #                 Atlas_nomenclature inside a lobe (Atlas_nomenclature.atlas_order) --
 #                 the order of the PET / multimodal radars, so that a region sits at
@@ -1046,7 +1046,7 @@ def plot_distance_fingerprint_grid(vecs, dist_df, species_of_label, which, commo
                            for _, _, v, ref in pairs])
     rlim = (min(allv.min(), 0) - 0.3, allv.max() + 0.3)
     if paper and print_width_mm:
-        # printed size (Figure 4a): print_width_mm wide, radars at 5-7 pt; the spoke
+        # printed size (Figure 5a (paper)): print_width_mm wide, radars at 5-7 pt; the spoke
         # labels are written on the first radar only (label_first)
         ctx = _print_size()
         ctx.__enter__()
@@ -2367,7 +2367,7 @@ def make_fingerprint_figures(*, group_all, group_all_source, ba_all, ba_sel, ba_
                                            order, region_mask, opj(fig_dir, f"{tag}.png"),
                                            ref_species, divergence, group_all_source)
         if cfg.get("RUN_PAPER_FIGURES", True) and not matrix_mode:
-            # Figure 4a: each dataset over the Human datasets, print size, spoke
+            # Figure 5a (paper): each dataset over the Human datasets, print size, spoke
             # labels on the first radar
             os.makedirs(opj(fig_dir, "Paper"), exist_ok=True)
             try:

@@ -11,8 +11,8 @@ All paper figures are written to `/scratch2/EDNiX/results/EDNiX_Figures/Paper/<F
 | Fig. 1 | `Figure_1_atlases.py` | atlases |
 | Fig. 2 | `Figure_2_morphometry.py` | morphometry, atlas level 2, bilateral, log10 |
 | Fig. 3 | `Figure_3_longitudinal.py` | BIDS_Zhu_Garin (macaque), BIDS_Park (human) |
-| Fig. 4 | `Figure_4_fingerprints.py` | panels of the Fig5 pipeline (F15b, 5b, F16a) |
-| Fig. 5 | `Figure_5_seed_maps.py` | panel 5a of the Fig5 pipeline |
+| Fig. 4 | `Figure_4_seed_maps.py` | panel 5a of the Fig5 pipeline (seed maps) |
+| Fig. 5 | `Figure_5_fingerprints.py` | panels of the Fig5 pipeline (F15b, 5b, F16a) |
 | Supp. 4 | `Supplementary/Supp_Fig_04_anat_QC.py` | anat QC |
 | Supp. 5 | `Supplementary/Supp_Fig_05_func_QC.py` | func QC |
 | Supp. 6-8 | `Supplementary/Supp_Fig_06_08_outliers.py` | outlier rates (surface, volume, thickness), level 3 |
@@ -23,7 +23,8 @@ All paper figures are written to `/scratch2/EDNiX/results/EDNiX_Figures/Paper/<F
 | Supp. 13 | `Supplementary/Supp_Fig_13_variability_levels.py` | F20 |
 | Supp. 14 | `Supplementary/Supp_Fig_14_run_distance_qc.py` | F9, F10 |
 
-Figures 4, 5 and Supp. 10-14 only assemble panels: run `Fig5/Launcher_Fig5.py` first
+Figures 4, 5 and Supp. 10-14 only assemble panels (the "Fig5" pipeline and its panel names
+5a, 5b... predate the paper numbering): run `Fig5/Launcher_Fig5.py` first
 (`RUN_PART='figures'` is enough once the matrices exist); the paper panels are written to
 `<FIG5_ROOT>/06_figures/Paper/`.
 

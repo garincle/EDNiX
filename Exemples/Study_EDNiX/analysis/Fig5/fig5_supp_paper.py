@@ -1,6 +1,6 @@
 """
 fig5_supp_paper.py -- print-size versions of the Fig 5 pipeline figures that the
-paper uses as panels of Figure 4 and Supplementary Figures 10-14.
+paper uses as panels of Figure 5 and Supplementary Figures 10-14.
 
 Same data and statistics as the exploration figures of fig5_analysis /
 fig5_fingerprints (F1e, F1c, F3, F5, F9, F10, F16, F20), redrawn at their printed
@@ -12,7 +12,7 @@ regions in the lobe order of Figure 1 (Atlas_nomenclature.atlas_order).
 
 Every function writes <out>.png (600 dpi) and <out>.pdf (TrueType) through
 fa.save_paper. The pipeline calls them into 06_figures/Paper/ (see
-fig5_pipeline._run_figures); analysis/Figure_4_*.py and Supplementary/Supp_Fig_1*.py
+fig5_pipeline._run_figures); analysis/Figure_5_fingerprints.py and Supplementary/Supp_Fig_1*.py
 lay them out.
 """
 import os
@@ -280,7 +280,7 @@ def f10_qc_vs_distance(meta_df, out, alpha=0.05, max_metrics=20, width_mm=113, h
     return out
 
 
-# ── F16 a: dataset x dataset distance matrix (Figure 4c) ─────────────────────
+# ── F16 a: dataset x dataset distance matrix (Figure 5c) ─────────────────────
 def f16a_proximity_matrix(D, species_of_label, out, width_mm=63, annotate=True):
     labels = _labels_sorted(list(D.index), species_of_label)
     M = D.loc[labels, labels].to_numpy(float).copy()
@@ -376,7 +376,7 @@ def f16b_proximity_rows(D, dist_df, species_of_label, test, out, width_mm=120, r
     """One row per dataset: dots = 1 - r to every other dataset (species colour of
     that dataset), star = the other dataset of the same species, black tick = the
     leave-one-species-out consensus, ring = nearest neighbour. Panel a of the
-    exploration F16 is Figure 4c; it is not repeated here."""
+    exploration F16 is Figure 5c; it is not repeated here."""
     labels = _labels_sorted(list(D.index), species_of_label)
     n = len(labels)
     per = test["per_dataset"].set_index("label") if test else None
