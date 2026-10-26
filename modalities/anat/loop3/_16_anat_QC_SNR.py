@@ -255,6 +255,7 @@ def create_qc_figure(output_results, Timage, snr_results, Ref_file,
             'avg_snr_gray': average_snr_results['Gray_Matter'],
             'avg_snr_white': average_snr_results['White_Matter'],
             'cortical_contrast': cortical_contrast,
+            'cnr': cnr_val,
             'regional_snr': snr_results,
             'noise_estimate': noise
         }
