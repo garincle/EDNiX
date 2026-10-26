@@ -335,7 +335,7 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
                 if opi(src) and not pu.is_dynamic(src):
                     out = pvcmod.correct(src, pet_space.get('probseg', {}), fwhm,
                                          pu.out_name(paths['orig_post'], base, desc=desc + '-PVC'), diary_file,
-                                         opts['pvc_method'])
+                                         opts['pvc_method'], opts.get('pvc_engine', 'auto'))
                     if atlases:
                         roi_signal.read(out, atlases, reg['levels'], reg['label_tables'], paths['orig_roi'], None,
                                         desc + '-PVC', diary_file)
