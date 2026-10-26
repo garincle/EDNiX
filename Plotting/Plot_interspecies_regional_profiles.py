@@ -297,7 +297,9 @@ def compare_species(prof, ref_species, test='permutation', n_perm=10000, seed=0)
     rng = np.random.default_rng(seed)
     species = [s for s in prof.index.get_level_values(0).unique() if s != ref_species]
     if ref_species not in prof.index.get_level_values(0):
-        raise ValueError(f'reference species {ref_species} not in the data')
+        raise ValueError(f'reference species {ref_species!r} not in the data: species found '
+                         f'{sorted(prof.index.get_level_values(0).unique())}, {prof.shape[0]} subject(s) x '
+                         f'{prof.shape[1]} region(s) (subjects missing a region are dropped upstream?)')
     a_all = prof.loc[ref_species]
     out = []
     for sp in species:

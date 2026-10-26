@@ -199,8 +199,41 @@ def collect_modalities(cfg):
 
 
 # ================================================================================================== profiles
+def region_coverage(df, regions, species):
+    """Number of subjects of each species with a value for each region (long table region, species, n_subjects,
+    n_with_value, n_missing). A region absent from a species' atlas, or below the voxel threshold, has n_missing > 0."""
+    rows = []
+    for sp in species:
+        d = df[df.species == sp]
+        n = d['subject'].nunique()
+        ok = d[d['value'].notna()].groupby('region')['subject'].nunique()
+        for r in regions:
+            k = int(ok.get(r, 0))
+            rows.append(dict(region=r, species=sp, n_subjects=n, n_with_value=k, n_missing=n - k))
+    return pd.DataFrame(rows)
+
+
+def complete_regions(df, regions, species, label=''):
+    """Regions of `regions` with a value in EVERY subject of EVERY species (a region missing in one subject is
+    dropped, not the subject: dropping subjects listwise empties a species as soon as one region is absent from
+    its atlas). Prints the regions dropped and why. Returns (kept regions, coverage table)."""
+    cov = region_coverage(df, regions, species)
+    bad = cov[cov.n_missing > 0]
+    kept = [r for r in regions if r not in set(bad['region'])]
+    for sp in species:
+        if not (df.species == sp).any():
+            raise ValueError(f'{label}: no data for species {sp} (species found: {sorted(df.species.unique())})')
+    if len(bad):
+        print(f'  [{label}] {bad.region.nunique()} region(s) dropped (missing in some subjects):')
+        for r, g in bad.groupby('region', sort=False):
+            print('    ' + r + ': ' + ', '.join(f'{x.species} {x.n_missing}/{x.n_subjects}' for x in g.itertuples()))
+    print(f'  [{label}] {len(kept)} of {len(regions)} region(s) complete in every subject of {species}')
+    return kept, cov
+
+
 def subject_matrix(df, regions):
-    """Wide table index (species, subject), columns regions; subjects missing a region are dropped (listwise)."""
+    """Wide table index (species, subject), columns regions; subjects still missing a region are dropped (none
+    after complete_regions)."""
     w = df[df['region'].isin(regions)].pivot_table(index=['species', 'subject'], columns='region', values='value')
     w = w.reindex(columns=regions)
     return w.dropna(axis=0, how='any')
@@ -216,9 +249,9 @@ def multimodal_profiles(tables, regions, species):
     modality of every species; returns (profiles, regions kept)."""
     keep = list(regions)
     for mod, df in tables.items():
-        for sp in species:
-            present = set(df.loc[(df.species == sp) & df.value.notna(), 'region'])
-            keep = [r for r in keep if r in present]
+        keep, _ = complete_regions(df, keep, species, mod)
+    if len(keep) < 3:
+        raise ValueError(f'only {len(keep)} region(s) complete in every modality and species: no radar possible')
     prof = {sp: {} for sp in species}
     for mod, df in tables.items():
         for sp in species:
