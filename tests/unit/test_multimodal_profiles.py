@@ -106,7 +106,8 @@ def test_profiles_and_figure(cfg, tmp_path):
     F.REGIONS, F.LEVEL = None, 2
     assert F.select_regions(t) == ['Frontal_lobe', 'Insular_lobe', 'Temporal_lobe', 'Parietal_lobe',
                                    'Occipital_lobe']                      # Atlas_nomenclature order, no Brainstem
-    prof_b, stats_b = F.metabolism_stats(t['metabolism'], REGIONS)
+    prof_b, stats_b, cov_b = F.metabolism_stats(t['metabolism'], REGIONS)
+    assert (cov_b.n_missing == 0).all()
     assert list(prof_b.columns) == REGIONS
     occ = stats_b.set_index('region').loc['Occipital_lobe']
     assert occ.q_fdr < 0.05 and occ.difference > 0.2
@@ -119,6 +120,21 @@ def test_profiles_and_figure(cfg, tmp_path):
     fig = F.build_figure({}, (0.5, 1.5), prof_b, stats_b, prof_c, regions_c)
     fig.savefig(tmp_path / 'fig.png')
     assert 'Figure XX' in F.legend_text(prof_b, stats_b, prof_c, regions_c, (0.5, 1.5), cmc)
+
+
+def test_region_missing_in_one_species_is_dropped_not_the_species(cfg):
+    """Regression: a region absent from every human table used to drop all humans (listwise deletion)."""
+    from Exemples.Study_EDNiX.analysis import Figure_XX_multimodal as F
+    met = MP.collect_modalities(cfg)['metabolism']
+    met = met[~((met.species == 'Human') & (met.region == 'Insular_lobe'))]          # macaque-only region
+    met.loc[(met.subject == 'M0') & (met.region == 'Parietal_lobe'), 'value'] = np.nan  # one NaN subject
+    prof_b, stats_b, cov_b = F.metabolism_stats(met, REGIONS)
+    assert set(prof_b.index.get_level_values(0)) == {'Human', 'Macaque'}
+    assert list(prof_b.columns) == ['Frontal_lobe', 'Temporal_lobe', 'Occipital_lobe']
+    miss = cov_b.set_index(['region', 'species'])['n_missing']
+    assert miss[('Insular_lobe', 'Human')] == 6 and miss[('Parietal_lobe', 'Macaque')] == 1
+    with pytest.raises(ValueError, match='species found'):
+        PIRP.compare_species(prof_b.loc[['Macaque']], 'Human', 'permutation', 10)
 
 
 def test_fingerprint_names_are_kept_and_classified_at_level_3():

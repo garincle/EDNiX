@@ -144,11 +144,13 @@ def select_regions(tables):
 def metabolism_stats(met, regions):
     """Subjects x regions bratio (regions present in every subject of both species) and the species comparison of
     Plot_interspecies_regional_profiles."""
-    w = MP.subject_matrix(met, regions)
-    regions = [r for r in regions if r in w.columns and w[r].notna().all()]
-    w = w[regions].reindex(SPECIES, level=0)
+    regions, cov = MP.complete_regions(met, regions, SPECIES, 'metabolism')
+    if len(regions) < 3:
+        raise ValueError(f'metabolism: only {len(regions)} region(s) with a value in every subject; see the coverage '
+                         f'table (MIN_VOXELS = {MIN_VOXELS}, LEVEL = {LEVEL})')
+    w = MP.subject_matrix(met, regions).reindex(SPECIES, level=0)
     stats = PIRP.compare_species(w, SPECIES[0], TEST, N_PERM)
-    return w, stats
+    return w, stats, cov
 
 
 # ═════════════════════════════════════════════════════════════════════════════════════════════════ figure
@@ -247,7 +249,7 @@ def main():
                MIN_VOXELS=MIN_VOXELS)
     tables = MP.collect_modalities(cfg)
     regions = select_regions(tables)
-    prof_b, stats_b = metabolism_stats(tables['metabolism'], regions)
+    prof_b, stats_b, cov_b = metabolism_stats(tables['metabolism'], regions)
     prof_c, regions_c = MP.multimodal_profiles(tables, regions, SPECIES)
     cmc = MP.cross_modal_correlations(prof_c)
     pngs, rng = surface_pngs()
@@ -263,6 +265,7 @@ def main():
             v.to_excel(xw, sheet_name=f'{k}_subjects', index=False)
         prof_b.reset_index().to_excel(xw, sheet_name='B_bratio', index=False)
         stats_b.to_excel(xw, sheet_name='B_stats', index=False)
+        cov_b.to_excel(xw, sheet_name='B_region_coverage', index=False)
         for sp in SPECIES:
             for m, v in prof_c[sp].items():
                 v.reset_index().to_excel(xw, sheet_name=f'C_{sp}_{m}'[:31], index=False)
