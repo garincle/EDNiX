@@ -697,8 +697,6 @@ def _spider_axes(ax, labels, rlim, excluded, show_labels=True, regions=None):
     ax.grid(color="#DDDDDD", lw=_P(0.6, 0.35))
     ax.spines["polar"].set_color("#BBBBBB")
     ax.spines["polar"].set_linewidth(_P(0.8, 0.5))
-    if entries is not None and REGION_ORDER == "atlas":
-        _lobe_ring(ax, entries, theta, rlim)
     return theta
 
 
@@ -763,20 +761,6 @@ def _region_order(cons_all, common):
     key = np.array([rank[_base_region(c)] for c in common])
     block = np.array([fa._channel_block(c) for c in common])
     return np.lexsort((np.arange(len(common)), key, block))
-
-
-def _lobe_ring(ax, entries, theta, rlim):
-    """Ring of the Figure 1 lobe colours at the rim of a fingerprint (one arc per
-    spoke), as on the PET / multimodal radars (Plot_interspecies_regional_profiles)."""
-    if not LOBE_RING or not len(theta):
-        return
-    from Exemples.Study_EDNiX.analysis import paper_style as _ps
-    h = LOBE_RING * (rlim[1] - rlim[0])
-    w = 2 * np.pi / len(theta)
-    for th, e in zip(theta, entries):
-        base = str(e).rpartition("|")[0] or str(e)
-        ax.bar(th, h, width=w, bottom=rlim[1] - h, color=_ps.lobe_color(base), lw=0,
-               zorder=0.5)
 
 
 def is_edge_profile(common):
@@ -1076,7 +1060,7 @@ def plot_distance_fingerprint_grid(vecs, dist_df, species_of_label, which, commo
         # key radar: spoke names and lobe ring only, shrunk so that the names fit the cell
         kax = fig.add_subplot(gs[0, 0], projection="polar")
         _spider_axes(kax, labels, rlim, excluded, show_labels=True,
-                     entries=[common[i] for i in order])
+                     regions=[common[i] for i in order])
         kax.set_yticklabels([])
         for t in kax.texts:
             t.set_fontsize(3.6)
