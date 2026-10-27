@@ -47,8 +47,8 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from scipy import stats as st
 
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_analysis as fa
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_fingerprints as ff
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.profile_stats as fa
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.fingerprints as ff
 from Statistics.Group_fMRI.run_selection.surfaces import (  # moved verbatim, 2026-10-27
     _oversampled,
     map_paths_by_dataset,

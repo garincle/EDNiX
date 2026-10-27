@@ -48,7 +48,7 @@ import matplotlib.pyplot as plt
 from scipy import stats as st
 from pathlib import Path
 
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_fingerprints as ff
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.fingerprints as ff
 
 opj = os.path.join
 opb = os.path.basename

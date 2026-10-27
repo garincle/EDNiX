@@ -25,9 +25,9 @@ import os
 import pandas as pd
 
 from Statistics.Group_fMRI.run_selection import profiles as sri
-from Exemples.Study_EDNiX.analysis.Fig5.fig5_pipeline import run
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_matrices as fm
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_paper as fpp
+from Exemples.Study_EDNiX.analysis.sensitivity_analysis.fmri_selection.exploration_pipeline import run
+import Exemples.Study_EDNiX.analysis.sensitivity_analysis.fmri_selection.matrices as fm
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.paper_panels as fpp
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 1. CE QUI EST LANCÉ

@@ -24,7 +24,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_analysis as fa
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.profile_stats as fa
 from Exemples.Study_EDNiX.analysis import paper_style as ps
 
 MM = fa.MM
@@ -68,7 +68,7 @@ def atlas_entry_order(names):
 
 
 def short_entry(name):
-    import Exemples.Study_EDNiX.analysis.Fig5.fig5_fingerprints as ff
+    import Exemples.Study_EDNiX.analysis.fmri_fingerprints.fingerprints as ff
     return ff.short_region(name)
 
 
@@ -326,7 +326,7 @@ def f16a_proximity_matrix(D, species_of_label, out, width_mm=63, annotate=True):
 # ── F20: selection vs variability levels ─────────────────────────────────────
 def f20_variability_levels(table, draws, species_of_label, out, width_mm=183, ncols=5,
                            panel_h_mm=34):
-    from Exemples.Study_EDNiX.analysis.Fig5.fig5_fingerprints import LEVELS
+    from Exemples.Study_EDNiX.analysis.fmri_fingerprints.fingerprints import LEVELS
     labs = _labels_sorted(table["label"], species_of_label)
     if not labs:
         return None

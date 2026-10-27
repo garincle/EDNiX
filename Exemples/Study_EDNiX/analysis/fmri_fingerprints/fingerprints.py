@@ -46,7 +46,7 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from scipy import stats as st
 
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_analysis as fa
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.profile_stats as fa
 import Plotting.Plot_interspecies_regional_profiles as PIRP   # radar layout shared with PET / Fig XX
 from Statistics.Group_fMRI.run_selection.reliability import (  # moved verbatim, 2026-10-27
     StateResolver,
@@ -2208,7 +2208,7 @@ def make_fingerprint_figures(*, group_all, group_all_source, ba_all, ba_sel, ba_
         plot_dataset_proximity(D, dist_all, species_of_label, test,
                                opj(fig_dir, "F16_dataset_proximity.png"), group_all_source)
         if cfg.get("RUN_PAPER_FIGURES", True):
-            from Exemples.Study_EDNiX.analysis.Fig5 import fig5_supp_paper as _fsp
+            from Exemples.Study_EDNiX.analysis.fmri_fingerprints import supp_panels as _fsp
             os.makedirs(opj(fig_dir, "Paper"), exist_ok=True)
             try:
                 _fsp.f16a_proximity_matrix(D, species_of_label,
@@ -2349,7 +2349,7 @@ def make_fingerprint_figures(*, group_all, group_all_source, ba_all, ba_sel, ba_
                                     opj(fig_dir, "F20_selection_vs_variability_levels.png"),
                                     pooled=pooled_v["gap_animal"])
             if cfg.get("RUN_PAPER_FIGURES", True):
-                from Exemples.Study_EDNiX.analysis.Fig5 import fig5_supp_paper as _fsp
+                from Exemples.Study_EDNiX.analysis.fmri_fingerprints import supp_panels as _fsp
                 os.makedirs(opj(fig_dir, "Paper"), exist_ok=True)
                 try:
                     _fsp.f20_variability_levels(vt, vdraws, species_of_label,

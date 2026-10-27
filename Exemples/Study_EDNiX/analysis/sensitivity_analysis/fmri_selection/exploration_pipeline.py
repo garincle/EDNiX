@@ -90,12 +90,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_analysis as fa   # pure numpy/pandas/matplotlib
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.profile_stats as fa   # pure numpy/pandas/matplotlib
 from Statistics.Group_fMRI.run_selection import units as fu      # unit aggregation + step-1 figure
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_phylo as fp      # Mantel / Blomberg K / PGLS
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_fingerprints as ff  # F6ab, fingerprints, F15-F18
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_paper as fpp         # panels of Figures 5 and 6
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_supp_paper as fsp    # print-size panels, Figs 4-5 / Supp 7-11
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.phylo as fp      # Mantel / Blomberg K / PGLS
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.fingerprints as ff  # F6ab, fingerprints, F15-F18
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.paper_panels as fpp         # panels of Figures 5 and 6
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.supp_panels as fsp    # print-size panels, Figs 4-5 / Supp 7-11
 from Statistics.Group_fMRI.run_selection.selection import (  # part 1, moved verbatim 2026-10-27
     CONFIG,
     FIGURE_KEYS,

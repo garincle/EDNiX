@@ -33,7 +33,10 @@ if which == "old":
     from Exemples.Study_EDNiX.analysis.Fig5 import SBA_Region_Profile_Index as sri
 else:
     from Statistics.Group_fMRI.run_selection import profiles as sri
-from Exemples.Study_EDNiX.analysis.Fig5 import fig5_pipeline as pipe
+try:
+    from Exemples.Study_EDNiX.analysis.sensitivity_analysis.fmri_selection import exploration_pipeline as pipe
+except ImportError:                        # checkouts before 2026-10-27
+    from Exemples.Study_EDNiX.analysis.Fig5 import fig5_pipeline as pipe
 
 REGIONS = ["prefrontal_cortex_(pfc)", "motor_and_premotor", "somatosensory_cortex",
            "posterior_parietal_cortex", "visual_striate_cortex", "extrastriate_cortex",
