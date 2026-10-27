@@ -34,8 +34,11 @@ Figures 4, 5 and Supp. 7-11 only assemble panels (the "Fig5" pipeline and its pa
 - `paper_data.py` -- datasets, paths, loading with cache, one value per subject, bilateral values,
   robust outliers.
 - `ednix_bids_tools.py`, `EDNiX_figures.py`, `_0_extract_data_for_analysis.py` -- engines (unchanged).
-- `Fig5/` -- fMRI selection / fingerprint pipeline (`Launcher_Fig5.py`), group seed maps
-  (`SBA_group_maps.py`), paper panels (`fig5_supp_paper.py`).
+- `Statistics/Group_fMRI/run_selection/` (repository root) -- the run selection itself (AFNI
+  group maps, consensus selection, `07_state`), standalone: `launcher.py`, `config_ednix.py`,
+  `compare_states.py`.
+- `Fig5/` -- statistics and figures from the saved selection (`Launcher_Fig5.py`,
+  `RUN_PART='figures'`), paper panels (`fig5_supp_paper.py`).
 
 ## Not in the paper
 

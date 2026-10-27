@@ -375,7 +375,7 @@ def plot_species_profiles_from_afni(afni_profiles, common_base_names,
     profile" directly.
     """
     if analysis_fa is None:
-        import fig5_analysis as analysis_fa
+        from Statistics.Group_fMRI.run_selection import consensus as analysis_fa
     fa = analysis_fa
 
     # group_by="species" (default): the BIDS of one species are collapsed
