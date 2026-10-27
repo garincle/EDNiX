@@ -726,8 +726,8 @@ def fig5c_fingerprint(out, f1_all, f1_sel, common, sol, value_col, norm, region_
                 "et al. 2018 eLife 7:e35237): one line per species (median of its datasets), "
                 "black = consensus (median across species). Left: every run (input of F1); "
                 f"right: final-round selection (round {final_round}, input of F1b). "
-                f"{fa._norm_label(norm)}{value_col}; regions ordered by the all-runs consensus "
-                "(clockwise from the top); dotted ring = 0; grey label with * = region not used "
+                f"{fa._norm_label(norm)}{value_col}; regions grouped by lobe as in Figure 1 "
+                "(counter-clockwise from the top; rim = lobe colour); dotted ring = 0; grey label with * = region not used "
                 "by the selection score (invariance filter, 02_selection/region_invariance.xlsx).",
                 "Mean Pearson r between all pairs of species profiles, against 10000 "
                 "permutations of the region labels within each species (one-sided).",
@@ -743,7 +743,8 @@ def fig5c_fingerprint(out, f1_all, f1_sel, common, sol, value_col, norm, region_
                 legend=("5c | Connectivity fingerprints of the retrosplenial seed. Polar plot of "
                         "the regional profile of each species (median of its datasets; "
                         f"{_value_txt(value_col, norm)}) over the common "
-                        "regions, ordered clockwise from the top by the all-runs consensus; "
+                        "regions, grouped by lobe as in Figure 1 (counter-clockwise from the top; "
+                        "rim, lobe colour); "
                         "black, consensus (median across species); dotted ring, 0; * region not "
                         "used by the selection score. Left, every run; right, the runs kept by "
                         f"the final selection round (round {final_round}). Above each panel, "
@@ -866,7 +867,7 @@ def fig6b_fingerprint_grid(out, fingerprints, sol, common, region_mask, divergen
                 "Both curves z-scored over the common regions, so the mean squared gap between "
                 "them equals 2 x (1 - r). Shading marks the regions where the dataset EXCEEDS "
                 "its reference; where it falls below, the gap is left unshaded. "
-                "Region order (clockwise from the top) as in Figure 5c: "
+                "Region order (counter-clockwise from the top, by lobe) as in Figure 5c: "
                 + ", ".join(labels) + "; * = not used by the selection score.",
                 "Descriptive (no test).",
                 "See 03_group_maps/fingerprint_tables.xlsx (distances_all) for the values.",
@@ -879,7 +880,7 @@ def fig6b_fingerprint_grid(out, fingerprints, sol, common, region_mask, divergen
                         "between them is 2 x (1 - r)), ordered from the most to the least "
                         "similar; r, Pearson r of Figure 6a; shading, regions where the dataset "
                         "exceeds its reference. Regions in the order of Figure 5c, where they are "
-                        "labelled (clockwise from the top)."))
+                        "labelled (counter-clockwise from the top; rim, lobe colour)."))
     return True
 
 

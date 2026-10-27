@@ -47,6 +47,7 @@ from matplotlib.lines import Line2D
 from scipy import stats as st
 
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_analysis as fa
+import Plotting.Plot_interspecies_regional_profiles as PIRP   # radar layout shared with PET / Fig XX
 
 opj = os.path.join
 opb = os.path.basename
@@ -652,20 +653,20 @@ def plot_f6_two_references(dist_df, states, out_png, source, ref_species="Human"
 # Fingerprints -- polar (seed) or matrix (edges)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _spider_axes(ax, labels, rlim, excluded, show_labels=True, entries=None):
+def _spider_axes(ax, labels, rlim, excluded, show_labels=True, regions=None):
     """Polar axes with one spoke per entry, labelled with the full entry name:
     with a two-channel profile every spoke keeps its channel ('Insula P80',
     'Insula P20' -- or '+' / '−' with fraction_posneg), as in V12, so the
     two channels of every region are visible. Grey + '*' = not used by the
-    selection score. show_labels=False: no spoke label at all (6b)."""
+    selection score. show_labels=False: no spoke label at all (6b).
+    Layout of every EDNiX radar (PIRP.setup_radar, as the PET radars): first
+    spoke at the top, counter-clockwise, and, when `regions` (full entry names,
+    same order as `labels`) is given, the lobe colours of Figure 1 on the rim."""
     n = len(labels)
-    theta = np.linspace(0, 2 * np.pi, n, endpoint=False)
-    ax.set_theta_offset(np.pi / 2)
-    # first spoke at the top, counter-clockwise: same direction as the Figure 1
-    # sunburst and the PET radars (PIRP.setup_radar)
-    ax.set_theta_direction(1 if REGION_ORDER == "atlas" else -1)
+    base = None if regions is None else [_base_region(r) for r in regions]
+    theta = PIRP.setup_radar(ax, base if base is not None else [None] * n, rlim,
+                             ring=0.04 if base is not None else 0)
     ax.set_xticks(theta)
-    ax.set_ylim(*rlim)
     texts = [f"{l}*" if ex else str(l) for l, ex in zip(labels, excluded)]
     if not show_labels:
         ax.set_xticklabels([])
@@ -675,8 +676,7 @@ def _spider_axes(ax, labels, rlim, excluded, show_labels=True, entries=None):
         ax.set_xticklabels([])
         lab_r = rlim[1] + 0.05 * (rlim[1] - rlim[0])
         for th, txt, ex in zip(theta, texts, excluded):
-            phi = ((90.0 + np.degrees(th)) if REGION_ORDER == "atlas"
-                   else (90.0 - np.degrees(th))) % 360.0
+            phi = (90.0 + np.degrees(th)) % 360.0       # screen angle (counter-clockwise)
             phi = phi - 360.0 if phi > 180.0 else phi
             if -90.0 <= phi <= 90.0:
                 rot, ha = phi, "left"
@@ -685,7 +685,7 @@ def _spider_axes(ax, labels, rlim, excluded, show_labels=True, entries=None):
             ax.text(th, lab_r, txt, rotation=rot, rotation_mode="anchor", ha=ha, va="center",
                     fontsize=5, color="#999999" if ex else "#222222", clip_on=False)
     else:
-        ax.set_xticklabels(texts, fontsize=7)
+        PIRP.radar_labels(ax, theta, texts, fontsize=7, pad=2)
         for tl, ex in zip(ax.get_xticklabels(), excluded):
             tl.set_color("#999999" if ex else "#222222")
     ring = np.linspace(0, 2 * np.pi, 200)
@@ -693,7 +693,7 @@ def _spider_axes(ax, labels, rlim, excluded, show_labels=True, entries=None):
     ticks = [t for t in (-1.0, 0.0, 1.0, 2.0) if rlim[0] < t < rlim[1]]
     ax.set_yticks(ticks)
     ax.set_yticklabels([f"{t:g}" for t in ticks], fontsize=_P(6, 4.5), color="#777777")
-    ax.set_rlabel_position(180.0 / max(n, 1))          # between the first two spokes
+    ax.set_rlabel_position(np.degrees(np.pi / max(n, 1)))   # between the first two spokes
     ax.grid(color="#DDDDDD", lw=_P(0.6, 0.35))
     ax.spines["polar"].set_color("#BBBBBB")
     ax.spines["polar"].set_linewidth(_P(0.8, 0.5))
@@ -746,26 +746,23 @@ def _rlim(arrays):
     return min(lo, 0.0) - pad, hi + pad
 
 
-# Order of the spokes of every fingerprint (5c, 6b, F1, F1c, F15, Figure 5a (paper)):
-#   "atlas"     : lobes in the order of the Figure 1 sunburst, then the order of
-#                 Atlas_nomenclature inside a lobe (Atlas_nomenclature.atlas_order) --
-#                 the order of the PET / multimodal radars, so that a region sits at
-#                 the same place in every radar of the article; a ring of the lobe
-#                 colours of Figure 1 runs along the rim.
-#   "consensus" : increasing all-runs consensus value (V12-V15 order).
-# Two-channel profiles: all 'high' channels first, then all 'low' channels.
-REGION_ORDER = "atlas"
-LOBE_RING = 0.045          # thickness of the lobe-colour ring (fraction of the radial range)
+def _base_region(name):
+    """Region of a profile entry without its channel ('x|pos' -> 'x')."""
+    base, sep, ch = str(name).rpartition("|")
+    return base if sep and (ch in CHANNEL_SIGN or re.fullmatch(r"q\d{1,2}", ch)) else str(name)
 
 
 def _region_order(cons_all, common):
-    """Spoke order of the fingerprints (REGION_ORDER)."""
+    """Indices of `common` grouped by lobe in the order of the atlas of Figure 1
+    (Atlas_nomenclature.atlas_order, same order as the PET radars); with a
+    two-channel profile, all 'high' channels first then all 'low' ones, each
+    block in atlas order. Unknown names keep their input order, at the end.
+    cons_all is no longer used (the order was the ascending consensus before)."""
+    ranked = PIRP.atlas_sorted([_base_region(c) for c in common])
+    rank = {r: i for i, r in enumerate(ranked)}
+    key = np.array([rank[_base_region(c)] for c in common])
     block = np.array([fa._channel_block(c) for c in common])
-    if REGION_ORDER == "atlas":
-        from Exemples.Study_EDNiX.analysis.Fig5.fig5_supp_paper import atlas_entry_order
-        return np.asarray(atlas_entry_order(list(common)), int)
-    key = np.where(np.isfinite(cons_all), cons_all, np.inf)
-    return np.lexsort((key, block))
+    return np.lexsort((np.arange(len(common)), key, block))
 
 
 def _lobe_ring(ax, entries, theta, rlim):
@@ -844,7 +841,7 @@ def plot_fingerprints(all_profiles, sel_profiles, common, species_of_label, valu
                       notes=None):
     """F1/F1c as polar fingerprints: left = every run (the F1/F1c input),
     right = final-round selection (the F1b input). Same region order on both
-    sides (ascending all-runs consensus, as on F1).
+    sides (lobes in the order of Figure 1, as the PET radars).
     paper=True (5c): same data at print size (183 mm, 5-7 pt), panel headers
     'all runs' / 'selected' followed by notes[k] (effect and stars), legend
     without dataset counts; .png (600 dpi) + .pdf."""
@@ -871,7 +868,7 @@ def plot_fingerprints(all_profiles, sel_profiles, common, species_of_label, valu
         for k, (name, vecs) in enumerate(panels):
             ax = fig.add_subplot(1, len(panels), k + 1, projection="polar")
             theta = _spider_axes(ax, labels, rlim, excluded,
-                                 entries=[common[i] for i in order])
+                                 regions=[common[i] for i in order])
             hs = []
             for lab, vec, col, ls in _entries(vecs, species_of_label, by, divergence):
                 hs.append(_poly(ax, theta, vec[order], color=col, ls=ls, lw=_P(1.5, 0.8),
@@ -892,14 +889,14 @@ def plot_fingerprints(all_profiles, sel_profiles, common, species_of_label, valu
                        fontsize=_P(8, 6), frameon=False, bbox_to_anchor=(0.5, 0.0))
             fig.suptitle(title, fontsize=12, fontweight="bold", y=0.99)
             fig.text(0.5, 0.935, f"{fa._norm_label(norm) or 'raw '}{value_col}; dotted ring = 0; "
-                     f"regions ordered by the all-runs consensus (clockwise from the top), as "
-                     f"on F1" + ("; * = region not used for the selection (invariance filter)"
+                     f"regions grouped by lobe as in Figure 1 (counter-clockwise from the "
+                     f"top, rim = lobe colour)" + ("; * = region not used for the selection (invariance filter)"
                                  if any(excluded) else ""),
                      ha="center", fontsize=8, color="#555555")
             fig.subplots_adjust(top=0.84, bottom=0.13, left=0.06, right=0.94, wspace=0.42)
             _save(fig, out_png)
         else:
-            fig.subplots_adjust(top=0.84, bottom=0.12, left=0.08, right=0.92, wspace=0.55)
+            fig.subplots_adjust(top=0.84, bottom=0.12, left=0.08, right=0.92, wspace=0.75)
             # header and note above the spoke labels (texts are not in the axes box)
             top = max(_texts_top(ax) for ax, _, _ in axes_hdr) if axes_hdr else 1.0
             for ax, name, note in axes_hdr:
@@ -1090,10 +1087,9 @@ def plot_distance_fingerprint_grid(vecs, dist_df, species_of_label, which, commo
         shift = 1
     for k, (r, ref_name, v, ref) in enumerate(pairs):
         sp = r.species
-        kk = k + shift
-        ax = fig.add_subplot(gs[kk // ncols, kk % ncols], projection="polar")
-        theta = _spider_axes(ax, labels, rlim, excluded,
-                             show_labels=not paper, entries=[common[i] for i in order])
+        ax = fig.add_subplot(gs[k // ncols, k % ncols], projection="polar")
+        theta = _spider_axes(ax, labels, rlim, excluded, show_labels=not paper,
+                             regions=[common[i] for i in order])
         for tl in ax.get_xticklabels():
             tl.set_fontsize(5.5)
         t, a = _close(theta, v[order])
@@ -1726,7 +1722,7 @@ def plot_state_effect(df_runs, tests, grp, sel_counts, out_png, fps=None, common
             arrays = [v[o] for v in f["states"].values()] + [
                 a[o] for a in (f["kept"], f["consensus"]) if a is not None]
             theta = _spider_axes(ax, labels, _rlim(arrays), [not mask[k] for k in o],
-                                 entries=[common[k] for k in o])
+                                 regions=[common[k] for k in o])
             for tl in ax.get_xticklabels():
                 tl.set_fontsize(6)
             hs = []
@@ -2352,7 +2348,8 @@ def make_fingerprint_figures(*, group_all, group_all_source, ba_all, ba_sel, ba_
                 + (" Matrices: upper triangle intra-hemispheric edges, lower triangle "
                    "inter-hemispheric, diagonal homotopic." if matrix_mode else ""),
                 f"Profiles {fa._norm_label(norm) or 'unscaled'}{value_col}; regions ordered "
-                f"clockwise by the all-runs consensus (as on F1), same order on both sides.",
+                f"by lobe in the order of the atlas of Figure 1 (counter-clockwise from the top; "
+                f"rim = lobe colour of Figure 1), same order on both sides and on F15.",
                 "A fingerprint shows the whole pattern at once (Passingham et al. 2002; Mars "
                 "et al. 2018): species sharing the consensus shape overlap the black line; a "
                 "region where one species bulges out or caves in is where it departs. Compare "
