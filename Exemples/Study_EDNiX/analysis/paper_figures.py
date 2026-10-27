@@ -13,6 +13,7 @@ Nature widths: 89 / 120 / 183 mm; text 5-7 pt; PDF with TrueType fonts, PNG 600 
   figure4  a fingerprint over Human (F15b), b run-to-run r (5b), c distance matrix (F16a)
   figure5  seed maps, selected vs excluded runs (5a)
   figure6  multimodal profile, Human / Macaque (former Figure XX) library/multimodal_figure.py
+  supp1-3  pipeline schematics (anat, fMRI, FDG-PET + CT)  library/schematic_*.py
   supp4/5  anatomical / functional QC                     library/qc_figures.py
   supp6    human association vs primary                   library/human_assoc_primary.py
   supp7    a convergence (F1e), b consensus by dataset (F1c), c region invariance (F5)
@@ -124,6 +125,21 @@ def figure5(res, inp, paper_dir=None):
 def figure6(res, inp, paper_dir=None):
     from Exemples.Study_EDNiX.analysis.library import multimodal_figure as mmf
     return mmf.draw_figure6(res["draw"]["stats"], pst.out_base("figure6", paper_dir))
+
+
+def supp1(res, inp, paper_dir=None):
+    from Exemples.Study_EDNiX.analysis.library import schematic_anat as sa
+    return sa.make(pst.out_base("supp1", paper_dir))
+
+
+def supp2(res, inp, paper_dir=None):
+    from Exemples.Study_EDNiX.analysis.library import schematic_func as sfu
+    return sfu.make(pst.out_base("supp2", paper_dir))
+
+
+def supp3(res, inp, paper_dir=None):
+    from Exemples.Study_EDNiX.analysis.library import schematic_pet_ct as spc
+    return spc.make(pst.out_base("supp3", paper_dir))
 
 
 def supp4(res, inp, paper_dir=None):

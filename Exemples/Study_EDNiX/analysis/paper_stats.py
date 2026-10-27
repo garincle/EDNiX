@@ -15,6 +15,8 @@ lines), and returns them with what paper_figures.py needs to draw the figure.
   figure5   seed maps after selection       runs kept / not kept per dataset, colour ranges
   figure6   multimodal profile (PET, FC,    B  bratio per region, Macaque vs Human (permutation,
             morphometry), Human / Macaque      BH-FDR); C  z-scored profiles, cross-modal r
+  supp1-3   pipeline schematics (anat MRI,  no statistic
+            fMRI, FDG-PET with the CT path)
   supp4     anatomical QC                   per dataset summary of every panel
   supp5     functional QC                   per dataset summary of every panel
   supp6     human association vs primary    paired t-tests (BIDS_Park)
@@ -46,10 +48,11 @@ from Exemples.Study_EDNiX.analysis import paper_data as pdat
 
 opj = os.path.join
 
-SECTIONS = ("figure1", "figure2", "figure3", "figure4", "figure5", "figure6", "supp4", "supp5",
-            "supp6", "supp7", "supp8", "supp9", "supp10", "supp11")
+SECTIONS = ("figure1", "figure2", "figure3", "figure4", "figure5", "figure6", "supp1", "supp2",
+            "supp3", "supp4", "supp5", "supp6", "supp7", "supp8", "supp9", "supp10", "supp11")
 FOLDER = dict(figure1="Figure_1", figure2="Figure_2", figure3="Figure_3",
-              figure4="Figure_4", figure5="Figure_5", figure6="Figure_6", supp4="Supp_Fig_04",
+              figure4="Figure_4", figure5="Figure_5", figure6="Figure_6", supp1="Supp_Fig_01",
+              supp2="Supp_Fig_02", supp3="Supp_Fig_03", supp4="Supp_Fig_04",
               supp5="Supp_Fig_05", supp6="Supp_Fig_06", supp7="Supp_Fig_07",
               supp8="Supp_Fig_08", supp9="Supp_Fig_09", supp10="Supp_Fig_10",
               supp11="Supp_Fig_11")
@@ -304,6 +307,25 @@ def figure6(inp):
     lines += [f"C  {r.species} {r.modality_a}-{r.modality_b}: Spearman r = {r.spearman_r:.2f}"
               for r in st["cmc"].itertuples()]
     return dict(tables=mmf.stats_tables(st), lines=lines, draw=dict(stats=st))
+
+
+def _schematic(n, what):
+    return dict(tables={}, lines=[f"Supplementary Figure {n} has no statistic (schematic of the {what})."])
+
+
+def supp1(inp):
+    """Anatomical MRI module: drawing only."""
+    return _schematic(1, "anatomical MRI module")
+
+
+def supp2(inp):
+    """fMRI module: drawing only."""
+    return _schematic(2, "fMRI module")
+
+
+def supp3(inp):
+    """FDG-PET module with the CT path: drawing only."""
+    return _schematic(3, "FDG-PET module with the CT path")
 
 
 def _qc_section(df, metrics, unit):

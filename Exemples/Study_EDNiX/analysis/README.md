@@ -37,6 +37,9 @@ Outputs: `/scratch2/EDNiX/results/EDNiX_Figures/Paper/<Figure>/` (`paper_data.PA
 | Fig. 4 | the run selection: a fingerprint vs Human (F15b), b run-to-run r (5b), c distance matrix (F16a) | `fmri_fingerprints/` |
 | Fig. 5 | its result: seed maps, selected vs excluded runs (5a) | `fmri_fingerprints/paper_panels.py` |
 | Fig. 6 | multimodal profile, Human / Macaque (former Figure XX) | `library/multimodal_figure.py`, `library/multimodal_profiles.py` |
+| Supp. 1 | schematic: spatial registration of the anatomical module (example session of BIDS_Zhu_Garin, else synthetic) | `library/schematic_anat.py` |
+| Supp. 2 | schematic: spatial registration of the fMRI module | `library/schematic_func.py` |
+| Supp. 3 | schematic: FDG-PET registration, scenarios 1v1 / 1v2a / 1v2b with the CT path (BIDS_Tremblay, BIDS_Merida) | `library/schematic_pet_ct.py` |
 | Supp. 4 / 5 | anatomical / functional QC | `library/qc_figures.py` |
 | Supp. 6 | human association vs primary cortex (BIDS_Park) | `library/human_assoc_primary.py` |
 | Supp. 7 | a convergence (F1e), b consensus by dataset (F1c), c region invariance (F5) | `fmri_fingerprints/supp_panels.py` |
@@ -52,7 +55,7 @@ and the paper can be matched.
 
 | Folder | Content |
 |---|---|
-| `library/` | statistics and drawing engines of Figures 1-3, 6 and Supp. 4-6 (no `main`, called by the paper files) |
+| `library/` | statistics and drawing engines of Figures 1-3, 6 and Supp. 1-6, called by the paper files. `pipeline_schematic.py` is the drawing engine of Supp. 1-3 (frames from a processed session, else from a synthetic brain built on the MNI ICBM152 template of nilearn, tagged 'synthetic'); each `schematic_*.py` also runs alone with `--synthetic` / `--out DIR` |
 | `fmri_fingerprints/` | fMRI statistics and panels from the saved run selection: `context.py` (loads `07_state`), `settings.py`, `fingerprints.py`, `profile_stats.py`, `paper_panels.py`, `supp_panels.py`, `phylo.py` |
 | `validation/` | `paper_vs_pipeline.py`: checks on synthetic data that the paper numbers equal those of the former Fig5 pipeline |
 | `sensitivity_analysis/morphometry/` | `morphometry_all_levels.py`: levels 2-4, raw/log/normalised, L/R, cross-modality correlations; `outlier_rates.py`: regional outlier rates (former Supp. 6-8) |
