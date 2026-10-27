@@ -24,7 +24,7 @@ import os
 
 import pandas as pd
 
-from Exemples.Study_EDNiX.analysis.Fig5 import SBA_Region_Profile_Index as sri
+from Statistics.Group_fMRI.run_selection import profiles as sri
 from Exemples.Study_EDNiX.analysis.Fig5.fig5_pipeline import run
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_matrices as fm
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_paper as fpp
@@ -47,131 +47,26 @@ RUN_COMPARISON = False    # les runs sélectionnés par la seed et par les matri
 # contrôle (RUN_CONTROL) ; sans run de contrôle, 5e est dessinée pour le run principal seul.
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 2. CONSTRUCTION DU PROFIL DE CHAQUE CARTE SEED (change la sélection)
+# 2-3. PROFIL, DATASETS ET RÉGLAGES DE SÉLECTION
 # ═══════════════════════════════════════════════════════════════════════════
-# "percentiles"     : (défaut) 2 valeurs par région, en r : percentile haut et percentile bas
-#                     des voxels de la région (TAIL_Q = 0.2 -> P80 et P20). Ancien nom :
-#                     "quantile_posneg" (accepté).
-# "median_r"        : 1 valeur par région = médiane des voxels (analyse d'origine)
-# "fraction_posneg" : 2 valeurs par région, en % des voxels de la région, dans les TAIL_Q
-#                     supérieurs (|pos) et inférieurs (|neg) de la carte
-# Le reste de l'analyse est identique. Les matrices EDNIxCSCLR gardent median_r.
-# Chaque run seed calcule aussi F22 (fiabilité des 3 profils sur tous les runs, avant
-# sélection) : c'est le critère pour choisir PROFILE_METHOD.
-# 6d est dessinée pour CHAQUE indice régional (06_figures/Fig6/6d_<indice>) : P80, P20,
-# r médian, % dans la queue haute / basse de la carte, % de voxels r > 0 / r < 0.
-PROFILE_METHOD = "percentiles"
-TAIL_Q = 0.2             # taille des queues : 0.2 ou "quintile" (P80 / P20), 0.1 ou "decile"
-                         # (P90 / P10), 0.25 ou "quartile" (P75 / P25)
-
-# suffixe du dossier de sortie : même valeur pour 0.2 et "quintile"
-_Q_PCT = int(round(100 * float({"decile": 0.1, "deciles": 0.1, "quintile": 0.2, "quintiles": 0.2,
-                                "quartile": 0.25, "quartiles": 0.25}.get(TAIL_Q, TAIL_Q))))
-
-LIB = "/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/mammals"
-SEED = ["BA_26_29_30__retrosplenial"]
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 3. DATASETS
-# ═══════════════════════════════════════════════════════════════════════════
-# label     : nom du dataset partout (dossiers, figures, json d'équilibrage AFNI) -- le
-#             changer fait recalculer ses cartes AFNI kept / not kept
-# species   : espèce (doit exister dans SPECIES_TO_TREE_TIP de fig5_pipeline.CONFIG)
-# bids_dir  : dossier BIDS EDNiX ; label_path : fichier de labels ITK-SNAP de l'atlas
-# state     : état d'éveil. Chaîne = tout le dataset ; {"from": "task"} = d'après task-<x>
-#             du nom du BOLD ; {"from": "subject"} = d'après le nom du sujet (premier motif
-#             trouvé : MEDISO avant ISO) ; None = inconnu. Tout état autre que "awake" =
-#             anesthésié. "animal" (regex) : retirée du nom du sujet pour retrouver l'animal
-#             quand l'état est codé dans le nom (Mouse).
-# endfmri   : motif des BOLD du dataset. Non utilisé ici : Macaque Tremblay (propofol).
-STATE_HORI = {"from": "task", "map": {"restawake": "awake", "restanest": "anesthetized"}}
-STATE_MOUSE = {"from": "subject", "map": [["MEDISO", "medetomidine+isoflurane"],
-                                          ["ISO", "isoflurane"],
-                                          ["AW", "awake"]],
-               # l'animal est le suffixe : jgrAesAWc11L, jgrAesISOc11L, jgrAesMEDISOc11L
-               # = même souris c11L dans 3 états -> contraste intra-animal
-               "animal": r"^jgrAes(?:MEDISO|ISO|AW)"}
-
-BIDS_CONFIGS = [
-    dict(label="Dog", species="Dog", bids_dir="/scratch2/EDNiX/Dog/BIDS_Boch_K9",
-         label_path=f"{LIB}/carnivorans/Dog/label_code/EDNIxCSCLR_ITK.txt", seeds=SEED,
-         state="awake", endfmri="*_task-rest_*.nii.gz"),
-    dict(label="Macaque_BenHamed", species="Macaque", bids_dir="/scratch2/EDNiX/Macaque/BIDS_BenHamed",
-         label_path=f"{LIB}/primates/Macaque/label_code/EDNIxCSCLR_ITK.txt", seeds=SEED,
-         state="awake", endfmri="*_task-rest_*.nii.gz"),
-    dict(label="Macaque_ZhuGarin", species="Macaque", bids_dir="/scratch2/EDNiX/Macaque/BIDS_Zhu_Garin",
-         label_path=f"{LIB}/primates/Macaque/label_code/EDNIxCSCLR_ITK.txt", seeds=SEED,
-         state="isoflurane", endfmri="*_task-rest_*.nii.gz"),
-    dict(label="Rat", species="Rat", bids_dir="/scratch2/EDNiX/Rat/BIDS_Grandjean",
-         label_path=f"{LIB}/rodents/Rat/label_code/EDNIxCSCLR_ITK.txt", seeds=SEED,
-         state="anesthetized", endfmri="*_task-rest_bold.nii.gz"),
-    dict(label="Mouse", species="Mouse", bids_dir="/scratch2/EDNiX/Mouse/BIDS_Grandjean2",
-         label_path=f"{LIB}/rodents/Mouse/label_code/EDNIxCSCLR_ITK.txt", seeds=SEED,
-         state=STATE_MOUSE, endfmri="*_task-rest_*.nii.gz"),
-    dict(label="Marmoset_Tian", species="Marmoset", bids_dir="/scratch2/EDNiX/Marmoset/BIDS_Tian",
-         label_path=f"{LIB}/primates/Marmoset/label_code/EDNIxCSCLR_ITK.txt", seeds=SEED,
-         state="awake", endfmri="*_task-rest_run-RL*.nii.gz"),
-    dict(label="Marmoset_Hori", species="Marmoset", bids_dir="/scratch2/EDNiX/Marmoset/BIDS_Hori",
-         label_path=f"{LIB}/primates/Marmoset/label_code/EDNIxCSCLR_ITK.txt", seeds=SEED,
-         state=STATE_HORI, endfmri="*_task-rest*.nii.gz"),
-    dict(label="Mouselemur", species="Mouselemur", bids_dir="/scratch2/EDNiX/Mouselemur/BIDS_Garin",
-         label_path=f"{LIB}/primates/Mouselemur/label_code/EDNIxCSCLR_ITK.txt", seeds=SEED,
-         state="anesthetized", endfmri="*_task-rest_*.nii.gz"),
-    dict(label="Human_Castrillon", species="Human", bids_dir="/scratch2/EDNiX/Human/BIDS_Castrillon",
-         label_path=f"{LIB}/primates/Human/label_code/EDNIxCSCLR_ITK.txt", seeds=SEED,
-         state="awake", endfmri="*_task-rest_bold.nii.gz"),
-    dict(label="Human_Babayan", species="Human", bids_dir="/scratch2/EDNiX/Human/BIDS_Babayan",
-         label_path=f"{LIB}/primates/Human/label_code/EDNIxCSCLR_ITK.txt", seeds=SEED,
-         state="awake", endfmri="*_task-rest_*.nii.gz"),
-]
-for c in BIDS_CONFIGS:
-    c.update(reference_subject=None, reference_session=None, reference_run=None)
+# Une seule source : Statistics/Group_fMRI/run_selection/config_ednix.py (méthode de profil,
+# TAIL_Q, datasets, réglages de la sélection). La partie 1 se lance aussi seule depuis
+# Statistics/Group_fMRI/run_selection/launcher.py.
+from Statistics.Group_fMRI.run_selection.config_ednix import (   # noqa: E402
+    PROFILE_METHOD, TAIL_Q, _Q_PCT, LIB, SEED, STATE_HORI, STATE_MOUSE, BIDS_CONFIGS,
+    SELECTION_CONFIG, QC_EXCEL_PATH)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 4. RÉGLAGES (clés de fig5_pipeline.CONFIG ; une clé absente garde sa valeur par défaut)
 # ═══════════════════════════════════════════════════════════════════════════
 BASE_CONFIG = dict(
-    # --- sorties ---------------------------------------------------------------------
-    # Un dossier par méthode de profil : les résultats d'une méthode n'écrasent pas ceux
-    # d'une autre. Même dossier possible : les cartes AFNI déjà calculées (même suffixe,
-    # mêmes runs en entrée, vérifiés) sont réutilisées.
-    # Dossier de V12 : sa sélection est celle que redonne SEED_REGION_EXCLUDE_SELECTION=False,
-    # donc ses cartes AFNI (all-units, kept / not kept des tours 1 et final) sont réutilisées
-    # (vérifiées dans input_runs/) ; seules celles de Human_Babayan (ex-BIDS_Babayan) sont
-    # recalculées. Les figures et tables de V12 vont dans _previous_runs/<date>/.
-    OUTPUT_ROOT="/scratch2/EDNiX/results/EDNiX_Figures/Fig_5_V15_"
-                + {"median_r": "", "fraction_posneg": f"_posneg{_Q_PCT}", "percentiles": f"_quant{_Q_PCT}",
-                   "quantile_posneg": f"_quant{_Q_PCT}"}[PROFILE_METHOD],
-    PROFILE_METHOD=PROFILE_METHOD,   # voir section 2
-    TAIL_Q=TAIL_Q,                   # voir section 2
-
-    # --- données et unité d'analyse -------------------------------------------------
-    UNIT="run",              # unité de la sélection et des cartes AFNI : "run" | "session" |
-                             # "subject" (un animal = un échantillon partout)
-    ATLAS_LEVEL=3,           # niveau d'atlas EDNiX des régions (2 ou 3)
-    RUN_QC_ENABLE=False,     # QC des runs avant tout (distance MAD au médoïde du dataset)
-
-    # --- sélection ---------------------------------------------------------------------
-    N_SELECT=10,             # unités gardées par dataset à chaque tour
-    INVARIANCE_MODE="top_fraction",  # régions utilisées pour le score de sélection :
-    INVARIANCE_VALUE=0.8,    # les 80 % les plus invariantes entre espèces (1.0 = toutes)
-    SIMILARITY="correlation",  # score = r de Pearson entre le profil et la cible
-    ZSCORE="scale",          # normalisation des profils : "scale" (RMS, signe gardé), True
-                             # (z-score) ou False (brut)
-    LEAVE_ONE_OUT=True,      # la cible d'un dataset exclut toute son espèce (pas de circularité)
-    RUN_ROUND2_SELECTION=True,     # tour 2 : chaque dataset reclassé contre ses propres gardés
-    RUN_ITERATIVE_SELECTION=True,  # tours 3..N : cible inter-espèces reconstruite des gardés
-    N_ITERATIVE_ROUNDS=10,         # numéro du DERNIER tour (sélection finale)
-    SEED_REGION_EXCLUDE="auto",    # région de l'atlas qui contient le seed (sa valeur reflète
-                                   # l'autocorrélation du seed) : "auto" = trouvée dans
-                                   # l'atlas ; liste de noms ; None = aucune
-    SEED_REGION_EXCLUDE_SELECTION=False,  # False : gardée dans la sélection (= sélection V12)
-    SEED_REGION_EXCLUDE_ANALYSES=True,    # True : retirée de toutes les analyses et figures
+    SELECTION_CONFIG,   # sorties, profil, unité, sélection, cartes AFNI : config_ednix.py
+    # Réglages des figures (partie 2) ci-dessous.
 
     # --- phylogénie : F6 seulement (F6 d'origine + F6ab) ------------------------------
     PHYLOGENY_USE_FINAL_ROUND=True,   # (figures) cartes sélectionnées ; la version sans
         # sélection est dans 5d / F17 et fingerprint_tables.xlsx
-    TREE_PATH="/scratch2/EDNiX/Liste des espèces.nwk",  # (figures) arbre daté (Newick)
+    # TREE_PATH (arbre daté, Newick) : config_ednix.SELECTION_CONFIG
     RUN_MULTILEVEL_F6=False,          # (figures) F6 aux autres niveaux d'atlas
     RUN_PHYLO_COMPARATIVE=True,      # (figures) Mantel / K de Blomberg / PGLS (F11-F13)
 
@@ -206,12 +101,6 @@ BASE_CONFIG = dict(
     # --- analyses complémentaires ----------------------------------------------------
     RUN_DISTANCE_TO_REF=True,  # (figures) F8 / F8b / 6c : r de chaque run avec la carte
         # gardée et avec le critère de sélection, par état d'éveil
-
-    # --- cartes AFNI (partie 1) --------------------------------------------------------
-    OVERWRITE_MAPS=True,    # False : une carte déjà calculée avec exactement les mêmes runs
-                             # est réutilisée (vérifié dans input_runs/) ; True : recalcul
-    MAP_TAG=None,            # None = suffixe unique dérivé de OUTPUT_ROOT
-    RENDER_SURFACE=True,     # rendus wb_command des cartes de groupe (5a, S5a)
 )
 
 # Même analyse sur les matrices : pas de carte AFNI, rendu matriciel des fingerprints.
@@ -244,7 +133,7 @@ CONTROL_CONFIG = dict(
 # ═══════════════════════════════════════════════════════════════════════════
 # 5. QC EXTERNE (tSNR, FD, ... par run ; PGLS et validation externe de la sélection)
 # ═══════════════════════════════════════════════════════════════════════════
-QC_EXCEL_PATH = "/scratch2/EDNiX/results/EDNiX_Figures/Suppl_Figure_4-5-6_QC/qc_raw_per_individual.xlsx"
+# QC_EXCEL_PATH : config_ednix.py
 df_qc_by_label = {}
 if RUN_PART != "figures":           # la partie 2 seule relit la table QC de 07_state
     df_qc_all = pd.read_excel(QC_EXCEL_PATH, dtype={"subject": str, "session": str, "run": str})

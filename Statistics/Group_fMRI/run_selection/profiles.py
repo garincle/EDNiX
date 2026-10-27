@@ -55,18 +55,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 # ── Local modules ────────────────────────────────────────────────────────────
-try:
-    from Exemples.Study_EDNiX.analysis.Fig5 import SBA_group_maps as fig5
-    from Exemples.Study_EDNiX.analysis.Fig5 import _Group_anal_Outlier_QC as qc
-except ImportError:
-    try:
-        _this_dir = os.path.dirname(os.path.abspath(__file__))
-    except NameError:
-        _this_dir = os.getcwd()
-    if _this_dir not in sys.path:
-        sys.path.insert(0, _this_dir)
-    import SBA_group_maps as fig5
-    import _Group_anal_Outlier_QC as qc
+from Statistics.Group_fMRI.run_selection import group_maps as fig5
+from Statistics.Group_fMRI.run_selection import outlier_qc as qc
 
 try:
     from Exemples.Study_EDNiX.analysis.ednix_bids_tools import parse_label_file
