@@ -13,6 +13,9 @@ All paper figures are written to `/scratch2/EDNiX/results/EDNiX_Figures/Paper/<F
 | Fig. 3 | `Figure_3_longitudinal.py` | BIDS_Zhu_Garin (macaque), BIDS_Park (human) |
 | Fig. 4 | `Figure_4_seed_maps.py` | panel 5a of the Fig5 pipeline (seed maps) |
 | Fig. 5 | `Figure_5_fingerprints.py` | panels of the Fig5 pipeline (F15b, 5b, F16a) |
+| Supp. 1 | `Supplementary/Supp_Fig_01_anat_pipeline.py` | schematic: spatial registration of the anatomical module (example session of BIDS_Zhu_Garin, else synthetic) |
+| Supp. 2 | `Supplementary/Supp_Fig_02_func_pipeline.py` | schematic: spatial registration of the fMRI module |
+| Supp. 3 | `Supplementary/Supp_Fig_03_pet_ct_pipeline.py` | schematic: FDG-PET registration, scenarios 1v1 / 1v2a / 1v2b with the CT path (BIDS_Tremblay, BIDS_Merida) |
 | Supp. 4 | `Supplementary/Supp_Fig_04_anat_QC.py` | anat QC |
 | Supp. 5 | `Supplementary/Supp_Fig_05_func_QC.py` | func QC |
 | Supp. 6-8 | `Supplementary/Supp_Fig_06_08_outliers.py` | outlier rates (surface, volume, thickness), level 3 |
@@ -32,6 +35,9 @@ Figures 4, 5 and Supp. 10-14 only assemble panels (the "Fig5" pipeline and its p
 
 - `paper_style.py` -- colours (species, dataset markers, lobes), species order, region order
   (atlas / Figure 1 sunburst), Nature sizes, panel letters, `compose_images`.
+- `Supplementary/pipeline_schematic.py` -- drawing engine of Supp. 1-3 (space bands, step cards, frames
+  from a processed session or from a synthetic brain built on the MNI ICBM152 template of nilearn;
+  synthetic frames are tagged 'synthetic'). `--synthetic` forces the illustration, `--out DIR` changes the folder.
 - `paper_data.py` -- datasets, paths, loading with cache, one value per subject, bilateral values,
   robust outliers.
 - `ednix_bids_tools.py`, `EDNiX_figures.py`, `_0_extract_data_for_analysis.py` -- engines (unchanged).
