@@ -1,6 +1,8 @@
-# Figures 5 et 6 — dossier `Fig5/`
+# Analyse exploratoire des seed maps (ancien dossier `Fig5/`)
 
-Point d'entrée : `Launcher_Fig5.py`. Chaque option y est décrite ; les valeurs par défaut et leur explication détaillée sont dans `fig5_pipeline.CONFIG`.
+Point d'entrée : `Launcher_exploration.py` (ancien `Launcher_exploration.py`). Chaque option y est décrite ; les valeurs par défaut et leur explication détaillée sont dans `exploration_pipeline.CONFIG`.
+
+Hors papier. Le papier (Figures 4-5, Supp. 7-11) est produit par `analysis/run_paper.py` (`paper_stats.py` puis `paper_figures.py`), à partir de la sélection de `Statistics/Group_fMRI/run_selection/` ; mêmes fonctions et mêmes nombres que ce pipeline (vérifié : `analysis/validation/paper_vs_pipeline.py`). Les fonctions d'analyse et de dessin sont dans `analysis/fmri_fingerprints/` (`profile_stats.py` = ancien `../../fmri_fingerprints/profile_stats.py`, `fingerprints.py` = `../../fmri_fingerprints/fingerprints.py`, `paper_panels.py` = `../../fmri_fingerprints/paper_panels.py`, `supp_panels.py` = `fig5_supp_paper.py`, `phylo.py` = `fig5_phylo.py`) ; la sélection elle-même (partie 1) dans `Statistics/Group_fMRI/run_selection/`.
 
 ## Deux parties : sélection, puis figures (`RUN_PART`)
 
@@ -10,7 +12,7 @@ Point d'entrée : `Launcher_Fig5.py`. Chaque option y est décrite ; les valeurs
 | `"selection"` | **partie 1** : profils de tous les runs, QC, cartes AFNI all-units, régions communes et région du seed, indices régionaux de chaque run (6d), table F22, tours de sélection, cartes AFNI kept / not kept, jpg, rendus de surface (5a), profils de toutes les cartes de groupe. Finit par `07_state/selection_state.pkl` (+ `selection_state.txt` lisible : datasets, régions, runs gardés, réglages de sélection) |
 | `"figures"` | **partie 2** seule : toutes les statistiques et figures, relues depuis `07_state/` — pas d'AFNI, pas de NIfTI (sauf `RUN_MULTILEVEL_F6`, désactivé). Relançable autant de fois qu'on veut |
 
-- Seules les clés de `fig5_pipeline.FIGURE_KEYS` peuvent changer entre les deux parties (`FIG6D`, `WITHIN_ACROSS_TEST`, `SURFACE_ZOOM`, `SURFACE_DATASETS_PER_ROW`, `REFERENCE_SPECIES`, `PHYLOGENY_USE_FINAL_ROUND`, `TREE_PATH`, `BRAIN_MASS_XLSX`, `RUN_DISTANCE_TO_REF`, …). Si une clé de sélection a une autre valeur (`N_SELECT`, `PROFILE_METHOD`, `TAIL_Q`, `SEED`, …), la partie 2 refuse de tourner et liste les clés en cause.
+- Seules les clés de `exploration_pipeline.FIGURE_KEYS` peuvent changer entre les deux parties (`FIG6D`, `WITHIN_ACROSS_TEST`, `SURFACE_ZOOM`, `SURFACE_DATASETS_PER_ROW`, `REFERENCE_SPECIES`, `PHYLOGENY_USE_FINAL_ROUND`, `TREE_PATH`, `BRAIN_MASS_XLSX`, `RUN_DISTANCE_TO_REF`, …). Si une clé de sélection a une autre valeur (`N_SELECT`, `PROFILE_METHOD`, `TAIL_Q`, `SEED`, …), la partie 2 refuse de tourner et liste les clés en cause.
 - Une partie 1 déplace l'ancien `07_state/` dans `_previous_runs/` dès le départ : une partie 1 interrompue ne laisse jamais une ancienne sélection à la partie 2.
 - Une partie 2 seule ne déplace que `06_figures/` (et son log `00_log_figures.txt`).
 - Les runs de contrôle et de matrices suivent `RUN_PART` (chacun a son `07_state/`).
@@ -84,14 +86,13 @@ La région du niveau `ATLAS_LEVEL` qui contient le seed a une valeur dominée pa
 
 | fichier | rôle |
 |---|---|
-| `Launcher_Fig5.py` | réglages et lancement (toutes les options décrites) |
-| `fig5_pipeline.py` | `run(..., part=)`, `CONFIG`, `FIGURE_KEYS` ; `_run_selection` (partie 1), `_run_figures` (partie 2), `save_state` / `load_state`, `Methods_article.txt` |
-| `SBA_Region_Profile_Index.py` | profils régionaux ; `set_profile_method`, `to_tail_profile`, `to_quantile_profile`, `region_indices` |
-| `fig5_paper.py` | panneaux 5a–6d, S5a, S6d, F8b par état, légendes (`Figure_legends.txt`), rangement |
-| `fig5_fingerprints.py` | F6ab, fingerprints, F15–F18, F20, F22, F8b par état ; mode `paper=True` à la taille d'impression |
-| `fig5_analysis.py` | sélection, F2 / F2b (5b), style d'impression partagé (`paper_style`, `stars`, `bracket`, `repel_labels`, `save_paper`) |
-| `fig5_matrices.py` | adaptateur matrices, F19, F21 |
-| `tests/` | tests unitaires et de bout en bout (`python -m pytest -q tests` depuis `Fig5/`) |
+| `Launcher_exploration.py` | réglages et lancement (toutes les options décrites) |
+| `exploration_pipeline.py` | `run(..., part=)`, `CONFIG`, `FIGURE_KEYS` ; `_run_selection` (partie 1), `_run_figures` (partie 2), `save_state` / `load_state`, `Methods_article.txt` |
+| `Statistics/Group_fMRI/run_selection/profiles.py` | profils régionaux (module run_selection) ; `set_profile_method`, `to_tail_profile`, `to_quantile_profile`, `region_indices` |
+| `../../fmri_fingerprints/paper_panels.py` | panneaux 5a–6d, S5a, S6d, F8b par état, légendes (`Figure_legends.txt`), rangement |
+| `../../fmri_fingerprints/fingerprints.py` | F6ab, fingerprints, F15–F18, F20, F22, F8b par état ; mode `paper=True` à la taille d'impression |
+| `../../fmri_fingerprints/profile_stats.py` | sélection, F2 / F2b (5b), style d'impression partagé (`paper_style`, `stars`, `bracket`, `repel_labels`, `save_paper`) |
+| `matrices.py` | adaptateur matrices, F19, F21 |
 
 ## États d'éveil (`BIDS_CONFIGS[...]["state"]`)
 

@@ -1,5 +1,5 @@
 """
-Figure XX -- Multimodal, multi-species imaging approaches to build an intersectional brain function profile.
+Figure 6 -- Multimodal, multi-species imaging approaches to build an intersectional brain function profile.
 
  A  surface maps of the group-mean brain ratio of FDG uptake (bratio), human left, macaque right, same colour
     scale (Statistics/Group_PET: pet_group.run_group_mean + pet_surface.render_pet_surfaces, ribbon projection);
@@ -11,9 +11,11 @@ Regions (B, C) grouped by lobe in the order of the atlas sunburst of Figure 1 (A
 radars counter-clockwise from the top as the sunburst, lobe colours of Figure 1 on the rim and under the bars.
 
 Data, units and level conventions: multimodal_profiles.py. Colours of the species: those of the article figures
-(Figure_2_anat.py, Supp_Figure_4-6_QC.py); colours of the modalities: Okabe-Ito.
-Outputs in OUT_DIR: Figure_XX_multimodal.png/.svg/.pdf, Figure_XX_multimodal.txt (legend),
-Figure_XX_multimodal_data.xlsx (every table behind the panels).
+(paper_style.py); colours of the modalities: Okabe-Ito.
+  figure6_stats()        every table and test of B and C (paper_stats.figure6)
+  draw_figure6()         panel A renders + the figure + its legend (paper_figures.figure6)
+Former multimodal_PET/Figure_XX_multimodal.py (Figure XX, now Figure 6, Clément 2026-10-27):
+main() split into these two functions, computations unchanged.
 """
 import os
 import sys
@@ -31,15 +33,15 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from Exemples.Study_EDNiX.analysis.multimodal_PET import multimodal_profiles as MP
+from Exemples.Study_EDNiX.analysis.library import multimodal_profiles as MP
 from Exemples.Study_EDNiX.analysis.ednix_bids_tools import PAPER_RC
 from Plotting import Plot_interspecies_regional_profiles as PIRP
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════ CONFIG
 ATLAS_LIB = opj(MAIN_PATH, 'Atlases_library')
 ATLAS = 'EDNIxCSCLR'
-LEVEL = 3                                   # hierarchy level (1-4, 1-based) of the Figure 5 connectivity fingerprints
-                                            # (Launcher_Fig5 ATLAS_LEVEL=3) = volume 2 of the 4D atlases, the FC
+LEVEL = 3                                   # hierarchy level (1-4, 1-based) of the Figure 4 connectivity fingerprints
+                                            # (run_selection ATLAS_LEVEL=3) = volume 2 of the 4D atlases, the FC
                                             # matrices <atlas>_2_run_* of Figure_2_anat (CORR_ATLAS_LEVEL=2, 0-based)
 REGIONS = None                              # None: every cortical region of LEVEL present in all modalities and
                                             # species (fingerprint names = label base names); or a list of names
@@ -263,7 +265,7 @@ def legend_text(prof_b, stats_b, prof_c, regions_c, rng, cmc):
     nc = {sp: {m: len(v) for m, v in prof_c[sp].items()} for sp in SPECIES}
     sig = stats_b[stats_b.q_fdr < ALPHA]
     txt = (
-        f'Figure XX | Multimodal, multi-species imaging approaches to build an intersectional brain function '
+        f'Figure 6 | Multimodal, multi-species imaging approaches to build an intersectional brain function '
         f'profile. (A) Group-mean [18F]FDG brain ratio (bratio: regional activity / mean activity of the brain, '
         f'proportional scaling) projected on the inflated cortical surface of each species (ribbon-constrained '
         f'mapping), same colour scale for both species ({rng[0]:.2f}-{rng[1]:.2f}); '
@@ -292,8 +294,9 @@ def legend_text(prof_b, stats_b, prof_c, regions_c, rng, cmc):
     return txt
 
 
-def main():
-    os.makedirs(OUT_DIR, exist_ok=True)
+def figure6_stats():
+    """Tables of every modality, regions, panel B (bratio per subject and region, species test, region
+    coverage) and panel C (z-scored multimodal profiles, cross-modal Spearman r)."""
     cfg = dict(SOURCES=SOURCES, ATLAS=ATLAS, LEVEL=LEVEL, ATLAS_LIB=ATLAS_LIB, DESC=DESC, FIT_KIND=FIT_KIND,
                MIN_VOXELS=MIN_VOXELS)
     tables = MP.collect_modalities(cfg)
@@ -301,25 +304,46 @@ def main():
     prof_b, stats_b, cov_b = metabolism_stats(tables['metabolism'], regions)
     prof_c, regions_c = MP.multimodal_profiles(tables, regions, SPECIES)
     cmc = MP.cross_modal_correlations(prof_c)
+    return dict(tables=tables, regions=regions, prof_b=prof_b, stats_b=stats_b, cov_b=cov_b,
+                prof_c=prof_c, regions_c=regions_c, cmc=cmc)
+
+
+def stats_tables(st):
+    """{sheet: DataFrame}: every table behind the panels (former Figure_XX_multimodal_data.xlsx)."""
+    out = {f'{k}_subjects': v for k, v in st['tables'].items()}
+    out.update(B_bratio=st['prof_b'].reset_index(), B_stats=st['stats_b'], B_region_coverage=st['cov_b'])
+    for sp in SPECIES:
+        for m, v in st['prof_c'][sp].items():
+            out[f'C_{sp}_{m}'[:31]] = v.reset_index()
+    out['C_cross_modal_r'] = st['cmc']
+    return out
+
+
+def draw_figure6(st, pre):
+    """Panel A (group-mean surfaces, rendered here), the figure (<pre>.png/.svg/.pdf) and its legend
+    (<pre>_legend.txt, which needs the colour range of A)."""
+    os.makedirs(os.path.dirname(pre), exist_ok=True)
     pngs, rng = surface_pngs()
-    fig = build_figure(pngs, rng, prof_b, stats_b, prof_c, regions_c)
-    pre = opj(OUT_DIR, 'Figure_XX_multimodal')
+    fig = build_figure(pngs, rng, st['prof_b'], st['stats_b'], st['prof_c'], st['regions_c'])
     for ext in ('png', 'svg', 'pdf'):
         fig.savefig(f'{pre}.{ext}', dpi=300 if ext == 'png' else None, bbox_inches='tight')
     plt.close(fig)
-    with open(pre + '.txt', 'w') as f:
-        f.write(textwrap.fill(legend_text(prof_b, stats_b, prof_c, regions_c, rng, cmc), 110) + '\n')
-    with pd.ExcelWriter(pre + '_data.xlsx') as xw:
-        for k, v in tables.items():
-            v.to_excel(xw, sheet_name=f'{k}_subjects', index=False)
-        prof_b.reset_index().to_excel(xw, sheet_name='B_bratio', index=False)
-        stats_b.to_excel(xw, sheet_name='B_stats', index=False)
-        cov_b.to_excel(xw, sheet_name='B_region_coverage', index=False)
-        for sp in SPECIES:
-            for m, v in prof_c[sp].items():
-                v.reset_index().to_excel(xw, sheet_name=f'C_{sp}_{m}'[:31], index=False)
-        cmc.to_excel(xw, sheet_name='C_cross_modal_r', index=False)
+    with open(pre + '_legend.txt', 'w') as f:
+        f.write(textwrap.fill(legend_text(st['prof_b'], st['stats_b'], st['prof_c'], st['regions_c'], rng,
+                                          st['cmc']), 110) + '\n')
     print(f'  [FIG] {pre}.png')
+    return pre
+
+
+def main():
+    """Stand-alone run into OUT_DIR (the paper goes through run_paper.py)."""
+    os.makedirs(OUT_DIR, exist_ok=True)
+    st = figure6_stats()
+    pre = opj(OUT_DIR, 'Figure_6_multimodal')
+    draw_figure6(st, pre)
+    with pd.ExcelWriter(pre + '_data.xlsx') as xw:
+        for k, v in stats_tables(st).items():
+            v.to_excel(xw, sheet_name=k, index=False)
 
 
 if __name__ == '__main__':

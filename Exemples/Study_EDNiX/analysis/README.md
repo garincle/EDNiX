@@ -1,52 +1,71 @@
 # EDNiX paper -- analysis scripts
 
-One script per paper figure at this level; everything else is filed by category.
-All paper figures are written to `/scratch2/EDNiX/results/EDNiX_Figures/Paper/<Figure>/`
-(`paper_data.PAPER_DIR`), as PDF (fonts embedded) + PNG 600 dpi, Nature widths (89 / 120 / 183 mm).
+This folder holds the paper and nothing else at its top level: statistics, figures and one
+runner. Every other analysis is filed by category below.
 
-## Paper figures
+    python run_paper.py                    # statistics + figures, every figure
+    python run_paper.py figure4 supp9      # some figures
+    python run_paper.py --stats-only       # numbers only
+    python run_paper.py --refresh          # re-read the EDNiX outputs (no cache)
 
-| Figure | Script | Input |
+Before Figures 4-5 / Supp. 7-11: the run selection must exist
+(`python Statistics/Group_fMRI/run_selection/launcher.py` from the repository root; it writes
+`<OUTPUT_ROOT>/07_state`, read by the paper, `OUTPUT_ROOT` from `config_ednix.SELECTION_CONFIG`).
+
+Outputs: `/scratch2/EDNiX/results/EDNiX_Figures/Paper/<Figure>/` (`paper_data.PAPER_DIR`):
+`<Figure>.pdf|png|svg` (fonts embedded, PNG 600 dpi, Nature widths 89 / 120 / 183 mm),
+`<Figure>_stats.xlsx` + `<Figure>_stats.txt` (every number quoted in the text and legend),
+`panels/` (single panels of multi-panel figures).
+
+## Paper files
+
+| File | Role |
+|---|---|
+| `run_paper.py` | runner: `paper_stats.run` then `paper_figures.run` |
+| `paper_stats.py` | every statistic, one function per figure, in figure order (`SECTIONS`); `Inputs` = lazy, cached inputs |
+| `paper_figures.py` | every figure, drawn from the results of `paper_stats` (nothing computed there) |
+| `paper_style.py` | colours (species, one fixed colour per dataset, lobes), species / region order, Nature sizes, panel letters, `compose_images` |
+| `paper_data.py` | datasets, paths, loading with cache, one value per subject, bilateral values |
+
+## Figure -> functions
+
+| Figure | Content | Statistics / drawing engine |
 |---|---|---|
-| Fig. 1 | `Figure_1_atlases.py` | atlases |
-| Fig. 2 | `Figure_2_morphometry.py` | morphometry, atlas level 2, bilateral, log10 |
-| Fig. 3 | `Figure_3_longitudinal.py` | BIDS_Zhu_Garin (macaque), BIDS_Park (human) |
-| Fig. 4 | `Figure_4_fingerprints.py` | panels of the Fig5 pipeline (F15b, 5b, F16a): the selection |
-| Fig. 5 | `Figure_5_seed_maps.py` | panel 5a of the Fig5 pipeline (seed maps): its result |
-| Supp. 4 | `Supplementary/Supp_Fig_04_anat_QC.py` | anat QC |
-| Supp. 5 | `Supplementary/Supp_Fig_05_func_QC.py` | func QC |
-| Supp. 6 | `Supplementary/Supp_Fig_06_human_assoc_primary.py` | BIDS_Park |
-| Supp. 7 | `Supplementary/Supp_Fig_07_selection.py` | F1e, F1c, F5 |
-| Supp. 8 | `Supplementary/Supp_Fig_08_scores_arousal.py` | F3, 6c |
-| Supp. 9 | `Supplementary/Supp_Fig_09_dataset_proximity.py` | F16b |
-| Supp. 10 | `Supplementary/Supp_Fig_10_variability_levels.py` | F20 |
-| Supp. 11 | `Supplementary/Supp_Fig_11_run_distance_qc.py` | F9, F10 |
+| Fig. 1 | atlas hierarchy (sunburst) | `library/atlas_sunburst.py` |
+| Fig. 2 | cortical morphometry, atlas level 2, bilateral, log10 | `library/morphometry_figure.py` |
+| Fig. 3 | longitudinal morphometry (BIDS_Zhu_Garin, BIDS_Park) | `library/longitudinal.py` |
+| Fig. 4 | the run selection: a fingerprint vs Human (F15b), b run-to-run r (5b), c distance matrix (F16a) | `fmri_fingerprints/` |
+| Fig. 5 | its result: seed maps, selected vs excluded runs (5a) | `fmri_fingerprints/paper_panels.py` |
+| Fig. 6 | multimodal profile, Human / Macaque (former Figure XX) | `library/multimodal_figure.py`, `library/multimodal_profiles.py` |
+| Supp. 4 / 5 | anatomical / functional QC | `library/qc_figures.py` |
+| Supp. 6 | human association vs primary cortex (BIDS_Park) | `library/human_assoc_primary.py` |
+| Supp. 7 | a convergence (F1e), b consensus by dataset (F1c), c region invariance (F5) | `fmri_fingerprints/supp_panels.py` |
+| Supp. 8 | a selection scores (F3), b r with the criterion by arousal state (6c) | `fmri_fingerprints/` |
+| Supp. 9 | proximity rows (F16b) | `fmri_fingerprints/supp_panels.py` |
+| Supp. 10 | selection vs variability levels (F20) | `fmri_fingerprints/` |
+| Supp. 11 | a SD of run r with the kept map (F9), b QC vs that r (F10) | `fmri_fingerprints/supp_panels.py` |
 
-Figures 4, 5 and Supp. 7-11 only assemble panels (the "Fig5" pipeline and its panel names
-5a, 5b... predate the paper numbering): run `Fig5/Launcher_Fig5.py` first
-(`RUN_PART='figures'` is enough once the matrices exist); the paper panels are written to
-`<FIG5_ROOT>/06_figures/Paper/`.
+The panel codes (F15b, 5b, ...) are those of the former Fig5 pipeline, kept so that its outputs
+and the paper can be matched.
 
-## Shared modules
-
-- `paper_style.py` -- colours (species, one fixed colour per dataset, lobes), species order, region order
-  (atlas / Figure 1 sunburst), Nature sizes, panel letters, `compose_images`.
-- `paper_data.py` -- datasets, paths, loading with cache, one value per subject, bilateral values,
-  robust outliers.
-- `ednix_bids_tools.py`, `EDNiX_figures.py`, `_0_extract_data_for_analysis.py` -- engines (unchanged).
-- `Statistics/Group_fMRI/run_selection/` (repository root) -- the run selection itself (AFNI
-  group maps, consensus selection, `07_state`), standalone: `launcher.py`, `config_ednix.py`,
-  `compare_states.py`.
-- `Fig5/` -- statistics and figures from the saved selection (`Launcher_Fig5.py`,
-  `RUN_PART='figures'`), paper panels (`fig5_supp_paper.py`).
-
-## Not in the paper
+## Folders
 
 | Folder | Content |
 |---|---|
-| `sensitivity_analysis/morphometry/` | `morphometry_all_levels.py`: levels 2-4, raw/log/normalised, L/R, cross-modality correlations (former `Figure_2_anat.py`); `outlier_rates.py`: regional outlier rates (former Supp. 6-8, removed from the paper) |
-| `sensitivity_analysis/fmri_qc/` | `qc_all_metrics.py` (former `Supp_Figure_4-6_QC.py`), `fmri_acquisition_parameters.py`, `check_fd_inputs.py` (why mean FD is missing) |
+| `library/` | statistics and drawing engines of Figures 1-3, 6 and Supp. 4-6 (no `main`, called by the paper files) |
+| `fmri_fingerprints/` | fMRI statistics and panels from the saved run selection: `context.py` (loads `07_state`), `settings.py`, `fingerprints.py`, `profile_stats.py`, `paper_panels.py`, `supp_panels.py`, `phylo.py` |
+| `validation/` | `paper_vs_pipeline.py`: checks on synthetic data that the paper numbers equal those of the former Fig5 pipeline |
+| `sensitivity_analysis/morphometry/` | `morphometry_all_levels.py`: levels 2-4, raw/log/normalised, L/R, cross-modality correlations; `outlier_rates.py`: regional outlier rates (former Supp. 6-8) |
+| `sensitivity_analysis/fmri_qc/` | `qc_all_metrics.py`, `fmri_acquisition_parameters.py`, `check_fd_inputs.py` |
 | `sensitivity_analysis/longitudinal/` | `longitudinal_all_outputs.py`: every Fig. 3 output besides the paper figure |
-| `phylo_preliminary/` | `PGLS_frontal_scaling.py` (former second half of `Figure_2_anat.py`) |
-| `multimodal_PET/` | Figure XX (multimodal radar), PET group launchers, PET inter-species profiles |
+| `sensitivity_analysis/fmri_selection/` | exploration of the run selection (every F-panel, matrices, seed vs matrix): `Launcher_exploration.py` |
+| `phylo_preliminary/` | `PGLS_frontal_scaling.py` |
+| `multimodal_PET/` | PET group launchers (CERMEP, Tremblay), PET inter-species profiles |
 | `Archives/` | former Figure 4 (network QC) and older exploratory scripts |
+
+Engines kept unchanged at this level: `ednix_bids_tools.py`, `EDNiX_figures.py`,
+`_0_extract_data_for_analysis.py`.
+
+The run selection itself (AFNI group maps, consensus selection, `07_state`) is a standalone
+module at the repository root: `Statistics/Group_fMRI/run_selection/` (`launcher.py`,
+`config_ednix.py`, `compare_states.py`).

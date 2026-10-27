@@ -1,7 +1,7 @@
 """
 paper_style.py -- one visual vocabulary for every figure of the EDNiX paper.
 
-Every paper script (Figure_*.py, Supplementary/Supp_Fig_*.py) takes its colours,
+Every paper figure (paper_figures.py, library/, fmri_fingerprints/) takes its colours,
 species order, fonts, sizes and panel letters from here, so that a species, a
 dataset or a lobe looks the same in every figure.
 

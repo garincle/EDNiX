@@ -1,5 +1,5 @@
 """
-fig5_pipeline.py
+exploration_pipeline.py
 ================
 ONE entry point for the whole Figure 5 analysis. Replaces the scattered
 run_*.py drivers: everything is controlled from the CONFIG block below,
@@ -47,7 +47,7 @@ imported back here; run(..., part=...) works as before.
 
 DEPENDS ON
 ----------
-- fig5_analysis.py   (unchanged: it works on generic profile dicts)
+- profile_stats.py   (unchanged: it works on generic profile dicts)
 - fig5_units.py      (new: the run -> subject aggregation, and the
                       step-1 figure read off the AFNI group maps)
 - SBA_Region_Profile_Index.py, patched by patch_SBA_unit_level.py
@@ -90,12 +90,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_analysis as fa   # pure numpy/pandas/matplotlib
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.profile_stats as fa   # pure numpy/pandas/matplotlib
 from Statistics.Group_fMRI.run_selection import units as fu      # unit aggregation + step-1 figure
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_phylo as fp      # Mantel / Blomberg K / PGLS
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_fingerprints as ff  # F6ab, fingerprints, F15-F18
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_paper as fpp         # panels of Figures 5 and 6
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_supp_paper as fsp    # print-size panels, Figs 4-5 / Supp 7-11
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.phylo as fp      # Mantel / Blomberg K / PGLS
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.fingerprints as ff  # F6ab, fingerprints, F15-F18
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.paper_panels as fpp         # panels of Figures 5 and 6
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.supp_panels as fsp    # print-size panels, Figs 4-5 / Supp 7-11
 from Statistics.Group_fMRI.run_selection.selection import (  # part 1, moved verbatim 2026-10-27
     CONFIG,
     FIGURE_KEYS,
@@ -133,6 +133,10 @@ from Statistics.Group_fMRI.run_selection.selection import (  # part 1, moved ver
     step3_group_maps,
     step3b_final_group_maps,
     step5_collect_surfaces)
+from Exemples.Study_EDNiX.analysis.fmri_fingerprints.context import (  # moved verbatim 2026-10-27
+    _DIVERGENCE_DEFAULT,
+    _kept_references,
+    _load_time_tree)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIG -- everything controllable lives here
@@ -412,57 +416,6 @@ def step6_multilevel_f6(sri, fa, fu, cfg, paths, bids_configs, all_units_index,
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-_DIVERGENCE_DEFAULT = dict(fa.DIVERGENCE_TIME_MYA)   # hand-entered values, at import
-
-
-def _load_time_tree(cfg, bids_configs):
-    """
-    Load the time-calibrated Newick tree (cfg["TREE_PATH"]) and make it the
-    single source of divergence times: fig5_phylo uses it for every pairwise
-    age (Mantel, K, PGLS), and fa.DIVERGENCE_TIME_MYA (F6/F7, multi-level)
-    is overwritten with the MRCA age of each species with Human.
-    """
-    # reset module state first: a tree loaded by an earlier run() in the same
-    # Python session must not leak into this one
-    fp._TREE_PAIR_AGES, fp._TREE_SOURCE = None, None
-    fa.DIVERGENCE_TIME_MYA.clear()
-    fa.DIVERGENCE_TIME_MYA.update(_DIVERGENCE_DEFAULT)
-    if not cfg["TREE_PATH"]:
-        print("  [tree] TREE_PATH=None -- using the hand-entered approximate ages "
-              "(fa.DIVERGENCE_TIME_MYA / fp.SPECIES_CLADES); not for publication")
-        return
-    if not os.path.isfile(cfg["TREE_PATH"]):
-        # "è" can be stored as one code point (NFC) or two (NFD) depending on
-        # how the file was copied: look for the same name under the other form.
-        import unicodedata
-        d, name = os.path.split(cfg["TREE_PATH"])
-        if os.path.isdir(d or "."):
-            want = unicodedata.normalize("NFC", name)
-            hit = [f for f in os.listdir(d or ".") if unicodedata.normalize("NFC", f) == want]
-            if hit:
-                print(f"  [tree] {cfg['TREE_PATH']!r} matched on disk as {hit[0]!r} "
-                      f"(different Unicode normalisation of the same name)")
-                cfg["TREE_PATH"] = os.path.join(d, hit[0])
-    if not os.path.isfile(cfg["TREE_PATH"]):
-        raise FileNotFoundError(
-            f"TREE_PATH {cfg['TREE_PATH']!r} not found. Point TREE_PATH to the "
-            f"time-calibrated Newick file, or set TREE_PATH=None to fall back to "
-            f"approximate hand-entered ages.")
-    species = sorted({c["species"] for c in bids_configs})
-    unmapped = [sp for sp in species if sp not in cfg["SPECIES_TO_TREE_TIP"]]
-    if unmapped:
-        raise KeyError(f"SPECIES_TO_TREE_TIP has no tree tip for {unmapped}")
-    mapping = {sp: cfg["SPECIES_TO_TREE_TIP"][sp] for sp in species}
-    fp.use_newick_tree(cfg["TREE_PATH"], mapping)
-    old = dict(fa.DIVERGENCE_TIME_MYA)
-    for sp in species:
-        fa.DIVERGENCE_TIME_MYA[sp] = 0.0 if sp == "Human" else fp.mrca_age("Human", sp)
-    for sp in species:
-        print(f"  [tree] {sp:11s} ({mapping[sp]}): divergence from Human = "
-              f"{fa.DIVERGENCE_TIME_MYA[sp]:7.3f} Mya (hand-entered value was "
-              f"{old.get(sp, float('nan'))})")
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # The two parts: SELECTION (part 1) and FIGURES (part 2)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -737,38 +690,6 @@ Nili H, et al. (2014) A toolbox for representational similarity analysis. PLoS C
     return path
 
 
-def _kept_references(sri, cfg, profiles_by_label, selections, selections_final, final_round):
-    """Per dataset, the reference (REFERENCE_METHOD / K_REF) of its round-1
-    kept units and of its final-round kept units -- F1a/F1b, F4, fingerprints."""
-    kept_ref_by_label, kept_ref_final_by_label = {}, {}
-    for label, profs in profiles_by_label.items():
-        kept_keys_r1 = {tuple(str(x) for x in k) for k in selections.get(label, [])}
-        kept_profs_r1 = {k: v for k, v in profs.items()
-                         if tuple(str(x) for x in k) in kept_keys_r1}
-        try:
-            if len(kept_profs_r1) >= 2:
-                kept_ref_by_label[label], _ = fa.build_reference_for_profiles(
-                    sri, kept_profs_r1, method=cfg["REFERENCE_METHOD"],
-                    k=min(cfg["K_REF"], len(kept_profs_r1)),
-                    value_col=cfg["VALUE_COL"], metric=cfg["METRIC"])
-        except Exception as e:
-            print(f"  [WARN] {label}: round-1 kept reference failed: {e}")
-        if final_round >= 2:
-            kept_keys_r2 = {tuple(str(x) for x in k)
-                            for k in selections_final.get(label, [])}
-            kept_profs_r2 = {k: v for k, v in profs.items()
-                             if tuple(str(x) for x in k) in kept_keys_r2}
-            try:
-                if len(kept_profs_r2) >= 2:
-                    kept_ref_final_by_label[label], _ = fa.build_reference_for_profiles(
-                        sri, kept_profs_r2, method=cfg["REFERENCE_METHOD"],
-                        k=min(cfg["K_REF"], len(kept_profs_r2)),
-                        value_col=cfg["VALUE_COL"], metric=cfg["METRIC"])
-            except Exception as e:
-                print(f"  [WARN] {label}: round-{final_round} kept reference failed: {e}")
-    return kept_ref_by_label, kept_ref_final_by_label
-
-
 def _f4_per_dataset(sri, cfg, fd, sel, selections, final_round, profiles_by_label, common,
                     species_profs, species_of_label, kept_ref_by_label,
                     kept_ref_final_by_label, space_note=""):
@@ -869,8 +790,8 @@ def _f4_per_dataset(sri, cfg, fd, sel, selections, final_round, profiles_by_labe
 
 
 def _paper_out(paths, name):
-    """06_figures/Paper/<name>: print-size panels laid out by analysis/Figure_4_*.py and
-    analysis/Supplementary/Supp_Fig_07-11*.py."""
+    """06_figures/Paper/<name>: print-size panels of the exploration run (the paper
+    figures themselves are drawn by analysis/paper_figures.py)."""
     d = os.path.join(paths["figures"], "Paper")
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, name)
@@ -991,7 +912,7 @@ def _run_figures(sri, st):
     phylo_kind = "afni_kept_final" if phylo_profiles is not afni_profiles else "afni_all"
     if not phylo_profiles:
         # No AFNI group map at all (RUN_ALL_UNITS_MAPS=False, e.g. the matrix
-        # analysis of fig5_matrices): fall back to the median over every unit
+        # analysis of matrices): fall back to the median over every unit
         # of each dataset -- still no selection, only a different estimator.
         phylo_profiles = {
             lab: (species_of_label.get(lab), sri.compute_group_median_profile(profs, set(profs)))
@@ -1311,7 +1232,7 @@ def _run_figures(sri, st):
                 print(f"  [SKIP] phylogeny figures: only {len(ddf_bids)} usable "
                       f"group-map profile(s), need >= 3")
 
-        # ---- F6ab, fingerprints, F15-F18 (fig5_fingerprints) ------------
+        # ---- F6ab, fingerprints, F15-F18 (fingerprints) ------------
         if cfg["RUN_FINGERPRINTS"] and phylo_profiles:
             print(f"\n{'=' * 70}\n  Fingerprints, two-reference F6, proximity, "
                   f"before/after, arousal state\n{'=' * 70}")

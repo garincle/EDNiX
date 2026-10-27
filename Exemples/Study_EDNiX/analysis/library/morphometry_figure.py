@@ -8,26 +8,20 @@ column); x = species in phylogenetic order; grey violin =
 species distribution (one value per subject, sessions averaged); points = subjects,
 one colour per dataset (paper_style.DATASET_COLORS), datasets of a species side by side.
 
-Output: <PAPER_DIR>/Figure_2/Figure_2.pdf|png + Figure_2_values.xlsx
-(this replaces figures/Figure2/lvl_2_combo_bilateral_log.png of Figure_2_anat.py;
-every other morphometry figure is in sensitivity_analysis/morphometry/).
+figure2_table: the statistics (paper_stats.figure2); plot_figure2: the drawing
+(paper_figures.figure2). Former analysis/Figure_2_morphometry.py, functions unchanged.
+Every other morphometry figure is in sensitivity_analysis/morphometry/.
 """
-import os
-import sys
-
 import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-sys.path.insert(0, '/home/cgarin/PycharmProjects/EDNiX/')
-
 from Exemples.Study_EDNiX.analysis import paper_style as ps
 from Exemples.Study_EDNiX.analysis import paper_data as pdat
 
 LEVEL = 2
-OUT = os.path.join(pdat.PAPER_DIR, 'Figure_2', 'Figure_2')
 
 
 ROW_HEIGHT_MM = 42      # per modality row: panels about as tall as wide (as lvl_2_combo)
@@ -128,13 +122,3 @@ def figure2_table(morpho, regions):
         t.insert(0, 'modality', mod)
         out.append(t)
     return pd.concat(out, ignore_index=True) if out else pd.DataFrame()
-
-
-if __name__ == "__main__":
-    regions = pdat.CORTICAL_REGIONS[LEVEL]
-    morpho = pdat.load_morphometry(level=LEVEL)
-    morpho = {m: pdat.select_regions(df, regions) if not df.empty else df
-              for m, df in morpho.items()}
-    plot_figure2(morpho, regions, OUT)
-    figure2_table(morpho, regions).to_excel(OUT + '_values.xlsx', index=False)
-    print(f"  [table] {OUT}_values.xlsx")

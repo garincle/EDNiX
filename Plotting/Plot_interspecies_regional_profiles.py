@@ -81,7 +81,7 @@ except ImportError:                         # pragma: no cover
 opj = os.path.join
 opb = os.path.basename
 
-# Okabe-Ito palette, assigned to the sorted species names exactly as fig5_analysis.SPECIES_COLORS, so that a
+# Okabe-Ito palette, assigned to the sorted species names exactly as profile_stats.SPECIES_COLORS, so that a
 # species keeps the same colour in every EDNiX figure.
 PALETTE = ["#0072B2", "#E69F00", "#009E73", "#CC79A7", "#56B4E9", "#D55E00", "#F0E442", "#000000"]
 _FIG5_SPECIES = ["Human", "Macaque", "Marmoset", "Mouselemur", "Rat", "Mouse", "Dog"]

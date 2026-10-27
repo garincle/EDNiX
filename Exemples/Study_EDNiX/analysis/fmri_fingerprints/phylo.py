@@ -1,5 +1,5 @@
 """
-fig5_phylo.py
+phylo.py
 ─────────────
 Phylogenetic comparative tests for Figure 5, replacing the 1-D
 "distance to consensus vs divergence from human" regression as the
@@ -58,7 +58,7 @@ from scipy import stats as _stats
 # Topology: (((((Human, Macaque) Catarrhini, Marmoset) Anthropoidea,
 # Mouselemur) Primates, (Rat, Mouse) Muridae) Euarchontoglires, Dog)
 # Boreoeutheria. Node ages: same provenance and caveat as
-# fig5_analysis.DIVERGENCE_TIME_MYA (hand-entered approximate TimeTree
+# profile_stats.DIVERGENCE_TIME_MYA (hand-entered approximate TimeTree
 # medians, not queried). The Rat-Mouse age (13 Mya) is the only node not
 # shared with that dict. The Spearman Mantel test depends only on the ORDER
 # of node ages; Pearson Mantel, Blomberg's K and PGLS depend on their values.
@@ -271,7 +271,7 @@ def phylo_matrices(species):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _ordered_values(profile, common, value_col):
-    """Same contract as fig5_analysis._ordered_common_values (copied so
+    """Same contract as profile_stats._ordered_common_values (copied so
     this module has no package-path dependency and can be unit-tested
     standalone)."""
     if profile is None or "base_name" not in profile.columns:
@@ -294,7 +294,7 @@ def _zscore(v):
 def _vec(prof, common, value_col, zscore):
     """zscore follows cfg["ZSCORE"]: True/"zscore", "scale" (RMS, no
     centering, sign preserved) or False/None/"none" -- same contract as
-    fig5_analysis._normalize_values."""
+    profile_stats._normalize_values."""
     v = _ordered_values(prof, common, value_col)
     if zscore is True or zscore == "zscore":
         return _zscore(v)

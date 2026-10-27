@@ -1,10 +1,17 @@
 """
-EDNiX Longitudinal — Run Script
-=================================
-Dataset-specific formatting + launch of longitudinal analysis.
+EDNiX longitudinal morphometry (Figure 3, Supplementary Figure 6)
+==================================================================
+Dataset formatting (Macaque BIDS_Zhu_Garin, Human BIDS_Park), trajectories and the
+association vs primary analysis. Former analysis/Figure_3_longitudinal.py.
 
-Edit only this file for each new dataset.
-All analysis logic lives in ednix_longitudinal_tools.py.
+  load_figure3_data()   inputs of Figure 3
+  figure3_stats()       every number of Figure 3 (paper_stats.figure3)
+  draw_figure3()        the drawing (paper_figures.figure3)
+  plot_figure3()        both + stats text (sensitivity_analysis/longitudinal)
+
+Model fits: Statistics/Group_fMRI/EDNiX_longitudinal.py. Every other longitudinal
+output (per region, % change, long report):
+sensitivity_analysis/longitudinal/longitudinal_all_outputs.py.
 
 Output structure
 ----------------
@@ -19,13 +26,11 @@ Output structure
 """
 
 import os
-import sys
 import warnings
 import pandas as pd
 import numpy as np
 from datetime import datetime
 
-sys.path.insert(0, '/home/cgarin/PycharmProjects/EDNiX/')
 from Exemples.Study_EDNiX.analysis.ednix_bids_tools import (
     collect_multi_species,
     get_atlas_label_path,
@@ -1037,29 +1042,17 @@ def _save(fig, out_path):
     return paths
 
 
-def plot_figure3(species_rows, out_dir, region='Isocortex', atlas_level=ATLAS_LEVEL,
-                 hemisphere='left', min_sessions=MIN_SESSIONS, modalities=None,
-                 assoc_species=None, primary_regions=None, association_regions=None,
-                 panel_w=3.4, panel_h=2.7, name='Figure3'):
+def figure3_stats(species_rows, region='Isocortex', atlas_level=ATLAS_LEVEL,
+                  hemisphere='left', min_sessions=MIN_SESSIONS, modalities=None,
+                  assoc_species=None, primary_regions=None, association_regions=None):
     """
-    Main Figure 3 (3 x 3, a given metric aligned in each column):
-      a–c  Human trajectories      (surface | thickness | volume)
-      d–f  Macaque trajectories
-      g–i  Association vs primary cortex, % change from baseline (assoc_species)
-    Trajectory panels: individual subjects + spline-LMM fit ± 95% CI; inset = linear
-    LME slope per year and its p. Association panels: inset = paired-test p.
-    Every other number (model, n, LRT, R²m, % change, t, dz) goes to
-    <out_dir>/Figure3_stats.txt.
-
-    species_rows : list of (species, morph_dict, age_df, age_col, row_label)
-                   (trajectory rows are drawn in this order)
-    Writes Figure3.png (300 dpi), Figure3.pdf, Figure3_stats.txt; returns the paths.
+    Every number of Figure 3, without drawing (paper_stats.figure3):
+      a–f  one trajectory fit per (species, modality): spline LMM (gamm) + linear LME
+      g–i  association vs primary % change of assoc_species + paired t-test
+    Panels lettered row by row as on the figure. Returns a dict read by draw_figure3:
+    panels (list, figure order), report (lines of Figure_3_stats.txt), text (the file),
+    table (one row per panel).
     """
-    import matplotlib.pyplot as plt
-    import matplotlib.gridspec as gridspec
-    from Statistics.Group_fMRI.EDNiX_longitudinal import draw_longitudinal
-    from Exemples.Study_EDNiX.analysis.ednix_bids_tools import PAPER_RC
-
     modalities          = FIG3_MODALITIES if modalities is None else modalities
     assoc_species       = FIG3_ASSOC_SPECIES if assoc_species is None else assoc_species
     primary_regions     = PRIMARY_REGIONS if primary_regions is None else primary_regions
@@ -1067,9 +1060,81 @@ def plot_figure3(species_rows, out_dir, region='Isocortex', atlas_level=ATLAS_LE
 
     fits = _fit_fig3_panels(species_rows, region, atlas_level, hemisphere, min_sessions, modalities)
     assoc_row = next((r for r in species_rows if r[0] == assoc_species), None)
-    ncols, nrows = len(modalities), len(species_rows) + int(assoc_row is not None)
-    report = []
+    letters = iter('abcdefghijklmnopqrstuvwxyz')
+    panels, report, rows = [], [], []
 
+    for r, (sp, morph, age_df, age_col, label) in enumerate(species_rows):
+        for c, (mod, metric_col, metric_label, col_title) in enumerate(modalities):
+            L = next(letters)
+            f = fits[(sp, mod)]
+            panels.append(dict(kind='trajectory', letter=L, row=r, col=c, species=sp,
+                               label=label, modality=mod, metric_col=metric_col,
+                               metric_label=metric_label, col_title=col_title,
+                               age_col=age_col, fit=f))
+            if f is None:
+                report.append(f"{L}  {sp} {col_title}: no data")
+                rows.append(dict(panel=L, species=sp, modality=mod, kind='trajectory'))
+            else:
+                report.append(_traj_report_line(L, sp, col_title, metric_label, f))
+                g, lm, rdf = f['gamm'] or {}, f['lme'] or {}, f['rdf']
+                rows.append(dict(panel=L, species=sp, modality=mod, kind='trajectory',
+                                 n_subjects=rdf['subject'].nunique(), n_sessions=len(rdf),
+                                 gamm_edf=g.get('edf'), gamm_lr=g.get('lr_stat'),
+                                 gamm_p_age=g.get('p_age'),
+                                 gamm_lr_nonlinear=g.get('lr_nonlinear'),
+                                 gamm_p_nonlinear=g.get('p_nonlinear'),
+                                 lme_slope_per_year=lm.get('slope_per_unit'),
+                                 lme_se_per_year=lm.get('se_per_unit'),
+                                 lme_p_slope=lm.get('p_slope'),
+                                 lme_r2_marginal=lm.get('r2_marginal')))
+
+    if assoc_row is not None:
+        sp, morph, age_df, age_col, label = assoc_row
+        r = len(species_rows)
+        for c, (mod, metric_col, metric_label, col_title) in enumerate(modalities):
+            L = next(letters)
+            res = assoc_primary_trajectories(morph, age_df, primary_regions,
+                                             association_regions, species_label=sp,
+                                             data_key=mod)
+            st = None if res is None else _assoc_primary_test(res[0], res[1])
+            panels.append(dict(kind='assoc', letter=L, row=r, col=c, species=sp, label=label,
+                               modality=mod, col_title=col_title, res=res, test=st))
+            if res is None:
+                report.append(f"{L}  {sp} association vs primary, {col_title}: no data")
+                rows.append(dict(panel=L, species=sp, modality=mod, kind='assoc_vs_primary'))
+            else:
+                report.append(
+                    f"{L}  {sp} association vs primary, {col_title}: n={st['n']} subjects; "
+                    f"last-session % change association {st['assoc_pct']:.2f}% vs primary "
+                    f"{st['primary_pct']:.2f}%; paired t({max(st['n'] - 1, 0)})={st['t']:.2f}, "
+                    f"{_fmt_p(st['p'])}, dz={st['dz']:.2f}")
+                rows.append(dict(panel=L, species=sp, modality=mod, kind='assoc_vs_primary',
+                                 n_subjects=st['n'], assoc_pct=st['assoc_pct'],
+                                 primary_pct=st['primary_pct'], t=st['t'], p=st['p'],
+                                 dz=st['dz']))
+
+    text = _figure3_text(report, region, atlas_level, hemisphere, min_sessions,
+                         assoc_species, primary_regions, association_regions)
+    return dict(panels=panels, report=report, text=text, table=pd.DataFrame(rows),
+                ncols=len(modalities), nrows=len(species_rows) + int(assoc_row is not None))
+
+
+def draw_figure3(stats, out_dir, panel_w=3.4, panel_h=2.7, name='Figure3'):
+    """
+    Main Figure 3 (3 x 3, a given metric aligned in each column), from figure3_stats:
+      a–c  Human trajectories      (surface | thickness | volume)
+      d–f  Macaque trajectories
+      g–i  Association vs primary cortex, % change from baseline (assoc_species)
+    Trajectory panels: individual subjects + spline-LMM fit ± 95% CI; inset = linear
+    LME slope per year and its p. Association panels: inset = paired-test p.
+    Writes <name>.png (300 dpi) and <name>.pdf; returns the paths.
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.gridspec as gridspec
+    from Statistics.Group_fMRI.EDNiX_longitudinal import draw_longitudinal
+    from Exemples.Study_EDNiX.analysis.ednix_bids_tools import PAPER_RC
+
+    ncols, nrows = stats['ncols'], stats['nrows']
     rc = dict(PAPER_RC); rc.update(_FIG_RC)
     with plt.rc_context(rc):
         fig = plt.figure(figsize=(panel_w * ncols + 0.6, panel_h * nrows * FIG3_ROW_SCALE))
@@ -1077,59 +1142,58 @@ def plot_figure3(species_rows, out_dir, region='Isocortex', atlas_level=ATLAS_LE
                                 left=0.11, right=0.99, top=0.95, bottom=0.07)
         letter, empty, row_label = _panel_tools(fig)
 
-        for r, (sp, morph, age_df, age_col, label) in enumerate(species_rows):
-            for c, (mod, metric_col, metric_label, col_title) in enumerate(modalities):
-                ax = fig.add_subplot(gs[r, c])
-                L = letter(ax)
-                f = fits[(sp, mod)]
+        for P in stats['panels']:
+            ax = fig.add_subplot(gs[P['row'], P['col']])
+            letter(ax)
+            if P['kind'] == 'trajectory':
+                f = P['fit']
                 if f is None:
-                    empty(ax, f'no {mod} data')
-                    report.append(f"{L}  {sp} {col_title}: no data")
+                    empty(ax, f"no {P['modality']} data")
                 else:
-                    draw_longitudinal(ax, f['rdf'], metric_col, age_col, f['gamm'], f['lme'],
-                                      age_label='Age (years)', metric_label=metric_label,
+                    draw_longitudinal(ax, f['rdf'], P['metric_col'], P['age_col'], f['gamm'],
+                                      f['lme'], age_label='Age (years)',
+                                      metric_label=P['metric_label'],
                                       stats_fontsize=7, inset='slope')
-                    report.append(_traj_report_line(L, sp, col_title, metric_label, f))
-                if r == 0:
-                    ax.set_title(col_title, fontweight='bold', pad=12)
-                if c == 0:
-                    row_label(ax, label)
-
-        if assoc_row is not None:
-            sp, morph, age_df, age_col, label = assoc_row
-            r = len(species_rows)
-            for c, (mod, metric_col, metric_label, col_title) in enumerate(modalities):
-                ax = fig.add_subplot(gs[r, c])
-                L = letter(ax)
-                res = assoc_primary_trajectories(morph, age_df, primary_regions,
-                                                 association_regions, species_label=sp,
-                                                 data_key=mod)
+                if P['row'] == 0:
+                    ax.set_title(P['col_title'], fontweight='bold', pad=12)
+                if P['col'] == 0:
+                    row_label(ax, P['label'])
+            else:
+                res, st = P['res'], P['test']
                 if res is None:
                     empty(ax, 'association / primary regions not found')
-                    report.append(f"{L}  {sp} association vs primary, {col_title}: no data")
                 else:
                     draw_assoc_vs_primary(ax, *res, legend_fontsize=7)
                     ax.set_ylabel(f"% {res[2].lower()} change")
-                    st = _assoc_primary_test(res[0], res[1])
                     if not np.isnan(st['p']):
                         ax.text(0.97, 0.03, f"paired {_fmt_p(st['p'])}", transform=ax.transAxes,
                                 ha='right', va='bottom', fontsize=7)
-                    report.append(
-                        f"{L}  {sp} association vs primary, {col_title}: n={st['n']} subjects; "
-                        f"last-session % change association {st['assoc_pct']:.2f}% vs primary "
-                        f"{st['primary_pct']:.2f}%; paired t({max(st['n'] - 1, 0)})={st['t']:.2f}, "
-                        f"{_fmt_p(st['p'])}, dz={st['dz']:.2f}")
-                if c == 0:
-                    row_label(ax, f"{label}\nassoc. vs primary")
+                if P['col'] == 0:
+                    row_label(ax, f"{P['label']}\nassoc. vs primary")
 
         os.makedirs(out_dir, exist_ok=True)
         paths = _save(fig, opj(out_dir, name))
         plt.close(fig)
+    return paths
 
+
+def plot_figure3(species_rows, out_dir, region='Isocortex', atlas_level=ATLAS_LEVEL,
+                 hemisphere='left', min_sessions=MIN_SESSIONS, modalities=None,
+                 assoc_species=None, primary_regions=None, association_regions=None,
+                 panel_w=3.4, panel_h=2.7, name='Figure3'):
+    """figure3_stats + draw_figure3 + <name>_stats.txt (every number of the panels:
+    model, n, LRT, R²m, % change, t, dz). Used by
+    sensitivity_analysis/longitudinal/longitudinal_all_outputs.py; the paper goes
+    through paper_stats.figure3 / paper_figures.figure3 (same functions)."""
+    stats = figure3_stats(species_rows, region=region, atlas_level=atlas_level,
+                          hemisphere=hemisphere, min_sessions=min_sessions,
+                          modalities=modalities, assoc_species=assoc_species,
+                          primary_regions=primary_regions,
+                          association_regions=association_regions)
+    paths = draw_figure3(stats, out_dir, panel_w=panel_w, panel_h=panel_h, name=name)
     txt = opj(out_dir, f'{name}_stats.txt')
     with open(txt, 'w') as fh:
-        fh.write(_figure3_text(report, region, atlas_level, hemisphere, min_sessions,
-                               assoc_species, primary_regions, association_regions))
+        fh.write(stats['text'])
     paths.append(txt)
     print(f"  [Figure 3] → {', '.join(paths)}")
     return paths
@@ -1237,10 +1301,9 @@ def plot_figure3_supp_pct_change(species_rows, out_dir, region='Isocortex',
 # MAIN
 # ══════════════════════════════════════════════════════════════════════════════
 
-if __name__ == '__main__':
-    # Figure 3 only. Per-region trajectories, stand-alone panels, % change and the
-    # long report: sensitivity_analysis/longitudinal/longitudinal_all_outputs.py
-    # Supplementary Figure 6 (human association vs primary): Supplementary/Supp_Fig_06_*.py
+def load_figure3_data():
+    """Inputs of Figure 3: (species, morphometry, age table, age column, row label) per
+    trajectory row, Human then Macaque (the Macaque row also gives panels g–i)."""
     mac_paths, _ = _build_atlas_paths(['Macaque'])
     mac_morph = load_morphometry({'Macaque': MACAQUE_BIDS_DIRS}, mac_paths,
                                  regions_of_interest=REGIONS)
@@ -1249,10 +1312,7 @@ if __name__ == '__main__':
     hum_morph = load_morphometry({'Human': HUMAN_BIDS_DIRS}, hum_paths,
                                  regions_of_interest=REGIONS)
     hum_age = format_human_age(HUMAN_BIDS_DIRS, age_prefix=HUMAN_AGE_PREFIX)
-    fig3_rows = [
+    return [
         ('Human',   hum_morph, hum_age, 'age',       'Human'),
         ('Macaque', mac_morph, mac_age, 'age_years', 'Macaque'),
     ]
-    # paper folder, like every other paper figure
-    from Exemples.Study_EDNiX.analysis import paper_data as pdat
-    plot_figure3(fig3_rows, out_dir=opj(pdat.PAPER_DIR, 'Figure_3'), name='Figure_3')

@@ -1,15 +1,18 @@
 """
-Launcher_Fig5.py -- lance l'analyse des Figures 5 et 6 (EDNiX, seed rétrosplénial).
+Launcher_exploration.py -- analyse exploratoire complète des seed maps (EDNiX, seed rétrosplénial) :
+toutes les figures F0-F22, panneaux 5a-6d, contrôle à cible commune, matrices. Ancien
+Fig5/Launcher_Fig5.py. Les figures du PAPIER ne passent plus par ici : run_paper.py (analysis/),
+à partir de la sélection de Statistics/Group_fMRI/run_selection.
 
 Tout ce qui se règle est dans ce fichier ; les valeurs par défaut de chaque clé et
-leur explication détaillée sont dans fig5_pipeline.CONFIG. Le pipeline a deux parties :
+leur explication détaillée sont dans exploration_pipeline.CONFIG. Le pipeline a deux parties :
 
   PARTIE 1 -- sélection (longue : profils de tous les runs, cartes AFNI 3dttest++,
               rendus de surface). Finit par écrire <OUTPUT_ROOT>/07_state/selection_state.pkl
               (+ selection_state.txt, lisible : datasets, régions, runs gardés, réglages).
   PARTIE 2 -- statistiques et figures, relues depuis ce fichier seul : pas d'AFNI, pas de
               NIfTI. Se relance autant de fois qu'on veut (quelques minutes), avec d'autres
-              réglages de figures (clés de fig5_pipeline.FIGURE_KEYS : FIG6D, WITHIN_ACROSS_TEST,
+              réglages de figures (clés de exploration_pipeline.FIGURE_KEYS : FIG6D, WITHIN_ACROSS_TEST,
               SURFACE_ZOOM, REFERENCE_SPECIES, ...). Si une clé de SÉLECTION change entre les
               deux parties (N_SELECT, PROFILE_METHOD, SEED, ...), la partie 2 refuse de tourner
               et liste les clés en cause : il faut relancer la partie 1.
@@ -25,9 +28,9 @@ import os
 import pandas as pd
 
 from Statistics.Group_fMRI.run_selection import profiles as sri
-from Exemples.Study_EDNiX.analysis.Fig5.fig5_pipeline import run
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_matrices as fm
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_paper as fpp
+from Exemples.Study_EDNiX.analysis.sensitivity_analysis.fmri_selection.exploration_pipeline import run
+import Exemples.Study_EDNiX.analysis.sensitivity_analysis.fmri_selection.matrices as fm
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.paper_panels as fpp
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 1. CE QUI EST LANCÉ
@@ -57,51 +60,12 @@ from Statistics.Group_fMRI.run_selection.config_ednix import (   # noqa: E402
     SELECTION_CONFIG, QC_EXCEL_PATH)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 4. RÉGLAGES (clés de fig5_pipeline.CONFIG ; une clé absente garde sa valeur par défaut)
+# 4. RÉGLAGES (clés de exploration_pipeline.CONFIG ; une clé absente garde sa valeur par défaut)
 # ═══════════════════════════════════════════════════════════════════════════
-BASE_CONFIG = dict(
-    SELECTION_CONFIG,   # sorties, profil, unité, sélection, cartes AFNI : config_ednix.py
-    # Réglages des figures (partie 2) ci-dessous.
-
-    # --- phylogénie : F6 seulement (F6 d'origine + F6ab) ------------------------------
-    PHYLOGENY_USE_FINAL_ROUND=True,   # (figures) cartes sélectionnées ; la version sans
-        # sélection est dans 5d / F17 et fingerprint_tables.xlsx
-    # TREE_PATH (arbre daté, Newick) : config_ednix.SELECTION_CONFIG
-    RUN_MULTILEVEL_F6=False,          # (figures) F6 aux autres niveaux d'atlas
-    RUN_PHYLO_COMPARATIVE=True,      # (figures) Mantel / K de Blomberg / PGLS (F11-F13)
-
-    # --- figures d'interprétation (F1/F1c fingerprints, F6ab, F15-F18) ---------------
-    RUN_FINGERPRINTS=True,   # (figures)
-    REFERENCE_SPECIES="Human",  # (figures) référence de F6b / F15b / F18
-
-    # --- panneaux du papier : 06_figures/Fig5, Fig6, supplementary --------------------
-    RUN_PAPER_FIGURES=True,  # (figures) taille d'impression (89 / 120 / 183 mm), 5-7 pt,
-        # PDF à polices TrueType, PNG 600 dpi ; légendes dans chaque .txt et dans
-        # 06_figures/Figure_legends.txt
-    BRAIN_MASS_XLSX="/scratch2/EDNiX/Herculano-Houzel_mammalian_brain_dataset_complete.xlsx",
-    WITHIN_ACROSS_PAIRS="other_dataset",  # (figures) 5b / F2 / F2b, paires comparées :
-        # "other_dataset" = même espèce dans un AUTRE dataset vs espèces différentes (les
-        # paires d'un même dataset partagent protocole, scanner et souvent l'animal : exclues
-        # du test) ; "all" = toutes les paires de même espèce (5b de V14)
-    WITHIN_ACROSS_TEST="wilcoxon",  # (figures) 5b, test affiché : "wilcoxon" (rank-sum sur
-        # les paires, unilatéral, non corrigé ; optimiste car les paires partagent des runs)
-        # ou "permutation" (espèces permutées entre datasets) ; les deux sont dans le .txt
-    FIG6D=dict(              # (figures) 6d, un panneau par indice : une valeur par région et par run
-        # sélectionné ; Human + Macaque contre les 5 autres espèces, un test exact
-        # bilatéral par région (espèce = unité, 21 affectations, p >= 0,048), non corrigé
-        regions=("posterior_parietal_cortex", "prefrontal_cortex_(pfc)",
-                 "somatosensory_cortex", "visual_striate_cortex", "striatum",
-                 "motor_and_premotor"),
-        group=("Human", "Macaque")),
-    SURFACE_ZOOM={"Human": 1.0, "Macaque": 1.0, "Dog": 1.0, "Marmoset": 0.9,
-                  "Mouselemur": 0.9, "Rat": 0.9, "Mouse": 0.9},  # (figures) 5a / S5a :
-        # taille relative des cerveaux par espèce (1 = remplit la case)
-    SURFACE_DATASETS_PER_ROW=2,      # (figures) 5a / S5a : datasets par ligne
-
-    # --- analyses complémentaires ----------------------------------------------------
-    RUN_DISTANCE_TO_REF=True,  # (figures) F8 / F8b / 6c : r de chaque run avec la carte
-        # gardée et avec le critère de sélection, par état d'éveil
-)
+# statistics / figure settings (part 2): fmri_fingerprints/settings.py, shared with the paper
+from Exemples.Study_EDNiX.analysis.fmri_fingerprints.settings import (   # noqa: E402
+    FIGURE_SETTINGS, CONTROL_FIGURE_SETTINGS)
+BASE_CONFIG = dict(SELECTION_CONFIG, **FIGURE_SETTINGS)
 
 # Même analyse sur les matrices : pas de carte AFNI, rendu matriciel des fingerprints.
 MATRIX_ATLAS = "EDNIxCSCLR"
@@ -125,9 +89,9 @@ CONTROL_CONFIG = dict(
     BASE_CONFIG,
     OUTPUT_ROOT=BASE_CONFIG["OUTPUT_ROOT"] + "_control_common_target",
     LEAVE_ONE_OUT=False,
-    PHYLOGENY_USE_FINAL_ROUND=False,
     RUN_ALL_UNITS_MAPS=False, RUN_GROUP_MAPS=False, RENDER_SURFACE=False,
-    COPY_JPG=False, RUN_DISTANCE_TO_REF=False,
+    COPY_JPG=False, **{k: v for k, v in CONTROL_FIGURE_SETTINGS.items()
+                       if FIGURE_SETTINGS.get(k) != v},
 )
 
 # ═══════════════════════════════════════════════════════════════════════════
