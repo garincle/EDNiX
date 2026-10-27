@@ -18,22 +18,21 @@ All paper figures are written to `/scratch2/EDNiX/results/EDNiX_Figures/Paper/<F
 | Supp. 3 | `Supplementary/Supp_Fig_03_pet_ct_pipeline.py` | schematic: FDG-PET registration, scenarios 1v1 / 1v2a / 1v2b with the CT path (BIDS_Tremblay, BIDS_Merida) |
 | Supp. 4 | `Supplementary/Supp_Fig_04_anat_QC.py` | anat QC |
 | Supp. 5 | `Supplementary/Supp_Fig_05_func_QC.py` | func QC |
-| Supp. 6-8 | `Supplementary/Supp_Fig_06_08_outliers.py` | outlier rates (surface, volume, thickness), level 3 |
-| Supp. 9 | `Supplementary/Supp_Fig_09_human_assoc_primary.py` | BIDS_Park |
-| Supp. 10 | `Supplementary/Supp_Fig_10_selection.py` | F1e, F1c, F5 |
-| Supp. 11 | `Supplementary/Supp_Fig_11_scores_arousal.py` | F3, 6c |
-| Supp. 12 | `Supplementary/Supp_Fig_12_dataset_proximity.py` | F16b |
-| Supp. 13 | `Supplementary/Supp_Fig_13_variability_levels.py` | F20 |
-| Supp. 14 | `Supplementary/Supp_Fig_14_run_distance_qc.py` | F9, F10 |
+| Supp. 6 | `Supplementary/Supp_Fig_06_human_assoc_primary.py` | BIDS_Park |
+| Supp. 7 | `Supplementary/Supp_Fig_07_selection.py` | F1e, F1c, F5 |
+| Supp. 8 | `Supplementary/Supp_Fig_08_scores_arousal.py` | F3, 6c |
+| Supp. 9 | `Supplementary/Supp_Fig_09_dataset_proximity.py` | F16b |
+| Supp. 10 | `Supplementary/Supp_Fig_10_variability_levels.py` | F20 |
+| Supp. 11 | `Supplementary/Supp_Fig_11_run_distance_qc.py` | F9, F10 |
 
-Figures 4, 5 and Supp. 10-14 only assemble panels (the "Fig5" pipeline and its panel names
+Figures 4, 5 and Supp. 7-11 only assemble panels (the "Fig5" pipeline and its panel names
 5a, 5b... predate the paper numbering): run `Fig5/Launcher_Fig5.py` first
 (`RUN_PART='figures'` is enough once the matrices exist); the paper panels are written to
 `<FIG5_ROOT>/06_figures/Paper/`.
 
 ## Shared modules
 
-- `paper_style.py` -- colours (species, dataset markers, lobes), species order, region order
+- `paper_style.py` -- colours (species, one fixed colour per dataset, lobes), species order, region order
   (atlas / Figure 1 sunburst), Nature sizes, panel letters, `compose_images`.
 - `Supplementary/pipeline_schematic.py` -- drawing engine of Supp. 1-3 (space bands, step cards, frames
   from a processed session or from a synthetic brain built on the MNI ICBM152 template of nilearn;
@@ -48,8 +47,8 @@ Figures 4, 5 and Supp. 10-14 only assemble panels (the "Fig5" pipeline and its p
 
 | Folder | Content |
 |---|---|
-| `sensitivity_analysis/morphometry/` | `morphometry_all_levels.py`: levels 2-4, raw/log/normalised, L/R, cross-modality correlations, pooled outlier rates (former `Figure_2_anat.py`) |
-| `sensitivity_analysis/fmri_qc/` | `qc_all_metrics.py` (former `Supp_Figure_4-6_QC.py`), `fmri_acquisition_parameters.py` |
+| `sensitivity_analysis/morphometry/` | `morphometry_all_levels.py`: levels 2-4, raw/log/normalised, L/R, cross-modality correlations (former `Figure_2_anat.py`); `outlier_rates.py`: regional outlier rates (former Supp. 6-8, removed from the paper) |
+| `sensitivity_analysis/fmri_qc/` | `qc_all_metrics.py` (former `Supp_Figure_4-6_QC.py`), `fmri_acquisition_parameters.py`, `check_fd_inputs.py` (why mean FD is missing) |
 | `sensitivity_analysis/longitudinal/` | `longitudinal_all_outputs.py`: every Fig. 3 output besides the paper figure |
 | `phylo_preliminary/` | `PGLS_frontal_scaling.py` (former second half of `Figure_2_anat.py`) |
 | `multimodal_PET/` | Figure XX (multimodal radar), PET group launchers, PET inter-species profiles |

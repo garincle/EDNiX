@@ -755,10 +755,12 @@ def fMRI_QC(correction_direction, path_func, ID, dir_prepro_template_process, di
                 region_snr = []
                 for region in regions:
                     if region in snr_results:
-                        left = snr_results[region]['Left'][t] if not np.isnan(snr_results[region]['Left'][t]) else 0
-                        right = snr_results[region]['Right'][t] if not np.isnan(snr_results[region]['Right'][t]) else 0
-                        if not np.isnan(left) and not np.isnan(right):
-                            region_snr.append(np.mean([left, right]))
+                        # a hemisphere without a value is left out (it used to count as 0,
+                        # which halved the SNR of that region)
+                        lr = [snr_results[region]['Left'][t], snr_results[region]['Right'][t]]
+                        lr = [v for v in lr if not np.isnan(v)]
+                        if lr:
+                            region_snr.append(np.mean(lr))
                 if region_snr:
                     avg_snr.append(np.mean(region_snr))
             return avg_snr
@@ -778,6 +780,10 @@ def fMRI_QC(correction_direction, path_func, ID, dir_prepro_template_process, di
         avg_snr_white = np.nanmean(avg_white_snr) if avg_white_snr else np.nan
         qc_values['avg_snr_gray'] = avg_snr_gray
         qc_values['avg_snr_white'] = avg_snr_white
+        # Subcortical grey matter alone (level-1 'Subcortical areas'): avg_snr_gray mixes
+        # isocortex, allocortex, subcortical areas and diencephalon.
+        avg_sub_snr = compute_average_snr(snr_results, ['Subcortical areas'])
+        qc_values['avg_snr_subcortical'] = np.nanmean(avg_sub_snr) if avg_sub_snr else np.nan
 
         # Calculate CNR and cortical contrast if we have valid values
         if not np.isnan(avg_snr_gray) and not np.isnan(avg_snr_white) and not np.isnan(noise):
@@ -1055,11 +1061,18 @@ def fMRI_QC(correction_direction, path_func, ID, dir_prepro_template_process, di
                     # Calcul NMI
                     nmi = normalized_mutual_information(fixed_np, moving_np)
                     qc_values['nmi'] = nmi
+                    # NMI inside the brain (voxels non-zero in both images): on the whole
+                    # field of view the background dominates the joint histogram, so the
+                    # value mostly reflects how much of the field of view the brain fills.
+                    _in = (fixed_np != 0) & (moving_np != 0)
+                    qc_values['nmi_brain'] = (normalized_mutual_information(fixed_np[_in], moving_np[_in])
+                                              if _in.sum() > 100 else np.nan)
                 else:
                     qc_values['mi'] = np.nan
                     qc_values['cc'] = np.nan
                     qc_values['jaccard'] = np.nan
                     qc_values['nmi'] = np.nan
+                    qc_values['nmi_brain'] = np.nan
             except Exception as e:
                 nl = f"ERROR computing image metrics: {str(e)}"
                 run_cmd.msg(nl, diary_file, 'WARNING')
@@ -1067,11 +1080,13 @@ def fMRI_QC(correction_direction, path_func, ID, dir_prepro_template_process, di
                 qc_values['cc'] = np.nan
                 qc_values['jaccard'] = np.nan
                 qc_values['nmi'] = np.nan
+                qc_values['nmi_brain'] = np.nan
         else:
             qc_values['mi'] = np.nan
             qc_values['cc'] = np.nan
             qc_values['jaccard'] = np.nan
             qc_values['nmi'] = np.nan
+            qc_values['nmi_brain'] = np.nan
 
         # Motion metrics
         try:

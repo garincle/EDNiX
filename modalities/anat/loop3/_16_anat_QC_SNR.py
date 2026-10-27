@@ -67,7 +67,7 @@ def save_qc_values(output_results, root_RS, qc_values):
 def create_qc_figure(output_results, Timage, snr_results, Ref_file,
                      template_in_anat, average_snr_results, noise,
                      anat_filename, BASE_SS_coregistr, fwhm_val, nmi,
-                     compute_snr_brain_mask_val, cnr_val, cortical_contrast):
+                     compute_snr_brain_mask_val, cnr_val, cortical_contrast, nmi_brain=np.nan):
     """
     Create a comprehensive QC figure with multiple subplots including:
     - SNR plots
@@ -250,6 +250,7 @@ def create_qc_figure(output_results, Timage, snr_results, Ref_file,
         qc_values = {
             'fwhm': fwhm_val,
             'nmi': nmi,
+            'nmi_brain': nmi_brain,
             'template_correlation': cc if 'cc' in locals() else None,
             'global_snr': compute_snr_brain_mask_val,
             'avg_snr_gray': average_snr_results['Gray_Matter'],
@@ -619,6 +620,14 @@ def anat_QC(info, type_norm, ID, volumes_dir,path_anat, masks_dir,labels_dir,tar
                             nmi = np.nan
                         else:
                             nmi = normalized_mutual_information(fixed_np, moving_np)
+                        # NMI inside the brain (voxels non-zero in both images): on the whole
+                        # field of view the background dominates the joint histogram.
+                        if fixed_np.shape == moving_np.shape:
+                            _in = (fixed_np != 0) & (moving_np != 0)
+                            nmi_brain = (normalized_mutual_information(fixed_np[_in], moving_np[_in])
+                                         if _in.sum() > 100 else np.nan)
+                        else:
+                            nmi_brain = np.nan
 
                         line_QC_func.append(f"  NMI_index: {nmi:.4f}")
 
@@ -626,7 +635,8 @@ def anat_QC(info, type_norm, ID, volumes_dir,path_anat, masks_dir,labels_dir,tar
                         create_qc_figure(output_results, Timage, snr_results, img_ref,
                                         template_in_anat, average_snr_results, noise,
                                         anat_filename, info[i][1], fwhm_val, nmi,
-                                        compute_snr_brain_mask_val, cnr_val, cortical_contrast)
+                                        compute_snr_brain_mask_val, cnr_val, cortical_contrast,
+                                        nmi_brain=nmi_brain)
 
                         lines.append(line_QC_func)
                         flattened_list = [item for sublist in lines for item in sublist]

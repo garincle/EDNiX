@@ -953,6 +953,9 @@ FIG3_MODALITIES = [
     ('thickness', 'thickness_mm',     'Cortical thickness (mm)', 'Cortical thickness'),
     ('volume',    'volume_mm3',       'Volume (mm³)',            'Volume'),
 ]
+# Vertical spacing of Figure 3: rows a bit closer than the 0.55 used before
+FIG3_HSPACE = 0.38
+FIG3_ROW_SCALE = 0.92      # figure height per row relative to panel_h
 # Species shown in the association-vs-primary row (panels g–i)
 FIG3_ASSOC_SPECIES = 'Macaque'
 
@@ -1037,7 +1040,7 @@ def _save(fig, out_path):
 def plot_figure3(species_rows, out_dir, region='Isocortex', atlas_level=ATLAS_LEVEL,
                  hemisphere='left', min_sessions=MIN_SESSIONS, modalities=None,
                  assoc_species=None, primary_regions=None, association_regions=None,
-                 panel_w=3.4, panel_h=2.7):
+                 panel_w=3.4, panel_h=2.7, name='Figure3'):
     """
     Main Figure 3 (3 x 3, a given metric aligned in each column):
       a–c  Human trajectories      (surface | thickness | volume)
@@ -1069,8 +1072,8 @@ def plot_figure3(species_rows, out_dir, region='Isocortex', atlas_level=ATLAS_LE
 
     rc = dict(PAPER_RC); rc.update(_FIG_RC)
     with plt.rc_context(rc):
-        fig = plt.figure(figsize=(panel_w * ncols + 0.6, panel_h * nrows))
-        gs  = gridspec.GridSpec(nrows, ncols, figure=fig, hspace=0.55, wspace=0.42,
+        fig = plt.figure(figsize=(panel_w * ncols + 0.6, panel_h * nrows * FIG3_ROW_SCALE))
+        gs  = gridspec.GridSpec(nrows, ncols, figure=fig, hspace=FIG3_HSPACE, wspace=0.42,
                                 left=0.11, right=0.99, top=0.95, bottom=0.07)
         letter, empty, row_label = _panel_tools(fig)
 
@@ -1120,10 +1123,10 @@ def plot_figure3(species_rows, out_dir, region='Isocortex', atlas_level=ATLAS_LE
                     row_label(ax, f"{label}\nassoc. vs primary")
 
         os.makedirs(out_dir, exist_ok=True)
-        paths = _save(fig, opj(out_dir, 'Figure3'))
+        paths = _save(fig, opj(out_dir, name))
         plt.close(fig)
 
-    txt = opj(out_dir, 'Figure3_stats.txt')
+    txt = opj(out_dir, f'{name}_stats.txt')
     with open(txt, 'w') as fh:
         fh.write(_figure3_text(report, region, atlas_level, hemisphere, min_sessions,
                                assoc_species, primary_regions, association_regions))
@@ -1237,7 +1240,7 @@ def plot_figure3_supp_pct_change(species_rows, out_dir, region='Isocortex',
 if __name__ == '__main__':
     # Figure 3 only. Per-region trajectories, stand-alone panels, % change and the
     # long report: sensitivity_analysis/longitudinal/longitudinal_all_outputs.py
-    # Supplementary Figure 9 (human association vs primary): Supplementary/Supp_Fig_09_*.py
+    # Supplementary Figure 6 (human association vs primary): Supplementary/Supp_Fig_06_*.py
     mac_paths, _ = _build_atlas_paths(['Macaque'])
     mac_morph = load_morphometry({'Macaque': MACAQUE_BIDS_DIRS}, mac_paths,
                                  regions_of_interest=REGIONS)
@@ -1250,4 +1253,6 @@ if __name__ == '__main__':
         ('Human',   hum_morph, hum_age, 'age',       'Human'),
         ('Macaque', mac_morph, mac_age, 'age_years', 'Macaque'),
     ]
-    plot_figure3(fig3_rows, out_dir=OUT_DIR)
+    # paper folder, like every other paper figure
+    from Exemples.Study_EDNiX.analysis import paper_data as pdat
+    plot_figure3(fig3_rows, out_dir=opj(pdat.PAPER_DIR, 'Figure_3'), name='Figure_3')

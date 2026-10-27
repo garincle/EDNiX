@@ -4,8 +4,9 @@ Figure 2 -- cross-species cortical morphometry at atlas level 2 (lobes).
   a  surface area   b  volume   c  cortical thickness     (log10 axis, bilateral)
 
 Columns = lobes in the order of the Figure 1 sunburst (lobe colour above each
-column); x = species in phylogenetic order; violin = species distribution (one
-value per subject, sessions averaged); points = subjects, marker = dataset.
+column); x = species in phylogenetic order; grey violin =
+species distribution (one value per subject, sessions averaged); points = subjects,
+one colour per dataset (paper_style.DATASET_COLORS), datasets of a species side by side.
 
 Output: <PAPER_DIR>/Figure_2/Figure_2.pdf|png + Figure_2_values.xlsx
 (this replaces figures/Figure2/lvl_2_combo_bilateral_log.png of Figure_2_anat.py;
@@ -19,7 +20,6 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.ticker import LogLocator, NullFormatter
 
 sys.path.insert(0, '/home/cgarin/PycharmProjects/EDNiX/')
 
@@ -30,23 +30,47 @@ LEVEL = 2
 OUT = os.path.join(pdat.PAPER_DIR, 'Figure_2', 'Figure_2')
 
 
+ROW_HEIGHT_MM = 42      # per modality row: panels about as tall as wide (as lvl_2_combo)
+
+
+def _log_ticks(ax):
+    """log10 axis written as powers of ten (several decades) or 1-2-5 (less than ~1.5)."""
+    lo, hi = ax.get_ylim()
+    ticks = np.arange(np.floor(lo), np.ceil(hi) + 1)
+    minor = np.log10(np.concatenate([np.arange(2, 10) * 10.0 ** t for t in ticks]))
+    if hi - lo >= 1.5:
+        ax.set_yticks(ticks)
+        ax.set_yticklabels([f"$10^{{{int(t)}}}$" for t in ticks])
+    else:
+        vals = np.concatenate([np.array([1, 2, 5]) * 10.0 ** t for t in ticks])
+        vals = vals[(np.log10(vals) > lo) & (np.log10(vals) < hi)]
+        ax.set_yticks(np.log10(vals))
+        ax.set_yticklabels([f"{v:g}" for v in vals])
+    ax.set_yticks(minor[(minor > lo) & (minor < hi)], minor=True)
+    ax.set_ylim(lo, hi)
+
+
 def plot_figure2(morpho, regions, out_path, letters="abc"):
     """morpho: {'surface'|'volume'|'thickness': DataFrame(species, bids_dir, subject,
-    region, <value>)} already bilateral, one row per subject, at one atlas level."""
+    region, <value>)} already bilateral, one row per subject, at one atlas level.
+    Grey violin = species; points = subjects, coloured by dataset (DATASET_COLORS) and
+    side by side when a species has several datasets."""
     regions = ps.region_order(regions)
     rows = [(m, c, l) for m, c, l in pdat.MORPHO_METRICS
             if morpho.get(m) is not None and not morpho[m].empty]
     species = ps.phylo_sort(pd.concat([morpho[m]['species'] for m, _, _ in rows]).unique())
     datasets = pd.concat([morpho[m][['bids_dir', 'species']] for m, _, _ in rows]).drop_duplicates()
     sp_of = dict(zip(datasets['bids_dir'], datasets['species']))
+    ds_of_sp = {sp: ps.dataset_sort([d for d, s in sp_of.items() if s == sp], sp_of)
+                for sp in species}
     rng = np.random.default_rng(42)
 
     with plt.rc_context(ps.PAPER_RC):
-        fig_h = 33 * ps.MM * len(rows) + 14 * ps.MM
+        fig_h = (ROW_HEIGHT_MM * len(rows) + 30) * ps.MM
         fig, axes = plt.subplots(len(rows), len(regions), figsize=(ps.WIDTH_2COL, fig_h),
                                  sharey="row", squeeze=False)
-        fig.subplots_adjust(left=0.065, right=0.995, top=0.955, bottom=0.17,
-                            wspace=0.06, hspace=0.12)
+        fig.subplots_adjust(left=0.085, right=0.995, top=0.95, bottom=0.1,
+                            wspace=0.08, hspace=0.1)
         for i, (mod, col, label) in enumerate(rows):
             df = morpho[mod]
             for j, reg in enumerate(regions):
@@ -58,11 +82,12 @@ def plot_figure2(morpho, regions, out_path, letters="abc"):
                     vals = vals[vals > 0]
                     if vals.size == 0:
                         continue
-                    ps.violin(ax, np.log10(vals), x, ps.species_color(sp))
-                    for bd, bdf in sdf.groupby('bids_dir'):
-                        v = bdf[col].to_numpy(float)
-                        ps.dots(ax, np.log10(v[v > 0]), x, ps.species_color(sp),
-                                marker=ps.dataset_marker(bd, sp), rng=rng)
+                    ps.violin(ax, np.log10(vals), x, ps.VIOLIN_GREY, width=0.8, alpha=0.45)
+                    off = ps.dataset_offsets(ds_of_sp[sp], spread=0.24)
+                    for bd in ds_of_sp[sp]:
+                        v = sdf.loc[sdf['bids_dir'] == bd, col].to_numpy(float)
+                        ps.dots(ax, np.log10(v[v > 0]), x + off[bd], ps.dataset_color(bd, sp),
+                                spread=0.07 if len(off) > 1 else 0.14, size=3.0, rng=rng)
                 ax.set_xlim(-0.6, len(species) - 0.4)
                 ax.set_xticks(range(len(species)))
                 if i == len(rows) - 1:
@@ -73,30 +98,18 @@ def plot_figure2(morpho, regions, out_path, letters="abc"):
                 if j == 0:
                     ax.set_ylabel(label)
                 if i == 0:
-                    ps.lobe_strip(ax, reg, height=0.05)
-                    ax.text(0.5, 1.07, ps.region_label(reg), transform=ax.transAxes,
+                    ps.lobe_strip(ax, reg, height=0.04)
+                    ax.text(0.5, 1.06, ps.region_label(reg), transform=ax.transAxes,
                             ha="center", va="bottom")
-            # log10 axis written as powers of ten
-            ax0 = axes[i, 0]
-            lo, hi = ax0.get_ylim()
-            ticks = np.arange(np.floor(lo), np.ceil(hi) + 1)
-            minor = np.log10(np.concatenate([np.arange(2, 10) * 10.0 ** t for t in ticks]))
-            if hi - lo >= 1.5:      # several decades: powers of ten
-                ax0.set_yticks(ticks)
-                ax0.set_yticklabels([f"$10^{{{int(t)}}}$" for t in ticks])
-                ax0.set_yticks(minor[(minor > lo) & (minor < hi)], minor=True)
-            else:                   # less than ~1.5 decade (thickness): 1-2-5 in plain numbers
-                vals = np.concatenate([np.array([1, 2, 5]) * 10.0 ** t for t in ticks])
-                vals = vals[(np.log10(vals) > lo) & (np.log10(vals) < hi)]
-                ax0.set_yticks(np.log10(vals))
-                ax0.set_yticklabels([f"{v:g}" for v in vals])
-                ax0.set_yticks(minor[(minor > lo) & (minor < hi)], minor=True)
-            ax0.set_ylim(lo, hi)
-            fig.canvas.draw()
-            ps.row_label(fig, axes[i, 0], letters[i])
-
+            _log_ticks(axes[i, 0])
+        fig.canvas.draw()
+        # panel letters just left of the y-axis label of each row
+        for i in range(len(rows)):
+            bb = axes[i, 0].get_position()
+            fig.text(bb.x0 - 11 * ps.MM / fig.get_figwidth(), bb.y1, letters[i],
+                     fontsize=ps.PANEL_LABEL_SIZE, fontweight="bold", va="top", ha="left")
         h, l = ps.species_dataset_legend(list(sp_of), sp_of)
-        fig.legend(h, l, loc="lower center", ncol=min(len(h), 7), bbox_to_anchor=(0.53, 0.0))
+        ps.legend_below(fig, axes, h, l, x=0.54)
         paths = ps.save(fig, out_path)
         plt.close(fig)
     return paths

@@ -1,5 +1,5 @@
 """
-Supplementary Figure 9 -- association vs primary cortex in the human ageing dataset
+Supplementary Figure 6 -- association vs primary cortex in the human ageing dataset
 (BIDS_Park): same analysis and drawing as Figure 3 g-i (macaque).
 
   a  surface area   b  cortical thickness   c  volume     (order of Figure 3 columns)
@@ -9,7 +9,7 @@ primary (striate, auditory, somatosensory, motor/premotor) values from the first
 session; thin lines = subjects, thick = mean +/- SEM where >= 3 subjects are observed;
 inset = paired t-test on the last-session % change (association - primary).
 Replaces Figure_3_longit/Human/fig3d/Fig3D_assoc_vs_primary_*_Human.png.
-Output: <PAPER_DIR>/Supp_Fig_09/Supp_Fig_09.pdf|png + Supp_Fig_09_stats.txt
+Output: <PAPER_DIR>/Supp_Fig_06/Supp_Fig_06.pdf|png + Supp_Fig_06_stats.txt
 """
 import os
 import sys
@@ -25,7 +25,7 @@ from Exemples.Study_EDNiX.analysis import paper_style as ps
 from Exemples.Study_EDNiX.analysis import paper_data as pdat
 from Exemples.Study_EDNiX.analysis import Figure_3_longitudinal as F3
 
-OUT = os.path.join(pdat.PAPER_DIR, 'Supp_Fig_09', 'Supp_Fig_09')
+OUT = os.path.join(pdat.PAPER_DIR, 'Supp_Fig_06', 'Supp_Fig_06')
 # x axis of the trajectories. BIDS_Park is an accelerated longitudinal design (baseline
 # ages ~20-90 y, a few years of follow-up): averaging "% change from baseline" at a
 # given AGE mixes subjects followed for different durations, and the mean curve breaks
@@ -40,7 +40,7 @@ def _from_baseline(df):
     return df
 
 
-def plot_supp9(morph, age_df, out_path, species="Human", letters="abc", x_axis=X_AXIS):
+def plot_supp6(morph, age_df, out_path, species="Human", letters="abc", x_axis=X_AXIS):
     lines = []
     with plt.rc_context(ps.PAPER_RC):
         fig, axes = plt.subplots(1, len(F3.FIG3_MODALITIES), figsize=(ps.WIDTH_2COL, 48 * ps.MM))
@@ -76,7 +76,7 @@ def plot_supp9(morph, age_df, out_path, species="Human", letters="abc", x_axis=X
         paths = ps.save(fig, out_path)
         plt.close(fig)
     with open(out_path + '_stats.txt', 'w') as fh:
-        fh.write("Supplementary Figure 9 -- association vs primary, human (BIDS_Park)\n")
+        fh.write("Supplementary Figure 6 -- association vs primary, human (BIDS_Park)\n")
         fh.write("\n".join(lines) + "\n")
     return paths
 
@@ -86,4 +86,4 @@ if __name__ == "__main__":
     morph = F3.load_morphometry({'Human': F3.HUMAN_BIDS_DIRS}, atlas_paths,
                                 regions_of_interest=F3.REGIONS)
     age = F3.format_human_age(F3.HUMAN_BIDS_DIRS, age_prefix=F3.HUMAN_AGE_PREFIX)
-    plot_supp9(morph, age, OUT)
+    plot_supp6(morph, age, OUT)
