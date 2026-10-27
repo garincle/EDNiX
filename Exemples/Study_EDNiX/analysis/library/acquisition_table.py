@@ -168,14 +168,17 @@ def scan(func_datasets=None, anat_datasets=None):
 
 
 def load(refresh=False):
-    """scan() cached as <CACHE_DIR>/acquisition.pkl."""
-    cache = opj(pdat.CACHE_DIR, "acquisition.pkl")
+    """scan() cached as <CACHE_DIR>/acquisition.csv (plain text, no pickle)."""
+    cache = opj(pdat.CACHE_DIR, "acquisition.csv")
     if not refresh and os.path.isfile(cache):
         print(f"  [cache] {cache}")
-        return pd.read_pickle(cache)
+        text_cols = ("subject", "session", "run", "task", "matrix", "TR_check", "field_T",
+                     "manufacturer", "model", "multiband")
+        df = pd.read_csv(cache, dtype={c: str for c in text_cols})
+        return df.fillna({"TR_check": ""}) if "TR_check" in df else df
     df = scan()
     os.makedirs(pdat.CACHE_DIR, exist_ok=True)
-    df.to_pickle(cache)
+    df.to_csv(cache, index=False)
     return df
 
 
@@ -190,9 +193,15 @@ def _num(v, fmt):
     return f"{format(med, fmt)} [{format(lo, fmt)}-{format(hi, fmt)}]"
 
 
+def _fmt(x):
+    try:
+        return format(float(x), ".3g")
+    except (TypeError, ValueError):
+        return str(x)
+
+
 def _cat(v):
-    v = [format(x, ".3g") if isinstance(x, (int, float, np.number)) else str(x)
-         for x in pd.Series(v).dropna() if str(x).strip()]
+    v = [_fmt(x) for x in pd.Series(v).dropna() if str(x).strip()]
     return ", ".join(dict.fromkeys(v)) if v else "n.r."
 
 
@@ -231,7 +240,7 @@ def summary(df):
                      n_volumes=_num(g["n_volumes"], ".0f"),
                      duration_min=_num(g["duration_min"], ".3g"),
                      multiband=_cat(g["multiband"]),
-                     TR_flagged=int((g["TR_check"] != "").sum()))
+                     TR_flagged=int((g["TR_check"].fillna("") != "").sum()))
         out.append(r)
     s = pd.DataFrame(out)
     order = ps.dataset_sort(list(s["dataset"].unique()), dict(zip(s["dataset"], s["species"])))
@@ -250,7 +259,7 @@ def lines(s, df):
             txt += (f"; TR {r.TR_s} s; {r.n_volumes} volumes; {r.duration_min} min; "
                     f"state {r.state}")
             if r.TR_flagged:
-                ex = df[(df["dataset"] == r.dataset) & (df["TR_check"] != "")]["TR_check"].iloc[0]
+                ex = df[(df["dataset"] == r.dataset) & (df["TR_check"].fillna("") != "")]["TR_check"].iloc[0]
                 txt += f"; TR flagged in {int(r.TR_flagged)} runs (e.g. {ex})"
         out.append(txt)
     return out
