@@ -243,7 +243,7 @@ def get_thumbs(force_synthetic=False):
 
 # ── figure ───────────────────────────────────────────────────────────────────
 def panel_a(cv, th, y0):
-    cv.panel('a', 1.0, y0, 'Registration of the PET to the anatomy, by acquisition scenario')
+    cv.panel('a', 1.0, y0, 'PET-to-T1w registration in the three acquisition scenarios')
     reg, app = OPS['reg']['color'], OPS['apply']['color']
     x_lab, x0 = 3.0, 27.0
     cols = [('pet', 'PET space'), ('ct', 'CT space'), ('native', 'Native AC-PC space'), ('native', None),
@@ -328,7 +328,7 @@ def panel_a(cv, th, y0):
 
 
 def panel_b(cv, th, y0):
-    cv.panel('b', 1.0, y0, 'One PET session: everything is computed in the PET space')
+    cv.panel('b', 1.0, y0, 'Example PET session: image after each main step; analyses run in PET space')
     frames = [
         dict(thumb=th['frame'], title='Dynamic frames', step=1, op='prepro', space='pet', caption='reoriented'),
         dict(thumb=th['motion'], title='Motion', step=4, op='reg', space='pet', caption='frames, then runs',
@@ -349,7 +349,7 @@ def panel_b(cv, th, y0):
 
 
 def panel_c(cv, y0):
-    cv.panel('c', 1.0, y0, 'Steps of the CT and PET modules (numbers = Skip_step)')
+    cv.panel('c', 1.0, y0, 'Processing steps of the CT and PET modules (numbers: EDNiX Skip_step)')
     y = y0 + 6.0
     colw, gap = 43.2, 2.0
     xs = [3.0 + i * (colw + gap) for i in range(4)]
@@ -412,10 +412,6 @@ def make(out=OUT, force_synthetic=False):
     cv.ops_legend(3.0, yl)
     yl2 = yl + 3.6
     cv.arrow_legend(3.0, yl2)
-    synthetic = any(getattr(t, 'synthetic', False) for t in th.values())
-    cv.text(sch.W - 2.0, yl2, 'Images: ' + ('synthetic illustration' if not used else
-                                            'example sessions' + (' + synthetic frames' if synthetic else '')),
-            size=sch.FS_SMALL, ha='right', va='center', color=sch.SUBTLE)
     cv.trim(yl2 + 3.0)
     print('  [Supp 3] images: ' + (', '.join(used) if used else 'synthetic'))
     return cv.save(out)
