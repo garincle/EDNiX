@@ -78,10 +78,8 @@ BRATIO_RANGE = None                         # (low, high) shared scale; None = 1
 # statistics of panel B
 TEST, N_PERM, ALPHA = 'permutation', 10000, 0.05
 
-# colours of the article figures (Figure_2_anat.SPECIES_COLORS)
-SPECIES_COLORS = {"Mouse": "#1A5276", "Rat": "#2E86C1", "Bat": "#00A896", "Mouselemur": "#58D68D",
-                  "Marmoset": "#F4D03F", "Macaque": "#F5B041", "Human": "#D35400", "Dog": "#8E44AD",
-                  "Cat": "#C0392B", "Pig": "#6E2C00"}
+# colours of the article figures
+from Exemples.Study_EDNiX.analysis.paper_style import SPECIES_COLORS  # noqa: E402
 
 MM = 1 / 25.4
 FIG_W = 183 * MM                            # Nature double column

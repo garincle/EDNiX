@@ -250,7 +250,7 @@ class MatrixProfiles:
 
         cat = self._sri.fig5.load_classification_subjects(
             classification_path, species=species, bids_dir=Path(bids_dir).name,
-            categories=[category])
+            categories=[category], bids_path=bids_dir)
         if not isinstance(cat, dict) or not cat.get(category):
             print(f"  [WARN] 0 subjects from load_classification_subjects for "
                   f"{species}/{category} (bids_dir={Path(bids_dir).name})")

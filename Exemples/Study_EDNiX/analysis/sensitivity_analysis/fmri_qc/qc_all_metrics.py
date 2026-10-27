@@ -1,6 +1,6 @@
 """
 Former Supp_Figure_4-6_QC.py (every QC metric, every dataset, exploratory plots).
-The paper QC figures (Supp. 4-5) are drawn by library/qc_figures.py (run_paper.py).
+The paper QC figures (Supp. 5-6) are drawn by library/qc_figures.py (run_paper.py).
 OUT_DIR is unchanged: run_selection/config_ednix.QC_EXCEL_PATH reads
 <OUT_DIR>/qc_raw_per_individual.xlsx written here.
 
@@ -52,18 +52,8 @@ OUT_DIR = pdat.QC_DIR                    # created below before the first write
 PHYLO_ORDER = ["Mouse", "Rat", "Mouselemur", "Bat", "Marmoset",
                "Macaque", "Human", "Dog", "Cat", "Pig"]
 
-SPECIES_COLORS = {
-    "Mouse": "#1A5276",  # Dark blue
-    "Rat": "#2E86C1",  # Medium blue
-    "Bat": "#00A896",  # Teal
-    "Mouselemur": "#58D68D",  # Green
-    "Marmoset": "#F4D03F",  # Yellow
-    "Macaque": "#F5B041",  # Orange
-    "Human": "#D35400",  # Burnt orange
-    "Dog": "#8E44AD",  # Purple
-    "Cat": "#C0392B",  # Red
-    "Pig": "#6E2C00",  # Dark brown
-}
+# species colours of the paper
+from Exemples.Study_EDNiX.analysis.paper_style import SPECIES_COLORS  # noqa: E402
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # QC COLUMN DEFINITIONS — SCIENTIFICALLY LOGICAL ORDER

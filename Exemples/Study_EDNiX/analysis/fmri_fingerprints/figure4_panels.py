@@ -2,8 +2,8 @@
 Figure 4 of the paper, drawn at print size (183 mm wide). Clément, 2026-10-27:
 
   a  the common profile: left, one large radar of the cross-species consensus (median
-     across species of the species medians, every dataset) with the region names on its
-     spokes; right, one small radar per dataset, its group fingerprint (species colour)
+     across species of the species medians, every dataset; grey band = interquartile range
+     across species) with the region names on its spokes, no title; right, one small radar per dataset, its group fingerprint (species colour)
      over the consensus it was compared with (black dashed: leave-one-species-out
      consensus, the median of the OTHER species, so that a dataset is never compared
      with a profile it contributed to), ranked by that r. Same spokes, same radial range
@@ -22,6 +22,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
 import Exemples.Study_EDNiX.analysis.fmri_fingerprints.profile_stats as fa
 import Exemples.Study_EDNiX.analysis.fmri_fingerprints.fingerprints as ff
@@ -37,10 +38,41 @@ def _radar_curve(ax, theta, v, order, **kw):
     return ax.plot(t, a, **kw)
 
 
+def _common_with_band(vecs, species_of_label):
+    """Common profile (median across species of the species medians), z-scored, and the
+    interquartile range across species of the species medians, in the same units (the
+    affine z-transform of the common profile applied to the quartiles)."""
+    spm = ff.species_medians(vecs, species_of_label)
+    mat = np.vstack(list(spm.values()))
+    with np.errstate(invalid="ignore"):
+        c = np.nanmedian(mat, axis=0)
+        q25, q75 = np.nanpercentile(mat, [25, 75], axis=0)
+    ok = np.isfinite(c)
+    mu, sd = np.nanmean(c[ok]), np.nanstd(c[ok])
+    sd = sd if sd > 0 else 1.0
+    return (c - mu) / sd, (q25 - mu) / sd, (q75 - mu) / sd, len(spm)
+
+
+def _grid(n, width_mm, big_mm, gap_mm=3.0, aspect=1.12):
+    """Columns of the small-radar grid whose height is closest to the large radar's."""
+    best = None
+    for nc in (3, 4, 5, 6):
+        cell = (width_mm - big_mm - gap_mm) / nc
+        nr = int(np.ceil(n / nc))
+        d = abs(nr * cell * aspect - big_mm)
+        if best is None or d < best[0]:
+            best = (d, nc, nr, cell)
+    return best[1:]
+
+
 def fig4a_common_profile(vecs, dist_df, species_of_label, common, order, region_mask, out,
-                         width_mm=183, big_mm=74, ncols=5):
+                         width_mm=183, big_mm=80):
     """Panel a. vecs: {label: group fingerprint}; dist_df: ff.dataset_distances (column
-    r_consensus = r with the leave-one-species-out consensus)."""
+    r_consensus = r with the leave-one-species-out consensus).
+    Left: common profile (black) with the interquartile range across species (grey band),
+    region names on the spokes. Right: one small radar per dataset, ranked by r; the
+    number of columns is the one whose grid height matches the large radar; the legend
+    fills the empty cells of the last row (or goes under the grid)."""
     rows = dist_df.dropna(subset=["r_consensus"]).sort_values("r_consensus", ascending=False)
     if rows.empty:
         return None
@@ -49,44 +81,43 @@ def fig4a_common_profile(vecs, dist_df, species_of_label, common, order, region_
     regions = [common[i] for i in order]
     mask = np.ones(len(common), bool) if region_mask is None else np.asarray(region_mask, bool)
     excluded = [not mask[i] for i in order]
-    glob_c = fa._zscore_values(ff.consensus(vecs, species_of_label))
+    glob_c, lo, hi, n_sp = _common_with_band(vecs, species_of_label)
     pairs = []
     for r in rows.itertuples():
         ref, _ = ff._reference_for(vecs, species_of_label, "consensus", r.label, r.species, None)
         pairs.append((r, fa._zscore_values(vecs[r.label]), fa._zscore_values(ref)))
-    allv = np.concatenate([glob_c[np.isfinite(glob_c)]] +
+    allv = np.concatenate([x[np.isfinite(x)] for x in (glob_c, lo, hi)] +
                           [np.r_[v[np.isfinite(v)], c[np.isfinite(c)]] for _, v, c in pairs])
     rlim = (min(allv.min(), 0) - 0.3, allv.max() + 0.3)
 
     n = len(pairs)
-    ncols = min(ncols, n)
-    nrows = int(np.ceil(n / ncols))
-    W = width_mm * MM
-    small_w = (width_mm - big_mm - 4) / ncols                    # mm per small radar
-    H = max(big_mm + 7, nrows * small_w * 1.12) * MM          # + 7 mm: title of the large radar
+    ncols, nrows, cell = _grid(n, width_mm, big_mm)
+    step_y = cell * 1.12
+    H_mm = max(big_mm, nrows * step_y)
+    W, H = width_mm * MM, H_mm * MM
     with ff._print_size():
         fig = plt.figure(figsize=(W, H))
-        # large radar: square, with room for the radial spoke names
-        lab_mm = 16
+        # large radar, square, centred vertically, with room for the spoke names
+        lab_mm = 15.0
         r_mm = big_mm - 2 * lab_mm
-        bax = fig.add_axes([lab_mm / width_mm, (lab_mm + 1.0) / (H / MM),
-                            r_mm / width_mm, r_mm / (H / MM)], projection="polar")
+        y0 = (H_mm - big_mm) / 2 + lab_mm
+        bax = fig.add_axes([lab_mm / width_mm, y0 / H_mm, r_mm / width_mm, r_mm / H_mm],
+                           projection="polar")
         theta = ff._spider_axes(bax, labels, rlim, excluded, show_labels=True, regions=regions)
-        bax.fill_between(*ff._close(theta, glob_c[order]), rlim[0], color="0.85", lw=0, zorder=1)
+        t, a = ff._close(theta, lo[order])
+        _, b = ff._close(theta, hi[order])
+        bax.fill_between(t, a, b, color="0.55", alpha=0.35, lw=0, zorder=2)
         _radar_curve(bax, theta, glob_c, order, color="black", lw=1.0, zorder=3)
         bax.tick_params(axis="y", labelsize=4)
-        fig.text((lab_mm + r_mm / 2) / width_mm, 1.0, "Common profile\n(median of the species)",
-                 ha="center", va="top", fontsize=6, fontweight="bold")
-        # small radars, best r first; the grid is centred vertically on the large radar
-        x0 = big_mm + 4
-        grid_h = nrows * small_w * 1.12
-        y_off = max((H / MM - grid_h) / 2 - 3.0, 0.0)
+        # small radars, best r first
+        x0 = big_mm + 3.0
+        top = (H_mm - nrows * step_y) / 2
         for k, (r, v, c) in enumerate(pairs):
             i, j = divmod(k, ncols)
-            cell = small_w * 0.80
-            ax = fig.add_axes([(x0 + j * small_w + (small_w - cell) / 2) / width_mm,
-                               1 - (y_off + (i + 1) * small_w * 1.12 - 1.0) / (H / MM),
-                               cell / width_mm, cell / (H / MM)], projection="polar")
+            side = cell * 0.80
+            ax = fig.add_axes([(x0 + j * cell + (cell - side) / 2) / width_mm,
+                               1 - (top + (i + 1) * step_y - 0.8) / H_mm,
+                               side / width_mm, side / H_mm], projection="polar")
             th = ff._spider_axes(ax, labels, rlim, excluded, show_labels=False, regions=regions)
             ax.set_yticklabels([])
             t, a = ff._close(th, v[order])
@@ -98,12 +129,21 @@ def fig4a_common_profile(vecs, dist_df, species_of_label, common, order, region_
             ax.set_title(f"{ff.pretty_label(r.label)}\nr = {r.r_consensus:.2f}", fontsize=5,
                          color=ff._tcolor(r.species), pad=1.5)
         handles = [Line2D([], [], color="black", lw=1.0, label="common profile"),
+                   Patch(facecolor="0.55", alpha=0.35, lw=0,
+                         label=f"IQR across species (n = {n_sp})"),
                    Line2D([], [], color="black", lw=0.6, ls=(0, (2.5, 1.5)),
                           label="leave-one-species-out consensus"),
                    Line2D([], [], color="0.4", lw=0.8, label="dataset (species colour)")]
-        fig.legend(handles=handles, loc="upper center", ncol=3, fontsize=5, frameon=False,
-                   bbox_to_anchor=((x0 + ncols * small_w / 2) / width_mm,
-                                   1 - (y_off + grid_h + 1.0) / (H / MM)))
+        free = nrows * ncols - n
+        if free >= 1:
+            # in the empty cells of the last row
+            j0 = n - (nrows - 1) * ncols
+            fig.legend(handles=handles, loc="center left", ncol=1, fontsize=5, frameon=False,
+                       bbox_to_anchor=((x0 + j0 * cell + 1.0) / width_mm,
+                                       1 - (top + (nrows - 0.5) * step_y) / H_mm))
+        else:
+            fig.legend(handles=handles, loc="upper center", ncol=4, fontsize=5, frameon=False,
+                       bbox_to_anchor=((x0 + ncols * cell / 2) / width_mm, 0.0))
         fa.save_paper(fig, out)
     return out
 

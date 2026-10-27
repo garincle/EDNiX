@@ -4,7 +4,7 @@ anat_metrics / func_metrics name the panels, plot_supp4 / plot_supp5 draw them
 (paper_figures), qc_summary gives the numbers (paper_stats). Former
 Supplementary/Supp_Fig_04_anat_QC.py and Supp_Fig_05_func_QC.py, functions unchanged.
 
-Supplementary Figure 4 -- anatomical QC, one point per (subject, session).
+Supplementary Figure 5 -- anatomical QC, one point per (subject, session).
 
   a  grey-matter SNR              b  subcortical SNR (atlas level 1 'Subcortical areas',
                                      mean of left and right)
@@ -21,7 +21,7 @@ NMI: 'anat_nmi_brain' (inside the brain, written since this version) when presen
 otherwise 'anat_nmi' computed on the whole field of view (background included: it then
 depends on how much of the field of view the brain fills, which differs by species).
 
-Supplementary Figure 5 -- resting-state fMRI QC, one point per BOLD run.
+Supplementary Figure 6 -- resting-state fMRI QC, one point per BOLD run.
 
   2 rows x 4 (GCOR removed, Clément 2026-10-27)
   first row (signal and registration of the mean functional image)

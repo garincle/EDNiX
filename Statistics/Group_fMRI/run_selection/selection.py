@@ -38,6 +38,8 @@ CONFIG = dict(
         # avec OVERWRITE_MAPS=True, deux lancements avec un SEED/ATLAS_LEVEL
         # identiques mais un SIMILARITY/ZSCORE/N_SELECT différent
         # s'écraseraient silencieusement l'un l'autre au même endroit.
+    # subject list: classification of the former network-QC figure (archived); None or a
+    # missing file with CATEGORY="All" = every subject with a func/ folder in the BIDS
     CLASSIFICATION_PATH=("/scratch2/EDNiX/results/EDNiX_Figures/Figure_4_rsfMRI_QC/"
                          "lvl2/all/classification_results.xlsx"),
     CATEGORY="All",

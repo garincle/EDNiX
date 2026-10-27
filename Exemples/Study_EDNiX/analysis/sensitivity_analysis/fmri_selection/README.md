@@ -2,7 +2,7 @@
 
 Point d'entrée : `Launcher_exploration.py` (ancien `Launcher_exploration.py`). Chaque option y est décrite ; les valeurs par défaut et leur explication détaillée sont dans `exploration_pipeline.CONFIG`.
 
-Hors papier. Le papier (Figures 4-5, Supp. 7-11) est produit par `analysis/run_paper.py` (`paper_stats.py` puis `paper_figures.py`), à partir de la sélection de `Statistics/Group_fMRI/run_selection/` ; mêmes fonctions et mêmes nombres que ce pipeline (vérifié : `analysis/validation/paper_vs_pipeline.py`). Les fonctions d'analyse et de dessin sont dans `analysis/fmri_fingerprints/` (`profile_stats.py` = ancien `../../fmri_fingerprints/profile_stats.py`, `fingerprints.py` = `../../fmri_fingerprints/fingerprints.py`, `paper_panels.py` = `../../fmri_fingerprints/paper_panels.py`, `supp_panels.py` = `fig5_supp_paper.py`, `phylo.py` = `fig5_phylo.py`) ; la sélection elle-même (partie 1) dans `Statistics/Group_fMRI/run_selection/`.
+Hors papier. Le papier (Figures 4-5, Supp. 8-12) est produit par `analysis/run_paper.py` (`paper_stats.py` puis `paper_figures.py`), à partir de la sélection de `Statistics/Group_fMRI/run_selection/` ; mêmes fonctions et mêmes nombres que ce pipeline (vérifié : `analysis/validation/paper_vs_pipeline.py`). Les fonctions d'analyse et de dessin sont dans `analysis/fmri_fingerprints/` (`profile_stats.py` = ancien `../../fmri_fingerprints/profile_stats.py`, `fingerprints.py` = `../../fmri_fingerprints/fingerprints.py`, `paper_panels.py` = `../../fmri_fingerprints/paper_panels.py`, `supp_panels.py` = `fig5_supp_paper.py`, `phylo.py` = `fig5_phylo.py`) ; la sélection elle-même (partie 1) dans `Statistics/Group_fMRI/run_selection/`.
 
 ## Deux parties : sélection, puis figures (`RUN_PART`)
 

@@ -17,25 +17,26 @@ lines), and returns them with what paper_figures.py needs to draw the figure.
             morphometry), Human / Macaque      BH-FDR); C  z-scored profiles, cross-modal r
   supp1-3   pipeline schematics (anat MRI,  no statistic
             fMRI, FDG-PET with the CT path)
-  supp4     anatomical QC                   per dataset summary of every panel
-  supp5     functional QC                   per dataset summary of every panel
-  supp6     human association vs primary    paired t-tests (BIDS_Park)
-  supp7     behaviour of the selection      convergence, consensus by dataset, invariance
-  supp8     scores and arousal state        selection scores; r with the criterion by state
-  supp9     proximity of the datasets       sibling rank of every dataset
-  supp10    selection vs variability levels animal / session gaps vs random subsets
-  supp11    run dispersion and QC           SD of r with the kept map; QC meta-analysis
+  supp4     acquisition parameters          the <= 4 parameters reported for every fMRI dataset
+  supp5     anatomical QC                   per dataset summary of every panel
+  supp6     functional QC                   per dataset summary of every panel
+  supp7     human association vs primary    paired t-tests (BIDS_Park)
+  supp8     behaviour of the selection      convergence, consensus by dataset, invariance
+  supp9     scores and arousal state        selection scores; r with the criterion by state
+  supp10    proximity of the datasets       sibling rank of every dataset
+  supp11    selection vs variability levels animal / session gaps vs random subsets
+  supp12    run dispersion and QC           SD of r with the kept map; QC meta-analysis
   stable1   acquisition parameters          per dataset: n, field, scanner, TR, TE, flip, voxel,
                                             volumes, duration, arousal state; implausible TRs flagged
 
-fMRI statistics (figure4, figure5, supp7-supp11) read only the saved run selection
+fMRI statistics (figure4, figure5, supp8-supp12) read only the saved run selection
 (Statistics/Group_fMRI/run_selection, <FMRI_SELECTION_ROOT>/07_state), with the settings
 of fmri_fingerprints/settings.py: the functions and the settings are those of the former
 Fig5 pipeline (sensitivity_analysis/fmri_selection/exploration_pipeline.py), so every
 number is the one that pipeline wrote (checked on synthetic data: validation/).
 
     python paper_stats.py                  # every figure
-    python paper_stats.py figure4 supp9    # some figures
+    python paper_stats.py figure4 supp10   # some figures
 Everything (statistics and figures): run_paper.py.
 """
 import os
@@ -52,13 +53,14 @@ opj = os.path.join
 
 SECTIONS = ("figure1", "figure2", "figure3", "figure4", "figure5", "figure6", "supp1", "supp2",
             "supp3", "supp4", "supp5", "supp6", "supp7", "supp8", "supp9", "supp10", "supp11",
-            "stable1")
+            "supp12", "stable1")
 FOLDER = dict(figure1="Figure_1", figure2="Figure_2", figure3="Figure_3",
               figure4="Figure_4", figure5="Figure_5", figure6="Figure_6", supp1="Supp_Fig_01",
               supp2="Supp_Fig_02", supp3="Supp_Fig_03", supp4="Supp_Fig_04",
-              supp5="Supp_Fig_05", supp6="Supp_Fig_06", supp7="Supp_Fig_07",
-              supp8="Supp_Fig_08", supp9="Supp_Fig_09", supp10="Supp_Fig_10",
-              supp11="Supp_Fig_11", stable1="Supp_Table_01")
+              supp5="Supp_Fig_05",
+              supp6="Supp_Fig_06", supp7="Supp_Fig_07", supp8="Supp_Fig_08",
+              supp9="Supp_Fig_09", supp10="Supp_Fig_10", supp11="Supp_Fig_11",
+              supp12="Supp_Fig_12", stable1="Supp_Table_01")
 
 
 def out_base(section, paper_dir=None):
@@ -121,7 +123,7 @@ class Inputs:
 
     def fmri(self):
         """Saved selection + shared objects (fmri_fingerprints.context) + the group
-        fingerprints used by Figure 4 and Supp. 9 (fmri_group)."""
+        fingerprints used by Figure 4 and Supp. 10 (fmri_group)."""
         def load():
             from Exemples.Study_EDNiX.analysis.fmri_fingerprints import context
             c = context.prepare(context.load_state(self.fmri_root))
@@ -134,7 +136,7 @@ class Inputs:
 # Shared fMRI objects (same code as fingerprints.make_fingerprint_figures)
 # ═══════════════════════════════════════════════════════════════════════════
 def fmri_group(c):
-    """Group fingerprints of every dataset and what Figure 4 and Supp. 9 share:
+    """Group fingerprints of every dataset and what Figure 4 and Supp. 10 share:
       vecs_all   {label: scaled group profile} of the Figure 4 group maps
                  (context.prepare: round-final KEPT maps, PHYLOGENY_USE_FINAL_ROUND)
       dist_all   per dataset r / 1 - r with the LOSO consensus and with Human
@@ -354,6 +356,17 @@ def _qc_section(df, metrics, unit):
 
 
 def supp4(inp):
+    """Acquisition parameters of the fMRI datasets: at most 4, only those reported for
+    every dataset (library/acquisition_table.ACQ_CANDIDATES gives the order of interest)."""
+    from Exemples.Study_EDNiX.analysis.library import acquisition_table as acq
+    f = acq.acq_runs(inp.acquisition())
+    chosen, dropped = acq.acq_metrics(f)
+    summ = acq.summary_per_metric(f, chosen)
+    return dict(tables=dict(summary=summ), lines=acq.acq_lines(f, chosen, dropped),
+                draw=dict(runs=f, chosen=chosen))
+
+
+def supp5(inp):
     from Exemples.Study_EDNiX.analysis.library import qc_figures as qf
     df = inp.qc("anat")
     metrics = qf.anat_metrics(df)
@@ -363,7 +376,7 @@ def supp4(inp):
                 lines=lines, draw=dict(df=df))
 
 
-def supp5(inp):
+def supp6(inp):
     from Exemples.Study_EDNiX.analysis.library import qc_figures as qf
     df = inp.qc("func")
     metrics = qf.func_metrics(df)
@@ -374,7 +387,7 @@ def supp5(inp):
                 lines=lines, draw=dict(df=df))
 
 
-def supp6(inp):
+def supp7(inp):
     from Exemples.Study_EDNiX.analysis.library import human_assoc_primary as hap
     morph, age = inp.human_park()
     st = hap.supp6_stats(morph, age)
@@ -382,7 +395,7 @@ def supp6(inp):
                 draw=dict(stats=st))
 
 
-def supp7(inp):
+def supp8(inp):
     """a  convergence of the iterative selection (F1e)
        b  regional profile of every dataset (all runs) and the consensus (F1c)
        c  invariance of every region; regions used by the score (F5)"""
@@ -413,7 +426,7 @@ def supp7(inp):
         names="region") if per else f1c, c_region_invariance=inv), lines=lines, draw={})
 
 
-def supp8(inp):
+def supp9(inp):
     """a  selection score of every unit, per dataset (F3)
        b  r of every run with its dataset's final-round selection criterion, by arousal
           state; within-animal sign-flip test (F8b / 6c)"""
@@ -453,7 +466,7 @@ def supp8(inp):
                 lines=lines, draw=dict(d=d, tests=tests))
 
 
-def supp9(inp):
+def supp10(inp):
     """Proximity of every dataset to its sibling and to the other species (F16b)."""
     c = inp.fmri()
     return dict(tables=dict(distances=c["dist_all"],
@@ -462,7 +475,7 @@ def supp9(inp):
                 lines=_sibling_lines(c["sibling"]), draw={})
 
 
-def supp10(inp):
+def supp11(inp):
     """Inter-run / inter-session / inter-animal similarity, selected runs vs random
     subsets of the same size (F20)."""
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import fingerprints as ff
@@ -482,7 +495,7 @@ def supp10(inp):
                 draw=dict(vt=vt, vdraws=vdraws))
 
 
-def supp11(inp):
+def supp12(inp):
     """a  SD across runs of r with the dataset's kept group map (F9)
        b  external QC vs that r: per-dataset correlations, meta-analysis (F10)"""
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import profile_stats as fa

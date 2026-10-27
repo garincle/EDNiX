@@ -40,11 +40,8 @@ opj = os.path.join
 # CONSTANTS
 # ──────────────────────────────────────────────────────────────────────────────
 
-SPECIES_COLORS = {
-    "Mouse": "#1A5276", "Rat": "#2E86C1", "Bat": "#00A896",
-    "Mouselemur": "#58D68D", "Marmoset": "#F4D03F", "Macaque": "#F5B041",
-    "Human": "#D35400", "Dog": "#8E44AD", "Cat": "#C0392B", "Pig": "#6E2C00",
-}
+# species colours of the paper
+from Exemples.Study_EDNiX.analysis.paper_style import SPECIES_COLORS  # noqa: E402
 
 # BIDS colors - consistent mapping
 BIDS_COLORS = {

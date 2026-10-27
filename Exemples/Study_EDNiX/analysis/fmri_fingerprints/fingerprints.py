@@ -1920,7 +1920,7 @@ def pooled_gap_test(draws, key="gap_animal"):
 
 
 def variability_result_lines(vt, pooled_v):
-    """Result lines of F20 (Supplementary Figure 10): per dataset, animal and session
+    """Result lines of F20 (Supplementary Figure 11): per dataset, animal and session
     gaps of the selected runs against random subsets of the same size; pooled tests."""
     res_lines = []
     for r in vt.itertuples():

@@ -1,6 +1,6 @@
 """
 Former Figure_5_SBA.py: upstream group seed maps (3dttest++) read by the Fig5 pipeline
-(Figures 4-5, Supp. Figs 7-11). OUTPUT_BASE path unchanged.
+(Figures 4-5, Supp. Figs 8-12). OUTPUT_BASE path unchanged.
 
 run_SBA_by_category.py
 ──────────────────────
@@ -143,10 +143,38 @@ CATEGORIES = ["Specific", "Unspecific", "No", "Spurious", "All"]
 # CLASSIFICATION FILTERING
 # =============================================================================
 
+def subjects_from_bids(species, bids_path):
+    """[(species, bids_path, subject, session)] of every sub-*/[ses-*/]func/ of a BIDS
+    folder: the subject list when there is no classification file."""
+    out = []
+    for sub_dir in sorted(glob.glob(os.path.join(bids_path, "sub-*"))):
+        subj = os.path.basename(sub_dir)[4:]
+        ses_dirs = sorted(glob.glob(os.path.join(sub_dir, "ses-*")))
+        if ses_dirs:
+            out += [(species, bids_path, subj, os.path.basename(d)[4:]) for d in ses_dirs
+                    if os.path.isdir(os.path.join(d, "func"))]
+        elif os.path.isdir(os.path.join(sub_dir, "func")):
+            out.append((species, bids_path, subj, "1"))
+    return out
+
+
 def load_classification_subjects(excel_path, species=None, bids_dir=None,
-                                 categories=None, min_n=4):
-    """Load classification Excel and extract subjects for each category."""
-    if not os.path.exists(excel_path):
+                                 categories=None, min_n=4, bids_path=None):
+    """Load classification Excel and extract subjects for each category.
+
+    excel_path None or missing and only 'All' requested: every subject of the BIDS
+    folder with a func/ folder (bids_path = full path of the BIDS folder). 'All' is the
+    union of every category of the classification (former network QC figure), i.e. every
+    classified subject, so the subject list is the same as long as every subject with
+    fMRI data had been classified."""
+    if not excel_path or not os.path.exists(excel_path):
+        wanted = set(categories or CATEGORIES)
+        if wanted == {'All'} and bids_path:
+            subs = subjects_from_bids(species, bids_path)
+            print(f"  [INFO] no classification file ({excel_path}): 'All' = every subject "
+                  f"with a func/ folder in {os.path.basename(str(bids_path))} "
+                  f"({len({s for _, _, s, _ in subs})} subjects)")
+            return {'All': subs}
         print(f"  [ERROR] Classification file not found: {excel_path}")
         return None, None
 

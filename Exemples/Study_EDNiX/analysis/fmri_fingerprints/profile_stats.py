@@ -982,7 +982,7 @@ def plot_common_regions_with_human_ref(human_ref, common_base_names,
     x = np.arange(len(common_base_names))
 
     fig, ax = plt.subplots(figsize=(max(10, len(common_base_names) * 0.22), 5))
-    ax.plot(x, vals, color="#D35400", lw=1.8, marker="o", ms=3, label="Human reference")
+    ax.plot(x, vals, color="#D95F02", lw=1.8, marker="o", ms=3, label="Human reference")
     ax.axhline(0, color="#999999", lw=0.8)
     ax.set_xticks(x)
     ax.set_xticklabels(common_base_names, rotation=90, fontsize=4)
