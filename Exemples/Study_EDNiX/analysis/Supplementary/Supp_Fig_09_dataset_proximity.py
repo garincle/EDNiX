@@ -1,6 +1,6 @@
 """
 Supplementary Figure 9 -- proximity of every dataset to every other dataset (F16 b;
-F16 a is Figure 5c). Star = the other dataset of the same species, tick = consensus
+F16 a is Figure 4c). Star = the other dataset of the same species, tick = consensus
 of the other species, ring = nearest neighbour; stars = sibling permutation test.
 
 Panels drawn at print size by the Fig 5 pipeline (Fig5/Launcher_Fig5.py,

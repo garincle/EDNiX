@@ -11,8 +11,8 @@ All paper figures are written to `/scratch2/EDNiX/results/EDNiX_Figures/Paper/<F
 | Fig. 1 | `Figure_1_atlases.py` | atlases |
 | Fig. 2 | `Figure_2_morphometry.py` | morphometry, atlas level 2, bilateral, log10 |
 | Fig. 3 | `Figure_3_longitudinal.py` | BIDS_Zhu_Garin (macaque), BIDS_Park (human) |
-| Fig. 4 | `Figure_4_seed_maps.py` | panel 5a of the Fig5 pipeline (seed maps) |
-| Fig. 5 | `Figure_5_fingerprints.py` | panels of the Fig5 pipeline (F15b, 5b, F16a) |
+| Fig. 4 | `Figure_4_fingerprints.py` | panels of the Fig5 pipeline (F15b, 5b, F16a): the selection |
+| Fig. 5 | `Figure_5_seed_maps.py` | panel 5a of the Fig5 pipeline (seed maps): its result |
 | Supp. 4 | `Supplementary/Supp_Fig_04_anat_QC.py` | anat QC |
 | Supp. 5 | `Supplementary/Supp_Fig_05_func_QC.py` | func QC |
 | Supp. 6 | `Supplementary/Supp_Fig_06_human_assoc_primary.py` | BIDS_Park |

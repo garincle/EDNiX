@@ -91,7 +91,7 @@ import Exemples.Study_EDNiX.analysis.Fig5.fig5_units as fu      # unit aggregati
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_phylo as fp      # Mantel / Blomberg K / PGLS
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_fingerprints as ff  # F6ab, fingerprints, F15-F18
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_paper as fpp         # panels of Figures 5 and 6
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_supp_paper as fsp    # print-size panels, Fig 4 / Supp 7-11
+import Exemples.Study_EDNiX.analysis.Fig5.fig5_supp_paper as fsp    # print-size panels, Figs 4-5 / Supp 7-11
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIG -- everything controllable lives here
