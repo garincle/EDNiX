@@ -87,3 +87,12 @@ means the selection is the same.
   `05b_surfaces_final/`): previews and surface renders
 - `07_state/`: state read by the statistics (part 2)
 - `methods.txt`, `00_log.txt`
+
+## Validation without data
+
+`validation/synthetic_pipeline.py` runs the whole pipeline (selection, statistics,
+figures; AFNI steps off) on synthetic seed maps. It can run from two checkouts, and
+`compare_states.py` + `validation/compare_outputs.py` then compare the results.
+
+The move into this package was checked this way on 2026-10-27, against 0707c94: the
+state was identical, and so were 58/58 tables and texts.
