@@ -26,9 +26,9 @@ import argparse
 import numpy as np
 
 _REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), *[os.pardir] * 4))
-for p in (_REPO, '/home/cgarin/PycharmProjects/EDNiX/'):
-    if os.path.isdir(p) and p not in sys.path:
-        sys.path.insert(0, p)
+for _path in (_REPO, '/home/cgarin/PycharmProjects/EDNiX/'):
+    if os.path.isdir(_path) and _path not in sys.path:
+        sys.path.insert(0, _path)
 
 from Exemples.Study_EDNiX.analysis import paper_data as pdat
 from Exemples.Study_EDNiX.analysis.Supplementary import pipeline_schematic as sch
@@ -147,7 +147,8 @@ def moco_plot(t, params, disp):
             ax.plot(t, params[:, k] + off * 1.4, lw=0.35, color=cols[k % 6], marker='o', ms=0.6)
         sc = off / max(np.nanmax(disp), 1e-6)
         ax.plot(t, disp * sc - off * 0.4, lw=0.45, color='#333333', marker='o', ms=0.7)
-        ax.set_yticks([]), ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xticks([])
         ax.spines['left'].set_visible(False)
         ax.set_xlim(t.min() - 1, t.max() + 1)
         ax.text(0.03, 0.97, 'frames: rigid', transform=ax.transAxes, fontsize=4.6, va='top', color='#555555')
@@ -286,7 +287,7 @@ def panel_a(cv, th, y0):
                   label='AC-PC matrix of the T1w reused, nothing estimated', label_dy=-0.9)
     cv.transition(xs[3] + FW + 0.4, xs[4] - 0.4, yc, kind='apply', label='T$_{anat}$', label_dy=-0.9)
     # lanes with images
-    def frame(i, yy, key, title, caption=None, step=None, op=None):
+    def frame(i, yy, key, title, caption=None):
         sch.draw_frame(cv, xs[i], yy, FW, FH, th[key], None, None, None, caption)
         if title:
             cv.text(xs[i] + FW / 2, yy - 0.8, title, size=sch.FS_SMALL, weight='bold', ha='center', va='bottom')

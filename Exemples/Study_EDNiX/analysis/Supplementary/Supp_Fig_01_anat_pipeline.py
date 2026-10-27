@@ -119,7 +119,7 @@ def thumbs_real(files, tf):
     brain_w = np.ptp(np.where(m2.data > 0.5)[0]) * m2.zooms[0]
     off = -0.16 * brain_w                                      # parasagittal, left hemisphere
 
-    def sl(vol, support, extra=(), labels=None, contours=(), pad=0.05, head=False):
+    def sl(vol, support, labels=None, contours=(), pad=0.05, head=False):
         i = vol.sag_index(support > 0.5, off)
         img = vol.sagittal(i)
         sup = np.rot90((support > 0.5)[i]) if not head else img > np.percentile(img[img > 0], 20)

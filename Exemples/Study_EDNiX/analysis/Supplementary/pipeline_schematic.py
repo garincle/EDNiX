@@ -209,7 +209,7 @@ class Canvas:
             self.text(x, y + 2.9, sub, size=FS_SMALL, color=SUBTLE, style='italic')
         self.ax.plot([x, x + w], [y + (5.4 if sub else 2.9)] * 2, color='#BFBFBF', lw=0.4, zorder=2)
 
-    def ops_legend(self, x, y, keys=None, spaces=None, ncol=None):
+    def ops_legend(self, x, y, keys=None):
         """One row: coloured ticks + names of the kinds of operation, then the arrow conventions."""
         keys = keys or list(OPS)
         xx = x
@@ -234,7 +234,7 @@ class Thumb:
     """One image frame: 2-D image + optional contours and label map, or a custom plot function."""
 
     def __init__(self, img=None, cmap='gray', vmin=None, vmax=None, contours=(), labels=None, label_alpha=0.75,
-                 aspect=1.0, plot=None, synthetic=False, bg='black', title_color='white', overlay=None,
+                 aspect=1.0, plot=None, synthetic=False, bg='black', overlay=None,
                  overlay_cmap='hot', overlay_alpha=0.85, overlay_thr=None, lines=()):
         self.img, self.cmap, self.vmin, self.vmax = img, cmap, vmin, vmax
         self.contours = list(contours)          # [(mask2d, colour, lw, linestyle)]
@@ -289,7 +289,8 @@ class Thumb:
                 ax.text(x0, y0 + 4, lab, color=col, fontsize=4.2, ha='left', va='top')
         ax.set_xlim(-0.5, img.shape[1] - 0.5)
         ax.set_ylim(img.shape[0] - 0.5, -0.5)
-        ax.set_xticks([]), ax.set_yticks([])
+        ax.set_xticks([])
+        ax.set_yticks([])
         for s in ax.spines.values():
             s.set_visible(False)
         if self.synthetic:
@@ -494,7 +495,6 @@ class SyntheticBrain:
         self.shape = self.t1.shape
         # smooth envelope of the brain (the skull does not follow the sulci); skull 0-5 mm, scalp and fat 7-7+t mm (thicker over the vertex and occiput)
         yy, xx = np.mgrid[0:self.shape[0], 0:self.shape[1]]
-        ys, xs = np.where(self.brain)
         env = ndi.binary_closing(self.brain, structure=_disk(14), iterations=1)
         env = ndi.binary_fill_holes(env)
         env = ndi.gaussian_filter(env.astype(float), 3) > 0.5

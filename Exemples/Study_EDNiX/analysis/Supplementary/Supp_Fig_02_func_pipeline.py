@@ -20,9 +20,9 @@ import argparse
 import numpy as np
 
 _REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), *[os.pardir] * 4))
-for p in (_REPO, '/home/cgarin/PycharmProjects/EDNiX/'):
-    if os.path.isdir(p) and p not in sys.path:
-        sys.path.insert(0, p)
+for _path in (_REPO, '/home/cgarin/PycharmProjects/EDNiX/'):
+    if os.path.isdir(_path) and _path not in sys.path:
+        sys.path.insert(0, _path)
 
 from Exemples.Study_EDNiX.analysis import paper_data as pdat
 from Exemples.Study_EDNiX.analysis.Supplementary import pipeline_schematic as sch
@@ -81,7 +81,8 @@ def motion_plot(params, fd, thr):
 def carpet_plot(carpet):
     def draw(ax):
         ax.imshow(carpet, cmap='gray', aspect='auto', vmin=-2, vmax=2, interpolation='nearest')
-        ax.set_xticks([]), ax.set_yticks([])
+        ax.set_xticks([])
+        ax.set_yticks([])
         for s in ax.spines.values():
             s.set_linewidth(0.35)
     return draw
@@ -344,8 +345,8 @@ def panel_c(cv, y0):
             ha='right', va='center', color=col)
     # interpolation brackets
     yb = y + nh + 2.0
-    for (i0, i1, txt, step, dx) in [(0, 4, 'interpolation 1: each volume, into the functional AC-PC grid', 5, 0.0),
-                                    (4, 6, 'interpolation 2: anatomy / template', '8-9', 0.0)]:
+    for (i0, i1, txt, step) in [(0, 4, 'interpolation 1: each volume, into the functional AC-PC grid', 5),
+                                (4, 6, 'interpolation 2: anatomy / template', '8-9')]:
         xa, xb = xs[i0] + 1.0 + (1.2 if i0 else 0), xs[i1] + nw - 1.0 - (1.2 if i1 == 4 else 0)
         cv.ax.plot([xa, xa, xb, xb], [yb - 0.8, yb, yb, yb - 0.8], color=col, lw=0.6, zorder=4)
         tw = 0.37 * sch.FS_SMALL * 0.3528 * 2 * len(txt) * 0.5
