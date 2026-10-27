@@ -1,4 +1,8 @@
 """
+ARCHIVED (former Figure 4, network QC): not in the paper any more. Kept because
+Fig5/fig5_pipeline.CLASSIFICATION_PATH still reads its output
+(Figure_4_rsfMRI_QC/lvl2/all/classification_results.xlsx) -- do not delete that file.
+
 EDNiX BIDS Tools v6  —  Main analysis script
 =============================================
 Processes all species: surface, thickness, volume, QC

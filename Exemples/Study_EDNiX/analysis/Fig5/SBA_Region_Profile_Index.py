@@ -56,7 +56,7 @@ import matplotlib.pyplot as plt
 
 # ── Local modules ────────────────────────────────────────────────────────────
 try:
-    from Exemples.Study_EDNiX.analysis import Figure_5_SBA as fig5
+    from Exemples.Study_EDNiX.analysis.Fig5 import SBA_group_maps as fig5
     from Exemples.Study_EDNiX.analysis.Fig5 import _Group_anal_Outlier_QC as qc
 except ImportError:
     try:
@@ -65,7 +65,7 @@ except ImportError:
         _this_dir = os.getcwd()
     if _this_dir not in sys.path:
         sys.path.insert(0, _this_dir)
-    import Figure_5_SBA as fig5
+    import SBA_group_maps as fig5
     import _Group_anal_Outlier_QC as qc
 
 try:
@@ -1222,7 +1222,7 @@ def rerun_balanced_kept_vs_outlier(df_class, species, bids_dir, classification_p
                                     random_seed=42, skip_analyses=None):
     """
     Using df_class's per-run is_outlier classification, re-run the group
-    3dttest++ (via Figure_5_SBA.process_species_category) TWICE — once
+    3dttest++ (via SBA_group_maps.process_species_category) TWICE — once
     using only "kept" subject-sessions, once using only "outlier"
     subject-sessions — with the SAME number of subject-sessions in both
     groups (the smaller of the two; the larger group is randomly
@@ -1826,7 +1826,7 @@ def rerun_balanced_by_run(df_class, species, bids_dir, seed=None, results_base_d
     balancing was asked for).
 
     ⚠ UNVERIFIED beyond load_classification_subjects (confirmed): this
-    assumes Figure_5_SBA.py exposes the same helpers/constants shown in
+    assumes SBA_group_maps.py exposes the same helpers/constants shown in
     run_SBA_by_category.py's process_species_category — build_species_cfg,
     ATLAS_LIB, MAIN_PATH, get_atlas_label_path, parse_label_file,
     find_template_low, REGIONS_OF_INTEREST, NORMALIZE_PERCENTILE,
@@ -2054,7 +2054,7 @@ def rerun_balanced_by_run(df_class, species, bids_dir, seed=None, results_base_d
     # NIfTI files (which is exactly what was missing: files existed but
     # nothing was viewable in them without this render step).
     # ⚠ UNVERIFIED beyond what's shown in run_SBA_by_category.py: assumes
-    # Figure_5_SBA.py also has a SING_WB constant and Tools.niftotoWBsurface
+    # SBA_group_maps.py also has a SING_WB constant and Tools.niftotoWBsurface
     # is importable the same way — tell me if either name is wrong.
     try:
         from Tools import niftotoWBsurface
@@ -2066,7 +2066,7 @@ def rerun_balanced_by_run(df_class, species, bids_dir, seed=None, results_base_d
     sing_wb = getattr(fig5, "SING_WB", None)
     if sing_wb is None:
         raise AttributeError(
-            "Figure_5_SBA module has no SING_WB constant — needed to render "
+            "SBA_group_maps module has no SING_WB constant — needed to render "
             "surface visualizations. Tell me what it's actually called there "
             "(or its value) and I'll fix this."
         )

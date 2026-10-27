@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# Former Supp_figureXX_fMRI_paramters.py (acquisition parameters dashboard, not in the paper).
 # ═══════════════════════════════════════════════════════════════════════════════
 # fMRI PARAMETERS & SP_SPECIFICITY DASHBOARD
 # =============================================================================

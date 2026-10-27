@@ -58,20 +58,40 @@ PALETTE = [
 
 
 def _palette_color_map(names):
-    """{name: color}, names sorted then cycled through PALETTE -- same
-    assignment rule Supp_Figure_4-6_QC.py uses for its GLOBAL_BIDS_COL
-    (sorted(set(...)), PALETTE[i % len(PALETTE)]). With more than 8
-    distinct names, colors repeat; harmless for reading one panel, but
-    two BIDS can end up sharing a color once there are >8 -- true here
-    with 10 BIDS, see the two BIDS falling on Rat and Mouse's colors."""
-    return {n: PALETTE[i % len(PALETTE)] for i, n in enumerate(sorted(set(names)))}
+    """{name: colour} in the colour code of the article (analysis/paper_style.py):
+    a species name gets its species colour (= Figure_2_anat.SPECIES_COLORS), a dataset
+    label ('Macaque_BenHamed', 'Rat', ...) the colour of its species, so that a
+    species has one colour in every figure. The two datasets of a species share the
+    colour; plots that draw them side by side tell them apart by line style or
+    marker (dataset_style). Unknown names fall back on PALETTE."""
+    names = sorted(set(names))
+    out = {}
+    for i, n in enumerate(names):
+        c = article_color(n)
+        out[n] = c if c is not None else PALETTE[i % len(PALETTE)]
+    return out
 
 
-# Species-level color map (F0/F1/F4/multilevel-F6, where a point is one
-# species, not one BIDS): same PALETTE, keyed by species instead of BIDS,
-# so these panels also follow the QC figures' color code even though they
-# have no BIDS-level color -- swap SPECIES_COLORS with your own dict if
-# you want species colors independent of this palette.
+def article_color(name):
+    """Article colour of a species or dataset label, or None."""
+    from Exemples.Study_EDNiX.analysis import paper_style as _ps
+    if name in _ps.SPECIES_COLORS:
+        return _ps.SPECIES_COLORS[name]
+    sp = _ps.dataset_info(name)[0] or next(
+        (s for s in _ps.SPECIES_COLORS if str(name).startswith(s)), None)
+    return _ps.SPECIES_COLORS.get(sp)
+
+
+def dataset_style(name):
+    """(marker, line style) of a dataset inside its species -- same rank rule as
+    paper_style.dataset_marker."""
+    from Exemples.Study_EDNiX.analysis import paper_style as _ps
+    m = _ps.dataset_marker(name)
+    ls = {"o": "-", "s": (0, (4, 1.5)), "^": (0, (1, 1)), "D": "-.", "v": (0, (3, 1, 1, 1))}[m]
+    return m, ls
+
+
+# Species-level colour map: the article's species colours.
 SPECIES_COLORS = _palette_color_map(
     ["Human", "Macaque", "Marmoset", "Mouselemur", "Rat", "Mouse", "Dog"])
 

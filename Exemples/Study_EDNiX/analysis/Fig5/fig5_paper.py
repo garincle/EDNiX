@@ -54,7 +54,7 @@ opj = os.path.join
 opb = os.path.basename
 
 DPI = 300                     # same as every supplementary figure
-MAIN_DIRS = ("Fig5", "Fig6", "supplementary")
+MAIN_DIRS = ("Fig5", "Fig6", "Paper", "supplementary")
 BINOMIAL_ALIASES = {"Dog": ["canis lupus familiaris", "canis familiaris", "canis lupus"]}
 
 

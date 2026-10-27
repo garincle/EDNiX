@@ -41,7 +41,7 @@ def render_pet_surfaces(result, species, atlas_lib, species_fragment, sing_wb, s
 
     result          : dict returned by pet_group.run_group_analysis (or {'maps': {key: path}, 'output_dir': ...})
     species, atlas_lib, species_fragment, sing_wb, scene_template, scene_label : as the SBA figures
-                      (Exemples/Study_EDNiX/analysis/Figure_5_SBA.py); the scene template must use
+                      (Exemples/Study_EDNiX/analysis/Fig5/SBA_group_maps.py); the scene template must use
                       '<species>.thickness.dscalar.nii' as placeholder (<species>_thickness.scene of the atlas
                       library). Without scene, only the .dscalar.nii files are written.
     maps            : keys of result['maps'] to render (default: those of DEFAULT_MAPS present; a result of

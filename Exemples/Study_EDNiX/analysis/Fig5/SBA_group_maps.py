@@ -1,4 +1,7 @@
 """
+Former Figure_5_SBA.py: upstream group seed maps (3dttest++) read by the Fig5 pipeline
+(Figures 4-5, Supp. Figs 10-14). OUTPUT_BASE path unchanged.
+
 run_SBA_by_category.py
 ──────────────────────
 Seed-based analysis (SBA) rendering script for EDNiX species,

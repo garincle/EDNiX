@@ -19,7 +19,7 @@ The group analyses are in `Statistics/`. They read the outputs of the functional
 
 ## PET group analyses
 
-`Group_PET/` analyses the images of the PET pipeline (`docs/pet_pipeline.md`) of several subjects. Examples: `Exemples/Study_EDNiX/analysis/Launcher_PET_group_CERMEP.py` (human, static FDG) and `Launcher_PET_group_Tremblay.py` (macaque, dynamic FDG), both on the brain ratio (`desc='bratio'`, `normalization='none'`).
+`Group_PET/` analyses the images of the PET pipeline (`docs/pet_pipeline.md`) of several subjects. Examples: `Exemples/Study_EDNiX/analysis/multimodal_PET/Launcher_PET_group_CERMEP.py` (human, static FDG) and `Launcher_PET_group_Tremblay.py` (macaque, dynamic FDG), both on the brain ratio (`desc='bratio'`, `normalization='none'`).
 
 **Static and dynamic runs.** Step 7 names its images `desc-<x>` for a static run and `desc-<x>-mean` (mean of the frames of `SUV_window`) for a dynamic run. `desc='SUV'` and `desc='SUV-mean'` are interchangeable in the voxel-wise and regional analyses: each session uses the one it has, and the choice is printed. When the file names carry no `ses-` entity, the session is the name of the `ses-<label>` folder.
 

@@ -1,4 +1,4 @@
-"""Figure XX data path (Exemples/Study_EDNiX/analysis/multimodal_profiles.py) on synthetic BIDS trees."""
+"""Figure XX data path (Exemples/Study_EDNiX/analysis/multimodal_PET/multimodal_profiles.py) on synthetic BIDS trees."""
 import os
 
 import numpy as np
@@ -7,7 +7,7 @@ import nibabel as nib
 import pytest
 
 pytest.importorskip('seaborn')
-from Exemples.Study_EDNiX.analysis import multimodal_profiles as MP
+from Exemples.Study_EDNiX.analysis.multimodal_PET import multimodal_profiles as MP
 from Plotting import Plot_interspecies_regional_profiles as PIRP
 
 opj = os.path.join
@@ -101,7 +101,7 @@ def test_node_strength_is_mean_fisher_z_without_diagonal(tmp_path):
 
 
 def test_profiles_and_figure(cfg, tmp_path):
-    from Exemples.Study_EDNiX.analysis import Figure_XX_multimodal as F
+    from Exemples.Study_EDNiX.analysis.multimodal_PET import Figure_XX_multimodal as F
     t = MP.collect_modalities(cfg)
     F.REGIONS, F.LEVEL = None, 2
     assert F.select_regions(t) == ['Frontal_lobe', 'Insular_lobe', 'Temporal_lobe', 'Parietal_lobe',
@@ -124,7 +124,7 @@ def test_profiles_and_figure(cfg, tmp_path):
 
 def test_region_missing_in_one_species_is_dropped_not_the_species(cfg):
     """Regression: a region absent from every human table used to drop all humans (listwise deletion)."""
-    from Exemples.Study_EDNiX.analysis import Figure_XX_multimodal as F
+    from Exemples.Study_EDNiX.analysis.multimodal_PET import Figure_XX_multimodal as F
     met = MP.collect_modalities(cfg)['metabolism']
     met = met[~((met.species == 'Human') & (met.region == 'Insular_lobe'))]          # macaque-only region
     met.loc[(met.subject == 'M0') & (met.region == 'Parietal_lobe'), 'value'] = np.nan  # one NaN subject
