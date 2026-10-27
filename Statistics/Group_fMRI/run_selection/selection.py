@@ -1991,7 +1991,7 @@ def _run_selection(sri, cfg, paths, bids_configs, df_qc_by_label):
 
     if df_qc_by_label:
         try:
-            from external_qc_validation import merge_qc_with_classification
+            from Statistics.Group_fMRI.run_selection.external_qc import merge_qc_with_classification
             # With unit="subject" the classification's session/run are the
             # placeholder "ALL", so the QC merge will fall back to its
             # subject-only join level -- which is the correct granularity

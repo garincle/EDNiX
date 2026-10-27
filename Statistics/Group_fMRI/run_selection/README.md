@@ -76,6 +76,7 @@ means the selection is the same.
 | `units.py` | run to unit aggregation, run QC, group-map profiles (former `fig5_units.py`) |
 | `reliability.py` | arousal state of each run, F22 profile reliability |
 | `surfaces.py` | surface renders of all / kept / not-kept maps on one scale |
+| `external_qc.py` | joins the external QC table (tSNR, FD...) to the selection (02_selection/external_qc.xlsx) |
 | `compare_states.py` | is a new selection identical to an earlier one? |
 
 ## Output tree (`OUTPUT_ROOT/`)

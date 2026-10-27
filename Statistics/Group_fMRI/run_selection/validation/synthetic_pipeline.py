@@ -46,7 +46,10 @@ DATASETS = [("Dog", "Dog", "BIDS_Boch_K9", 8), ("Macaque_BenHamed", "Macaque", "
             ("Human_Castrillon", "Human", "BIDS_Castrillon", 9), ("Human_Babayan", "Human", "BIDS_Babayan", 8)]
 SHAPE = (12, 12, 14)
 
-work = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_inputs")
+# fixed absolute paths (they are written in the outputs): same for every checkout
+import tempfile
+SCRATCH = os.path.join(tempfile.gettempdir(), "ednix_synthetic_pipeline")
+work = os.path.join(SCRATCH, "_inputs")
 os.makedirs(work, exist_ok=True)
 label_path = os.path.join(work, "labels.txt")
 with open(label_path, "w") as f:
@@ -127,7 +130,7 @@ for lab, sp, bids, n in DATASETS:
 qc = pd.DataFrame(qc_rows)
 df_qc_by_label = {lab: g.drop(columns="label").copy() for lab, g in qc.groupby("label")}
 
-root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Fig_5_synth")
+root = os.path.join(SCRATCH, "Fig_5_synth")
 if os.path.isdir(root):
     shutil.rmtree(root)
 config = dict(
