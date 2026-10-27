@@ -25,7 +25,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Circle, Rectangle
-from matplotlib.colors import ListedColormap
 from scipy import ndimage as ndi
 
 from Exemples.Study_EDNiX.analysis import paper_style as ps
@@ -216,7 +215,7 @@ class Canvas:
         xx = x
         for k in keys:
             self.ax.add_patch(Rectangle((xx, y - 0.9), 0.9, 1.8, fc=OPS[k]['color'], ec='none', zorder=4))
-            t = self.text(xx + 1.6, y, OPS[k]['name'], size=FS_SMALL, va='center')
+            self.text(xx + 1.6, y, OPS[k]['name'], size=FS_SMALL, va='center')
             xx += 3.4 + 1.02 * len(OPS[k]['name'])
         return xx
 
@@ -579,7 +578,7 @@ class SyntheticBrain:
         e = (0.62 * self.gm + 0.42 * self.wm + 0.95 * self.csf) * self.brain + 0.10 * self.csf_rim
         e = self.smooth(e, 2.5)
         if distort or dropout:
-            yy, xx = np.mgrid[0:self.shape[0], 0:self.shape[1]].astype(float)
+            yy, xx = np.indices(self.shape, dtype=float)
             ys, xs = np.where(self.brain)
             # air-tissue interface: inferior frontal (ventral, anterior) region
             y_c, x_c = np.percentile(ys, 78), np.percentile(xs, 88)
@@ -643,7 +642,7 @@ def _largest(m):
 
 def _phantom(n=230):
     """Analytic sagittal 'brain' (ellipse + cerebellum + folded ribbon), when nilearn is not installed."""
-    yy, xx = np.mgrid[0:n, 0:n].astype(float)
+    yy, xx = np.indices((n, n), dtype=float)
     cy, cx = n * 0.45, n * 0.5
     r = np.sqrt(((yy - cy) / 70) ** 2 + ((xx - cx) / 88) ** 2)
     cereb = np.sqrt(((yy - cy - 62) / 26) ** 2 + ((xx - cx + 52) / 34) ** 2) < 1

@@ -87,7 +87,7 @@ def thumbs_synthetic():
     warped = sb.smooth(ss, 1.0)
     tmpl_gm = sb.smooth(sb.wm, 1.5) > 0.5
     lab = sb.lobes()
-    green, yellow = OPS['mask']['color'], '#FFD400'
+    yellow = '#FFD400'
     def line(deg, shift, sy_, sx_):
         (x0, y0), (x1, y1) = sb.acpc_line(deg, shift)
         return [((x0 - sx_.start, y0 - sy_.start), (x1 - sx_.start, y1 - sy_.start), yellow, 'AC-PC')]
@@ -166,7 +166,6 @@ def get_thumbs(force_synthetic=False):
 # ── figure ───────────────────────────────────────────────────────────────────
 def panel_a(cv, th, y0):
     cv.panel('a', 1.0, y0, 'One session through its coordinate spaces')
-    reg, app = OPS['reg']['color'], OPS['apply']['color']
     frames = [
         dict(thumb=th['raw'], title='Raw T1w', step=1, op='prepro', space='scanner',
              caption='reoriented, averaged'),
@@ -187,11 +186,7 @@ def panel_a(cv, th, y0):
              caption='genericLabel interp.', link=dict(kind='apply', label='T$^{-1}$')),
     ]
     boxes = sch.draw_strip(cv, frames, 3.0, y0 + 5.0, sch.W - 5.0, FW, FH)
-    # inverse chain under the strip: from the template band back to native
-    ybot = boxes[0][1] + FH + 5.6
-    x5 = boxes[4][0] + FW / 2
-    x7 = boxes[6][0] + FW / 2
-    return ybot
+    return boxes[0][1] + FH + 5.6
 
 
 def panel_b(cv, y0):
@@ -306,7 +301,7 @@ def make(out=OUT, force_synthetic=False):
     yc = panel_c(cv, yb + 1.5)
     # legend
     yl = yc + 4.0
-    x = cv.ops_legend(3.0, yl)
+    cv.ops_legend(3.0, yl)
     yl2 = yl + 3.6
     cv.arrow_legend(3.0, yl2)
     cv.text(sch.W - 2.0, yl2, 'Images: ' + ('synthetic illustration' if src.startswith('synthetic') else 'example session'),
