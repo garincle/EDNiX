@@ -1,6 +1,6 @@
 """
 Former Figure_5_SBA.py: upstream group seed maps (3dttest++) read by the Fig5 pipeline
-(Figures 4-5, Supp. Figs 10-14). OUTPUT_BASE path unchanged.
+(Figures 4-5, Supp. Figs 7-11). OUTPUT_BASE path unchanged.
 
 run_SBA_by_category.py
 ──────────────────────
