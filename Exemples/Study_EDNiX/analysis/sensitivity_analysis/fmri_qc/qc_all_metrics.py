@@ -1,7 +1,7 @@
 """
 Former Supp_Figure_4-6_QC.py (every QC metric, every dataset, exploratory plots).
-The paper QC panels are Supplementary/Supp_Fig_04_anat_QC.py and Supp_Fig_05_func_QC.py.
-OUT_DIR is unchanged: Fig5/Launcher_Fig5.QC_EXCEL_PATH reads
+The paper QC figures (Supp. 4-5) are drawn by library/qc_figures.py (run_paper.py).
+OUT_DIR is unchanged: run_selection/config_ednix.QC_EXCEL_PATH reads
 <OUT_DIR>/qc_raw_per_individual.xlsx written here.
 
 EDNiX BIDS Tools v6  —  QC Figures only

@@ -2,8 +2,8 @@
 paper_data.py -- datasets and data loading shared by the paper scripts.
 
 One place for the BIDS folders, the atlas, the output root and the
-"one value per subject" rule, so that Figure 2, Supplementary Figs 4-8 and the
-sensitivity analyses read exactly the same table.
+"one value per subject" rule, so that every paper statistic (paper_stats.py) and the
+sensitivity analyses read exactly the same tables.
 
 Loading is the slow part (it parses every xlsx / json of every subject): the
 collected tables are cached in <PAPER_DIR>/_cache/. Set refresh=True (or delete
@@ -31,13 +31,13 @@ SENSITIVITY_DIR = opj(FIGURES_ROOT, 'sensitivity_analysis')
 PHYLO_DIR = opj(FIGURES_ROOT, 'phylo_preliminary')
 CACHE_DIR = opj(PAPER_DIR, '_cache')
 
-# Output of the Fig 5 pipeline (Launcher_Fig5.BASE_CONFIG["OUTPUT_ROOT"], percentiles q=20)
-FIG5_ROOT = opj(FIGURES_ROOT, 'Fig_5_V15__quant20')
-FIG5_CONTROL_ROOT = FIG5_ROOT + '_control_common_target'
-FIG3_DIR = opj(FIGURES_ROOT, 'Figure_3_longit')
+# Run selection of Figures 4-5 and Supp. 7-11 (Statistics/Group_fMRI/run_selection):
+# its 07_state is the only input of the fMRI statistics (one setting, in config_ednix)
+from Statistics.Group_fMRI.run_selection.config_ednix import SELECTION_CONFIG as _SELECTION
+FMRI_SELECTION_ROOT = _SELECTION["OUTPUT_ROOT"]       # .../Fig_5_V15__quant20
 
 # ── datasets ────────────────────────────────────────────────────────────────
-# Anatomy (Figure 2, Supp. Figs 4, 6-8): every dataset with a T1/T2 processed by EDNiX.
+# Anatomy (Figure 2, Supp. Fig. 4): every dataset with a T1/T2 processed by EDNiX.
 ANAT_DATASETS = {
     'Mouse': ['/scratch2/EDNiX/Mouse/BIDS_Grandjean2'],
     'Rat': ['/scratch2/EDNiX/Rat/BIDS_Grandjean'],
@@ -215,16 +215,3 @@ def robust_outliers(values, threshold=2.5):
     if not np.isfinite(mad) or mad == 0:
         return np.zeros(v.shape, bool)
     return np.abs(v - med) / (1.4826 * mad) > threshold
-
-
-def fig5_panel(name, root=None):
-    """Path of a panel written by the Fig 5 pipeline (06_figures/Paper, Fig5, Fig6 or
-    supplementary), '<name>.png'; None when it does not exist (yet)."""
-    root = root or FIG5_ROOT
-    for sub in ('Paper', 'Fig5', 'Fig6', 'supplementary', ''):
-        p = opj(root, '06_figures', sub, f'{name}.png')
-        if os.path.isfile(p):
-            return p
-    print(f"  [WARN] panel {name}.png not found under {root}/06_figures -- run "
-          f"Fig5/Launcher_Fig5.py (RUN_PART='figures' is enough)")
-    return None

@@ -5,11 +5,11 @@ Longitudinal analyses that are NOT panels of Figure 3 (sensitivity / exploration
     stats.xlsx under <OUT_DIR>/<Species>/<modality>/
   - stand-alone association-vs-primary PNGs (Fig3D_assoc_vs_primary_*), both species
     (the human ones are Supplementary Figure 6, drawn by
-    Supplementary/Supp_Fig_06_human_assoc_primary.py)
+    library/human_assoc_primary.py)
   - longitudinal_summary.xlsx + longitudinal_report.txt
   - % change from baseline figure (former FigureS3_pct_change)
 
-Figure 3 itself: Figure_3_longitudinal.py.
+Figure 3 itself: library/longitudinal.py (run_paper.py).
 """
 import os
 import sys
@@ -19,7 +19,7 @@ import pandas as pd
 sys.path.insert(0, '/home/cgarin/PycharmProjects/EDNiX/')
 
 from Statistics.Group_fMRI.EDNiX_longitudinal import run_longitudinal
-from Exemples.Study_EDNiX.analysis.Figure_3_longitudinal import (
+from Exemples.Study_EDNiX.analysis.library.longitudinal import (
     OUT_DIR, ATLAS_LEVEL, REGIONS, MIN_SESSIONS, MACAQUE_BIDS_DIRS, MACAQUE_EXCEL,
     HUMAN_BIDS_DIRS, HUMAN_AGE_PREFIX, PRIMARY_REGIONS, ASSOCIATION_REGIONS,
     _build_atlas_paths, load_morphometry, format_macaque_age, format_human_age,
