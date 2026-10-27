@@ -1,4 +1,4 @@
-"""Figure XX data path (Exemples/Study_EDNiX/analysis/multimodal_PET/multimodal_profiles.py) on synthetic BIDS trees."""
+"""Figure 6 data path (Exemples/Study_EDNiX/analysis/library/multimodal_profiles.py) on synthetic BIDS trees."""
 import os
 
 import numpy as np
@@ -7,7 +7,7 @@ import nibabel as nib
 import pytest
 
 pytest.importorskip('seaborn')
-from Exemples.Study_EDNiX.analysis.multimodal_PET import multimodal_profiles as MP
+from Exemples.Study_EDNiX.analysis.library import multimodal_profiles as MP
 from Plotting import Plot_interspecies_regional_profiles as PIRP
 
 opj = os.path.join
@@ -101,7 +101,7 @@ def test_node_strength_is_mean_fisher_z_without_diagonal(tmp_path):
 
 
 def test_profiles_and_figure(cfg, tmp_path):
-    from Exemples.Study_EDNiX.analysis.multimodal_PET import Figure_XX_multimodal as F
+    from Exemples.Study_EDNiX.analysis.library import multimodal_figure as F
     t = MP.collect_modalities(cfg)
     F.REGIONS, F.LEVEL = None, 2
     assert F.select_regions(t) == ['Frontal_lobe', 'Insular_lobe', 'Temporal_lobe', 'Parietal_lobe',
@@ -119,12 +119,12 @@ def test_profiles_and_figure(cfg, tmp_path):
     assert len(cmc) == 6
     fig = F.build_figure({}, (0.5, 1.5), prof_b, stats_b, prof_c, regions_c)
     fig.savefig(tmp_path / 'fig.png')
-    assert 'Figure XX' in F.legend_text(prof_b, stats_b, prof_c, regions_c, (0.5, 1.5), cmc)
+    assert "Figure 6" in F.legend_text(prof_b, stats_b, prof_c, regions_c, (0.5, 1.5), cmc)
 
 
 def test_region_missing_in_one_species_is_dropped_not_the_species(cfg):
     """Regression: a region absent from every human table used to drop all humans (listwise deletion)."""
-    from Exemples.Study_EDNiX.analysis.multimodal_PET import Figure_XX_multimodal as F
+    from Exemples.Study_EDNiX.analysis.library import multimodal_figure as F
     met = MP.collect_modalities(cfg)['metabolism']
     met = met[~((met.species == 'Human') & (met.region == 'Insular_lobe'))]          # macaque-only region
     met.loc[(met.subject == 'M0') & (met.region == 'Parietal_lobe'), 'value'] = np.nan  # one NaN subject
@@ -154,7 +154,7 @@ def test_regions_follow_the_lobe_order_of_the_atlas_figure():
         'Frontal_lobe', 'Frontal_lobe', 'Insular_lobe', 'Temporal_lobe', 'Parietal_lobe', 'Occipital_lobe',
         'Diencephalon', None]
     assert AN.atlas_order(names)[:2] == ['Orbital_frontal_cortex_(oFC)', 'Prefrontal_cortex_(PFC)']
-    # Figure XX and the cross-species fingerprints use the same order
+    # Figure 6 and the cross-species fingerprints use the same order
     keys = [MP.region_key(n) for n in names]
     assert MP.cortical_regions(keys, 3) == [k for k in PIRP.atlas_sorted(keys) if k not in ('Thalamus', 'unknown_x')]
 
@@ -182,3 +182,24 @@ def test_bars_can_start_from_zero():
     bars = [p for p in ax.patches if hasattr(p, 'get_height')]
     assert all(np.isclose(p.get_y(), 0) for p in bars) and ax.get_ylim()[0] == 0
     plt.close('all')
+
+
+def test_figure6_paper_stats_and_figure(cfg, tmp_path, monkeypatch):
+    """Figure 6 through paper_stats / paper_figures: same numbers as the functions of the
+    figure module, stats files and figure written (panel A renders stubbed)."""
+    from Exemples.Study_EDNiX.analysis.library import multimodal_figure as F
+    from Exemples.Study_EDNiX.analysis import paper_stats as pst, paper_figures as pfg
+    for k, v in cfg.items():
+        monkeypatch.setattr(F, k, v)
+    monkeypatch.setattr(F, 'REGIONS', None)
+    monkeypatch.setattr(F, 'surface_pngs', lambda: ({}, (0.5, 1.5)))
+    res = pst.run(('figure6',), pst.Inputs(), paper_dir=str(tmp_path))
+    st = res['figure6']['draw']['stats']
+    prof_b, stats_b, _ = F.metabolism_stats(MP.collect_modalities(cfg)['metabolism'], st['regions'])
+    pd.testing.assert_frame_equal(st['stats_b'], stats_b)
+    base = tmp_path / 'Figure_6' / 'Figure_6'
+    assert (tmp_path / 'Figure_6' / 'Figure_6_stats.xlsx').is_file()
+    assert 'B_stats' in pd.ExcelFile(tmp_path / 'Figure_6' / 'Figure_6_stats.xlsx').sheet_names
+    pfg.run(res, None, paper_dir=str(tmp_path))
+    assert (tmp_path / 'Figure_6' / 'Figure_6.png').is_file()
+    assert 'Figure 6 |' in open(str(base) + '_legend.txt').read()

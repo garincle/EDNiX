@@ -1,5 +1,5 @@
 """
-fig5_analysis.py
+profile_stats.py
 ================
 All PURE-ANALYSIS functions for Figure 5, consolidated into one module.
 
@@ -8,7 +8,7 @@ Consolidated from what used to be spread over three files:
   - human_anchored_phylogeny.py       (region sets, references, figures)
   - Figure5_SBA_KeeporNot.py          (used only as a constants holder --
                                        those constants now live in
-                                       fig5_pipeline.CONFIG)
+                                       exploration_pipeline.CONFIG)
 
 WHAT IS AND IS NOT HERE
 -----------------------
@@ -27,7 +27,7 @@ functions are used:
 Those wrap AFNI, nibabel and the atlas library; inlining them here would
 mean duplicating that machinery, so they are deliberately left in place.
 
-Call graph is one-directional: fig5_pipeline -> fig5_analysis -> sri.
+Call graph is one-directional: exploration_pipeline -> profile_stats -> sri.
 No module here calls back into the pipeline.
 """
 
@@ -237,7 +237,7 @@ def save_paper(fig, path, svg=False):
 # median estimates (Kumar et al. 2022, TimeTree 5, timetree.org); they were
 # NOT downloaded or queried by this code. Before publication, look each pair
 # up on timetree.org, replace the values, and report the access date and the
-# TimeTree version in the methods. fig5_phylo.SPECIES_CLADES must stay
+# TimeTree version in the methods. phylo.SPECIES_CLADES must stay
 # consistent with this dict (checked automatically at run time).
 DIVERGENCE_TIME_MYA = {
     "Human": 0.0,
@@ -1474,6 +1474,26 @@ def _draw_intra_inter_paper(ax, pairs, st, test, header, legend, intra="other_da
         ax.legend(loc="upper left", frameon=False)
 
 
+def paper_within_across_figure(pairs_by, stats, names, test, intra, output_path):
+    """5b / Figure 4b at print size (120 mm): one panel per pool in `names` ('all runs',
+    'selected'), the two compared classes and the stars of `test`; pairs and statistics
+    from _within_across_species_pairs / _within_across_stats."""
+    with paper_style():
+        fig, axes = plt.subplots(1, 2, figsize=(PAPER_WIDTH["onehalf"], 46 * MM))
+        for k, (ax, name) in enumerate(zip(axes, names)):
+            if stats[name] is None:
+                ax.axis("off")
+                continue
+            _draw_intra_inter_paper(ax, pairs_by[name], stats[name], test,
+                                    "all runs" if k == 0 else "selected", legend=k == 0,
+                                    intra=intra)
+        fig.tight_layout(w_pad=1.5)
+        if output_path:
+            save_paper(fig, output_path)
+        else:
+            plt.close(fig)
+
+
 def plot_within_vs_across_all_vs_selected(all_runs_by_label, selected_by_label,
                                           common_base_names, species_of_label,
                                           value_col="median_r", zscore=True, title=None,
@@ -1494,20 +1514,8 @@ def plot_within_vs_across_all_vs_selected(all_runs_by_label, selected_by_label,
             max_pairs=max_pairs, random_seed=random_seed)
         stats[name] = _within_across_stats(pairs_by[name], intra=intra)
     if paper:
-        with paper_style():
-            fig, axes = plt.subplots(1, 2, figsize=(PAPER_WIDTH["onehalf"], 46 * MM))
-            for k, (ax, (name, _)) in enumerate(zip(axes, pools)):
-                if stats[name] is None:
-                    ax.axis("off")
-                    continue
-                _draw_intra_inter_paper(ax, pairs_by[name], stats[name], test,
-                                        "all runs" if k == 0 else "selected", legend=k == 0,
-                                        intra=intra)
-            fig.tight_layout(w_pad=1.5)
-            if output_path:
-                save_paper(fig, output_path)
-            else:
-                plt.close(fig)
+        paper_within_across_figure(pairs_by, stats, [name for name, _ in pools], test, intra,
+                                   output_path)
         return None, stats
     fig, axes = plt.subplots(1, 2, figsize=(16, 5.5))
     for ax, (name, pbl) in zip(axes, pools):

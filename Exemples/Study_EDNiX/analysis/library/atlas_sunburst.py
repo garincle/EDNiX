@@ -1,12 +1,20 @@
 """
-EDNiX Comparative Surface Atlas — Dual Hierarchical Sunburst (matplotlib)
-Outputs:
-  ednix_sunburst.png        — combined figure (original)
-  ednix_sunburst.svg        — combined SVG
-  ednix_sunburst_cortical.png      — cortical sunburst alone
-  ednix_sunburst_subcortical.png   — subcortical sunburst alone
-  ednix_sunburst_legend.png        — abbreviation legend alone
+EDNiX Comparative Surface Atlas -- dual hierarchical sunburst (Figure 1).
+
+write_sunburst_figures(out_dir, paper_out) writes
+  ednix_sunburst.png / .svg          combined figure
+  ednix_sunburst_cortical.png        cortical sunburst alone
+  ednix_sunburst_subcortical.png     subcortical sunburst alone
+  ednix_sunburst_legend.png          abbreviation legend alone
+and, with paper_out, the combined figure as the paper Figure 1 (paper_figures.figure1).
+
+Former analysis/Figure_1_atlases.py (a script run at import): the drawing code is
+unchanged, only wrapped in a function. color_data is the order of the lobes in every
+paper figure (Atlas_nomenclature.atlas_order).
 """
+import os
+from os.path import join as opj
+
 import numpy as np
 import pandas as pd
 import matplotlib; matplotlib.use('Agg')
@@ -294,78 +302,93 @@ def draw_legend_on_ax(ax, used_abbrevs, n_cols=6):
         ax.text(x + 0.030, y, full, fontsize=13, color='#555',
                 ha='left', va='top')
 
-# ── shared abbreviation dict (populated during draws) ──────────────────────
-used_abbrevs = {}
+FIGURE1_DIR = '/scratch2/EDNiX/results/EDNiX_Figures/Figure1_atlas'
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 1. Combined figure (original layout)
-# ═══════════════════════════════════════════════════════════════════════════
-fig = plt.figure(figsize=(32, 18), facecolor='white')
-ax1 = fig.add_axes([0.02, 0.12, 0.5, 0.8])
-ax2 = fig.add_axes([0.5,  0.12, 0.5, 0.8])
-for ax in (ax1, ax2):
-    ax.set_aspect('equal'); ax.axis('off')
-    ax.set_xlim(-1.2, 1.2);  ax.set_ylim(-1.2, 1.2)
 
-draw_sunburst_on_ax(ax1, nodes_cort, roots_cort, 'Cortical\nareas',    used_abbrevs)
-draw_sunburst_on_ax(ax2, nodes_sub,  roots_sub,  'Non-cortical\nareas', used_abbrevs)
+def write_sunburst_figures(out_dir=FIGURE1_DIR, paper_out=None):
+    """Figure 1 (atlas hierarchy): the combined sunburst (cortical | non-cortical +
+    abbreviation legend) and its three parts, written to out_dir; paper_out (path
+    without extension): the combined figure also saved there as .png (600 dpi), .pdf
+    and .svg. Same drawing as the former Figure_1_atlases.py script."""
+    os.makedirs(out_dir, exist_ok=True)
+    # shared abbreviation dict (populated during draws)
+    used_abbrevs = {}
 
-fig.text(0.5, 0.94, 'EDNiX Comparative Surface Atlas — Hierarchical Parcellation',
-         ha='center', fontsize=18, fontweight='bold', color='#111')
-fig.text(0.5, 0.92, 'LVL2: Lobar territories  ·  LVL3: Functional areas  ·  LVL4: Cytoarchitectonic areas',
-         ha='center', fontsize=14, color='#555', fontstyle='italic', fontweight='bold')
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 1. Combined figure (original layout)
+    # ═══════════════════════════════════════════════════════════════════════════
+    fig = plt.figure(figsize=(32, 18), facecolor='white')
+    ax1 = fig.add_axes([0.02, 0.12, 0.5, 0.8])
+    ax2 = fig.add_axes([0.5,  0.12, 0.5, 0.8])
+    for ax in (ax1, ax2):
+        ax.set_aspect('equal'); ax.axis('off')
+        ax.set_xlim(-1.2, 1.2);  ax.set_ylim(-1.2, 1.2)
 
-ax_leg = fig.add_axes([0.02, 0.02, 0.98, 0.10])
-draw_legend_on_ax(ax_leg, used_abbrevs)
+    draw_sunburst_on_ax(ax1, nodes_cort, roots_cort, 'Cortical\nareas',    used_abbrevs)
+    draw_sunburst_on_ax(ax2, nodes_sub,  roots_sub,  'Non-cortical\nareas', used_abbrevs)
 
-fig.savefig('/scratch2/EDNiX/results/EDNiX_Figures/Figure1_atlas/ednix_sunburst.png',
-            dpi=200, bbox_inches='tight', facecolor='white', pad_inches=0.15)
-fig.savefig('/scratch2/EDNiX/results/EDNiX_Figures/Figure1_atlas/ednix_sunburst.svg',
-            format='svg', bbox_inches='tight', facecolor='white', pad_inches=0.15)
-plt.close(fig)
-print("Combined figure saved.")
+    fig.text(0.5, 0.94, 'EDNiX Comparative Surface Atlas — Hierarchical Parcellation',
+             ha='center', fontsize=18, fontweight='bold', color='#111')
+    fig.text(0.5, 0.92, 'LVL2: Lobar territories  ·  LVL3: Functional areas  ·  LVL4: Cytoarchitectonic areas',
+             ha='center', fontsize=14, color='#555', fontstyle='italic', fontweight='bold')
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 2. Cortical sunburst alone
-# ═══════════════════════════════════════════════════════════════════════════
-used_cort = {}
-fig_c, ax_c = plt.subplots(figsize=(16, 16), facecolor='white')
-ax_c.set_aspect('equal'); ax_c.axis('off')
-ax_c.set_xlim(-1.2, 1.2); ax_c.set_ylim(-1.2, 1.2)
-draw_sunburst_on_ax(ax_c, nodes_cort, roots_cort, 'Cortical\nareas', used_cort)
-used_abbrevs.update(used_cort)
-fig_c.savefig('/scratch2/EDNiX/results/EDNiX_Figures/Figure1_atlas/ednix_sunburst_cortical.png',
-              dpi=200, bbox_inches='tight', facecolor='white', pad_inches=0.2)
-plt.close(fig_c)
-print("Cortical figure saved.")
+    ax_leg = fig.add_axes([0.02, 0.02, 0.98, 0.10])
+    draw_legend_on_ax(ax_leg, used_abbrevs)
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 3. Subcortical sunburst alone
-# ═══════════════════════════════════════════════════════════════════════════
-used_sub = {}
-fig_s, ax_s = plt.subplots(figsize=(16, 16), facecolor='white')
-ax_s.set_aspect('equal'); ax_s.axis('off')
-ax_s.set_xlim(-1.2, 1.2); ax_s.set_ylim(-1.2, 1.2)
-draw_sunburst_on_ax(ax_s, nodes_sub, roots_sub, 'Non-cortical\nareas', used_sub)
-used_abbrevs.update(used_sub)
-fig_s.savefig('/scratch2/EDNiX/results/EDNiX_Figures/Figure1_atlas/ednix_sunburst_subcortical.png',
-              dpi=200, bbox_inches='tight', facecolor='white', pad_inches=0.2)
-plt.close(fig_s)
-print("Subcortical figure saved.")
+    fig.savefig(opj(out_dir, 'ednix_sunburst.png'),
+                dpi=200, bbox_inches='tight', facecolor='white', pad_inches=0.15)
+    fig.savefig(opj(out_dir, 'ednix_sunburst.svg'),
+                format='svg', bbox_inches='tight', facecolor='white', pad_inches=0.15)
+    if paper_out:
+        os.makedirs(os.path.dirname(paper_out), exist_ok=True)
+        for ext, kw in (('png', dict(dpi=600)), ('pdf', {}), ('svg', {})):
+            fig.savefig(f'{paper_out}.{ext}', bbox_inches='tight', facecolor='white',
+                        pad_inches=0.15, **kw)
+        print(f"  [Figure 1] {paper_out}.png|pdf|svg")
+    plt.close(fig)
+    print("Combined figure saved.")
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 4. Legend alone
-# ═══════════════════════════════════════════════════════════════════════════
-n_entries = len(used_abbrevs)
-n_cols    = 10
-n_rows    = (n_entries + n_cols - 1) // n_cols
-fig_h     = max(2.0, 0.8 + n_rows * 0.55)
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 2. Cortical sunburst alone
+    # ═══════════════════════════════════════════════════════════════════════════
+    used_cort = {}
+    fig_c, ax_c = plt.subplots(figsize=(16, 16), facecolor='white')
+    ax_c.set_aspect('equal'); ax_c.axis('off')
+    ax_c.set_xlim(-1.2, 1.2); ax_c.set_ylim(-1.2, 1.2)
+    draw_sunburst_on_ax(ax_c, nodes_cort, roots_cort, 'Cortical\nareas', used_cort)
+    used_abbrevs.update(used_cort)
+    fig_c.savefig(opj(out_dir, 'ednix_sunburst_cortical.png'),
+                  dpi=200, bbox_inches='tight', facecolor='white', pad_inches=0.2)
+    plt.close(fig_c)
+    print("Cortical figure saved.")
 
-fig_l = plt.figure(figsize=(28, fig_h), facecolor='white')
-ax_l  = fig_l.add_axes([0.01, 0.01, 0.98, 0.98])
-draw_legend_on_ax(ax_l, used_abbrevs, n_cols=10)
-fig_l.savefig('/scratch2/EDNiX/results/EDNiX_Figures/Figure1_atlas/ednix_sunburst_legend.png',
-              dpi=200, bbox_inches='tight', facecolor='white', pad_inches=0.15)
-plt.close(fig_l)
-print(f"Legend saved ({n_entries} abbreviations).")
-print("All done.")
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 3. Subcortical sunburst alone
+    # ═══════════════════════════════════════════════════════════════════════════
+    used_sub = {}
+    fig_s, ax_s = plt.subplots(figsize=(16, 16), facecolor='white')
+    ax_s.set_aspect('equal'); ax_s.axis('off')
+    ax_s.set_xlim(-1.2, 1.2); ax_s.set_ylim(-1.2, 1.2)
+    draw_sunburst_on_ax(ax_s, nodes_sub, roots_sub, 'Non-cortical\nareas', used_sub)
+    used_abbrevs.update(used_sub)
+    fig_s.savefig(opj(out_dir, 'ednix_sunburst_subcortical.png'),
+                  dpi=200, bbox_inches='tight', facecolor='white', pad_inches=0.2)
+    plt.close(fig_s)
+    print("Subcortical figure saved.")
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 4. Legend alone
+    # ═══════════════════════════════════════════════════════════════════════════
+    n_entries = len(used_abbrevs)
+    n_cols    = 10
+    n_rows    = (n_entries + n_cols - 1) // n_cols
+    fig_h     = max(2.0, 0.8 + n_rows * 0.55)
+
+    fig_l = plt.figure(figsize=(28, fig_h), facecolor='white')
+    ax_l  = fig_l.add_axes([0.01, 0.01, 0.98, 0.98])
+    draw_legend_on_ax(ax_l, used_abbrevs, n_cols=10)
+    fig_l.savefig(opj(out_dir, 'ednix_sunburst_legend.png'),
+                  dpi=200, bbox_inches='tight', facecolor='white', pad_inches=0.15)
+    plt.close(fig_l)
+    print(f"Legend saved ({n_entries} abbreviations).")
+    print("All done.")

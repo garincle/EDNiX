@@ -1,5 +1,5 @@
 """
-fig5_matrices.py
+matrices.py
 ================
 The Figure 5 analysis run on whole-brain correlation matrices (EDNiX step 10,
 modalities/fMRI/_10_Correl_matrix.py) instead of retrosplenial seed maps --
@@ -12,7 +12,7 @@ Seed analysis: one value per target region (median r of the seed map in it).
 Matrix analysis: one value per EDGE (Pearson r between two regional mean time
 series). Hemispheres are handled the way the seed analysis handles them (it
 averages L and R of a region through `base_name`):
-    "a <> b |intra"     L_a-L_b and R_a-R_b          (averaged by fig5_analysis)
+    "a <> b |intra"     L_a-L_b and R_a-R_b          (averaged by profile_stats)
     "a <> b |inter"     L_a-R_b and R_a-L_b          (averaged)
     "a |homotopic"      L_a-R_a
 region_name keeps the hemispheric edge (e.g. "L_a <> L_b"), so the k-core
@@ -185,7 +185,7 @@ def edge_table(names, lut, keep_nodes=None):
 
 class MatrixProfiles:
     """Pass this object instead of SBA_Region_Profile_Index to
-    fig5_pipeline.run(). Only compute_all_run_profiles is replaced; every other
+    exploration_pipeline.run(). Only compute_all_run_profiles is replaced; every other
     attribute (kcore reference, group median, label parser, classification
     reader) is the real sri one, so the selection is literally the same code.
 

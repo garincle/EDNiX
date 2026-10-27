@@ -1,6 +1,6 @@
 """
 Multimodal, multi-species regional profiles: morphometry, functional connectivity and glucose metabolism on the
-same EDNiX regions (Figure XX, Figure_XX_multimodal.py).
+same EDNiX regions (Figure 6, library/multimodal_figure.py).
 
 One value per subject and region, for each modality, from the outputs of the EDNiX pipelines:
   morphometry  anat/native/volumes/labels/<sub>_seg-<atlas>_dseg.nii.gz (4D, one level per volume): volume of the

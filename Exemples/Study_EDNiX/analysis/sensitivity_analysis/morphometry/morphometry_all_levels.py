@@ -2,7 +2,7 @@
 Morphometry -- every level, every hemisphere, every scaling (sensitivity analysis).
 
 Former Figure_2_anat.py, without the paper figure and without the PGLS part:
-  * the paper Figure 2 (level 2, bilateral, log10) is Figure_2_morphometry.py;
+  * the paper Figure 2 (level 2, bilateral, log10) is library/morphometry_figure.py (run_paper.py);
   * the outlier rates (former Supp. Figs 6-8, within-dataset allometric residuals)
     are sensitivity_analysis/morphometry/outlier_rates.py;
   * PGLS (frontal scaling vs body/brain/neurons, frontal vs occipital) is

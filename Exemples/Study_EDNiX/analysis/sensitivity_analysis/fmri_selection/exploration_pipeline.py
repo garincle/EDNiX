@@ -1,5 +1,5 @@
 """
-fig5_pipeline.py
+exploration_pipeline.py
 ================
 ONE entry point for the whole Figure 5 analysis. Replaces the scattered
 run_*.py drivers: everything is controlled from the CONFIG block below,
@@ -47,7 +47,7 @@ imported back here; run(..., part=...) works as before.
 
 DEPENDS ON
 ----------
-- fig5_analysis.py   (unchanged: it works on generic profile dicts)
+- profile_stats.py   (unchanged: it works on generic profile dicts)
 - fig5_units.py      (new: the run -> subject aggregation, and the
                       step-1 figure read off the AFNI group maps)
 - SBA_Region_Profile_Index.py, patched by patch_SBA_unit_level.py
@@ -790,8 +790,8 @@ def _f4_per_dataset(sri, cfg, fd, sel, selections, final_round, profiles_by_labe
 
 
 def _paper_out(paths, name):
-    """06_figures/Paper/<name>: print-size panels laid out by analysis/Figure_4_*.py and
-    analysis/Supplementary/Supp_Fig_07-11*.py."""
+    """06_figures/Paper/<name>: print-size panels of the exploration run (the paper
+    figures themselves are drawn by analysis/paper_figures.py)."""
     d = os.path.join(paths["figures"], "Paper")
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, name)
@@ -912,7 +912,7 @@ def _run_figures(sri, st):
     phylo_kind = "afni_kept_final" if phylo_profiles is not afni_profiles else "afni_all"
     if not phylo_profiles:
         # No AFNI group map at all (RUN_ALL_UNITS_MAPS=False, e.g. the matrix
-        # analysis of fig5_matrices): fall back to the median over every unit
+        # analysis of matrices): fall back to the median over every unit
         # of each dataset -- still no selection, only a different estimator.
         phylo_profiles = {
             lab: (species_of_label.get(lab), sri.compute_group_median_profile(profs, set(profs)))
@@ -1232,7 +1232,7 @@ def _run_figures(sri, st):
                 print(f"  [SKIP] phylogeny figures: only {len(ddf_bids)} usable "
                       f"group-map profile(s), need >= 3")
 
-        # ---- F6ab, fingerprints, F15-F18 (fig5_fingerprints) ------------
+        # ---- F6ab, fingerprints, F15-F18 (fingerprints) ------------
         if cfg["RUN_FINGERPRINTS"] and phylo_profiles:
             print(f"\n{'=' * 70}\n  Fingerprints, two-reference F6, proximity, "
                   f"before/after, arousal state\n{'=' * 70}")

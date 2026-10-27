@@ -5,7 +5,7 @@ run_selection.selection.FIGURE_KEYS: they never change the selection.
 
 Shared by the paper (paper_stats.py) and by the exploration pipeline
 (sensitivity_analysis/fmri_selection/Launcher_exploration.py). Values unchanged from
-Launcher_Fig5.BASE_CONFIG (V15, 2026-10-27).
+Launcher_exploration.BASE_CONFIG (V15, 2026-10-27).
 """
 FIGURE_SETTINGS = dict(
     # phylogeny / F6: profiles of the KEPT group maps of the final round

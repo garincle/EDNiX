@@ -1,15 +1,18 @@
 """
-Launcher_Fig5.py -- lance l'analyse des Figures 5 et 6 (EDNiX, seed rétrosplénial).
+Launcher_exploration.py -- analyse exploratoire complète des seed maps (EDNiX, seed rétrosplénial) :
+toutes les figures F0-F22, panneaux 5a-6d, contrôle à cible commune, matrices. Ancien
+Fig5/Launcher_Fig5.py. Les figures du PAPIER ne passent plus par ici : run_paper.py (analysis/),
+à partir de la sélection de Statistics/Group_fMRI/run_selection.
 
 Tout ce qui se règle est dans ce fichier ; les valeurs par défaut de chaque clé et
-leur explication détaillée sont dans fig5_pipeline.CONFIG. Le pipeline a deux parties :
+leur explication détaillée sont dans exploration_pipeline.CONFIG. Le pipeline a deux parties :
 
   PARTIE 1 -- sélection (longue : profils de tous les runs, cartes AFNI 3dttest++,
               rendus de surface). Finit par écrire <OUTPUT_ROOT>/07_state/selection_state.pkl
               (+ selection_state.txt, lisible : datasets, régions, runs gardés, réglages).
   PARTIE 2 -- statistiques et figures, relues depuis ce fichier seul : pas d'AFNI, pas de
               NIfTI. Se relance autant de fois qu'on veut (quelques minutes), avec d'autres
-              réglages de figures (clés de fig5_pipeline.FIGURE_KEYS : FIG6D, WITHIN_ACROSS_TEST,
+              réglages de figures (clés de exploration_pipeline.FIGURE_KEYS : FIG6D, WITHIN_ACROSS_TEST,
               SURFACE_ZOOM, REFERENCE_SPECIES, ...). Si une clé de SÉLECTION change entre les
               deux parties (N_SELECT, PROFILE_METHOD, SEED, ...), la partie 2 refuse de tourner
               et liste les clés en cause : il faut relancer la partie 1.
@@ -57,7 +60,7 @@ from Statistics.Group_fMRI.run_selection.config_ednix import (   # noqa: E402
     SELECTION_CONFIG, QC_EXCEL_PATH)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 4. RÉGLAGES (clés de fig5_pipeline.CONFIG ; une clé absente garde sa valeur par défaut)
+# 4. RÉGLAGES (clés de exploration_pipeline.CONFIG ; une clé absente garde sa valeur par défaut)
 # ═══════════════════════════════════════════════════════════════════════════
 # statistics / figure settings (part 2): fmri_fingerprints/settings.py, shared with the paper
 from Exemples.Study_EDNiX.analysis.fmri_fingerprints.settings import (   # noqa: E402

@@ -1,9 +1,9 @@
 """
-fig5_supp_paper.py -- print-size versions of the Fig 5 pipeline figures that the
+supp_panels.py -- print-size versions of the Fig 5 pipeline figures that the
 paper uses as panels of Figures 4-5 and Supplementary Figures 7-11.
 
-Same data and statistics as the exploration figures of fig5_analysis /
-fig5_fingerprints (F1e, F1c, F3, F5, F9, F10, F16, F20), redrawn at their printed
+Same data and statistics as the exploration figures of profile_stats /
+fingerprints (F1e, F1c, F3, F5, F9, F10, F16, F20), redrawn at their printed
 width (Nature: 89 / 120 / 183 mm, 5-7 pt), without titles (the legend of the
 article says what is shown; numbers stay in the .txt of each exploration figure),
 in the colour code of the article (analysis/paper_style.py: one colour per
@@ -11,9 +11,8 @@ species, marker / line style per dataset, lobe colours of Figure 1) and with the
 regions in the lobe order of Figure 1 (Atlas_nomenclature.atlas_order).
 
 Every function writes <out>.png (600 dpi) and <out>.pdf (TrueType) through
-fa.save_paper. The pipeline calls them into 06_figures/Paper/ (see
-fig5_pipeline._run_figures); analysis/Figure_4_fingerprints.py and Supplementary/Supp_Fig_07-11*.py
-lay them out.
+fa.save_paper. Called by paper_figures.py (panels of the paper, from paper_stats.py) and
+by sensitivity_analysis/fmri_selection/exploration_pipeline._run_figures (06_figures/Paper/).
 """
 import os
 
@@ -116,8 +115,10 @@ def f1e_convergence(overlap_df, out, width_mm=60, height_mm=48):
 
 
 # ── F1c: consensus by dataset ────────────────────────────────────────────────
-def f1c_consensus_by_dataset(species_profiles, common, species_of_label, value_col, zscore,
-                             out, width_mm=95, height_mm=48):
+def f1c_values(species_profiles, common, species_of_label, value_col, zscore):
+    """Values drawn on F1c (Supplementary Figure 7b): {dataset: scaled profile over
+    `common`} and the consensus (median across species of the per-species median).
+    (None, None) when no dataset has a value."""
     per, by_sp = {}, {}
     for lab, prof in species_profiles.items():
         v = fa._ordered_common_values(prof, common, value_col)
@@ -127,10 +128,18 @@ def f1c_consensus_by_dataset(species_profiles, common, species_of_label, value_c
         per[lab] = v
         by_sp.setdefault(species_of_label.get(lab, lab), []).append(v)
     if not per:
-        return None
+        return None, None
     with np.errstate(invalid="ignore"):
         cons = np.nanmedian(np.vstack([np.nanmedian(np.vstack(v), axis=0)
                                        for v in by_sp.values()]), axis=0)
+    return per, cons
+
+
+def f1c_consensus_by_dataset(species_profiles, common, species_of_label, value_col, zscore,
+                             out, width_mm=95, height_mm=48):
+    per, cons = f1c_values(species_profiles, common, species_of_label, value_col, zscore)
+    if not per:
+        return None
     order = atlas_entry_order(common)
     names = [common[i] for i in order]
     x = np.arange(len(order))

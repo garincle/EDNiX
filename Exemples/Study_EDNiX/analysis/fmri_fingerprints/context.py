@@ -34,7 +34,7 @@ _DIVERGENCE_DEFAULT = dict(fa.DIVERGENCE_TIME_MYA)   # hand-entered values, at i
 def _load_time_tree(cfg, bids_configs):
     """
     Load the time-calibrated Newick tree (cfg["TREE_PATH"]) and make it the
-    single source of divergence times: fig5_phylo uses it for every pairwise
+    single source of divergence times: phylo uses it for every pairwise
     age (Mantel, K, PGLS), and fa.DIVERGENCE_TIME_MYA (F6/F7, multi-level)
     is overwritten with the MRCA age of each species with Human.
     """

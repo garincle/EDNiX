@@ -1,5 +1,5 @@
 """
-fig5_fingerprints.py
+fingerprints.py
 ====================
 Interpretive figures for Figure 5, computed from profiles the pipeline already
 holds. Pure numpy/pandas/matplotlib; the only file access is the listing of
@@ -104,7 +104,7 @@ def short_region(name):
 
 
 def _legend(path, title, what, how, reading):
-    """Same layout as fig5_pipeline._write_legend."""
+    """Same layout as exploration_pipeline._write_legend."""
     with open(path, "w", encoding="utf-8") as f:
         f.write(f"{title}\n{'=' * len(title)}\n\n")
         f.write(f"WHAT IS PLOTTED\n---------------\n{what}\n\n")
@@ -1919,6 +1919,27 @@ def pooled_gap_test(draws, key="gap_animal"):
     return dict(key=key, mean_z=obs, p=float(p), n_datasets=len(labs), n_draws=n)
 
 
+def variability_result_lines(vt, pooled_v):
+    """Result lines of F20 (Supplementary Figure 10): per dataset, animal and session
+    gaps of the selected runs against random subsets of the same size; pooled tests."""
+    res_lines = []
+    for r in vt.itertuples():
+        res_lines.append(
+            f"{r.label}: {r.n_kept} kept of {r.n_runs} runs ({r.n_animals_kept} of "
+            f"{r.n_animals} animals). Animal gap (median r same animal - different "
+            f"animals): all runs {r.gap_animal_all:+.3f}, selected "
+            f"{r.gap_animal_selected:+.3f}, random subsets {r.gap_animal_null_median:+.3f}, "
+            f"p = {_fmt_p(getattr(r, 'p_gap_animal', np.nan))}. Session gap (inter-run - "
+            f"inter-session): selected {r.gap_session_selected:+.3f}, random "
+            f"{r.gap_session_null_median:+.3f}, p = "
+            f"{_fmt_p(getattr(r, 'p_gap_session', np.nan))}.")
+    for k, t in pooled_v.items():
+        if t:
+            res_lines.append(f"POOLED {k}: mean z = {t['mean_z']:+.2f}, p = "
+                             f"{_fmt_p(t['p'])} ({t['n_datasets']} datasets)")
+    return res_lines
+
+
 def plot_variability_levels(table, draws, species_of_label, out_png, pooled=None):
     labs = list(table["label"])
     if not labs:
@@ -2019,7 +2040,7 @@ def plot_profile_reliability(table, species_of_label, out_png, current_method=No
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Entry point called by fig5_pipeline
+# Entry point called by exploration_pipeline
 # ═══════════════════════════════════════════════════════════════════════════
 
 def make_fingerprint_figures(*, group_all, group_all_source, ba_all, ba_sel, ba_source,
@@ -2357,21 +2378,7 @@ def make_fingerprint_figures(*, group_all, group_all_source, ba_all, ba_sel, ba_
                 except Exception as e:
                     print(f"  [F20 paper] [WARN] failed: {e}")
             out["variability_levels"], out["variability_pooled"] = vt, pooled_v
-            res_lines = []
-            for r in vt.itertuples():
-                res_lines.append(
-                    f"{r.label}: {r.n_kept} kept of {r.n_runs} runs ({r.n_animals_kept} of "
-                    f"{r.n_animals} animals). Animal gap (median r same animal - different "
-                    f"animals): all runs {r.gap_animal_all:+.3f}, selected "
-                    f"{r.gap_animal_selected:+.3f}, random subsets {r.gap_animal_null_median:+.3f}, "
-                    f"p = {_fmt_p(getattr(r, 'p_gap_animal', np.nan))}. Session gap (inter-run - "
-                    f"inter-session): selected {r.gap_session_selected:+.3f}, random "
-                    f"{r.gap_session_null_median:+.3f}, p = "
-                    f"{_fmt_p(getattr(r, 'p_gap_session', np.nan))}.")
-            for k, t in pooled_v.items():
-                if t:
-                    res_lines.append(f"POOLED {k}: mean z = {t['mean_z']:+.2f}, p = "
-                                     f"{_fmt_p(t['p'])} ({t['n_datasets']} datasets)")
+            res_lines = variability_result_lines(vt, pooled_v)
             _legend(opj(fig_dir, "F20_selection_vs_variability_levels.txt"),
                     "F20 -- Does the selection smooth inter-run, inter-session or inter-animal "
                     "variability?",

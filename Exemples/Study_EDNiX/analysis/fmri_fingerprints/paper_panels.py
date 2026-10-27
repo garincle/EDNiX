@@ -1,5 +1,5 @@
 """
-fig5_paper.py
+paper_panels.py
 =============
 Panels of the paper's Figures 5 and 6, one file per panel (PNG 300 dpi + PDF).
 
@@ -524,18 +524,9 @@ def _value_txt(value_col, norm):
                   if n else "")
 
 
-def fig5b_within_across(out, runs_all, runs_sel, common, sol, norm, value_col,
-                        test="wilcoxon", unit="run", intra="other_dataset"):
-    """= F2b (fa.plot_within_vs_across_all_vs_selected) in paper mode: same
-    pairs and statistics, the two compared classes, the stars of `test` on the
-    figure; both tests in the .txt. intra='other_dataset' (default): same
-    species in ANOTHER dataset vs different species, same-dataset pairs left
-    out; 'all': every same-species pair (same dataset included) vs different
-    species."""
-    _, stats = fa.plot_within_vs_across_all_vs_selected(
-        runs_all, runs_sel, common, sol, value_col=value_col, zscore=norm,
-        output_path=out + ".png", paper=True, test=test, intra=intra)
-    stats = {("all runs" if k == "All runs" else "selected"): v for k, v in stats.items()}
+def within_across_result_lines(stats, test="wilcoxon", intra="other_dataset"):
+    """Result lines of 5b (Figure 4b): one per pool ('all runs', 'selected') of
+    fa._within_across_stats, with both tests and the stars shown on the figure."""
     shown = "Wilcoxon rank-sum" if test == "wilcoxon" else "dataset-level permutation"
     cross = intra == "other_dataset"
     in_name = "same species, other dataset" if cross else "intra-species"
@@ -559,7 +550,23 @@ def fig5b_within_across(out, runs_all, runs_sel, common, sol, norm, value_col,
                 f"{ff._fmt_p(v['p_perm_dataset_level'])} ({v['n_perm']} permutations); on the "
                 f"figure ({shown}): {fa.stars(p_fig)}")
 
-    res = "\n".join(_res_line(k, v) for k, v in stats.items() if v)
+    return "\n".join(_res_line(k, v) for k, v in stats.items() if v)
+
+
+def fig5b_within_across(out, runs_all, runs_sel, common, sol, norm, value_col,
+                        test="wilcoxon", unit="run", intra="other_dataset"):
+    """= F2b (fa.plot_within_vs_across_all_vs_selected) in paper mode: same
+    pairs and statistics, the two compared classes, the stars of `test` on the
+    figure; both tests in the .txt. intra='other_dataset' (default): same
+    species in ANOTHER dataset vs different species, same-dataset pairs left
+    out; 'all': every same-species pair (same dataset included) vs different
+    species."""
+    _, stats = fa.plot_within_vs_across_all_vs_selected(
+        runs_all, runs_sel, common, sol, value_col=value_col, zscore=norm,
+        output_path=out + ".png", paper=True, test=test, intra=intra)
+    stats = {("all runs" if k == "All runs" else "selected"): v for k, v in stats.items()}
+    cross = intra == "other_dataset"
+    res = within_across_result_lines(stats, test=test, intra=intra)
     n_units = {k: sum(len(p) for p in pool.values()) for k, pool in
                (("all runs", runs_all), ("selected", runs_sel))}
     if cross:
@@ -814,25 +821,12 @@ def fig6b_fingerprint_grid(out, fingerprints, sol, common, region_mask, divergen
 
 # ---- 6c arousal state -------------------------------------------------------
 
-def fig6c_f8b(paths, dist_df_b, bids_configs, final_round, n_perm=10000, paper=True,
-              criterion_note=None):
-    """F8b by arousal state (supplementary F8b) and its paper version (6c).
-    Every run of every dataset: Pearson r with the final round's selection
-    criterion of its dataset (all runs, kept included). Mouse and
-    Marmoset_Hori: awake vs anaesthetised, tested within animal.
-    criterion_note: a sentence added to the .txt and to the legend when the
-    criterion was rebuilt in other regions than the selection used (seed
-    region kept for the selection, removed from the analyses)."""
+def f8b_state_stats(dist_df_b, bids_configs, n_perm=10000):
+    """Statistics of F8b / 6c (Supplementary Figure 8b): arousal state of every run,
+    within-animal test per dataset holding both states, pooled test, result lines.
+    Returns (d, tests, pooled, lines)."""
     d = ff.annotate_states(dist_df_b, bids_configs)
     tests = ff.state_r_tests(d, "pearson_r", n_perm=n_perm)
-    ff.plot_f8b_by_state(d, tests, opj(paths["figures"],
-                                       "F8b_run_distance_to_selection_criterion.png"),
-                         title=f"Per-run correlation to the round-{final_round} selection "
-                               f"criterion, by arousal state")
-    out6 = opj(paths["figures"], "Fig6", "6c_arousal_state_F8b")
-    if paper:
-        os.makedirs(opj(paths["figures"], "Fig6"), exist_ok=True)
-        ff.plot_f8b_by_state(d, tests, out6 + ".png", paper=True)
     pooled = None
     mixed = d[d["label"].isin(list(tests))].copy()
     if not mixed.empty:
@@ -858,6 +852,27 @@ def fig6c_f8b(paths, dist_df_b, bids_configs, final_round, n_perm=10000, paper=T
     if pooled:
         lines.append(f"POOLED ({', '.join(tests)}): {pooled['effect']:+.4f}, p = "
                      f"{ff._fmt_p(pooled['p_subject'])} ({pooled['p_subject_method']})")
+    return d, tests, pooled, lines
+
+
+def fig6c_f8b(paths, dist_df_b, bids_configs, final_round, n_perm=10000, paper=True,
+              criterion_note=None):
+    """F8b by arousal state (supplementary F8b) and its paper version (6c).
+    Every run of every dataset: Pearson r with the final round's selection
+    criterion of its dataset (all runs, kept included). Mouse and
+    Marmoset_Hori: awake vs anaesthetised, tested within animal.
+    criterion_note: a sentence added to the .txt and to the legend when the
+    criterion was rebuilt in other regions than the selection used (seed
+    region kept for the selection, removed from the analyses)."""
+    d, tests, pooled, lines = f8b_state_stats(dist_df_b, bids_configs, n_perm=n_perm)
+    ff.plot_f8b_by_state(d, tests, opj(paths["figures"],
+                                       "F8b_run_distance_to_selection_criterion.png"),
+                         title=f"Per-run correlation to the round-{final_round} selection "
+                               f"criterion, by arousal state")
+    out6 = opj(paths["figures"], "Fig6", "6c_arousal_state_F8b")
+    if paper:
+        os.makedirs(opj(paths["figures"], "Fig6"), exist_ok=True)
+        ff.plot_f8b_by_state(d, tests, out6 + ".png", paper=True)
     d.to_excel(opj(paths["group_maps"], "run_r_to_selection_criterion_by_state.xlsx"),
                index=False)
     txt = dict(question="Are the runs of anaesthetised animals more (or less) similar to "
