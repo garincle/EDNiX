@@ -1,6 +1,7 @@
 """
-Supplementary Figures 6-8 -- regional outlier rates, a proxy of segmentation /
-surface-reconstruction failures.   6 surface area   7 volume   8 cortical thickness
+Regional outlier rates, a proxy of segmentation / surface-reconstruction failures
+(surface area, volume, cortical thickness). Former Supplementary Figures 6-8, removed
+from the paper on 2026-10-27; kept here as a sensitivity / QC analysis.
 
 Atlas level 3 (cortical areas: same parcellation as Fig. 3 association/primary and
 Figs 4-5), one value per subject (sessions averaged).
@@ -21,7 +22,7 @@ What is an outlier here (OUTLIER_MODEL = "allometric_residual", default)
 Figure: heat map, rows = datasets grouped by species (n subjects in the label),
 columns = regions in the lobe order of Figure 1 (lobe colour above), cell = % of
 subjects flagged. Grey = fewer than MIN_N subjects.
-Output: <PAPER_DIR>/Supp_Fig_0{6,7,8}/... + outlier_rates_lvl3.xlsx (all cells, and
+Output: <SENSITIVITY_DIR>/morphometry/outlier_rates/outliers_{surface,volume,thickness}... + outlier_rates_lvl3.xlsx (all cells, and
 the per-modality summary used in the text).
 """
 import os
@@ -42,7 +43,8 @@ LEVEL = 3
 THRESHOLD = 2.5
 MIN_N = 5
 OUTLIER_MODEL = "allometric_residual"     # or "raw_pooled"
-SUPP_NUMBER = {"surface": 6, "volume": 7, "thickness": 8}
+MODALITIES = ("surface", "volume", "thickness")
+OUT_DIR = os.path.join(pdat.SENSITIVITY_DIR, "morphometry", "outlier_rates")
 
 
 def outlier_table(morpho, regions, model=OUTLIER_MODEL, threshold=THRESHOLD, min_n=MIN_N):
@@ -152,10 +154,11 @@ if __name__ == "__main__":
     morpho = {m: pdat.select_regions(df, regions) if not df.empty else df
               for m, df in morpho.items()}
     tab = outlier_table(morpho, regions)
-    for mod, k in SUPP_NUMBER.items():
+    os.makedirs(OUT_DIR, exist_ok=True)
+    for mod in MODALITIES:
         plot_outlier_heatmap(tab, mod, regions,
-                             os.path.join(pdat.PAPER_DIR, f'Supp_Fig_0{k}', f'Supp_Fig_0{k}'))
-    out_xlsx = os.path.join(pdat.PAPER_DIR, 'Supp_Fig_06', f'outlier_rates_lvl{LEVEL}.xlsx')
+                             os.path.join(OUT_DIR, f'outliers_{mod}'))
+    out_xlsx = os.path.join(OUT_DIR, f'outlier_rates_lvl{LEVEL}.xlsx')
     with pd.ExcelWriter(out_xlsx) as w:
         summary(tab).to_excel(w, sheet_name='summary', index=False)
         tab.to_excel(w, sheet_name='cells', index=False)

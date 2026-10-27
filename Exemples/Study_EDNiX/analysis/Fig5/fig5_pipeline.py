@@ -91,7 +91,7 @@ import Exemples.Study_EDNiX.analysis.Fig5.fig5_units as fu      # unit aggregati
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_phylo as fp      # Mantel / Blomberg K / PGLS
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_fingerprints as ff  # F6ab, fingerprints, F15-F18
 import Exemples.Study_EDNiX.analysis.Fig5.fig5_paper as fpp         # panels of Figures 5 and 6
-import Exemples.Study_EDNiX.analysis.Fig5.fig5_supp_paper as fsp    # print-size panels, Fig 4 / Supp 10-14
+import Exemples.Study_EDNiX.analysis.Fig5.fig5_supp_paper as fsp    # print-size panels, Fig 4 / Supp 7-11
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIG -- everything controllable lives here
@@ -2934,7 +2934,7 @@ def _f4_per_dataset(sri, cfg, fd, sel, selections, final_round, profiles_by_labe
 
 def _paper_out(paths, name):
     """06_figures/Paper/<name>: print-size panels laid out by analysis/Figure_4_*.py and
-    analysis/Supplementary/Supp_Fig_1*.py."""
+    analysis/Supplementary/Supp_Fig_07-11*.py."""
     d = os.path.join(paths["figures"], "Paper")
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, name)

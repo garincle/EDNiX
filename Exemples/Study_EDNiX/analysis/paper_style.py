@@ -6,8 +6,11 @@ species order, fonts, sizes and panel letters from here, so that a species, a
 dataset or a lobe looks the same in every figure.
 
   species  -> colour            SPECIES_COLORS (= Figure_2_anat.SPECIES_COLORS, unchanged)
-  dataset  -> colour + marker   colour of its species; marker = rank of the dataset
-                                inside its species (o, s, ^, D, v)
+  dataset  -> colour            DATASET_COLORS, one fixed colour per BIDS dataset for the
+                                whole paper; a species with one dataset keeps its species
+                                colour, the other datasets of a species get colours far
+                                from it, so that datasets side by side are told apart.
+                                Every point is a circle.
   lobe     -> colour            Atlas_nomenclature.LOBE_COLORS (= Figure 1 sunburst)
   regions  -> order             Atlas_nomenclature.atlas_order (lobe order of Figure 1)
   species  -> order             PHYLO_ORDER (rodents -> primates -> carnivores)
@@ -60,7 +63,25 @@ DATASETS = [
     ("Human", "BIDS_Merida", "Human_Merida"),
     ("Dog", "BIDS_Boch_K9", "Dog"),
 ]
-DATASET_MARKERS = ["o", "s", "^", "D", "v"]
+# One colour per dataset, the same in every figure. The first dataset of a species keeps
+# the species colour; the others are chosen far from it and from each other (Okabe-Ito /
+# Tol colours), because they are drawn side by side at the same x.
+DATASET_COLORS = {
+    "BIDS_Grandjean2": "#1A5276",   # Mouse (species colour)
+    "BIDS_Grandjean": "#2E86C1",    # Rat (species colour)
+    "BIDS_Garin": "#58D68D",        # Mouse lemur (species colour)
+    "BIDS_Tian": "#F4D03F",         # Marmoset (species colour)
+    "BIDS_Hori": "#882255",         # Marmoset, wine
+    "BIDS_BenHamed": "#F5B041",     # Macaque (species colour)
+    "BIDS_Zhu_Garin": "#44AA99",    # Macaque, teal
+    "BIDS_Tremblay": "#332288",     # Macaque, indigo
+    "BIDS_Castrillon": "#D35400",   # Human (species colour)
+    "BIDS_Babayan": "#117733",      # Human, dark green
+    "BIDS_Park": "#CC79A7",         # Human, pink
+    "BIDS_Merida": "#000000",       # Human, black
+    "BIDS_Boch_K9": "#8E44AD",      # Dog (species colour)
+}
+DATASET_MARKERS = ["o"]
 
 # ── lobes ────────────────────────────────────────────────────────────────────
 LOBE_COLORS = {k: tuple(c / 255 for c in v) for k, v in AN.LOBE_COLORS.items()}
@@ -118,15 +139,24 @@ def species_color(species):
 
 
 def dataset_color(name, species=None):
-    sp = dataset_info(name, species)[0] or species
-    return species_color(sp)
+    """Fixed colour of a dataset (DATASET_COLORS); unknown dataset -> species colour."""
+    sp, bids, _ = dataset_info(name, species)
+    return DATASET_COLORS.get(bids, species_color(sp or species))
 
 
 def dataset_marker(name, species=None):
-    sp, bids, _ = dataset_info(name, species)
-    same = [b for s, b, _ in DATASETS if s == sp]
-    i = same.index(bids) if bids in same else 0
-    return DATASET_MARKERS[i % len(DATASET_MARKERS)]
+    """Every dataset is drawn with circles (datasets differ by colour)."""
+    return "o"
+
+
+def dataset_offsets(names, spread=0.26):
+    """x offset of each dataset inside one species column: datasets side by side,
+    centred on the species tick (one dataset -> 0)."""
+    names = list(names)
+    if len(names) <= 1:
+        return {n: 0.0 for n in names}
+    xs = np.linspace(-spread, spread, len(names))
+    return dict(zip(names, xs))
 
 
 def phylo_sort(species):
@@ -181,6 +211,9 @@ def lobe_strip(ax, region, height=0.035):
         facecolor=lobe_color(region), edgecolor="none"))
 
 
+VIOLIN_GREY = "#A6A6A6"
+
+
 def violin(ax, values, x, color, width=0.7, alpha=0.25):
     """Half-transparent KDE violin with median (thick) and quartiles (thin)."""
     v = np.asarray(values, float)
@@ -214,15 +247,26 @@ def dots(ax, values, x, color, marker="o", spread=0.12, size=3.0, rng=None, edge
 
 
 def species_dataset_legend(datasets, species_of=None, ncol=None, marker_size=3.5):
-    """Handles + labels: one entry per dataset (species colour, dataset marker)."""
+    """Handles + labels: one entry per dataset (dataset colour, circle)."""
     handles, labels = [], []
     for d in dataset_sort(datasets, species_of):
         sp = dataset_info(d, (species_of or {}).get(d))[0]
-        handles.append(Line2D([], [], ls="", marker=dataset_marker(d, sp),
-                              markerfacecolor=species_color(sp), markeredgecolor="black",
+        handles.append(Line2D([], [], ls="", marker="o",
+                              markerfacecolor=dataset_color(d, sp), markeredgecolor="black",
                               markeredgewidth=0.2, markersize=marker_size))
         labels.append(f"{sp} {dataset_short(d, sp)}")
     return handles, labels
+
+
+def legend_below(fig, axes, handles, labels, ncol=7, gap_mm=2.0, x=0.5, **kw):
+    """Figure legend placed gap_mm under the lowest tick label of `axes` (whatever the
+    label length), centred on x (figure fraction). save() crops to the tight bbox."""
+    fig.canvas.draw()
+    r = fig.canvas.get_renderer()
+    y0 = min(ax.get_tightbbox(r).y0 for ax in np.ravel(axes) if ax.get_visible())
+    y = fig.transFigure.inverted().transform((0, y0))[1] - gap_mm * MM / fig.get_figheight()
+    return fig.legend(handles, labels, loc="upper center", ncol=min(len(handles), ncol),
+                      bbox_to_anchor=(x, y), handlelength=0.8, frameon=False, **kw)
 
 
 def species_legend(species):
@@ -308,16 +352,19 @@ def _autocrop(im, tol=0.02):
 
 
 def plot_by_dataset(df, metrics, out_path, ncols=None, letters=None,
-                    height_mm=38, value_unit="dataset"):
-    """One panel per metric; x = datasets grouped by species (PHYLO_ORDER), violin +
-    points in the species colour, marker = dataset. Values beyond the axis limits are drawn on the axis limit as open markers, and their
-    number is written in the corner, so that one aberrant session does not flatten
-    the panel (axis limits = quartiles -/+ 4 IQR, within the data range).
-    metrics: list of (column, axis label)."""
+                    height_mm=45, value_unit="dataset"):
+    """One panel per metric; x = datasets grouped by species (PHYLO_ORDER); grey violin
+    = distribution of the dataset, points in the dataset colour (DATASET_COLORS).
+    Values beyond the axis limits are drawn on the axis limit as open circles, and their
+    number is written in the corner, so that one aberrant session does not flatten the
+    panel (axis limits = quartiles -/+ 4 IQR, within the data range).
+    metrics: list of (column, axis label); a column absent from df gives an empty panel
+    that says so (the letter is kept, so the numbering of the legend stays right); None
+    leaves the cell empty (no letter), e.g. to start a new row."""
     import math
-    metrics = [(c, l) for c, l in metrics if c in df.columns and df[c].notna().any()]
+    metrics = list(metrics)
     if not metrics:
-        print("  [plot_by_dataset] no metric present -- nothing drawn")
+        print("  [plot_by_dataset] no metric -- nothing drawn")
         return None
     sp_of = dict(zip(df['bids_dir'], df['species']))
     dsets = dataset_sort(list(sp_of), sp_of)
@@ -328,12 +375,26 @@ def plot_by_dataset(df, metrics, out_path, ncols=None, letters=None,
     rng = np.random.default_rng(42)
     with plt.rc_context(PAPER_RC):
         fig, axes = plt.subplots(nrows, ncols, squeeze=False,
-                                 figsize=(WIDTH_2COL, (height_mm * nrows + 12) * MM))
-        fig.subplots_adjust(left=0.05, right=0.995, top=0.97, bottom=0.30 if nrows == 1 else 0.16,
-                            wspace=0.38, hspace=0.25)
-        for k, (col, label) in enumerate(metrics):
+                                 figsize=(WIDTH_2COL, (height_mm * nrows + 14) * MM))
+        fig.subplots_adjust(left=0.06, right=0.995, top=0.97,
+                            bottom=0.05, wspace=0.42, hspace=0.45)
+        n_letter = 0
+        for k, item in enumerate(metrics):
             ax = axes.flat[k]
-            v_all = pd_to_float(df[col])
+            if item is None:
+                ax.set_visible(False)
+                continue
+            col, label = item
+            panel_label(ax, letters[n_letter], x=-0.16, y=1.0)
+            n_letter += 1
+            ax.set_ylabel(label)
+            v_all = pd_to_float(df[col]) if col in df.columns else np.array([np.nan])
+            if not np.isfinite(v_all).any():
+                ax.text(0.5, 0.5, "not computed", ha="center", va="center",
+                        transform=ax.transAxes, color="0.5")
+                ax.set_xticks([])
+                ax.set_yticks([])
+                continue
             q1, q3 = np.nanpercentile(v_all, (25, 75))
             iqr = q3 - q1
             lo = max(np.nanmin(v_all), q1 - 4 * iqr)      # Tukey-like fence, wide (4 IQR)
@@ -343,38 +404,34 @@ def plot_by_dataset(df, metrics, out_path, ncols=None, letters=None,
             n_clip = 0
             for x, d in enumerate(dsets):
                 sp = sp_of[d]
+                c = dataset_color(d, sp)
                 v = pd_to_float(df.loc[df['bids_dir'] == d, col])
                 v = v[np.isfinite(v)]
                 if v.size == 0:
                     continue
                 inside = (v >= lo_l) & (v <= hi_l)
                 n_clip += int((~inside).sum())
-                violin(ax, v[inside], x, species_color(sp), width=0.75)
-                dots(ax, v[inside], x, species_color(sp), marker=dataset_marker(d, sp),
-                     spread=0.15, size=2.0, rng=rng)
+                violin(ax, v[inside], x, VIOLIN_GREY, width=0.75, alpha=0.45)
+                dots(ax, v[inside], x, c, spread=0.15, size=2.5, rng=rng)
                 if (~inside).any():
                     ax.scatter(np.full((~inside).sum(), x), np.clip(v[~inside], lo_l, hi_l),
-                               s=4, marker=dataset_marker(d, sp), facecolor="none",
-                               edgecolor=species_color(sp), linewidths=0.5, zorder=5, clip_on=False)
+                               s=5, marker="o", facecolor="none", edgecolor=c,
+                               linewidths=0.5, zorder=5, clip_on=False)
             ax.set_ylim(lo_l, hi_l)
             ax.set_xlim(-0.6, len(dsets) - 0.4)
             ax.set_xticks(range(len(dsets)))
             ax.set_xticklabels([dataset_short(d, sp_of[d]) for d in dsets], rotation=55,
                                ha="right", rotation_mode="anchor", fontsize=5)
             for t, d in zip(ax.get_xticklabels(), dsets):
-                t.set_color(species_color(sp_of[d]) if sp_of[d] not in ("Marmoset", "Macaque")
-                            else "#9A7D0A")
-            ax.set_ylabel(label)
+                t.set_color(dataset_color(d, sp_of[d]))
             if n_clip:
                 ax.text(0.98, 0.99, f"{n_clip} off-scale", transform=ax.transAxes, ha="right",
                         va="top", fontsize=4.5, color="0.35",
                         bbox=dict(facecolor="white", edgecolor="none", pad=0.3, alpha=0.8), zorder=6)
-            panel_label(ax, letters[k], x=-0.22, y=1.0)
         for ax in list(axes.flat)[n:]:
             ax.set_visible(False)
-        h, l = species_legend(list(sp_of.values()))
-        fig.legend(h, l, loc="lower center", ncol=len(h), bbox_to_anchor=(0.5, 0.0),
-                   handlelength=0.8)
+        h, l = species_dataset_legend(dsets, sp_of)
+        legend_below(fig, axes, h, l)
         paths = save(fig, out_path)
         plt.close(fig)
     return paths
