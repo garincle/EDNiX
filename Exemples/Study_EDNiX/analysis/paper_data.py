@@ -30,6 +30,9 @@ PAPER_DIR = opj(FIGURES_ROOT, 'Paper')                  # every paper figure lan
 SENSITIVITY_DIR = opj(FIGURES_ROOT, 'sensitivity_analysis')
 PHYLO_DIR = opj(FIGURES_ROOT, 'phylo_preliminary')
 CACHE_DIR = opj(PAPER_DIR, '_cache')
+# Per-run QC table (qc_raw_per_individual.xlsx) and acquisition parameters, written by
+# sensitivity_analysis/fmri_qc/ (former folder name: Suppl_Figure_4-5-6_QC)
+QC_DIR = opj(SENSITIVITY_DIR, 'fmri_qc')
 
 # Run selection of Figures 4-5 and Supp. 7-11 (Statistics/Group_fMRI/run_selection):
 # its 07_state is the only input of the fMRI statistics (one setting, in config_ednix)

@@ -4,7 +4,7 @@ This folder holds the paper and nothing else at its top level: statistics, figur
 runner. Every other analysis is filed by category below.
 
     python run_paper.py                    # statistics + figures, every figure
-    python run_paper.py figure4 supp9      # some figures
+    python run_paper.py figure4 supp9      # some figures (stable1 = Supp. Table 1)
     python run_paper.py --stats-only       # numbers only
     python run_paper.py --refresh          # re-read the EDNiX outputs (no cache)
 
@@ -24,7 +24,7 @@ Outputs: `/scratch2/EDNiX/results/EDNiX_Figures/Paper/<Figure>/` (`paper_data.PA
 | `run_paper.py` | runner: `paper_stats.run` then `paper_figures.run` |
 | `paper_stats.py` | every statistic, one function per figure, in figure order (`SECTIONS`); `Inputs` = lazy, cached inputs |
 | `paper_figures.py` | every figure, drawn from the results of `paper_stats` (nothing computed there) |
-| `paper_style.py` | colours (species, one fixed colour per dataset, lobes), species / region order, Nature sizes, panel letters, `compose_images` |
+| `paper_style.py` | colours (species; a dataset = its species colour + its own marker), lobes, species / region order, Nature sizes, panel letters, `compose_images` |
 | `paper_data.py` | datasets, paths, loading with cache, one value per subject, bilateral values |
 
 ## Figure -> functions
@@ -34,7 +34,7 @@ Outputs: `/scratch2/EDNiX/results/EDNiX_Figures/Paper/<Figure>/` (`paper_data.PA
 | Fig. 1 | atlas hierarchy (sunburst) | `library/atlas_sunburst.py` |
 | Fig. 2 | cortical morphometry, atlas level 2, bilateral, log10 | `library/morphometry_figure.py` |
 | Fig. 3 | longitudinal morphometry (BIDS_Zhu_Garin, BIDS_Park) | `library/longitudinal.py` |
-| Fig. 4 | the run selection: a fingerprint vs Human (F15b), b run-to-run r (5b), c distance matrix (F16a) | `fmri_fingerprints/` |
+| Fig. 4 | the run selection: a common profile + each dataset vs its leave-one-species-out consensus, b run-to-run r (5b), c dataset similarity matrix r (F16a) | `fmri_fingerprints/` |
 | Fig. 5 | its result: seed maps, selected vs excluded runs (5a) | `fmri_fingerprints/paper_panels.py` |
 | Fig. 6 | multimodal profile, Human / Macaque (former Figure XX) | `library/multimodal_figure.py`, `library/multimodal_profiles.py` |
 | Supp. 1 | schematic: spatial registration of the anatomical module (example session of BIDS_Zhu_Garin, else synthetic) | `library/schematic_anat.py` |
@@ -47,6 +47,7 @@ Outputs: `/scratch2/EDNiX/results/EDNiX_Figures/Paper/<Figure>/` (`paper_data.PA
 | Supp. 9 | proximity rows (F16b) | `fmri_fingerprints/supp_panels.py` |
 | Supp. 10 | selection vs variability levels (F20) | `fmri_fingerprints/` |
 | Supp. 11 | a SD of run r with the kept map (F9), b QC vs that r (F10) | `fmri_fingerprints/supp_panels.py` |
+| Supp. Table 1 | acquisition parameters per dataset (BIDS sidecars + NIfTI headers; a fMRI, b anatomy) | `library/acquisition_table.py` |
 
 The panel codes (F15b, 5b, ...) are those of the former Fig5 pipeline, kept so that its outputs
 and the paper can be matched.
@@ -55,8 +56,8 @@ and the paper can be matched.
 
 | Folder | Content |
 |---|---|
-| `library/` | statistics and drawing engines of Figures 1-3, 6 and Supp. 1-6, called by the paper files. `pipeline_schematic.py` is the drawing engine of Supp. 1-3 (frames from a processed session, else from a synthetic brain built on the MNI ICBM152 template of nilearn, tagged 'synthetic'); each `schematic_*.py` also runs alone with `--synthetic` / `--out DIR` |
-| `fmri_fingerprints/` | fMRI statistics and panels from the saved run selection: `context.py` (loads `07_state`), `settings.py`, `fingerprints.py`, `profile_stats.py`, `paper_panels.py`, `supp_panels.py`, `phylo.py` |
+| `library/` | statistics and drawing engines of Figures 1-3, 6, Supp. 1-6 and Supp. Table 1, called by the paper files. `pipeline_schematic.py` is the drawing engine of Supp. 1-3 (frames from a processed session, else from a synthetic brain built on the MNI ICBM152 template of nilearn, tagged 'synthetic'); each `schematic_*.py` also runs alone with `--synthetic` / `--out DIR` |
+| `fmri_fingerprints/` | fMRI statistics and panels from the saved run selection: `context.py` (loads `07_state`), `settings.py`, `figure4_panels.py`, `fingerprints.py`, `profile_stats.py`, `paper_panels.py`, `supp_panels.py`, `phylo.py` |
 | `validation/` | `paper_vs_pipeline.py`: checks on synthetic data that the paper numbers equal those of the former Fig5 pipeline |
 | `sensitivity_analysis/morphometry/` | `morphometry_all_levels.py`: levels 2-4, raw/log/normalised, L/R, cross-modality correlations; `outlier_rates.py`: regional outlier rates (former Supp. 6-8) |
 | `sensitivity_analysis/fmri_qc/` | `qc_all_metrics.py`, `fmri_acquisition_parameters.py`, `check_fd_inputs.py` |

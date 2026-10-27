@@ -2,7 +2,9 @@
 Why is the mean FD missing for some datasets? -- diagnostic, reads files only.
 
 The functional QC (modalities/fMRI/_12_fMRI_QC.py) computes the Jenkinson FD from
-  <run>/.../matrices/<run>_space-func_desc-matrix_motion_params.1D
+  sub-*/[ses-*/]func/raw/matrices/<run>_space-func_desc-matrix_motion_params.1D
+and writes sub-*/[ses-*/]func/QC/<run>_QC_values.json (EDNiX writes inside the BIDS tree,
+not under derivatives/)
 which must hold 12 values per volume (affine [R | t], written by step 1 since the
 motion-matrix fix). When the file is missing or has another number of columns, the
 QC writes mean_fd = NaN and the diary says "ERROR computing FD".
@@ -45,14 +47,22 @@ def _finite(x):
         return False
 
 
+def _func_files(bids_dir, sub_path):
+    """Files sub-*/ses-*/func/<sub_path> and sub-*/func/<sub_path> (datasets without sessions)."""
+    out = []
+    for pattern in (('sub-*', 'ses-*', 'func'), ('sub-*', 'func')):
+        out += glob.glob(os.path.join(bids_dir, *pattern, *sub_path))
+    return sorted(set(out))
+
+
 def _first_error(bids_dir, pattern="ERROR computing FD"):
-    for diary in glob.glob(os.path.join(bids_dir, 'derivatives', '**', '*diary*.txt'),
-                           recursive=True):
+    # diaries: func/<ID> session <S><date>.txt (Tools/diaryfile.create)
+    for diary in _func_files(bids_dir, ('*session*.txt',)):
         try:
             with open(diary, errors='ignore') as fh:
                 for line in fh:
                     if pattern in line:
-                        return f"{os.path.basename(diary)}: {line.strip()[:200]}"
+                        return f"{os.path.relpath(diary, bids_dir)}: {line.strip()[:200]}"
         except OSError:
             continue
     return ""
@@ -60,11 +70,9 @@ def _first_error(bids_dir, pattern="ERROR computing FD"):
 
 def check_dataset(species, bids_dir):
     rows = []
-    motion = {os.path.basename(p).split('_space-func')[0]: p for p in glob.glob(
-        os.path.join(bids_dir, 'derivatives', '**', '*_desc-matrix_motion_params.1D'),
-        recursive=True)}
-    qcs = [p for p in glob.glob(os.path.join(bids_dir, 'derivatives', '**', 'func', '**',
-                                             '*_QC_values.json'), recursive=True)]
+    motion = {os.path.basename(p).split('_space-func')[0]: p for p in
+              _func_files(bids_dir, ('raw', 'matrices', '*_space-func_desc-matrix_motion_params.1D'))}
+    qcs = _func_files(bids_dir, ('QC', '*_QC_values.json'))
     for q in qcs:
         root = os.path.basename(q).replace('_QC_values.json', '')
         try:

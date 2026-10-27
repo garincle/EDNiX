@@ -10,7 +10,8 @@ Nature widths: 89 / 120 / 183 mm; text 5-7 pt; PDF with TrueType fonts, PNG 600 
   figure1  atlas hierarchy (sunburst)                     library/atlas_sunburst.py
   figure2  cortical morphometry, level 2                  library/morphometry_figure.py
   figure3  longitudinal morphometry                       library/longitudinal.py
-  figure4  a fingerprint over Human (F15b), b run-to-run r (5b), c distance matrix (F16a)
+  figure4  a common profile + datasets over their LOSO consensus, b run-to-run r (5b),
+           c dataset similarity matrix in r (fmri_fingerprints/figure4_panels.py)
   figure5  seed maps, selected vs excluded runs (5a)
   figure6  multimodal profile, Human / Macaque (former Figure XX) library/multimodal_figure.py
   supp1-3  pipeline schematics (anat, fMRI, FDG-PET + CT)  library/schematic_*.py
@@ -21,6 +22,7 @@ Nature widths: 89 / 120 / 183 mm; text 5-7 pt; PDF with TrueType fonts, PNG 600 
   supp9    proximity rows (F16b)
   supp10   selection vs variability levels (F20)
   supp11   a SD of run r with the kept map (F9), b QC vs that r (F10)
+  stable1  Supplementary Table 1, acquisition parameters (library/acquisition_table.py)
 fMRI panels: fmri_fingerprints/ (fingerprints.py, profile_stats.py, paper_panels.py,
 supp_panels.py), the drawing functions of the former Fig5 pipeline.
 
@@ -85,25 +87,20 @@ def figure3(res, inp, paper_dir=None):
 
 
 def figure4(res, inp, paper_dir=None):
-    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import fingerprints as ff
-    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import profile_stats as fa
-    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import supp_panels as fsp
+    """a common profile + every dataset over its LOSO consensus; b+c in one panel image
+    (b histograms, c similarity matrix in r, its lower edge level with b's x axis)."""
+    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import figure4_panels as f4
     c, d = inp.fmri(), res["draw"]
-    cfg, sol = c["cfg"], c["species_of_label"]
-    pa, pb, pc = (_panel("figure4", n, paper_dir) for n in
-                  ("a_F15b_fingerprint_vs_human", "b_5b_intra_vs_inter_species",
-                   "c_F16a_proximity_matrix"))
+    sol = c["species_of_label"]
+    pa, pbc = (_panel("figure4", n, paper_dir) for n in
+               ("a_common_profile_and_datasets", "bc_within_across_and_similarity"))
     if not c["matrix_mode"] and len(c["dist_all"]) >= 3:
-        _try("4a", ff.plot_distance_fingerprint_grid, c["vecs_all"], c["dist_all"], sol,
-             "reference", c["common"], c["order"], c["region_mask"], pa,
-             cfg["REFERENCE_SPECIES"], c["divergence"], c["phylo_source"], paper=True,
-             print_width_mm=183, label_first=True)
-    _try("4b", fa.paper_within_across_figure, d["pairs"], d["stats"],
-         ["All runs", "Selected"], d["test"], d["intra"], pb)
-    if c["D"] is not None:
-        _try("4c", fsp.f16a_proximity_matrix, c["D"], sol, pc)
+        _try("4a", f4.fig4a_common_profile, c["vecs_all"], c["dist_all"], sol, c["common"],
+             c["order"], c["region_mask"], pa)
+    _try("4bc", f4.fig4bc, d["pairs"], d["stats"], ["All runs", "Selected"], d["test"],
+         d["intra"], c["D"], sol, pbc)
     base = pst.out_base("figure4", paper_dir)
-    ps.compose_images([_png(pa), _png(pb), _png(pc)], base, layout=[[0], [1, 2]])
+    ps.compose_images([_png(pa), _png(pbc)], base, layout=[[0], [1]], letters="ab")
     return base
 
 
@@ -222,6 +219,11 @@ def supp11(res, inp, paper_dir=None):
     base = pst.out_base("supp11", paper_dir)
     ps.compose_images([_png(pa), _png(pb)], base, layout=[[0, 1]])
     return base
+
+
+def stable1(res, inp, paper_dir=None):
+    from Exemples.Study_EDNiX.analysis.library import acquisition_table as acq
+    return acq.plot_table(res["draw"]["summary"], pst.out_base("stable1", paper_dir))
 
 
 def run(results, inputs, paper_dir=None):

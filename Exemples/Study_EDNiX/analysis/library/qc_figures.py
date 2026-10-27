@@ -12,7 +12,7 @@ Supplementary Figure 4 -- anatomical QC, one point per (subject, session).
                                      species template (template warped to native space)
   e  normalised mutual information between the image and the warped template
 
-x = datasets grouped by species (same datasets as Figure 2), one colour per dataset.
+x = datasets grouped by species (same datasets as Figure 2); colour = species, marker = dataset.
 CNR: 'anat_cnr' (|mu_GM - mu_WM| / sqrt(sd_GM^2 + sd_WM^2), MRIQC definition) is written
 by EDNiX anat QC since PR #34; subjects processed before it only have
 'anat_cortical_contrast' (|mu_WM - mu_GM| / mean, a relative contrast, NOT a CNR) --
@@ -23,6 +23,7 @@ depends on how much of the field of view the brain fills, which differs by speci
 
 Supplementary Figure 5 -- resting-state fMRI QC, one point per BOLD run.
 
+  2 rows x 4 (GCOR removed, Clément 2026-10-27)
   first row (signal and registration of the mean functional image)
   a  grey-matter SNR        b  subcortical SNR (atlas level 1 'Subcortical areas')
   c  cortical contrast      d  normalised mutual information between the functional
@@ -31,11 +32,12 @@ Supplementary Figure 5 -- resting-state fMRI QC, one point per BOLD run.
   e  temporal SNR           f  mean framewise displacement (Jenkinson, rotation radius =
                                radius of the sphere of the brain-mask volume)
   g  Jaccard overlap of the functional and anatomical brain masks
-  h  mean standardised DVARS                i  global correlation (GCOR)
+  h  mean standardised DVARS
 
-x = datasets grouped by species (datasets of Figures 4-5), one colour per dataset.
-'func_avg_snr_subcortical' is written by EDNiX func QC since this version: runs processed
-before it give an empty panel b until the QC step is re-run.
+x = datasets grouped by species (datasets of Figures 4-5); colour = species, marker = dataset.
+'func_avg_snr_subcortical' is written by EDNiX func QC (modalities/fMRI/_12_fMRI_QC.py)
+only for runs whose QC step ran after it was added: until the QC step is re-run, panel b
+shows the white-matter SNR ('func_avg_snr_white') and its axis says so.
 """
 import numpy as np
 import pandas as pd
@@ -84,19 +86,18 @@ def plot_supp4(df_qc, out_path):
 def func_metrics(df):
     tsnr = next((c for c in ('func_TSNR', 'func_TSNR_0') if c in df.columns), 'func_TSNR')
     return [('func_avg_snr_gray', 'SNR grey matter'),
-            ('func_avg_snr_subcortical', 'SNR subcortical'),
+            _first(df, [('func_avg_snr_subcortical', 'SNR subcortical'),
+                        ('func_avg_snr_white', 'SNR white matter')]),
             ('func_cortical_contrast', 'Cortical contrast'),
             ('func_nmi', 'NMI func-anat'),
-            None,                               # second row starts here
             (tsnr, 'tSNR'),
             ('func_mean_fd', 'Mean FD (mm)'),
             ('func_jaccard', 'Jaccard func-anat mask'),
-            ('func_mean_dvars', 'Mean DVARS (std.)'),
-            ('func_gcor', 'GCOR')]
+            ('func_mean_dvars', 'Mean DVARS (std.)')]
 
 
 def plot_supp5(df_qc, out_path):
-    return ps.plot_by_dataset(df_qc, func_metrics(df_qc), out_path, ncols=5)
+    return ps.plot_by_dataset(df_qc, func_metrics(df_qc), out_path, ncols=4)
 
 
 def qc_summary(df, metrics, keys=('species', 'bids_dir')):

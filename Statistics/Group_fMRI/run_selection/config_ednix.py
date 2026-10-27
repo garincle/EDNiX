@@ -119,7 +119,9 @@ CONTROL_SELECTION_CONFIG = dict(
 )
 
 # ── external QC (tSNR, FD... per run): selection validation and PGLS covariates ──
-QC_EXCEL_PATH = "/scratch2/EDNiX/results/EDNiX_Figures/Suppl_Figure_4-5-6_QC/qc_raw_per_individual.xlsx"
+# written by Exemples/Study_EDNiX/analysis/sensitivity_analysis/fmri_qc/qc_all_metrics.py
+# (paper_data.QC_DIR; this folder was called Suppl_Figure_4-5-6_QC before 2026-10-27)
+QC_EXCEL_PATH = "/scratch2/EDNiX/results/EDNiX_Figures/sensitivity_analysis/fmri_qc/qc_raw_per_individual.xlsx"
 
 
 def load_qc_by_label(bids_configs=BIDS_CONFIGS, path=QC_EXCEL_PATH):

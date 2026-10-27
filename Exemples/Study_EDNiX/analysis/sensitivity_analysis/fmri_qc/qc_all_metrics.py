@@ -42,7 +42,8 @@ opj = os.path.join
 
 ATLAS_LIB = '/home/cgarin/PycharmProjects/EDNiX/Atlases_library'
 ATLAS_NAME = 'EDNIxCSC'
-OUT_DIR = '/scratch2/EDNiX/results/EDNiX_Figures/Suppl_Figure_4-5-6_QC'
+from Exemples.Study_EDNiX.analysis import paper_data as pdat
+OUT_DIR = pdat.QC_DIR                    # created below before the first write
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SPECIES ORDERING & COLOURS (same as main script)

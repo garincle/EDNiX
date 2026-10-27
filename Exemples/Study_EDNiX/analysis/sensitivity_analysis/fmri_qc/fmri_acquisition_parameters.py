@@ -720,7 +720,9 @@ if __name__ == "__main__":
     # ─── CONFIGURATION ──────────────────────────────────────────────────────────
     ATLAS_LIB = '/home/cgarin/PycharmProjects/EDNiX/Atlases_library'
     ATLAS_NAME = 'EDNIxCSC'
-    OUT_DIR = '/scratch2/EDNiX/results/EDNiX_Figures/Suppl_Figure_4-5-6_QC'
+    from Exemples.Study_EDNiX.analysis import paper_data as pdat
+    OUT_DIR = pdat.QC_DIR
+    os.makedirs(OUT_DIR, exist_ok=True)   # the dashboard and the tables are written here
 
     # ─── SPECIES CONFIGURATION ─────────────────────────────────────────────────
     species_bids_dict = {

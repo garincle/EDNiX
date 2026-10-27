@@ -195,11 +195,11 @@ def build_figure(pngs, rng, prof_b, stats_b, prof_c, regions_c):
         leg_w = _text_mm(fig, leg_labels + ['z across regions', '(within subject)'], 6) + 8
         d = min(70.0, (W - 4 * lab_w - leg_w - 2) / 2)               # radar diameter
         names_b = [MP.short_name(r, 30) for r in prof_b.columns]
-        b_lab = _text_mm(fig, [n.split('\n')[0] for n in names_b], 5.5) * np.sin(np.radians(40)) + 9
+        b_lab = _text_mm(fig, [n.split('\n')[0] for n in names_b], 5.5) * np.sin(np.radians(40)) + 4
         plt.close(fig)
 
         top_a = 6.0
-        top_b = top_a + 5 + ha + 4 + 9                               # species name, image, scale, letter + legend
+        top_b = top_a + 5 + ha + 9                                   # species name, image, letter + legend
         hb = 48.0
         top_c = top_b + hb + b_lab + 2
         rad_top = top_c + title_h + lab_h                             # top of the circle
@@ -220,15 +220,14 @@ def build_figure(pngs, rng, prof_b, stats_b, prof_c, regions_c):
             ax.text(0.5, 1.02, f'{sp} (n = {n})', transform=ax.transAxes, ha='center', va='bottom', fontsize=8,
                     fontweight='bold', color=SPECIES_COLORS.get(sp, 'black'))
             axa.append(ax)
-        fig.text(L / W, 1 - (top_a + 5 + ha + 1) / H,
-                 f'bratio (regional / whole-brain mean FDG uptake), {rng[0]:.2f} - {rng[1]:.2f}, '
-                 f'same colour scale for both species', ha='left', va='top', fontsize=6.5)
+        # (no caption under A: the measure and the shared colour range are in the legend, Clément 2026-10-27)
 
         # B: bratio, bars from 0 (the values of the surface maps), dashed line = whole-brain mean
         axb = _axes_mm(fig, L + 6, top_b, W - L - 6 - R, hb)
         vals = prof_b.values[np.isfinite(prof_b.values)]
         PIRP.draw_bars(axb, prof_b, stats_b, SPECIES[0], 'bratio', alpha=ALPHA, colors=SPECIES_COLORS,
-                       fontsize=6.5, legend=False, bar_from=0, ylim=(0, float(np.max(vals)) * 1.12))
+                       fontsize=6.5, legend=False, bar_from=0, ylim=(0, float(np.max(vals)) * 1.12),
+                       bar_alpha=1.0)                    # full species colour, as in the other figures
         axb.set_ylabel('bratio (ratio to whole-brain mean)', fontsize=6.5)
         axb.set_xticklabels(names_b, rotation=40, ha='right', rotation_mode='anchor', fontsize=5.5)
         axb.legend(fontsize=6.5, frameon=False, ncol=len(SPECIES), loc='lower right', bbox_to_anchor=(1, 1.0))
@@ -255,8 +254,9 @@ def build_figure(pngs, rng, prof_b, stats_b, prof_c, regions_c):
         axl.legend(handles, leg_labels, loc='center', fontsize=6, frameon=False,
                    title='z across regions\n(within subject)', title_fontsize=6, handlelength=1.5,
                    labelspacing=1.2)
-        for lab, top in zip('ABC', [top_a, top_b - 9, top_c]):
-            fig.text(1 / W, 1 - top / H, lab, fontsize=12, fontweight='bold', va='top')
+        # bold lower-case letters at 8 pt, as every figure of the paper (Nature style)
+        for lab, top in zip('abc', [top_a, top_b - 9, top_c]):
+            fig.text(1 / W, 1 - top / H, lab, fontsize=8, fontweight='bold', va='top')
         return fig
 
 
@@ -266,24 +266,24 @@ def legend_text(prof_b, stats_b, prof_c, regions_c, rng, cmc):
     sig = stats_b[stats_b.q_fdr < ALPHA]
     txt = (
         f'Figure 6 | Multimodal, multi-species imaging approaches to build an intersectional brain function '
-        f'profile. (A) Group-mean [18F]FDG brain ratio (bratio: regional activity / mean activity of the brain, '
+        f'profile. a, Group-mean [18F]FDG brain ratio (bratio: regional activity / mean activity of the brain, '
         f'proportional scaling) projected on the inflated cortical surface of each species (ribbon-constrained '
         f'mapping), same colour scale for both species ({rng[0]:.2f}-{rng[1]:.2f}); '
         + ', '.join(f'{sp} n = {n[sp]}' for sp in SPECIES) + '. '
-        f'(B) Cross-species comparison of glucose metabolism (bratio) in the cortical regions of the EDNiX atlas, '
+        f'b, Cross-species comparison of glucose metabolism (bratio) in the cortical regions of the EDNiX atlas, '
         f'level {LEVEL}, bilateral (valid-voxel-weighted mean of the left and right labels, native PET space), in '
-        f'bratio as in A. Bars, mean across subjects +- SEM; dashed line, whole-brain mean (1); dots, one subject (sessions averaged); stars, '
+        f'bratio as in a. Bars, mean across subjects +- SEM; dashed line, whole-brain mean (1); dots, one subject (sessions averaged); stars, '
         f'{TEST} test of {", ".join(SPECIES[1:])} vs {SPECIES[0]}, Benjamini-Hochberg q < {ALPHA} (*), '
         f'< {ALPHA / 5:g} (**), < {ALPHA / 50:g} (***) across {prof_b.shape[1]} regions '
         f'({len(sig)} significant). '
-        f'(C) Per-region multimodal profile of each species on radar axes (level {LEVEL}, bilateral, {len(regions_c)} '
+        f'c, Per-region multimodal profile of each species on radar axes (level {LEVEL}, bilateral, {len(regions_c)} '
         f'cortical regions): morphometry, region volume in % of total brain volume (ventricles and CSF excluded); '
         f'FC, average connectivity (mean Fisher z of the resting-state correlations of the region with every other '
         f'region); metabolism, bratio. Each modality is z-scored across regions within each subject, so radii '
         f'compare the shape of the profiles, not absolute levels; line, mean; band, SEM across subjects ('
         + '; '.join(f'{sp}: ' + ', '.join(f'{m} n = {k}' for m, k in nc[sp].items()) for sp in SPECIES)
         + '). Modalities come from different datasets of each species (multimodal_profiles.py). Region names: '
-        f'those of the connectivity fingerprints (EDNiX atlas labels, level {LEVEL}); in B and C, regions are '
+        f'those of the connectivity fingerprints (EDNiX atlas labels, level {LEVEL}); in b and c, regions are '
         f'grouped by lobe in the order of the atlas of Figure 1 (radars: counter-clockwise from the top; colour '
         f'strip and rim, lobe colour of Figure 1).'
     )

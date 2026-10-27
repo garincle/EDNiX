@@ -4,9 +4,10 @@ Figure 2 -- cross-species cortical morphometry at atlas level 2 (lobes).
   a  surface area   b  volume   c  cortical thickness     (log10 axis, bilateral)
 
 Columns = lobes in the order of the Figure 1 sunburst (lobe colour above each
-column); x = species in phylogenetic order; grey violin =
-species distribution (one value per subject, sessions averaged); points = subjects,
-one colour per dataset (paper_style.DATASET_COLORS), datasets of a species side by side.
+column); x = datasets, grouped by species in phylogenetic order (tick label in the
+species colour); grey violin = distribution of the dataset (one value per subject,
+sessions averaged); points = subjects, species colour, one marker per dataset
+(paper_style.dataset_marker). Clément, 2026-10-27: x = datasets, not species.
 
 figure2_table: the statistics (paper_stats.figure2); plot_figure2: the drawing
 (paper_figures.figure2). Former analysis/Figure_2_morphometry.py, functions unchanged.
@@ -47,46 +48,43 @@ def _log_ticks(ax):
 def plot_figure2(morpho, regions, out_path, letters="abc"):
     """morpho: {'surface'|'volume'|'thickness': DataFrame(species, bids_dir, subject,
     region, <value>)} already bilateral, one row per subject, at one atlas level.
-    Grey violin = species; points = subjects, coloured by dataset (DATASET_COLORS) and
-    side by side when a species has several datasets."""
+    x = datasets grouped by species; grey violin = dataset; points = subjects in the
+    species colour with the dataset marker."""
     regions = ps.region_order(regions)
     rows = [(m, c, l) for m, c, l in pdat.MORPHO_METRICS
             if morpho.get(m) is not None and not morpho[m].empty]
-    species = ps.phylo_sort(pd.concat([morpho[m]['species'] for m, _, _ in rows]).unique())
     datasets = pd.concat([morpho[m][['bids_dir', 'species']] for m, _, _ in rows]).drop_duplicates()
     sp_of = dict(zip(datasets['bids_dir'], datasets['species']))
-    ds_of_sp = {sp: ps.dataset_sort([d for d, s in sp_of.items() if s == sp], sp_of)
-                for sp in species}
+    dsets = ps.dataset_sort(list(sp_of), sp_of)
     rng = np.random.default_rng(42)
 
     with plt.rc_context(ps.PAPER_RC):
-        fig_h = (ROW_HEIGHT_MM * len(rows) + 30) * ps.MM
+        fig_h = (ROW_HEIGHT_MM * len(rows) + 34) * ps.MM
         fig, axes = plt.subplots(len(rows), len(regions), figsize=(ps.WIDTH_2COL, fig_h),
                                  sharey="row", squeeze=False)
-        fig.subplots_adjust(left=0.085, right=0.995, top=0.95, bottom=0.1,
+        fig.subplots_adjust(left=0.075, right=0.995, top=0.95, bottom=0.14,
                             wspace=0.08, hspace=0.1)
         for i, (mod, col, label) in enumerate(rows):
             df = morpho[mod]
             for j, reg in enumerate(regions):
                 ax = axes[i, j]
                 rdf = df[df['region'] == reg]
-                for x, sp in enumerate(species):
-                    sdf = rdf[rdf['species'] == sp]
-                    vals = sdf[col].to_numpy(float)
-                    vals = vals[vals > 0]
-                    if vals.size == 0:
+                for x, bd in enumerate(dsets):
+                    sp = sp_of[bd]
+                    v = rdf.loc[rdf['bids_dir'] == bd, col].to_numpy(float)
+                    v = np.log10(v[v > 0])
+                    if v.size == 0:
                         continue
-                    ps.violin(ax, np.log10(vals), x, ps.VIOLIN_GREY, width=0.8, alpha=0.45)
-                    off = ps.dataset_offsets(ds_of_sp[sp], spread=0.24)
-                    for bd in ds_of_sp[sp]:
-                        v = sdf.loc[sdf['bids_dir'] == bd, col].to_numpy(float)
-                        ps.dots(ax, np.log10(v[v > 0]), x + off[bd], ps.dataset_color(bd, sp),
-                                spread=0.07 if len(off) > 1 else 0.14, size=3.0, rng=rng)
-                ax.set_xlim(-0.6, len(species) - 0.4)
-                ax.set_xticks(range(len(species)))
+                    ps.violin(ax, v, x, ps.VIOLIN_GREY, width=0.8, alpha=0.45)
+                    ps.dots(ax, v, x, ps.dataset_color(bd, sp), marker=ps.dataset_marker(bd, sp),
+                            spread=0.16, size=3.0, rng=rng)
+                ax.set_xlim(-0.6, len(dsets) - 0.4)
+                ax.set_xticks(range(len(dsets)))
                 if i == len(rows) - 1:
-                    ax.set_xticklabels(species, rotation=45, ha="right",
-                                       rotation_mode="anchor")
+                    ax.set_xticklabels([ps.dataset_short(d, sp_of[d]) for d in dsets], rotation=55,
+                                       ha="right", rotation_mode="anchor", fontsize=5)
+                    for t, d in zip(ax.get_xticklabels(), dsets):
+                        t.set_color(ps.text_color(sp_of[d]))
                 else:
                     ax.set_xticklabels([])
                 if j == 0:
@@ -97,12 +95,14 @@ def plot_figure2(morpho, regions, out_path, letters="abc"):
                             ha="center", va="bottom")
             _log_ticks(axes[i, 0])
         fig.canvas.draw()
-        # panel letters just left of the y-axis label of each row
+        # panel letter level with the top of each row, just left of its y-axis label
+        r = fig.canvas.get_renderer()
         for i in range(len(rows)):
-            bb = axes[i, 0].get_position()
-            fig.text(bb.x0 - 11 * ps.MM / fig.get_figwidth(), bb.y1, letters[i],
-                     fontsize=ps.PANEL_LABEL_SIZE, fontweight="bold", va="top", ha="left")
-        h, l = ps.species_dataset_legend(list(sp_of), sp_of)
+            ax0 = axes[i, 0]
+            x_lab = ax0.yaxis.label.get_window_extent(r).x0 / fig.bbox.width
+            fig.text(x_lab - 1.0 * ps.MM / fig.get_figwidth(), ax0.get_position().y1, letters[i],
+                     fontsize=ps.PANEL_LABEL_SIZE, fontweight="bold", va="top", ha="right")
+        h, l = ps.species_dataset_legend(dsets, sp_of)
         ps.legend_below(fig, axes, h, l, x=0.54)
         paths = ps.save(fig, out_path)
         plt.close(fig)

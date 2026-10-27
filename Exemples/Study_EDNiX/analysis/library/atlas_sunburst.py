@@ -38,8 +38,8 @@ color_data = [
     ["Cerebellum", 2, "Cerebellum", 162, 167, 169, "", "subcortical"],
     ["Cerebellum_White", 2, "Cerebellum White", 160, 160, 160, "", "subcortical"],
     ["White_matter",          2, "White matter",         192, 192, 192, "", "subcortical"],
-    ["Lateral_ventricules",   2, "Lateral ventricules",  128, 128, 128, "", "subcortical"],
-    ["3rde_ventricules",      2, "3rde ventricules",     150, 150, 150, "", "subcortical"],
+    ["Lateral_ventricules",   2, "Lateral ventricles",   128, 128, 128, "", "subcortical"],
+    ["3rde_ventricules",      2, "3rd ventricle",          150, 150, 150, "", "subcortical"],
     ["CSF",                   2, "CSF",                   98,   0, 103, "", "subcortical"],
     # Level 3
     ["oFC",              3, "oFC (orb. frontal Cx)",     200,  40,  40, "Frontal_lobe", "cortical"],
@@ -155,8 +155,8 @@ ABBREV = {
     "Archicortex": "Archi", "Periarchicortex": "Peri",
     "Cerebral nuclei": "CN", "Cortical subplate": "CS",
     "Diencephalon": "Dien.", "Cerebellum": "Cbl.",
-    "Brainstem": "BS", "Lateral ventricules": "LV",
-    "Cerebellum White": "CbW", "3rde ventricules": "3V",
+    "Brainstem": "BS", "Lateral ventricles": "LV",
+    "Cerebellum White": "CbW", "3rd ventricle": "3V",
     "Motor/premotor": "M/PM", "Somatosensory Cx": "SmCx",
     "Post. parietal Cx": "PPC", "Visual striate Cx": "V1",
     "Visual extra-striate Cx": "V2+", "Auditory Cx": "AC",
@@ -282,8 +282,9 @@ def draw_sunburst_on_ax(ax, nodes, roots, title, used_abbrevs):
 
 def draw_legend_on_ax(ax, used_abbrevs, n_cols=6):
     ax.axis('off'); ax.set_xlim(0, 1); ax.set_ylim(0, 1)
-    ax.text(0.02, 0.95, 'Abbreviations', fontsize=18, fontweight='bold',
-            color='#111', va='top')
+    # title above the rule, not across it (va='bottom' just over the line)
+    ax.text(0.02, 0.87, 'Abbreviations', fontsize=18, fontweight='bold',
+            color='#111', va='bottom', clip_on=False)
     ax.plot([0.0, 1.0], [0.85, 0.85], color='#bbb', lw=2)
     entries = sorted(used_abbrevs.items())
     if not entries:
@@ -297,9 +298,10 @@ def draw_legend_on_ax(ax, used_abbrevs, n_cols=6):
         x = 0.005 + col * col_w
         y = 0.82 - row * row_h
         # abbr + full on same baseline, separated by a small gap
-        ax.text(x,         y, abbr, fontsize=14, fontweight='bold',
+        # 11 pt: one row is ~11.5 pt high, larger text overlapped the next row
+        ax.text(x,         y, abbr, fontsize=11, fontweight='bold',
                 color='#222', ha='left', va='top')
-        ax.text(x + 0.030, y, full, fontsize=13, color='#555',
+        ax.text(x + 0.030, y, full, fontsize=10.5, color='#555',
                 ha='left', va='top')
 
 FIGURE1_DIR = '/scratch2/EDNiX/results/EDNiX_Figures/Figure1_atlas'
