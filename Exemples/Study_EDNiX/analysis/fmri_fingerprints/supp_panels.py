@@ -116,7 +116,7 @@ def f1e_convergence(overlap_df, out, width_mm=60, height_mm=48):
 
 # ── F1c: consensus by dataset ────────────────────────────────────────────────
 def f1c_values(species_profiles, common, species_of_label, value_col, zscore):
-    """Values drawn on F1c (Supplementary Figure 7b): {dataset: scaled profile over
+    """Values drawn on F1c (Supplementary Figure 8b): {dataset: scaled profile over
     `common`} and the consensus (median across species of the per-species median).
     (None, None) when no dataset has a value."""
     per, by_sp = {}, {}
@@ -380,7 +380,7 @@ def f20_variability_levels(table, draws, species_of_label, out, width_mm=183, nc
     return out
 
 
-# ── F16 b: proximity of each dataset to every other one (Supp. Fig. 9) ─────
+# ── F16 b: proximity of each dataset to every other one (Supp. Fig. 10) ─────
 def f16b_proximity_rows(D, dist_df, species_of_label, test, out, width_mm=120, row_mm=5.2):
     """One row per dataset: dots = 1 - r to every other dataset (species colour of
     that dataset), star = the other dataset of the same species, black tick = the

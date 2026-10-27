@@ -4,7 +4,7 @@ Longitudinal analyses that are NOT panels of Figure 3 (sensitivity / exploration
   - run_longitudinal per species x modality: <region>_trajectory.png, _pct_change.png,
     stats.xlsx under <OUT_DIR>/<Species>/<modality>/
   - stand-alone association-vs-primary PNGs (Fig3D_assoc_vs_primary_*), both species
-    (the human ones are Supplementary Figure 6, drawn by
+    (the human ones are Supplementary Figure 7, drawn by
     library/human_assoc_primary.py)
   - longitudinal_summary.xlsx + longitudinal_report.txt
   - % change from baseline figure (former FigureS3_pct_change)

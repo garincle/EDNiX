@@ -5,7 +5,7 @@ Every paper figure (paper_figures.py, library/, fmri_fingerprints/) takes its co
 species order, fonts, sizes and panel letters from here, so that a species, a
 dataset or a lobe looks the same in every figure.
 
-  species  -> colour            SPECIES_COLORS (= Figure_2_anat.SPECIES_COLORS, unchanged)
+  species  -> colour            SPECIES_COLORS (contrasted palette, 2026-10-27)
   dataset  -> colour + marker   the colour of its species; the marker tells the datasets
                                 of a species apart (DATASET_MARKERS, by the rank of the
                                 dataset inside its species in DATASETS: circle, square,
@@ -40,9 +40,12 @@ PHYLO_ORDER = ["Mouse", "Rat", "Mouselemur", "Bat", "Marmoset",
                "Macaque", "Human", "Dog", "Cat", "Pig"]
 
 SPECIES_COLORS = {
-    "Mouse": "#1A5276", "Rat": "#2E86C1", "Bat": "#00A896",
-    "Mouselemur": "#58D68D", "Marmoset": "#F4D03F", "Macaque": "#F5B041",
-    "Human": "#D35400", "Dog": "#8E44AD", "Cat": "#C0392B", "Pig": "#6E2C00",
+    # Clément 2026-10-27: more contrast between species. Minimum CIEDE2000 distance
+    # between the 7 species of the paper = 26.6 (Marmoset-Human); it was 12.4
+    # (Marmoset-Macaque) with the former palette, Mouse-Rat 19.4, Macaque-Human 27.3.
+    "Mouse": "#1F4E9C", "Rat": "#56B4E9", "Bat": "#66A61E",
+    "Mouselemur": "#1B9E77", "Marmoset": "#E6AB02", "Macaque": "#E7298A",
+    "Human": "#D95F02", "Dog": "#5D4037", "Cat": "#C0392B", "Pig": "#666666",
 }
 
 # ── datasets: (species, BIDS folder, label used by the Fig 5 pipeline) ───────

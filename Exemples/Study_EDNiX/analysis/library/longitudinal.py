@@ -1,5 +1,5 @@
 """
-EDNiX longitudinal morphometry (Figure 3, Supplementary Figure 6)
+EDNiX longitudinal morphometry (Figure 3, Supplementary Figure 7)
 ==================================================================
 Dataset formatting (Macaque BIDS_Zhu_Garin, Human BIDS_Park), trajectories and the
 association vs primary analysis. Former analysis/Figure_3_longitudinal.py.

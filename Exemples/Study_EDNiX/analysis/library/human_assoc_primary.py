@@ -1,5 +1,5 @@
 """
-Supplementary Figure 6 -- association vs primary cortex in the human ageing dataset
+Supplementary Figure 7 -- association vs primary cortex in the human ageing dataset
 (BIDS_Park): same analysis and drawing as Figure 3 g-i (macaque).
 
   a  surface area   b  cortical thickness   c  volume     (order of Figure 3 columns)
@@ -10,8 +10,8 @@ session; thin lines = subjects, thick = mean +/- SEM where >= 3 subjects are obs
 inset = paired t-test on the last-session % change (association - primary).
 
   load_supp6_data()   inputs (BIDS_Park morphometry and ages)
-  supp6_stats()       every number (paper_stats.supp6)
-  draw_supp6()        the drawing (paper_figures.supp6)
+  supp6_stats()       every number (paper_stats.supp7)
+  draw_supp6()        the drawing (paper_figures.supp7)
 
 Former Supplementary/Supp_Fig_06_human_assoc_primary.py: plot_supp6 split into
 supp6_stats + draw_supp6, same computations in the same order.
@@ -51,7 +51,7 @@ def load_supp6_data():
 def supp6_stats(morph, age_df, species="Human", letters="abc", x_axis=X_AXIS):
     """One entry per panel (modality, Figure 3 column order): trajectories of
     association and primary % change (res) and the paired t-test on the last-session
-    % change (test). Returns dict(panels, lines (Supp_Fig_06_stats.txt), table)."""
+    % change (test). Returns dict(panels, lines (Supp_Fig_07_stats.txt), table)."""
     panels, lines, rows = [], [], []
     for k, (mod, _, _, title) in enumerate(F3.FIG3_MODALITIES):
         res = F3.assoc_primary_trajectories(morph, age_df, F3.PRIMARY_REGIONS,
@@ -78,7 +78,7 @@ def supp6_stats(morph, age_df, species="Human", letters="abc", x_axis=X_AXIS):
 
 
 def stats_text(stats):
-    return ("Supplementary Figure 6 -- association vs primary, human (BIDS_Park)\n"
+    return ("Supplementary Figure 7 -- association vs primary, human (BIDS_Park)\n"
             + "\n".join(stats["lines"]) + "\n")
 
 

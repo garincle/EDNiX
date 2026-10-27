@@ -45,8 +45,8 @@ NON_BRAIN = re.compile(r'ventric|csf', re.IGNORECASE)
 MODALITIES = ('morphometry', 'FC', 'metabolism')
 MODALITY_LABEL = {'morphometry': 'volume (% brain)', 'FC': 'average connectivity (z)',
                   'metabolism': 'glucose metabolism (bratio)'}
-# Okabe-Ito; metabolism = reddish purple, not vermillion, which looked like the Human orange (Fig 6)
-MODALITY_COLORS = {'morphometry': '#0072B2', 'FC': '#009E73', 'metabolism': '#CC79A7'}
+# Okabe-Ito blue / green + a purple: none close to the Human orange or the Macaque magenta (Fig 6)
+MODALITY_COLORS = {'morphometry': '#0072B2', 'FC': '#009E73', 'metabolism': '#6A3D9A'}
 
 
 def region_key(name):

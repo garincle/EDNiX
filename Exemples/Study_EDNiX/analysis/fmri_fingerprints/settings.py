@@ -36,7 +36,7 @@ FIGURE_SETTINGS = dict(
     SURFACE_ZOOM={"Human": 1.0, "Macaque": 1.0, "Dog": 1.0, "Marmoset": 0.9,
                   "Mouselemur": 0.9, "Rat": 0.9, "Mouse": 0.9},
     SURFACE_DATASETS_PER_ROW=2,
-    # run-level r with the kept map and with the selection criterion (Supp 8b, Supp 11)
+    # run-level r with the kept map and with the selection criterion (Supp 9b, Supp 12)
     RUN_DISTANCE_TO_REF=True,
 )
 

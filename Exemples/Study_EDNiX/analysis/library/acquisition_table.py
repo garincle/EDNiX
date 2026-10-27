@@ -371,9 +371,9 @@ def plot_table(s, out_base, width_mm=183):
     if s is None or s.empty:
         return None
     parts = [(s[s.modality == "fMRI"], FUNC_COLS,
-              "Resting-state fMRI (Figs 4-5, Supplementary Figs 5, 7-11)"),
+              "Resting-state fMRI (Figs 4-5, Supplementary Figs 4, 6, 8-12)"),
              (s[s.modality == "anat"], ANAT_COLS,
-              "Anatomical MRI (Figs 2-3, Supplementary Figs 4, 6)")]
+              "Anatomical MRI (Figs 2-3, Supplementary Figs 5, 7)")]
     parts = [p for p in parts if len(p[0])]
     note = ("Values read from the BIDS JSON sidecars and NIfTI headers: median [min-max] "
             "across images when they differ; n.r., not reported in the sidecars; *, several "
@@ -395,6 +395,120 @@ def plot_table(s, out_base, width_mm=183):
             print(f"  [WARN] table wider than the page: {max(too_wide):.0f} mm")
         fig.text(x0 / width_mm, 1 - (y - 3.0) / H, note, ha="left", va="top", fontsize=4.5,
                  wrap=True)
+        paths = ps.save(fig, out_base)
+        plt.close(fig)
+    return paths
+
+
+# ── Supplementary Figure 4: the acquisition parameters every dataset has ────────────────
+# Candidates in order of interest for cross-species rs-fMRI (at most 4 are drawn, only
+# those reported for every fMRI dataset):
+#   TR            temporal sampling (aliasing of cardiac / respiratory signals, number of
+#                 samples per minute)
+#   duration      scan length per run; the reliability of resting-state connectivity
+#                 increases with scan duration (Birn et al. 2013, NeuroImage 83:550)
+#   voxel volume  spatial resolution, log scale (from ~0.01 mm3 in rodents to ~30 mm3)
+#   B0            field strength (T2* and BOLD contrast scale with it)
+#   TE            echo time (BOLD sensitivity is maximal for TE ~ T2* of grey matter)
+#   flip angle
+ACQ_CANDIDATES = [("TR_s", "TR (s)", False), ("duration_min", "Run duration (min)", False),
+                  ("voxel_mm3", "Voxel volume (mm$^3$)", True), ("field_num", "B$_0$ (T)", False),
+                  ("TE_ms", "TE (ms)", False), ("flip_deg", "Flip angle (°)", False)]
+MAX_ACQ_PANELS = 4
+
+
+def acq_runs(df):
+    """fMRI runs with the derived columns of the figure (voxel volume, numeric B0)."""
+    f = df[df["suffix"] == "bold"].copy() if not df.empty else df
+    if f.empty:
+        return f
+    f["voxel_mm3"] = pd.to_numeric(f["vox_x"], errors="coerce") * \
+        pd.to_numeric(f["vox_y"], errors="coerce") * pd.to_numeric(f["vox_z"], errors="coerce")
+    f["field_num"] = pd.to_numeric(f["field_T"], errors="coerce")
+    for c in ("TR_s", "duration_min", "TE_ms", "flip_deg"):
+        f[c] = pd.to_numeric(f[c], errors="coerce")
+    f["bids_dir"] = f["dataset"]
+    return f
+
+
+def acq_metrics(f):
+    """The first MAX_ACQ_PANELS candidates reported (finite) in every fMRI dataset;
+    returns (chosen, dropped with the datasets that miss them)."""
+    chosen, dropped = [], []
+    for col, label, log in ACQ_CANDIDATES:
+        if col not in f:
+            continue
+        missing = [d for d, g in f.groupby("dataset") if not np.isfinite(g[col]).any()]
+        if missing:
+            dropped.append((col, missing))
+        elif len(chosen) < MAX_ACQ_PANELS:
+            chosen.append((col, label, log))
+    return chosen, dropped
+
+
+def acq_lines(f, chosen, dropped):
+    out = [f"panels: {', '.join(c for c, _, _ in chosen)} (reported for every fMRI dataset); "
+           "per dataset: median [min-max] across runs"]
+    for col, missing in dropped:
+        out.append(f"not drawn: {col}, missing for {', '.join(missing)}")
+    sp_of = dict(zip(f["dataset"], f["species"]))
+    dsets = ps.dataset_sort(list(sp_of), sp_of)
+    for col, label, _ in chosen:
+        plain = label.replace("$^3$", "3").replace("$_0$", "0")
+        out.append(f"{plain}: " + "; ".join(
+            f"{d} {_num(f.loc[f['dataset'] == d, col], '.3g')}" for d in dsets))
+    return out
+
+
+def summary_per_metric(f, chosen):
+    """n, median, quartiles, min, max per dataset and drawn parameter."""
+    from Exemples.Study_EDNiX.analysis.library import qc_figures as qf
+    if f is None or f.empty:
+        return pd.DataFrame()
+    return qf.qc_summary(f, [(c, l) for c, l, _ in chosen])
+
+
+def plot_acquisition(f, chosen, out_base):
+    """One panel per parameter; x = datasets grouped by species; one point per run
+    (species colour, dataset marker), black bar = dataset median. No violin and no
+    clipping: acquisition values are exact and mostly constant within a dataset."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    if f is None or f.empty or not chosen:
+        return None
+    sp_of = dict(zip(f["dataset"], f["species"]))
+    dsets = ps.dataset_sort(list(sp_of), sp_of)
+    rng = np.random.default_rng(42)
+    n = len(chosen)
+    with plt.rc_context(ps.PAPER_RC):
+        fig, axes = plt.subplots(1, n, squeeze=False, figsize=(ps.WIDTH_2COL, 52 * MM))
+        fig.subplots_adjust(left=0.06, right=0.995, top=0.95, bottom=0.30, wspace=0.42)
+        for k, (col, label, log) in enumerate(chosen):
+            ax = axes[0][k]
+            ps.panel_label(ax, "abcd"[k], x=-0.22, y=1.0)
+            for x, d in enumerate(dsets):
+                v = f.loc[f["dataset"] == d, col].to_numpy(float)
+                v = v[np.isfinite(v)]
+                if v.size == 0:
+                    continue
+                ps.dots(ax, v, x, ps.dataset_color(d, sp_of[d]),
+                        marker=ps.dataset_marker(d, sp_of[d]), spread=0.18, size=3.0, rng=rng)
+                ax.plot([x - 0.3, x + 0.3], [np.median(v)] * 2, color="black", lw=0.9,
+                        zorder=2, solid_capstyle="butt")
+            if log:
+                ax.set_yscale("log")
+            else:
+                ax.set_ylim(bottom=0)
+            ax.set_ylabel(label)
+            ax.set_xlim(-0.6, len(dsets) - 0.4)
+            ax.set_xticks(range(len(dsets)))
+            ax.set_xticklabels([ps.dataset_short(d, sp_of[d]) for d in dsets], rotation=55,
+                               ha="right", rotation_mode="anchor", fontsize=5)
+            for t, d in zip(ax.get_xticklabels(), dsets):
+                t.set_color(ps.text_color(sp_of[d]))
+        h, l = ps.species_dataset_legend(dsets, sp_of)
+        ps.legend_below(fig, axes, h, l)
         paths = ps.save(fig, out_base)
         plt.close(fig)
     return paths

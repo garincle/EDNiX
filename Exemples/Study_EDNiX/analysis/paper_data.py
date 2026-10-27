@@ -34,13 +34,13 @@ CACHE_DIR = opj(PAPER_DIR, '_cache')
 # sensitivity_analysis/fmri_qc/ (former folder name: Suppl_Figure_4-5-6_QC)
 QC_DIR = opj(SENSITIVITY_DIR, 'fmri_qc')
 
-# Run selection of Figures 4-5 and Supp. 7-11 (Statistics/Group_fMRI/run_selection):
+# Run selection of Figures 4-5 and Supp. 8-12 (Statistics/Group_fMRI/run_selection):
 # its 07_state is the only input of the fMRI statistics (one setting, in config_ednix)
 from Statistics.Group_fMRI.run_selection.config_ednix import SELECTION_CONFIG as _SELECTION
 FMRI_SELECTION_ROOT = _SELECTION["OUTPUT_ROOT"]       # .../Fig_5_V15__quant20
 
 # ── datasets ────────────────────────────────────────────────────────────────
-# Anatomy (Figure 2, Supp. Fig. 4): every dataset with a T1/T2 processed by EDNiX.
+# Anatomy (Figure 2, Supp. Fig. 5): every dataset with a T1/T2 processed by EDNiX.
 ANAT_DATASETS = {
     'Mouse': ['/scratch2/EDNiX/Mouse/BIDS_Grandjean2'],
     'Rat': ['/scratch2/EDNiX/Rat/BIDS_Grandjean'],
@@ -56,7 +56,7 @@ ANAT_DATASETS = {
               '/scratch2/EDNiX/Human/BIDS_Babayan'],
     'Dog': ['/scratch2/EDNiX/Dog/BIDS_Boch_K9'],
 }
-# Resting-state fMRI (Supp. Fig. 5, Figs 4-5): datasets with BOLD runs.
+# Resting-state fMRI (Supp. Fig. 6, Figs 4-5): datasets with BOLD runs.
 FUNC_DATASETS = {
     'Mouse': ['/scratch2/EDNiX/Mouse/BIDS_Grandjean2'],
     'Rat': ['/scratch2/EDNiX/Rat/BIDS_Grandjean'],

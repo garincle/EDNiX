@@ -15,7 +15,7 @@ pipeline? Synthetic check, no AFNI.
    round), every surface render as a small random PNG, and two datasets get both arousal
    states in the same animals (run 1 awake, run 2 anaesthetised), so that the paper settings
    (fmri_fingerprints.settings.FIGURE_SETTINGS: kept maps of the final round for
-   Figure 4, distance to the kept map for Supp. 11) run as on real data.
+   Figure 4, distance to the kept map for Supp. 12) run as on real data.
 2. The former pipeline (part 2, "figures", from that state) runs in <old_repo>.
 3. paper_stats + paper_figures run in this checkout on the same state.
 4. Every table, result line and print-size panel of the paper is compared.
@@ -223,43 +223,43 @@ def compare(old_root, new_paper):
     # Figure 5
     panel("Fig 5 panel", N("Figure_5", "5a_surface_maps_selected_vs_excluded"),
           opj(fig, "Fig5", "5a_surface_maps_selected_vs_excluded.png"))
-    # Supp 7
+    # Supp 8
     for n in ("F1e_convergence", "F1c_consensus_by_dataset", "F5_region_invariance"):
-        panel(f"Supp 7 {n}", N("Supp_Fig_07", {"F1e_convergence": "a_", "F5_region_invariance":
+        panel(f"Supp 8 {n}", N("Supp_Fig_08", {"F1e_convergence": "a_", "F5_region_invariance":
                                                "c_"}.get(n, "b_") + n),
               opj(fig, "Paper", n + ".png"))
-    # Supp 8
-    table("Supp 8b run r by state", P("Supp_Fig_08"), "b_run_r_by_state",
+    # Supp 9
+    table("Supp 9b run r by state", P("Supp_Fig_09"), "b_run_r_by_state",
           opj(gm, "run_r_to_selection_criterion_by_state.xlsx"))
-    lines("Supp 8b statistics", T("Supp_Fig_08"), opj(fig, "Fig6", "6c_arousal_state_F8b.txt"),
+    lines("Supp 9b statistics", T("Supp_Fig_09"), opj(fig, "Fig6", "6c_arousal_state_F8b.txt"),
           ("Mouse", "Marmoset", "Rat", "Dog", "Macaque", "Human", "Mouselemur", "POOLED"),
           after="b  ")
-    panel("Supp 8a panel", N("Supp_Fig_08", "a_F3_score_distributions"),
+    panel("Supp 9a panel", N("Supp_Fig_09", "a_F3_score_distributions"),
           opj(fig, "Paper", "F3_score_distributions.png"))
-    panel("Supp 8b panel", N("Supp_Fig_08", "b_6c_arousal_state_F8b"),
+    panel("Supp 9b panel", N("Supp_Fig_09", "b_6c_arousal_state_F8b"),
           opj(fig, "Fig6", "6c_arousal_state_F8b.png"))
-    # Supp 9
-    table("Supp 9 sibling ranks", P("Supp_Fig_09"), "sibling_ranks", fp, "sibling_ranks")
-    panel("Supp 9 panel", N("Supp_Fig_09", "F16b_proximity_rows"),
-          opj(fig, "Paper", "F16b_proximity_rows.png"))
     # Supp 10
-    table("Supp 10 variability levels", P("Supp_Fig_10"), "variability_levels", fp,
+    table("Supp 10 sibling ranks", P("Supp_Fig_10"), "sibling_ranks", fp, "sibling_ranks")
+    panel("Supp 10 panel", N("Supp_Fig_10", "F16b_proximity_rows"),
+          opj(fig, "Paper", "F16b_proximity_rows.png"))
+    # Supp 11
+    table("Supp 11 variability levels", P("Supp_Fig_11"), "variability_levels", fp,
           "variability_levels")
-    lines("Supp 10 statistics", T("Supp_Fig_10"),
+    lines("Supp 11 statistics", T("Supp_Fig_11"),
           opj(fig, "supplementary", "F20_selection_vs_variability_levels.txt"),
           ("Dog", "Macaque", "Mouse", "Rat", "Marmoset", "Human", "Mouselemur", "POOLED"))
-    panel("Supp 10 panel", N("Supp_Fig_10", "F20_variability_levels"),
+    panel("Supp 11 panel", N("Supp_Fig_11", "F20_variability_levels"),
           opj(fig, "Paper", "F20_variability_levels.png"))
-    # Supp 11
-    table("Supp 11a run r to kept map", P("Supp_Fig_11"), "a_run_r_to_kept_map",
+    # Supp 12
+    table("Supp 12a run r to kept map", P("Supp_Fig_12"), "a_run_r_to_kept_map",
           opj(gm, "run_distance_to_reference.xlsx"))
-    table("Supp 11b QC correlations", P("Supp_Fig_11"), "b_qc_correlation_per_dataset",
+    table("Supp 12b QC correlations", P("Supp_Fig_12"), "b_qc_correlation_per_dataset",
           opj(gm, "qc_vs_distance_correlation_per_bids.xlsx"))
-    table("Supp 11b QC meta-analysis", P("Supp_Fig_11"), "b_qc_meta_analysis",
+    table("Supp 12b QC meta-analysis", P("Supp_Fig_12"), "b_qc_meta_analysis",
           opj(gm, "qc_vs_distance_meta_analysis.xlsx"))
-    panel("Supp 11a panel", N("Supp_Fig_11", "a_F9_run_distance_sd"),
+    panel("Supp 12a panel", N("Supp_Fig_12", "a_F9_run_distance_sd"),
           opj(fig, "Paper", "F9_run_distance_sd.png"))
-    panel("Supp 11b panel", N("Supp_Fig_11", "b_F10_qc_vs_distance"),
+    panel("Supp 12b panel", N("Supp_Fig_12", "b_F10_qc_vs_distance"),
           opj(fig, "Paper", "F10_qc_vs_distance.png"))
     return out
 
@@ -293,7 +293,7 @@ def main(old_repo, synthetic_root, work):
     c = context.prepare(context.load_state(root_new, settings=settings))
     c.update(pst.fmri_group(c))
     inp._cache["fmri"] = c
-    sections = ("figure4", "figure5", "supp7", "supp8", "supp9", "supp10", "supp11")
+    sections = ("figure4", "figure5", "supp8", "supp9", "supp10", "supp11", "supp12")
     res = pst.run(sections, inp, paper_dir=paper)
     pfg.run(res, inp, paper_dir=paper)
     checks = compare(root_old, paper)

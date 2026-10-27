@@ -95,7 +95,7 @@ from Statistics.Group_fMRI.run_selection import units as fu      # unit aggregat
 import Exemples.Study_EDNiX.analysis.fmri_fingerprints.phylo as fp      # Mantel / Blomberg K / PGLS
 import Exemples.Study_EDNiX.analysis.fmri_fingerprints.fingerprints as ff  # F6ab, fingerprints, F15-F18
 import Exemples.Study_EDNiX.analysis.fmri_fingerprints.paper_panels as fpp         # panels of Figures 5 and 6
-import Exemples.Study_EDNiX.analysis.fmri_fingerprints.supp_panels as fsp    # print-size panels, Figs 4-5 / Supp 7-11
+import Exemples.Study_EDNiX.analysis.fmri_fingerprints.supp_panels as fsp    # print-size panels, Figs 4-5 / Supp 8-12
 from Statistics.Group_fMRI.run_selection.selection import (  # part 1, moved verbatim 2026-10-27
     CONFIG,
     FIGURE_KEYS,

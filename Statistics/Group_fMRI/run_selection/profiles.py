@@ -1276,7 +1276,7 @@ def rerun_balanced_kept_vs_outlier(df_class, species, bids_dir, classification_p
     # so check the type before calling it rather than just truthiness.
     category_subjects = fig5.load_classification_subjects(
         classification_path, species=species, bids_dir=Path(bids_dir).name,
-        categories=[category],
+        categories=[category], bids_path=bids_dir,
     )
     if not isinstance(category_subjects, dict) or not category_subjects.get(category):
         raise RuntimeError(f"Could not reload classification for {species}/{category} "
@@ -2246,7 +2246,7 @@ def compute_all_run_profiles(species, bids_dir, label_df, classification_path,
     """
     category_subjects = fig5.load_classification_subjects(
         classification_path, species=species, bids_dir=Path(bids_dir).name,
-        categories=[category],
+        categories=[category], bids_path=bids_dir,
     )
     if not isinstance(category_subjects, dict) or not category_subjects.get(category):
         print(f"  [WARN] 0 subjects from load_classification_subjects for "

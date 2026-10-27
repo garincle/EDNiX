@@ -117,28 +117,8 @@ ALL_BIDS = (
 PHYLO_ORDER = ["Mouse", "Rat", "Mouselemur", "Bat", "Marmoset",
                "Macaque", "Human", "Dog", "Cat", "Pig"]
 
-# Phylogenetic gradient - EACH major clade has a DISTINCT color
-SPECIES_COLORS = {
-    # Rodents (cool blues)
-    "Mouse": "#1A5276",  # Dark blue
-    "Rat": "#2E86C1",  # Medium blue
-
-    # Bat (sister to primates - teal/cyan)
-    "Bat": "#00A896",  # Teal (completely different from blue)
-
-    # Primates (warm - green → yellow → orange → warm)
-    "Mouselemur": "#58D68D",  # Green (basal primates)
-    "Marmoset": "#F4D03F",  # Yellow (New World)
-    "Macaque": "#F5B041",  # Orange (Old World)
-    "Human": "#D35400",  # Burnt orange (Great Apes)
-
-    # Carnivores (cool purple → magenta)
-    "Dog": "#8E44AD",  # Purple (Canidae)
-    "Cat": "#C0392B",  # Red (Felidae) - NOT orange!
-
-    # Ungulates (brown/earth)
-    "Pig": "#6E2C00",  # Dark brown
-}
+# species colours of the paper
+from Exemples.Study_EDNiX.analysis.paper_style import SPECIES_COLORS  # noqa: E402
 # ═══════════════════════════════════════════════════════════════════════════════
 # ANESTHESIA MAP
 # ═══════════════════════════════════════════════════════════════════════════════
