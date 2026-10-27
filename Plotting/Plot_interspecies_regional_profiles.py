@@ -527,13 +527,14 @@ def plot_fingerprint(prof, stats, ref_species, pre, ylabel, alpha=0.05, legend_e
 
 
 def draw_bars(ax, prof, stats, ref_species, ylabel, regions=None, alpha=0.05, colors=None, ylim=None,
-              legend=True, fontsize=7, bar_from=None, lobes=True):
+              legend=True, fontsize=7, bar_from=None, lobes=True, bar_alpha=0.55):
     """Grouped bars of `regions` (default: all columns of prof) on one axis: mean +- SEM, every subject as a dot,
     FDR stars of each species vs ref_species, dashed line at the baseline (1 = whole-brain mean, 0 for z-scores).
     bar_from: value the bars start from (None = the baseline, so that a bar is the deviation from it; 0 = the
     absolute value, e.g. a bratio read as on the surface maps). colors: {species: colour} overriding
     SPECIES_COLORS. ylim: (low, high) shared across axes; computed from prof when None. lobes: strip of the lobe
-    colours of the atlas figure under the axis."""
+    colours of the atlas figure under the axis. bar_alpha: opacity of the bars (1 = the plain species colour).
+    """
     regs = list(regions) if regions is not None else list(prof.columns)
     species = list(prof.index.get_level_values(0).unique())
     st = stats.set_index(['species', 'region'])
@@ -554,7 +555,7 @@ def draw_bars(ax, prof, stats, ref_species, ylabel, regions=None, alpha=0.05, co
         xs = x - 0.4 + w * (i + 0.5)
         # bars start at b0 (the baseline by default: their length is the deviation from it, so the axis can be
         # zoomed without truncating a bar drawn from 0)
-        ax.bar(xs, d.mean().values - b0, w * 0.9, bottom=b0, yerr=d.sem().values, color=c, alpha=0.55,
+        ax.bar(xs, d.mean().values - b0, w * 0.9, bottom=b0, yerr=d.sem().values, color=c, alpha=bar_alpha,
                edgecolor=c, error_kw=dict(lw=0.8, capsize=1.5), label=f'{sp} (n={d.shape[0]})')
         for j, reg in enumerate(regs):
             v = d[reg].dropna().values

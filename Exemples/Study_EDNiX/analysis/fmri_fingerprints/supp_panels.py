@@ -180,7 +180,7 @@ def f5_region_invariance(invariance, common, mask, out, width_mm=183, height_mm=
         ax.set_xticks(range(len(order)))
         ax.set_xticklabels([short_entry(n) for n in names], rotation=90, fontsize=5)
         ax.set_xlim(-0.6, len(order) - 0.4)
-        ax.set_ylabel("Invariance across species")
+        ax.set_ylabel("Invariance across species\n(1 \u2212 rescaled MAD)")
         _lobe_strip_x(ax, names)
         ax.legend(handles=[plt.Rectangle((0, 0), 1, 1, color="#4D4D4D", label="used by the selection"),
                            plt.Rectangle((0, 0), 1, 1, color="#CCCCCC", label="not used")],

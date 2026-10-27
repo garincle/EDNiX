@@ -8,7 +8,7 @@ lines), and returns them with what paper_figures.py needs to draw the figure.
   figure1   atlas hierarchy                 no statistic
   figure2   cortical morphometry, level 2   per species median, IQR, n subjects
   figure3   longitudinal morphometry        spline LMM, linear LME, association vs primary
-  figure4   selection of the fMRI runs      a  r of every dataset with the Human datasets
+  figure4   selection of the fMRI runs      a  r of every dataset with the LOSO consensus
                                             b  run-to-run r, same species other dataset vs
                                                different species (Wilcoxon + permutation)
                                             c  dataset x dataset distance + sibling test
@@ -25,6 +25,8 @@ lines), and returns them with what paper_figures.py needs to draw the figure.
   supp9     proximity of the datasets       sibling rank of every dataset
   supp10    selection vs variability levels animal / session gaps vs random subsets
   supp11    run dispersion and QC           SD of r with the kept map; QC meta-analysis
+  stable1   acquisition parameters          per dataset: n, field, scanner, TR, TE, flip, voxel,
+                                            volumes, duration, arousal state; implausible TRs flagged
 
 fMRI statistics (figure4, figure5, supp7-supp11) read only the saved run selection
 (Statistics/Group_fMRI/run_selection, <FMRI_SELECTION_ROOT>/07_state), with the settings
@@ -49,13 +51,14 @@ from Exemples.Study_EDNiX.analysis import paper_data as pdat
 opj = os.path.join
 
 SECTIONS = ("figure1", "figure2", "figure3", "figure4", "figure5", "figure6", "supp1", "supp2",
-            "supp3", "supp4", "supp5", "supp6", "supp7", "supp8", "supp9", "supp10", "supp11")
+            "supp3", "supp4", "supp5", "supp6", "supp7", "supp8", "supp9", "supp10", "supp11",
+            "stable1")
 FOLDER = dict(figure1="Figure_1", figure2="Figure_2", figure3="Figure_3",
               figure4="Figure_4", figure5="Figure_5", figure6="Figure_6", supp1="Supp_Fig_01",
               supp2="Supp_Fig_02", supp3="Supp_Fig_03", supp4="Supp_Fig_04",
               supp5="Supp_Fig_05", supp6="Supp_Fig_06", supp7="Supp_Fig_07",
               supp8="Supp_Fig_08", supp9="Supp_Fig_09", supp10="Supp_Fig_10",
-              supp11="Supp_Fig_11")
+              supp11="Supp_Fig_11", stable1="Supp_Table_01")
 
 
 def out_base(section, paper_dir=None):
@@ -107,6 +110,10 @@ class Inputs:
                 pdat.load_qc(pdat.ANAT_DATASETS, 'qc_anat', refresh=self.refresh)))
         return self._get("qc_func", lambda: pdat.load_qc(pdat.FUNC_DATASETS, 'qc_func',
                                                          refresh=self.refresh))
+
+    def acquisition(self):
+        from Exemples.Study_EDNiX.analysis.library import acquisition_table as acq
+        return self._get("acquisition", lambda: acq.load(refresh=self.refresh))
 
     def multimodal(self):
         from Exemples.Study_EDNiX.analysis.library import multimodal_figure as mmf
@@ -218,11 +225,12 @@ def figure3(inp):
 
 
 def figure4(inp):
-    """a  r of each dataset's group fingerprint with the Human datasets (and with the LOSO
-          consensus), Figure 4 group maps
+    """a  r of each dataset's group fingerprint with the leave-one-species-out consensus (the
+          dashed profile of panel a; r with the Human datasets kept as a second column),
+          Figure 4 group maps
        b  run-to-run profile correlation: same species / other dataset vs different
           species, every run and the runs kept by the final round (5b)
-       c  dataset x dataset distance (1 - r) and sibling test (F16a)"""
+       c  dataset x dataset similarity r (drawn) / distance 1 - r and sibling test (F16a)"""
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import profile_stats as fa
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import paper_panels as fpp
     c = inp.fmri()
@@ -235,10 +243,11 @@ def figure4(inp):
              f"({cfg['VALUE_COL']}, {fa._norm_label(norm).strip() or 'unscaled'})"]
     # a
     dist = c["dist_all"]
-    lines.append("a  r with the Human datasets (Human datasets: with the other Human dataset)")
-    for r in dist.sort_values("r_reference", ascending=False).itertuples():
-        lines.append(f"  {r.label}: r = {r.r_reference:.3f} (LOSO consensus r = "
-                     f"{r.r_consensus:.3f})")
+    lines.append("a  r with the leave-one-species-out consensus (median of the other species), "
+                 "panel order")
+    for r in dist.sort_values("r_consensus", ascending=False).itertuples():
+        lines.append(f"  {r.label}: r = {r.r_consensus:.3f} (r with the Human datasets = "
+                     f"{r.r_reference:.3f})")
     # b (same pairs and statistics as fa.plot_within_vs_across_all_vs_selected)
     pools = (("All runs", c["profiles_by_label"]), ("Selected", c["selected_units"]))
     pairs, stats = {}, {}
@@ -254,11 +263,13 @@ def figure4(inp):
     n_units = {k: sum(len(p) for p in pool.values()) for k, pool in pools}
     lines.append(f"  units: all {n_units['All runs']}, selected {n_units['Selected']}")
     # c
-    lines.append("c  dataset x dataset distance (1 - r of the group fingerprints)")
+    lines.append("c  dataset x dataset similarity: r of the group fingerprints (matrix of the "
+                 "figure = 1 - distance below)")
     lines += ["  " + ln for ln in _sibling_lines(c["sibling"])]
     tables = dict(a_distances=dist,
                   b_within_across=pd.DataFrame([dict(pool=k, **v) for k, v in named.items()
                                                 if v]),
+                  c_similarity_matrix=1 - c["D"] if c["D"] is not None else pd.DataFrame(),
                   c_distance_matrix=c["D"] if c["D"] is not None else pd.DataFrame(),
                   **{f"c_{k}": v for k, v in _sibling_tables(c["sibling"]).items()})
     return dict(tables=tables, lines=lines,
@@ -512,6 +523,17 @@ def supp11(inp):
         else:
             lines.append("b  no external QC table in the saved selection")
     return dict(tables=tables, lines=lines, draw=draw)
+
+
+def stable1(inp):
+    """Supplementary Table 1: acquisition parameters of every dataset (BIDS sidecars and
+    NIfTI headers), fMRI then anatomy; implausible sidecar TRs flagged, not corrected."""
+    from Exemples.Study_EDNiX.analysis.library import acquisition_table as acq
+    df = inp.acquisition()
+    s = acq.summary(df)
+    flagged = df[df["TR_check"].fillna("") != ""] if "TR_check" in df else df.iloc[:0]
+    return dict(tables=dict(summary=s, per_image=df, TR_flagged=flagged),
+                lines=acq.lines(s, df), draw=dict(summary=s))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
