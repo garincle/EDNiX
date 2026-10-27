@@ -166,7 +166,7 @@ def get_thumbs(force_synthetic=False):
 
 # ── figure ───────────────────────────────────────────────────────────────────
 def panel_a(cv, th, y0):
-    cv.panel('a', 1.0, y0, 'One session through its coordinate spaces')
+    cv.panel('a', 1.0, y0, 'Example session: image after each main step, by coordinate space')
     frames = [
         dict(thumb=th['raw'], title='Raw T1w', step=1, op='prepro', space='scanner',
              caption='reoriented, averaged'),
@@ -191,7 +191,7 @@ def panel_a(cv, th, y0):
 
 
 def panel_b(cv, y0):
-    cv.panel('b', 1.0, y0, 'Steps of the anatomical module (numbers = Skip_step)')
+    cv.panel('b', 1.0, y0, 'Processing steps of the anatomical module (numbers: EDNiX Skip_step)')
     y = y0 + 6.0
     colw, gap = 43.2, 2.0
     xs = [3.0 + i * (colw + gap) for i in range(4)]
@@ -253,7 +253,7 @@ def panel_b(cv, y0):
 
 def panel_c(cv, y0):
     """Registration designs (Illustration/coregistration_strategies.svg)."""
-    cv.panel('c', 1.0, y0, 'Registration designs')
+    cv.panel('c', 1.0, y0, 'Four registration paths to the reference template (numbers as in b)')
     designs = [
         ('Classical', [('Session', 'native'), ('Reference template', 'template')], ['6']),
         ('Study template', [('Session', 'native'), ('Study template', 'study'), ('Reference template', 'template')],
@@ -305,8 +305,6 @@ def make(out=OUT, force_synthetic=False):
     cv.ops_legend(3.0, yl)
     yl2 = yl + 3.6
     cv.arrow_legend(3.0, yl2)
-    cv.text(sch.W - 2.0, yl2, 'Images: ' + ('synthetic illustration' if src.startswith('synthetic') else 'example session'),
-            size=sch.FS_SMALL, ha='right', va='center', color=sch.SUBTLE)
     cv.trim(yl2 + 3.0)
     print(f'  [Supp 1] image source: {src}')
     return cv.save(out)

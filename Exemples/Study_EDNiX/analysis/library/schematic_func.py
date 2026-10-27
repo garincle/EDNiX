@@ -238,7 +238,7 @@ def get_thumbs(force_synthetic=False):
 
 # ── figure ───────────────────────────────────────────────────────────────────
 def panel_a(cv, th, y0):
-    cv.panel('a', 1.0, y0, 'One run through its coordinate spaces')
+    cv.panel('a', 1.0, y0, 'Example run: image after each main step, by coordinate space')
     frames = [
         dict(thumb=th['raw'], title='Raw EPI', step=1, op='prepro', space='func',
              caption='despiked, slice timing'),
@@ -262,7 +262,7 @@ def panel_a(cv, th, y0):
 
 
 def panel_b(cv, y0):
-    cv.panel('b', 1.0, y0, 'Steps of the functional module (numbers = Skip_step)')
+    cv.panel('b', 1.0, y0, 'Processing steps of the functional module (numbers: EDNiX Skip_step)')
     y = y0 + 6.0
     colw, gap = 43.2, 2.0
     xs = [3.0 + i * (colw + gap) for i in range(4)]
@@ -320,7 +320,7 @@ def panel_b(cv, y0):
 
 def panel_c(cv, y0):
     """Composition of the transforms: what is estimated, what is resampled, and how many times."""
-    cv.panel('c', 1.0, y0, 'Transforms are composed: two interpolations of the time series')
+    cv.panel('c', 1.0, y0, 'Transform chain from each EPI volume to the template: two interpolations only')
     nodes = [('Volume j', 'func'), ('Run mean', 'func'), ('Undistorted', 'func'), ('Reference run', 'func'),
              ('Functional\nAC-PC grid', 'funcacpc'), ('Anatomy\n(AC-PC)', 'native'), ('Template', 'template')]
     edges = ['motion$_j$', 'SDC', 'to ref. run', 'rigid', 'SyN (PE)', 'to template']
@@ -367,8 +367,6 @@ def make(out=OUT, force_synthetic=False):
     cv.ops_legend(3.0, yl)
     yl2 = yl + 3.6
     cv.arrow_legend(3.0, yl2)
-    cv.text(sch.W - 2.0, yl2, 'Images: ' + ('synthetic illustration' if src.startswith('synthetic') else 'example session'),
-            size=sch.FS_SMALL, ha='right', va='center', color=sch.SUBTLE)
     cv.trim(yl2 + 3.0)
     print(f'  [Supp 2] image source: {src}')
     return cv.save(out)
