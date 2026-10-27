@@ -406,7 +406,8 @@ def test_group_mean_for_small_groups_with_surfaces(tmp_path, monkeypatch, n):
     monkeypatch.setattr(niftotoWBsurface, 'nifti_to_surface_wb', lambda **k: calls.append(k))
     done = pet_surface.render_pet_surfaces(res, 'Macaque', '/atlas', 'atlas/mammals/primates/Macaque', 'wb ',
                                            maps=['mean_all', 'cv_all'])
-    assert 'mean_all' in done and calls[0]['palette_name'] == 'videen_style' and not calls[0]['display_negative']
+    assert 'mean_all' in done and calls[0]['palette_name'] == pet_surface.PALETTES['mean_all'][0]
+    assert not calls[0]['display_negative']
     roi = R.run_roi_mean(str(tmp_path), 'PH', 0, 'SUV', list_to_keep=keep, output_dir=str(tmp_path / 'roi'))
     st = roi['stats'].set_index('region')
     assert set(st.n) == {n} and 'tiny' in st.index and st.loc['cortex', 'mean'] > st.loc['white', 'mean']
