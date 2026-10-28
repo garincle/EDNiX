@@ -215,7 +215,7 @@ def preprocess_fmri(Skip_step, MAIN_PATH, bids_dir,
                     selected_atlases_SBA='default', panda_files_SBA='default',
                     SBAspace=['func', 'anat', 'atlas'], erod_seed=True, smoothSBA=False,
                     intra_thresh=0.240, delta_thresh=0.05,
-                    oversample_map=False, use_cortical_mask_func=False, n_cut=10, threshold_val=10,doBALSAspace=False, **kwargs):
+                    oversample_map=False, use_cortical_mask_func=False, n_cut=10, threshold_val=10,doBALSAspace=False, process_nopostpro=False, **kwargs):
 
     """
     Preprocess functional MRI data within a BIDS-compliant study, integrating anat
@@ -385,6 +385,10 @@ def preprocess_fmri(Skip_step, MAIN_PATH, bids_dir,
         Number of voxels to exclude at edges.
     threshold_val : float, optional
         Intensity threshold for masking.
+    process_nopostpro : bool, optional
+        If True, steps 8 and 9 also warp the non-post-processed 4D series
+        (``*_desc-fMRI_run_inRef``) to anat and template space, in addition to
+        the residuals. Default False (residuals only; saves time and disk).
     **kwargs : dict
         Additional parameters to pass to custom functions or overrides.
 
@@ -1002,7 +1006,8 @@ def preprocess_fmri(Skip_step, MAIN_PATH, bids_dir,
 
                     else:
                         _8_fMRI_to_anat.to_anat_space(dir_prepro_acpc_process, dir_prepro_orig_process, bids_dir, ID, TfMRI,
-                                                      nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space, dir_prepro_acpc_postprocessed, dir_prepro_orig_postprocessed, diary_file)
+                                                      nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space, dir_prepro_acpc_postprocessed, dir_prepro_orig_postprocessed, diary_file,
+                                                      process_nopostpro=process_nopostpro)
 
                     if 9 in Skip_step:
                         nl = 'skip step ' + str(9)
@@ -1013,7 +1018,8 @@ def preprocess_fmri(Skip_step, MAIN_PATH, bids_dir,
                                                                                      dir_prepro_orig_postprocessed, dir_prepro_acpc_postprocessed, dir_prepro_template_postprocessed,
                                                                                      nb_run, RS, do_anat_to_func, list_atlas, info, dir_prepro_orig_process, species,
                                                                                      BASE_atlas_folder, opd(BASE_mask), anat_func_same_space, dir_prepro_acpc_process,
-                                                                                     dir_prepro_template_masks, IhaveanANAT, use_erode_WM_func_masks, overwrite, sing_afni, diary_file)
+                                                                                     dir_prepro_template_masks, IhaveanANAT, use_erode_WM_func_masks, overwrite, sing_afni, diary_file,
+                                                                                     process_nopostpro=process_nopostpro)
 
                     if 10 in Skip_step:
                         nl = 'skip step ' + str(10)

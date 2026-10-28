@@ -22,7 +22,8 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
                             dir_prepro_orig_postprocessed, dir_prepro_acpc_postprocessed, dir_prepro_template_postprocessed,
                              nb_run, RS, do_anat_to_func, list_atlases, info, dir_prepro_orig_process, species,
                              template_dir_labels, template_dir_masks ,anat_func_same_space, dir_prepro_acpc_process,
-                             dir_prepro_template_masks, IhaveanANAT, use_erode_WM_func_masks, overwrite,sing_afni,diary_file):
+                             dir_prepro_template_masks, IhaveanANAT, use_erode_WM_func_masks, overwrite,sing_afni,diary_file,
+                             process_nopostpro=False):
 
     nl = '##  Working on step ' + str(9) + '(function: _9_coregistration_to_template_space).  ##'
     run_cmd.msg(nl, diary_file, 'HEADER')
@@ -124,7 +125,6 @@ def to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prep
     ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
     ##                                          Work on all FUNC                                                ## ##
     ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
-    process_nopostpro = True
     for i in range(int(nb_run)):
         root_RS = extract_filename(RS[i])
 

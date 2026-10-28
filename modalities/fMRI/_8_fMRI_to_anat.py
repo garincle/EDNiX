@@ -14,7 +14,8 @@ from modalities.fMRI import plot_QC_func
 
 
 def to_anat_space(dir_prepro_acpc_process, dir_prepro_orig_process, bids_dir, ID, TfMRI,
-    nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space, dir_prepro_acpc_postprocessed, dir_prepro_orig_postprocessed, diary_file):
+    nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space, dir_prepro_acpc_postprocessed, dir_prepro_orig_postprocessed, diary_file,
+    process_nopostpro=False):
 
     #########################################################################################################
     ################################### registration to anat space ##########################################
@@ -73,7 +74,6 @@ def to_anat_space(dir_prepro_acpc_process, dir_prepro_orig_process, bids_dir, ID
     ############################### ############################### ############################### 
     ###############################  apply transfo to func inamge in acpc                ##########
     ############################### ############################### ############################### 
-    process_nopostpro = True
     for i in range(int(nb_run)):
         root_RS = extract_filename(RS[i])
 
