@@ -227,7 +227,8 @@ def fig4bc(pairs_by, stats, names, test, intra, D, species_of_label, out, width_
             r = fig.canvas.get_renderer()
             ylab = ax_c.get_yticklabels()
             x_c = min(t.get_window_extent(r).x0 for t in ylab) / fig.bbox.width if ylab else mx / width_mm
-            fig.text(x_c - 1.5 / width_mm, (bottom + side) / height_mm, "c",
+            # top of the figure = top of the b+c image once cropped: level with letter b
+            fig.text(x_c - 1.5 / width_mm, 1.0, "c",
                      fontsize=LETTER_PT, fontweight="bold", va="top", ha="right")
         fa.save_paper(fig, out)
     return out
