@@ -77,7 +77,7 @@ for c in BIDS_CONFIGS:
 SELECTION_CONFIG = dict(
     # one output folder per profile method; the AFNI maps already computed with the
     # same inputs (checked in input_runs/) are reused
-    OUTPUT_ROOT="/scratch2/EDNiX/results/EDNiX_Figures/Fig_5_V15_"
+    OUTPUT_ROOT="/scratch2/EDNiX/results/EDNiX_Figures/Selection_EDNiX_VF"
                 + {"median_r": "", "fraction_posneg": f"_posneg{_Q_PCT}", "percentiles": f"_quant{_Q_PCT}",
                    "quantile_posneg": f"_quant{_Q_PCT}"}[PROFILE_METHOD],
     PROFILE_METHOD=PROFILE_METHOD,
