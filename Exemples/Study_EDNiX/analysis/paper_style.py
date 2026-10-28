@@ -285,7 +285,8 @@ def save(fig, path_no_ext, formats=("pdf", "png")):
 
 
 def compose_images(panels, out_path_no_ext, width=WIDTH_2COL, layout=None,
-                   wspace_mm=2.0, hspace_mm=2.0, letters=None, crop=True, gutter_mm=3.0):
+                   wspace_mm=2.0, hspace_mm=2.0, letters=None, crop=True, gutter_mm=3.0,
+                   letter_offsets_mm=None):
     """Lay out existing PNG panels (drawn at print size) as one lettered figure.
 
     panels : list of PNG paths, in reading order (None or a missing file = empty cell).
@@ -294,7 +295,9 @@ def compose_images(panels, out_path_no_ext, width=WIDTH_2COL, layout=None,
     In a row, panels share one height and their widths follow their aspect ratios, so
     that the row fills `width` exactly (no empty band, nothing stretched). Panels
     drawn at print size for that place keep a scale close to 1 (fonts stay 5-7 pt).
-    Letters a, b, c... follow the order of `panels`. Writes .pdf + .png."""
+    Letters a, b, c... follow the order of `panels`, at the top-left corner of their cell;
+    letter_offsets_mm: one (dx, dy) per panel (mm, right and up positive) moves them.
+    Writes .pdf + .png."""
     import matplotlib.image as mpimg
     imgs = []
     for p in panels:
@@ -326,7 +329,9 @@ def compose_images(panels, out_path_no_ext, width=WIDTH_2COL, layout=None,
                 ax.axis("off")
                 if imgs[i] is not None:
                     ax.imshow(imgs[i], interpolation="lanczos")
-                    fig.text(x / width, (y + h) / height, letters[i], fontsize=PANEL_LABEL_SIZE,
+                    dx, dy = (letter_offsets_mm[i] if letter_offsets_mm else (0.0, 0.0))
+                    fig.text((x + dx * MM) / width, (y + h + dy * MM) / height, letters[i],
+                             fontsize=PANEL_LABEL_SIZE,
                              fontweight="bold", va="top", ha="left")
                 x += gut + w + ws
             y -= hs

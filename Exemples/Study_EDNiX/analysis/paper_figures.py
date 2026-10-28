@@ -101,7 +101,11 @@ def figure4(res, inp, paper_dir=None):
     _try("4bc", f4.fig4bc, d["pairs"], d["stats"], ["All runs", "Selected"], d["test"],
          d["intra"], c["D"], sol, pbc)
     base = pst.out_base("figure4", paper_dir)
-    ps.compose_images([_png(pa), _png(pbc)], base, layout=[[0], [1]], letters="ab")
+    # Clément 2026-10-28: a moved right and down, b right (same x as a); c level with b.
+    # The letters sit in the 3 mm gutter and the saved figure is cropped tight, so dx
+    # beyond 3 mm is what moves a letter right of the panel edge (here by 4 mm).
+    ps.compose_images([_png(pa), _png(pbc)], base, layout=[[0], [1]], letters="ab",
+                      letter_offsets_mm=[(7.0, -4.0), (7.0, 0.0)])
     return base
 
 
