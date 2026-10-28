@@ -17,29 +17,18 @@ opi = os.path.isfile
 from Tools import run_cmd, check_nii
 
 
-def _acpc_to_raw_func(mask_acpc, anat_acpc, anat_func_same_space, dir_transfo, Mean_Image_acpc,
-                      Mean_Image_SS, dir_prepro_raw_masks, dir_prepro_raw_process, TfMRI):
+def _acpc_to_raw_func(mask_acpc, anat_acpc, matrix, Mean_Image_SS, mask_raw, anat_raw):
     """Write mask_ref and the anat of the acpc-func space onto the raw-func grid.
 
-    acpc-func = raw-func moved by the acpc transform of step 3, so the raw-space copies are the
+    acpc-func = raw-func moved by the acpc transform `matrix`, so the raw-space copies are the
     acpc images moved by the inverse of that transform onto the grid of Mean_Image_SS.
     """
-    if anat_func_same_space == True:
-        matrix = opj(dir_transfo, 'acpc_0GenericAffine.mat')
-    else:
-        matrix = Mean_Image_acpc.replace('.nii.gz', '_0GenericAffine.mat')
     MEANraw = ants.image_read(Mean_Image_SS)
-
-    MASKraw = ants.apply_transforms(fixed=MEANraw, moving=ants.image_read(mask_acpc),
+    for src, dst in ((mask_acpc, mask_raw), (anat_acpc, anat_raw)):
+        IMG = ants.apply_transforms(fixed=MEANraw, moving=ants.image_read(src),
                                     transformlist=matrix, whichtoinvert=[True],
                                     interpolator='nearestNeighbor')
-    ants.image_write(MASKraw, opj(dir_prepro_raw_masks, 'mask_ref.nii.gz'), ri=False)
-
-    ANATraw = ants.apply_transforms(fixed=MEANraw, moving=ants.image_read(anat_acpc),
-                                    transformlist=matrix, whichtoinvert=[True],
-                                    interpolator='nearestNeighbor')
-    ants.image_write(ANATraw, opj(dir_prepro_raw_process,
-                                  '_'.join(['anat_space-raw-func', TfMRI + '.nii.gz'])), ri=False)
+        ants.image_write(IMG, dst, ri=False)
 
 
 def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process, RS, nb_run, ID, bids_dir, dir_prepro_raw_masks, REF_int, dir_prepro_raw_matrices, recordings,
@@ -273,6 +262,13 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
             outfile.write(json_object)
         run_cmd.run(command, diary_file)
 
+    # acpc-func = raw-func moved by this transform (step 3); its inverse brings acpc images back to raw
+    if anat_func_same_space == True:
+        acpc_matrix = opj(dir_transfo, 'acpc_0GenericAffine.mat')
+    else:
+        acpc_matrix = Mean_Image_acpc.replace('.nii.gz', '_0GenericAffine.mat')
+    anat_raw_func = opj(dir_prepro_raw_process, '_'.join(['anat_space-raw-func', TfMRI + '.nii.gz']))
+
     ## MASKS in func space:
     for input1, output2 in zip([opj(orig_mask,'mask_ref.nii.gz'),
                                 maskDilatfunc,
@@ -298,9 +294,8 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                 ants.image_write(TRANS,output2,ri=False)
 
                 if output2 == opj(dir_prepro_orig_masks, 'mask_ref.nii.gz'):
-                    _acpc_to_raw_func(output2, anat_in_acpc_func, anat_func_same_space, dir_transfo,
-                                      Mean_Image_acpc, Mean_Image_SS, dir_prepro_raw_masks,
-                                      dir_prepro_raw_process, TfMRI)
+                    _acpc_to_raw_func(output2, anat_in_acpc_func, acpc_matrix, Mean_Image_SS,
+                                      opj(dir_prepro_raw_masks, 'mask_ref.nii.gz'), anat_raw_func)
 
             elif do_anat_to_func == False and anat_func_same_space == True:
                 nl = 'No anat to func step required'
@@ -317,9 +312,8 @@ def Refimg_to_meanfMRI(SED, anat_func_same_space, TfMRI, dir_prepro_raw_process,
                 if output2==opj(dir_prepro_orig_masks,'mask_ref.nii.gz'):
                     # The acpc mask (output2) stays on the acpc-func grid; the raw-space copies
                     # are made with the inverse acpc transform, as when do_anat_to_func == True.
-                    _acpc_to_raw_func(output2, anat_in_acpc_func, anat_func_same_space, dir_transfo,
-                                      Mean_Image_acpc, Mean_Image_SS, dir_prepro_raw_masks,
-                                      dir_prepro_raw_process, TfMRI)
+                    _acpc_to_raw_func(output2, anat_in_acpc_func, acpc_matrix, Mean_Image_SS,
+                                      opj(dir_prepro_raw_masks, 'mask_ref.nii.gz'), anat_raw_func)
 
             else:
                 nl = 'ERROR: If Anat and Func are not in the same space you need to perform that transformation (do_anat_to_func = True)'
