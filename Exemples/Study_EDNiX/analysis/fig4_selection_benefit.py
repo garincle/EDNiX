@@ -87,6 +87,36 @@ def _paired(sel, base, name):
             f"t({len(ds) - 1}) = {t.statistic:.2f}, one-sided P = {t.pvalue:.4g}")
 
 
+def species_structure(groups, sp_of_ds):
+    """Fig. 4c at the group level: mean r between datasets of the same species minus mean r
+    between datasets of different species, and how many datasets with a sibling have it as
+    nearest neighbour. Returns (gap, n_nearest, n_with_sibling)."""
+    ks = sorted(groups)
+    same, diff, near, nsib = [], [], 0, 0
+    for i, d in enumerate(ks):
+        rs = {e: _corr(groups[d], groups[e]) for e in ks if e != d}
+        sib = [e for e in rs if sp_of_ds[e] == sp_of_ds[d]]
+        if sib:
+            nsib += 1
+            near += int(max(rs, key=rs.get) in sib)
+        for e in ks[i + 1:]:
+            (same if sp_of_ds[e] == sp_of_ds[d] else diff).append(rs[e])
+    gap = float(np.nanmean(same) - np.nanmean(diff)) if same and diff else np.nan
+    return gap, near, nsib
+
+
+def _perm_species(groups, sp_of_ds, rng, n_perm):
+    """Null of the gap: species labels permuted across datasets."""
+    obs = species_structure(groups, sp_of_ds)[0]
+    null = []
+    for _ in range(n_perm):
+        g = species_structure(groups, rng.permutation(sp_of_ds))[0]
+        if np.isfinite(g):
+            null.append(g)
+    null = np.array(null)
+    return (1 + int(np.sum(null >= obs - 1e-12))) / (len(null) + 1)
+
+
 def analyse(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, seed=SEED):
     rng = np.random.default_rng(seed)
     sets = np.unique(ds)
@@ -96,13 +126,14 @@ def analyse(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, seed=SEED):
     g_sel = {d: _group(vecs, idx_sel[d]) for d in sets if len(idx_sel[d]) >= 2}
     A_all, B_all = outcomes(g_all, sp_of_ds)
     A_sel, B_sel = outcomes(g_sel, sp_of_ds)
-    drawsA, drawsB = [], []
+    drawsA, drawsB, drawsC = [], [], []
     for _ in range(n_draws):
         g = {d: _group(vecs, rng.choice(idx_all[d], len(idx_sel[d]), replace=False))
              for d in g_sel}
         a, b = outcomes(g, sp_of_ds)
         drawsA.append(a)
         drawsB.append(b)
+        drawsC.append(species_structure(g, sp_of_ds))
     tab = []
     for d in sorted(g_sel):
         ra = np.array([x.get(d, np.nan) for x in drawsA])
@@ -136,6 +167,24 @@ def analyse(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, seed=SEED):
     lines.append(f"    selected vs random: mean r {obsB:.3f} vs random median "
                  f"{np.median(mB):.3f} (95th percentile {np.percentile(mB, 95):.3f}); "
                  f"one-sided P = {(1 + np.sum(mB >= obsB - 1e-12)) / (n_draws + 1):.4g}")
+    lines.append("  C  species structure between datasets (Fig. 4c): mean r same species - mean r "
+                 "different species, group profiles; nearest neighbour = other dataset of the "
+                 "same species")
+    for name, g in (("all runs", g_all), ("selected", g_sel)):
+        gap, near, nsib = species_structure(g, sp_of_ds)
+        lines.append(f"    {name}: gap = {gap:+.3f}; sibling nearest for {near}/{nsib} datasets; "
+                     f"species-label permutation one-sided P = "
+                     f"{_perm_species(g, sp_of_ds, rng, n_draws):.4g}")
+    gC = np.array([x[0] for x in drawsC])
+    nC = np.array([x[1] for x in drawsC])
+    gap_sel, near_sel, nsib = species_structure(g_sel, sp_of_ds)
+    lines.append(f"    random subsets: median gap {np.nanmedian(gC):+.3f} (95th percentile "
+                 f"{np.nanpercentile(gC, 95):+.3f}); selected vs random one-sided P = "
+                 f"{(1 + np.sum(gC >= gap_sel - 1e-12)) / (n_draws + 1):.4g}; sibling nearest: "
+                 f"median {np.median(nC):.0f}/{nsib}, P(random >= {near_sel}) = "
+                 f"{(1 + np.sum(nC >= near_sel)) / (n_draws + 1):.4g}")
+    lines.append("    caveat: the two datasets of a species share their leave-one-species-out "
+                 "target, so part of any gain can be mechanical (control: common-target run)")
     return lines, tab
 
 
