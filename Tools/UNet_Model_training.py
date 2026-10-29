@@ -190,7 +190,7 @@ def discover_pairs(roots, func_masks='all', anat_contrasts=('T1w', 'T2w')):
     for r in pairs:
         r['subject_key'] = f"{r['species']}/{r['dataset']}/{r['subject']}"
         r['stratum'] = f"{r['dataset']}|{r['kind']}"
-        r['uid'] = hashlib.sha1(f"{r['img']}|{r['mask']}".encode()).hexdigest()[:16]
+        r['uid'] = hashlib.blake2b(f"{r['img']}|{r['mask']}".encode(), digest_size=8).hexdigest()
     return pairs, skipped
 
 
@@ -198,14 +198,14 @@ def discover_pairs(roots, func_masks='all', anat_contrasts=('T1w', 'T2w')):
 # 2. Subject-level split, stratified by dataset
 # ----------------------------------------------------------------------------------------
 def make_split(pairs, val_ratio, test_ratio, seed):
-    rng = random.Random(seed)
+    rng = np.random.default_rng(seed)
     by_ds = defaultdict(set)
     for r in pairs:
         by_ds[(r['species'], r['dataset'])].add(r['subject_key'])
     split = {}
     for ds in sorted(by_ds):
         subs = sorted(by_ds[ds])
-        rng.shuffle(subs)
+        subs = [subs[i] for i in rng.permutation(len(subs))]
         n = len(subs)
         n_val = int(round(n * val_ratio))
         n_test = int(round(n * test_ratio))
