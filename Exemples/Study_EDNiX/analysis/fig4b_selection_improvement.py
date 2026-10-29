@@ -65,6 +65,50 @@ def _t_stat(r, ds, sp_of_ds, idx):
     return float(np.median(within) - np.median(across))
 
 
+def _medians(r, ds, sp_of_ds, idx):
+    """Medians of the three pair classes of F2b: same dataset, same species / other dataset,
+    different species. Also G = median(same dataset) - median(all cross-dataset pairs): the
+    dataset-specific part of the similarity (scanner, protocol, animal)."""
+    idx = np.asarray(idx)
+    d = ds[idx]
+    iu = np.triu_indices(len(idx), k=1)
+    rr = r[np.ix_(idx, idx)][iu]
+    da, db = d[iu[0]], d[iu[1]]
+    ok = np.isfinite(rr)
+    rr, da, db = rr[ok], da[ok], db[ok]
+    same_ds, same_sp = da == db, sp_of_ds[da] == sp_of_ds[db]
+    med = lambda m: float(np.median(rr[m])) if m.any() else np.nan
+    return dict(same_dataset=med(same_ds), same_species=med(same_sp & ~same_ds),
+                diff_species=med(~same_sp), G=med(same_ds) - med(~same_ds))
+
+
+def dataset_noise(r, ds, selected, sp_of_ds, n_draws=N_PERM, seed=SEED):
+    """F2b, the three medians for all runs, selected runs and random subsets of the same size,
+    and G (dataset-specific similarity) of the selected runs vs random subsets (one-sided:
+    selection lowers G more than chance)."""
+    rng = np.random.default_rng(seed + 1)
+    per_ds = {d: np.flatnonzero(ds == d) for d in np.unique(ds)}
+    n_sel = {d: int(selected[i].sum()) for d, i in per_ds.items()}
+    m_all = _medians(r, ds, sp_of_ds, np.arange(len(ds)))
+    m_sel = _medians(r, ds, sp_of_ds, np.flatnonzero(selected))
+    draws = [_medians(r, ds, sp_of_ds, np.concatenate(
+        [rng.choice(per_ds[d], n_sel[d], replace=False) for d in per_ds if n_sel[d]]))
+        for _ in range(n_draws)]
+    m_rand = {k: float(np.nanmedian([x[k] for x in draws])) for k in m_all}
+    g = np.array([x["G"] for x in draws])
+    p_g = (1 + int(np.sum(g <= m_sel["G"] + 1e-12))) / (len(g) + 1)
+    rows = [f"  F2b medians (same dataset / same species, other dataset / different species; "
+            f"G = same dataset - cross-dataset)"]
+    for name, m in (("all runs", m_all), ("random subsets (median of draws)", m_rand),
+                    ("selected", m_sel)):
+        rows.append(f"    {name}: {m['same_dataset']:.3f} / {m['same_species']:.3f} / "
+                    f"{m['diff_species']:.3f}; G = {m['G']:+.3f}")
+    rows.append(f"  4. dataset-specific similarity G, selected vs random ({n_draws} draws): "
+                f"random 5th percentile {np.percentile(g, 5):+.3f}; one-sided P (selected "
+                f"lower) = {p_g:.4g}")
+    return rows
+
+
 def analyse(r, ds, selected, sp_of_ds, n_perm=N_PERM, seed=SEED):
     """r: run x run correlation matrix; ds: dataset index per run; selected: boolean per run;
     sp_of_ds: species per dataset index. Returns a dict of results."""
@@ -159,8 +203,9 @@ def load_runs():
 def main():
     from Exemples.Study_EDNiX.analysis import paper_data as pd_
     vecs, ds, selected, sp_of_ds, labels = load_runs()
-    res = analyse(_corr_matrix(vecs), ds, selected, sp_of_ds)
-    lines = report(res)
+    r = _corr_matrix(vecs)
+    res = analyse(r, ds, selected, sp_of_ds)
+    lines = report(res) + dataset_noise(r, ds, selected, sp_of_ds)
     out = os.path.join(pd_.PAPER_DIR, "Figure_4")
     os.makedirs(out, exist_ok=True)
     path = os.path.join(out, "Figure_4_selection_improvement.txt")
