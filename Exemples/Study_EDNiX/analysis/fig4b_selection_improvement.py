@@ -130,16 +130,17 @@ def report(res):
     ]
 
 
-def main():
+def load_runs():
+    """Run profiles of the saved selection (same objects as Fig. 4): returns
+    vecs (runs x regions, normalised), ds (dataset index), selected (bool), sp_of_ds, labels."""
     from Exemples.Study_EDNiX.analysis import paper_stats as pst
-    from Exemples.Study_EDNiX.analysis import paper_data as pd_
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import profile_stats as fa
     c = pst.Inputs().fmri()
     cfg = c["cfg"]
     value_col, norm = cfg["VALUE_COL"], cfg["ZSCORE"]
     common, sol = c["common"], c["species_of_label"]
     labels = sorted(c["profiles_by_label"])
-    vecs, ds, keys, selected = [], [], [], []
+    vecs, ds, selected = [], [], []
     for i, lab in enumerate(labels):
         kept = set(c["selected_units"].get(lab, {}))
         for key, prof in c["profiles_by_label"][lab].items():
@@ -148,12 +149,16 @@ def main():
                 continue
             vecs.append(fa._normalize_values(v, norm))
             ds.append(i)
-            keys.append((lab, key))
             selected.append(key in kept)
     vecs, ds, selected = np.vstack(vecs), np.array(ds), np.array(selected)
     if selected.sum() == 0:
         raise SystemExit("no selected run matches a run key of profiles_by_label: check the keys")
-    sp_of_ds = np.array([sol.get(l, l) for l in labels])
+    return vecs, ds, selected, np.array([sol.get(l, l) for l in labels]), labels
+
+
+def main():
+    from Exemples.Study_EDNiX.analysis import paper_data as pd_
+    vecs, ds, selected, sp_of_ds, labels = load_runs()
     res = analyse(_corr_matrix(vecs), ds, selected, sp_of_ds)
     lines = report(res)
     out = os.path.join(pd_.PAPER_DIR, "Figure_4")
