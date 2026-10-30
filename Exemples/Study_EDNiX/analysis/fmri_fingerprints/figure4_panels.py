@@ -259,7 +259,7 @@ def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=191, 
         sv.draw_b_schematic(ax_sch, n=h["n_values"], fs=fs)
         sv.draw_b(ax_b, h, fs=fs)
         sv.draw_c(ax_c, h, ps.species_color, ps.dataset_marker, fs=fs)
-        sv.draw_d(ax_d, val["levels"], fs=fs)
+        sv.draw_d(ax_d, val["levels"], h["p_classes"], h["n_draws"], fs=fs)
         ax_e = None
         if D is not None:
             names_mm = 17.0
