@@ -217,7 +217,7 @@ def species_signal(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, n_perm=2000, s
     idx_all = {d: np.flatnonzero(ds == d) for d in sets}
     idx_sel = {d: np.flatnonzero((ds == d) & selected) for d in sets}
 
-    def stats_for(idx_by_ds, with_p):
+    def stats_for(idx_by_ds, with_p, n_perm=n_perm):
         g = ss.group_profiles(vecs, ds, idx_by_ds)
         res = ss.residuals(g, ss.common_profile(g, sp_of_ds))
         gp = ss.gap_perm_p(res, sp_of_ds, rng, n_perm) if with_p else (ss.gap(res, sp_of_ds), None)
@@ -227,16 +227,20 @@ def species_signal(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, n_perm=2000, s
 
     (gap_all, p_all), m_all = stats_for(idx_all, True)
     (gap_sel, p_sel), m_sel = stats_for(idx_sel, True)
+    # random draws also get their own permutation P (500 label permutations, exact Mantel)
     draws = [stats_for({d: rng.choice(idx_all[d], len(idx_sel[d]), replace=False)
-                        for d in sets}, False) for _ in range(n_draws)]
+                        for d in sets}, True, n_perm=500) for _ in range(n_draws)]
     rand = np.array([x[0][0] for x in draws])
+    rand_p = np.array([x[0][1] for x in draws])
     mantel = {}
     for k in ("raw", "residual"):
         rr = np.array([x[1][k][0] for x in draws])
         mantel[k] = dict(all=m_all[k], selected=m_sel[k], random=rr,
+                         random_p=np.array([x[1][k][1] for x in draws]),
                          p_vs_random=float((1 + np.sum(rr >= m_sel[k][0] - 1e-12))
                                            / (n_draws + 1)))
     return dict(gap_all=gap_all, p_all=p_all, gap_sel=gap_sel, p_sel=p_sel, rand=rand,
+                rand_p=rand_p,
                 p_vs_random=float((1 + np.sum(rand >= gap_sel - 1e-12)) / (n_draws + 1)),
                 n_draws=n_draws, mantel=mantel)
 
@@ -317,7 +321,8 @@ def result_lines(v):
                  "datasets, group profiles with the common profile removed (S1 on the residuals)")
     lines.append(f"  all runs {sp['gap_all']:+.3f} (label permutation P = {sp['p_all']:.4g}); "
                  f"random 10 per dataset median {np.median(sp['rand']):+.3f} (95th pct "
-                 f"{np.percentile(sp['rand'], 95):+.3f}); selected {sp['gap_sel']:+.3f} "
+                 f"{np.percentile(sp['rand'], 95):+.3f}; median label permutation P of the "
+                 f"draws {np.median(sp['rand_p']):.3g}); selected {sp['gap_sel']:+.3f} "
                  f"(label permutation P = {sp['p_sel']:.4g}); selected vs random P = "
                  f"{sp['p_vs_random']:.4g} ({sp['n_draws']} draws)")
     lines.append("d  phylogenetic gradient: Spearman Mantel between the species distance (1 - r "
@@ -328,7 +333,8 @@ def result_lines(v):
         m = sp["mantel"][k]
         lines.append(f"  {title}: all runs rho = {m['all'][0]:+.3f} (P = {m['all'][1]:.4g}); "
                      f"random 10 per dataset median {np.median(m['random']):+.3f} (95th pct "
-                     f"{np.percentile(m['random'], 95):+.3f}); selected rho = "
+                     f"{np.percentile(m['random'], 95):+.3f}; median exact P of the draws "
+                     f"{np.median(m['random_p']):.3g}); selected rho = "
                      f"{m['selected'][0]:+.3f} (P = {m['selected'][1]:.4g}); selected vs "
                      f"random P = {m['p_vs_random']:.4g}")
     ph = v.get("phylo_heldout")
@@ -480,7 +486,7 @@ def draw_d(ax, levels, p_classes=None, n_draws=N_DRAWS, fs=5.5):
               handlelength=1.0, columnspacing=0.8, handletextpad=0.3, borderaxespad=0.1)
 
 
-def _draw_pools(ax, all_, p_all, rand, sel, p_sel, p_vs, ylabel, fs=5.5):
+def _draw_pools(ax, all_, p_all, rand, p_rand, sel, p_sel, p_vs, ylabel, fs=5.5):
     """Grey violin = 10 random runs per dataset (one value per draw), grey dot = all runs,
     red diamond = selected runs; P above the dots = test of the value against its null."""
     vp = ax.violinplot(rand, positions=[1], widths=0.7, showextrema=False)
@@ -493,9 +499,11 @@ def _draw_pools(ax, all_, p_all, rand, sel, p_sel, p_vs, ylabel, fs=5.5):
     ax.plot(2, sel, marker="D", ms=3.6, color=SEL_COLOR, mec="white", mew=0.4, zorder=4)
     top = max(all_, sel, np.max(rand))
     span = top - min(all_, sel, np.min(rand))
-    for x, y, p, col in ((0, all_, p_all, "#4D4D4D"), (2, sel, p_sel, SEL_COLOR)):
-        ax.text(x, y + 0.04 * span, _pfmt(p), ha="center", va="bottom", fontsize=fs - 1.0,
-                color=col)
+    for x, y, p, col, pre in ((0, all_, p_all, "#4D4D4D", ""),
+                              (1, np.max(rand), p_rand, "#4D4D4D", "median "),
+                              (2, sel, p_sel, SEL_COLOR, "")):
+        ax.text(x, y + 0.04 * span, pre + _pfmt(p), ha="center", va="bottom",
+                fontsize=fs - 1.0, color=col)
     _bracket(ax, 1.0, 2.0, top + 0.2 * span, 0.04 * span, _pfmt(p_vs), SEL_COLOR, fs)
     ax.set_ylim(ax.get_ylim()[0], top + 0.45 * span)
     ax.set_xticks(range(3))
@@ -509,13 +517,15 @@ def _draw_pools(ax, all_, p_all, rand, sel, p_sel, p_vs, ylabel, fs=5.5):
 
 def draw_species(ax, sp, fs=5.5):
     """Species identity kept (residual profiles); P = label permutation across datasets."""
-    _draw_pools(ax, sp["gap_all"], sp["p_all"], sp["rand"], sp["gap_sel"], sp["p_sel"],
+    _draw_pools(ax, sp["gap_all"], sp["p_all"], sp["rand"], float(np.median(sp["rand_p"])),
+                sp["gap_sel"], sp["p_sel"],
                 sp["p_vs_random"], "same - different species, r\n(common profile removed)", fs)
 
 
 def draw_phylo(ax, sp, fs=5.5):
     """Phylogenetic gradient (raw profiles): Spearman Mantel, species distance vs MRCA age."""
     m = sp["mantel"]["raw"]
-    _draw_pools(ax, m["all"][0], m["all"][1], m["random"], m["selected"][0], m["selected"][1],
+    _draw_pools(ax, m["all"][0], m["all"][1], m["random"], float(np.median(m["random_p"])),
+                m["selected"][0], m["selected"][1],
                 m["p_vs_random"], "Mantel rho, species distance\nvs divergence time", fs)
     ax.axhline(0, color="#4D4D4D", lw=0.4, ls=":", zorder=0)

@@ -295,8 +295,8 @@ def figure4(inp):
                       pool=["all runs", "selected"] + ["random"] * len(val["species"]["rand"]),
                       gap=[val["species"]["gap_all"], val["species"]["gap_sel"],
                            *val["species"]["rand"]],
-                      p_label_permutation=[val["species"]["p_all"], val["species"]["p_sel"]]
-                      + [np.nan] * len(val["species"]["rand"]))),
+                      p_label_permutation=[val["species"]["p_all"], val["species"]["p_sel"],
+                                           *val["species"]["rand_p"]])),
                   d_phylo_heldout=pd.DataFrame(dict(
                       pool=["selected"] + ["random"] * len(val["phylo_heldout"]["random"]),
                       rho=[val["phylo_heldout"]["selected"], *val["phylo_heldout"]["random"]],
@@ -307,8 +307,9 @@ def figure4(inp):
                        for k, m in val["species"]["mantel"].items()
                        for pool, (rho, p_) in (("all runs", m["all"]),
                                                ("selected", m["selected"]))]
-                      + [dict(profiles=k, pool="random", rho=r_, p=np.nan)
-                         for k, m in val["species"]["mantel"].items() for r_ in m["random"]]),
+                      + [dict(profiles=k, pool="random", rho=r_, p=p_)
+                         for k, m in val["species"]["mantel"].items()
+                         for r_, p_ in zip(m["random"], m["random_p"])]),
                   b_pair_class_p=pd.DataFrame(dict(
                       pair_class=["same dataset", "same species, other dataset",
                                   "different species"],

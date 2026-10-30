@@ -259,8 +259,7 @@ def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=191, 
         sv.draw_d(ax_b, val["levels"], h["p_classes"], h["n_draws"], fs=fs)
         sv.draw_phylo(ax_d, val["species"], fs=fs)
         sv.draw_species(ax_e, val["species"], fs=fs)
-        for ax_, title in ((ax_b, "Less run-to-run noise"), (ax_d, "Phylogenetic gradient"),
-                           (ax_e, "Species identity kept")):
+        for ax_, title in ((ax_d, "Phylogenetic gradient"), (ax_e, "Species identity kept")):
             ax_.set_title(title, fontsize=fs + 0.5, fontweight="bold", pad=1.5, loc="left")
         ax_c = None
         if D is not None:
