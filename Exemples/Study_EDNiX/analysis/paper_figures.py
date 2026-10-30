@@ -107,7 +107,7 @@ def figure4(res, inp, paper_dir=None):
     # The letters sit in the 3 mm gutter and the saved figure is cropped tight, so dx
     # beyond 3 mm is what moves a letter right of the panel edge (here by 4 mm).
     ps.compose_images([_png(pa), _png(pbc)], base, layout=[[0], [1]], letters="ab",
-                      letter_offsets_mm=[(7.0, -4.0), (7.0, 0.0)])
+                      letter_offsets_mm=[(7.0, -4.0), (4.0, 0.0)])
     return base
 
 
