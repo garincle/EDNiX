@@ -14,6 +14,9 @@ Figure 4 of the paper, drawn at print size (183 mm wide). Clément, 2026-10-27:
   c  dataset x dataset similarity, r (no longer 1 - r) of the group fingerprints, dataset
      names above the matrix, so that its lower edge is level with the x axis of b.
 
+2026-10-30: b is replaced by b-d (fig4_validation_and_similarity, selection_validation.py:
+held-out test, per dataset, pair classes) and the matrix becomes e; fig4bc is kept for the
+former layout.
 b and c are one figure (fig4bc) so that their axes are aligned exactly. The numbers are
 those of paper_stats.figure4 (same vectors, same r).
 """
@@ -230,5 +233,49 @@ def fig4bc(pairs_by, stats, names, test, intra, D, species_of_label, out, width_
             # top of the figure = top of the b+c image once cropped: level with letter b
             fig.text(x_c - 1.5 / width_mm, 1.0, "c",
                      fontsize=LETTER_PT, fontweight="bold", va="top", ha="right")
+        fa.save_paper(fig, out)
+    return out
+
+
+def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=183, height_mm=62):
+    """Panels b-d (what the selection buys, selection_validation.py) and e (similarity
+    matrix, former c) in one figure; lower edges aligned. Clément, 2026-10-30: the
+    histograms of the former b are replaced by b (held-out test), c (per dataset) and d
+    (pair classes). Letter 'b' is added by the layout; c, d, e are drawn here."""
+    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import selection_validation as sv
+    fs = 5.5
+    with fa.paper_style():
+        fig = plt.figure(figsize=(width_mm * MM, height_mm * MM))
+        bottom, top = 13.0, height_mm - 9.0
+        hb = top - bottom
+        W, H = width_mm, height_mm
+        ax_sch = fig.add_axes([9.0 / W, (top + 1.5) / H, 32.0 / W, 3.5 / H])
+        ax_b = fig.add_axes([9.0 / W, bottom / H, 32.0 / W, (hb - 2.0) / H])
+        ax_c = fig.add_axes([53.0 / W, bottom / H, 17.0 / W, (hb - 2.0) / H])
+        ax_d = fig.add_axes([83.0 / W, bottom / H, 33.0 / W, (hb - 2.0) / H])
+        h = val["heldout"]
+        sv.draw_b_schematic(ax_sch, n=h["n_values"], fs=fs)
+        sv.draw_b(ax_b, h, fs=fs)
+        sv.draw_c(ax_c, h, ps.species_color, ps.dataset_marker, fs=fs)
+        sv.draw_d(ax_d, val["levels"], fs=fs)
+        fig.canvas.draw()
+        rend = fig.canvas.get_renderer()
+        for ax, letter in ((ax_c, "c"), (ax_d, "d")):
+            x0 = ax.get_tightbbox(rend).x0 / fig.bbox.width
+            fig.text(x0 - 0.5 / W, 1.0, letter, fontsize=LETTER_PT, fontweight="bold",
+                     va="top", ha="right")
+        if D is not None:
+            names_mm = 17.0
+            side = min(hb + 9.0 - names_mm + 3.0, 46.0)
+            mx = W - side - 9.0
+            ax_e = fig.add_axes([mx / W, bottom / H, side / W, side / H])
+            cax = fig.add_axes([(mx + side + 1.5) / W, bottom / H, 1.2 / W, side / H])
+            _matrix_r(ax_e, cax, D, species_of_label)
+            fig.canvas.draw()
+            ylab = ax_e.get_yticklabels()
+            x_e = (min(t.get_window_extent(rend).x0 for t in ylab) / fig.bbox.width
+                   if ylab else mx / W)
+            fig.text(x_e - 1.5 / W, 1.0, "e", fontsize=LETTER_PT, fontweight="bold",
+                     va="top", ha="right")
         fa.save_paper(fig, out)
     return out

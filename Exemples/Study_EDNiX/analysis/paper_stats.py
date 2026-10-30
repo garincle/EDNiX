@@ -9,9 +9,10 @@ lines), and returns them with what paper_figures.py needs to draw the figure.
   figure2   cortical morphometry, level 2   per species median, IQR, n subjects
   figure3   longitudinal morphometry        spline LMM, linear LME, association vs primary
   figure4   selection of the fMRI runs      a  r of every dataset with the LOSO consensus
-                                            b  run-to-run r, same species other dataset vs
-                                               different species (Wilcoxon + permutation)
-                                            c  dataset x dataset distance + sibling test
+                                            b-d selection vs 10 random runs per dataset:
+                                               held-out values, per dataset, pair classes
+                                               (former 5b histograms: tables only)
+                                            e  dataset x dataset distance + sibling test
   figure5   seed maps after selection       runs kept / not kept per dataset, colour ranges
   figure6   multimodal profile (PET, FC,    B  bratio per region, Macaque vs Human (permutation,
             morphometry), Human / Macaque      BH-FDR); C  z-scored profiles, cross-modal r
@@ -230,9 +231,11 @@ def figure4(inp):
     """a  r of each dataset's group fingerprint with the leave-one-species-out consensus (the
           dashed profile of panel a; r with the Human datasets kept as a second column),
           Figure 4 group maps
-       b  run-to-run profile correlation: same species / other dataset vs different
-          species, every run and the runs kept by the final round (5b)
-       c  dataset x dataset similarity r (drawn) / distance 1 - r and sibling test (F16a)"""
+       5b run-to-run profile correlation: same species / other dataset vs different
+          species, every run and the runs kept by the final round (tables and lines only)
+       b-d selection vs 10 random runs per dataset (selection_validation.py): b held-out
+          values, c per dataset, d pair classes
+       e  dataset x dataset similarity r (drawn) / distance 1 - r and sibling test (F16a)"""
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import profile_stats as fa
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import paper_panels as fpp
     c = inp.fmri()
@@ -265,17 +268,34 @@ def figure4(inp):
     n_units = {k: sum(len(p) for p in pool.values()) for k, pool in pools}
     lines.append(f"  units: all {n_units['All runs']}, selected {n_units['Selected']}")
     # c
-    lines.append("c  dataset x dataset similarity: r of the group fingerprints (matrix of the "
+    lines.append("e  dataset x dataset similarity: r of the group fingerprints (matrix of the "
                  "figure = 1 - distance below)")
     lines += ["  " + ln for ln in _sibling_lines(c["sibling"])]
+    # b-d (Clément 2026-10-30): what the selection buys vs 10 random runs per dataset
+    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import selection_validation as sv
+    val = sv.compute(c)
+    lines.append("b-d  selection vs random choice of the same number of runs "
+                 "(fmri_fingerprints/selection_validation.py); the histograms above are kept "
+                 "in the tables, no longer drawn")
+    lines += ["  " + ln for ln in sv.result_lines(val)]
     tables = dict(a_distances=dist,
+                  b_heldout_random_draws=pd.DataFrame(val["heldout"]["rand"],
+                                                      columns=["between_datasets",
+                                                               "with_other_species", "G"]),
+                  b_heldout_selected=pd.DataFrame([dict(zip(
+                      ["between_datasets", "with_other_species", "G"], val["heldout"]["sel"]),
+                      **{f"p_{k}": v for k, v in zip(
+                          ["between_datasets", "with_other_species", "G"],
+                          val["heldout"]["p"])})]),
+                  c_heldout_per_dataset=val["heldout"]["per_dataset"],
+                  d_pair_levels=val["levels"],
                   b_within_across=pd.DataFrame([dict(pool=k, **v) for k, v in named.items()
                                                 if v]),
-                  c_similarity_matrix=1 - c["D"] if c["D"] is not None else pd.DataFrame(),
-                  c_distance_matrix=c["D"] if c["D"] is not None else pd.DataFrame(),
-                  **{f"c_{k}": v for k, v in _sibling_tables(c["sibling"]).items()})
+                  e_similarity_matrix=1 - c["D"] if c["D"] is not None else pd.DataFrame(),
+                  e_distance_matrix=c["D"] if c["D"] is not None else pd.DataFrame(),
+                  **{f"e_{k}": v for k, v in _sibling_tables(c["sibling"]).items()})
     return dict(tables=tables, lines=lines,
-                draw=dict(pairs=pairs, stats=stats, test=test, intra=intra))
+                draw=dict(pairs=pairs, stats=stats, test=test, intra=intra, validation=val))
 
 
 def figure5(inp):
