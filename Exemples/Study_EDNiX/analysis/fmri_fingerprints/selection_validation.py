@@ -5,20 +5,23 @@ same number of runs at random (Clément, 2026-10-30).
 Every comparison is selected runs vs 10 runs drawn at random per dataset, so that the
 number of runs per dataset (25-195 before selection) never drives the result.
 
-  b  generalisation (non-circular): the regional values are split at random into two
-     halves; runs are selected on one half (leave-one-species-out consensus, top runs per
-     dataset) and evaluated on the other half, which played no part in their choice.
-     Three measures, selected (red) vs random draws (grey):
-       cross-dataset r   median r between runs of different datasets
-       r with other sp.  median over datasets of r(group profile, LOSO consensus)
-       dataset-specific  G = median r same dataset - median r across datasets
-  c  each dataset: r(group profile, LOSO consensus) on held-out values, random median ->
-     selected, one line per dataset (species colour, dataset marker)
-  d  noise removed, identity kept (summary of the former 4b histograms): median and IQR of
-     the run-to-run r for the three pair classes, all runs / random / selected.
+  b  noise removed: median and IQR of the run-to-run r for the three pair classes (same
+     dataset / same species, other dataset / different species), all runs / random /
+     selected, on regional values that played no part in the selection (see below).
+  c  convergence (non-circular): each dataset, r(group profile, LOSO consensus) on held-out
+     values, random median -> selected, one line per dataset (species colour, marker)
+  d  species identity kept: same-species minus different-species r between the group
+     profiles of two datasets, after the common profile (Fig. 4a) is removed from each
+     group profile (fig4_species_structure.py, S1 on the residuals). Selected vs 200 random
+     draws of 10 runs per dataset; label permutation across datasets for the selection.
+     The common profile is itself the target of the criterion, so the raw gap is not used:
+     it mixes this species signal with how strongly each species follows the common profile.
 
-The selection in b-c is a simplified criterion (one round, no invariance weighting); d uses
-the selection of the paper. The script versions of these tests are
+The held-out values: the regional values are split at random into two halves (50 splits);
+runs are selected on one half (leave-one-species-out consensus, top runs per dataset) and
+evaluated on the other, with a simplified criterion (one round, no invariance weighting).
+The violins of the former b (cross-dataset r, r with other species, G) are kept in the
+tables. d uses the selection of the paper. The script versions of these tests are
 analysis/fig4b_selection_improvement.py, fig4_selection_benefit.py, fig4_selection_heldout.py.
 """
 import numpy as np
@@ -198,11 +201,35 @@ def pair_levels(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS_PAIRS, seed=SEED):
     return pd.DataFrame(rows)
 
 
+def species_signal(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, n_perm=2000, seed=SEED):
+    """Panel d numbers: S1 on the residuals (fig4_species_structure.py) for all runs, the
+    selected runs (permutation P) and random draws of as many runs per dataset."""
+    from Exemples.Study_EDNiX.analysis import fig4_species_structure as ss
+    rng = np.random.default_rng(seed + 2)
+    sets = np.unique(ds)
+    idx_all = {d: np.flatnonzero(ds == d) for d in sets}
+    idx_sel = {d: np.flatnonzero((ds == d) & selected) for d in sets}
+
+    def residual_gap(idx_by_ds, with_p):
+        g = ss.group_profiles(vecs, ds, idx_by_ds)
+        res = ss.residuals(g, ss.common_profile(g, sp_of_ds))
+        return ss.gap_perm_p(res, sp_of_ds, rng, n_perm) if with_p else (ss.gap(res, sp_of_ds), None)
+
+    gap_all, p_all = residual_gap(idx_all, True)
+    gap_sel, p_sel = residual_gap(idx_sel, True)
+    rand = np.array([residual_gap({d: rng.choice(idx_all[d], len(idx_sel[d]), replace=False)
+                                   for d in sets}, False)[0] for _ in range(n_draws)])
+    return dict(gap_all=gap_all, p_all=p_all, gap_sel=gap_sel, p_sel=p_sel, rand=rand,
+                p_vs_random=float((1 + np.sum(rand >= gap_sel - 1e-12)) / (n_draws + 1)),
+                n_draws=n_draws)
+
+
 def compute(c, n_splits=N_SPLITS, n_draws=N_DRAWS):
     vecs, ds, selected, sp_of_ds, labels = run_vectors(c)
     h = heldout(vecs, ds, sp_of_ds, n_splits=n_splits, n_draws=n_draws)
     h["per_dataset"].insert(0, "label", [labels[d] for d in h["per_dataset"]["dataset"]])
-    return dict(heldout=h, levels=h["levels"])
+    return dict(heldout=h, levels=h["levels"],
+                species=species_signal(vecs, ds, selected, sp_of_ds, n_draws=n_draws))
 
 
 MEASURES = ("between\ndatasets", "with other\nspecies", "dataset-\nspecific (G)")
@@ -210,7 +237,7 @@ MEASURES = ("between\ndatasets", "with other\nspecies", "dataset-\nspecific (G)"
 
 def result_lines(v):
     h = v["heldout"]
-    lines = [f"b  held-out values: {h['n_splits']} random splits of the {h['n_values']} "
+    lines = [f"held-out values (violins no longer drawn, kept in the tables): {h['n_splits']} random splits of the {h['n_values']} "
              f"regional values; selection on one half (simplified criterion: one round, LOSO "
              f"consensus, 10 runs per dataset), evaluation on the other; {h['n_draws']} random "
              "draws of 10 runs per dataset per split"]
@@ -221,19 +248,27 @@ def result_lines(v):
                         else ""))
     pdt = h["per_dataset"]
     up = int((pdt.r_selected > pdt.r_random).sum())
-    lines.append(f"c  r with the LOSO consensus on test regions, per dataset: improved in "
+    lines.append(f"c  convergence: r with the LOSO consensus on test regions, per dataset: improved in "
                  f"{up}/{len(pdt)}; median {pdt.r_random.median():.3f} (random) -> "
                  f"{pdt.r_selected.median():.3f} (selected); paired Wilcoxon signed-rank "
                  f"one-sided P = {h['p_c']:.4g} (n = {len(pdt)} datasets)")
     lines += [f"  {r.label}: {r.r_random:.3f} -> {r.r_selected:.3f}" for r in pdt.itertuples()]
-    lines.append("d  run-to-run r on test regions, median [IQR] (all runs / random 10 per "
-                 "dataset / selected); P = share of random draws with a class median >= the "
-                 "selection")
+    lines.append("b  noise removed: run-to-run r on test regions, median [IQR] (all runs / "
+                 "random 10 per dataset / selected); P = share of random draws with a class "
+                 "median >= the selection")
     for k, cl in enumerate(CLASSES):
         t = v["levels"][v["levels"].pair_class == cl.replace("\n", " ")]
         lines.append(f"  {cl.replace(chr(10), ' ')}: " + " / ".join(
             f"{r.median:.3f} [{r.q25:.3f}, {r.q75:.3f}]" for r in t.itertuples())
             + f"; P = {h['p_classes'][k]:.4g}")
+    sp = v["species"]
+    lines.append("d  species identity kept: same-species minus different-species r between "
+                 "datasets, group profiles with the common profile removed (S1 on the residuals)")
+    lines.append(f"  all runs {sp['gap_all']:+.3f} (label permutation P = {sp['p_all']:.4g}); "
+                 f"random 10 per dataset median {np.median(sp['rand']):+.3f} (95th pct "
+                 f"{np.percentile(sp['rand'], 95):+.3f}); selected {sp['gap_sel']:+.3f} "
+                 f"(label permutation P = {sp['p_sel']:.4g}); selected vs random P = "
+                 f"{sp['p_vs_random']:.4g} ({sp['n_draws']} draws)")
     return lines
 
 
@@ -364,3 +399,32 @@ def draw_d(ax, levels, p_classes=None, n_draws=N_DRAWS, fs=5.5):
               ["all runs", "random 10", "selected 10"], loc="lower left",
               bbox_to_anchor=(0.0, 1.0), ncol=3, frameon=False, fontsize=fs - 0.5,
               handlelength=1.0, columnspacing=0.8, handletextpad=0.3, borderaxespad=0.1)
+
+
+def draw_species(ax, sp, fs=5.5):
+    """Species identity kept (residual profiles): grey violin = 10 random runs per dataset
+    (one value per draw), grey dot = all runs, red diamond = selected runs; red P = label
+    permutation across datasets for the selection."""
+    vp = ax.violinplot(sp["rand"], positions=[1], widths=0.7, showextrema=False)
+    for b_ in vp["bodies"]:
+        b_.set_facecolor("#BDBDBD")
+        b_.set_edgecolor("none")
+        b_.set_alpha(1)
+    ax.plot(0, sp["gap_all"], marker="o", ms=3.4, color=POOL_COLORS["random"], mec="white",
+            mew=0.4, zorder=4)
+    ax.plot(2, sp["gap_sel"], marker="D", ms=3.6, color=SEL_COLOR, mec="white", mew=0.4,
+            zorder=4)
+    top = max(sp["gap_all"], sp["gap_sel"], np.max(sp["rand"]))
+    for x, y, p, col in ((0, sp["gap_all"], sp["p_all"], "#4D4D4D"),
+                         (2, sp["gap_sel"], sp["p_sel"], SEL_COLOR)):
+        ax.text(x, y + 0.05, _pfmt(p), ha="center", va="bottom", fontsize=fs - 1.0, color=col)
+    ax.set_ylim(ax.get_ylim()[0], top + 0.2)
+    ax.text(1.0, 1.0, "selected vs random: " + _pfmt(sp["p_vs_random"]), ha="center",
+            va="bottom", transform=ax.transAxes, fontsize=fs - 0.5)
+    ax.set_xticks(range(3))
+    ax.set_xticklabels(["all\nruns", "random\n10 runs", "selected\n10 runs"], fontsize=fs - 0.5)
+    ax.set_xlim(-0.6, 2.6)
+    ax.set_ylabel("same - different species, r\n(common profile removed)", fontsize=fs)
+    ax.tick_params(labelsize=fs - 0.5, length=2)
+    for s_ in ("top", "right"):
+        ax.spines[s_].set_visible(False)
