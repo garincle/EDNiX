@@ -251,10 +251,10 @@ def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=183, 
         hb = top - bottom
         W, H = width_mm, height_mm
         # height 68 mm and matrix side 41 mm as fig4bc (Clément 2026-10-29)
-        ax_sch = fig.add_axes([9.0 / W, (top + 1.5) / H, 30.0 / W, 3.5 / H])
-        ax_b = fig.add_axes([9.0 / W, bottom / H, 30.0 / W, (hb - 2.0) / H])
-        ax_c = fig.add_axes([51.0 / W, bottom / H, 17.0 / W, (hb - 2.0) / H])
-        ax_d = fig.add_axes([80.0 / W, bottom / H, 32.0 / W, (hb - 2.0) / H])
+        ax_sch = fig.add_axes([9.0 / W, (top - 3.0) / H, 30.0 / W, 6.0 / H])
+        ax_b = fig.add_axes([9.0 / W, bottom / H, 30.0 / W, (hb - 7.0) / H])
+        ax_c = fig.add_axes([53.0 / W, bottom / H, 17.0 / W, (hb - 7.0) / H])
+        ax_d = fig.add_axes([82.0 / W, bottom / H, 30.0 / W, (hb - 7.0) / H])
         h = val["heldout"]
         sv.draw_b_schematic(ax_sch, n=h["n_values"], fs=fs)
         sv.draw_b(ax_b, h, fs=fs)
@@ -262,10 +262,13 @@ def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=183, 
         sv.draw_d(ax_d, val["levels"], fs=fs)
         fig.canvas.draw()
         rend = fig.canvas.get_renderer()
+        # letters next to their panel (Clément 2026-10-30): left of the y label, at the
+        # top of the axes; 'b' is placed by the layout at the top-left of the image
         for ax, letter in ((ax_c, "c"), (ax_d, "d")):
             x0 = ax.get_tightbbox(rend).x0 / fig.bbox.width
-            fig.text(x0 - 0.5 / W, 1.0, letter, fontsize=LETTER_PT, fontweight="bold",
-                     va="top", ha="right")
+            y1 = ax.get_position().y1
+            fig.text(x0 - 0.3 / W, y1 + 4.0 / H, letter, fontsize=LETTER_PT,
+                     fontweight="bold", va="top", ha="right")
         if D is not None:
             names_mm = 17.0
             side = min(hb + 9.0 - names_mm + 3.0, 46.0)
@@ -277,7 +280,7 @@ def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=183, 
             ylab = ax_e.get_yticklabels()
             x_e = (min(t.get_window_extent(rend).x0 for t in ylab) / fig.bbox.width
                    if ylab else mx / W)
-            fig.text(x_e - 1.5 / W, 1.0, "e", fontsize=LETTER_PT, fontweight="bold",
-                     va="top", ha="right")
+            fig.text(x_e - 0.3 / W, (bottom + side + 4.0) / H, "e", fontsize=LETTER_PT,
+                     fontweight="bold", va="top", ha="right")
         fa.save_paper(fig, out)
     return out
