@@ -436,6 +436,14 @@ def draw_c(ax, h, sol_color, marker_of, fs=5.5):
         ax.spines[s_].set_visible(False)
 
 
+def _bracket(ax, x0, x1, y, h, label, color, fs):
+    """Bracket from x0 to x1 at height y with `label` above: what the P compares."""
+    ax.plot([x0, x0, x1, x1], [y - h, y, y, y - h], color=color, lw=0.5, solid_capstyle="butt",
+            clip_on=False)
+    ax.text((x0 + x1) / 2, y + 0.3 * h, label, ha="center", va="bottom", fontsize=fs - 1.0,
+            color=color)
+
+
 def draw_d(ax, levels, p_classes=None, n_draws=N_DRAWS, fs=5.5):
     """Median and IQR of run-to-run r per pair class, for the three pools."""
     off = {"all runs": -0.24, "random": 0.0, "selected": 0.24}
@@ -449,13 +457,15 @@ def draw_d(ax, levels, p_classes=None, n_draws=N_DRAWS, fs=5.5):
                     lw=1.2, solid_capstyle="butt")
             ax.plot(x, t.loc[pool, "median"], marker="o", ms=3.0, color=POOL_COLORS[pool],
                     mec="white", mew=0.3, zorder=3)
+    top = levels["q75"].max()
+    span = top - levels["q25"].min()
     if p_classes is not None:
         for k, cl in enumerate(CLASSES):
             t = levels[levels.pair_class == cl.replace("\n", " ")].set_index("pool")
-            ax.text(k + off["selected"], t.loc["selected", "q75"] + 0.03,
-                    _pfmt(p_classes[k], 1 / (n_draws + 1)), ha="center", va="bottom",
-                    fontsize=fs - 1.0, color=SEL_COLOR)
-    ax.set_ylim(ax.get_ylim()[0], levels["q75"].max() + 0.22)
+            y = max(t.loc["random", "q75"], t.loc["selected", "q75"]) + 0.04 * span
+            _bracket(ax, k, k + off["selected"], y, 0.025 * span,
+                     _pfmt(p_classes[k], 1 / (n_draws + 1)), SEL_COLOR, fs)
+    ax.set_ylim(ax.get_ylim()[0], top + 0.42 * span)
     ax.set_xticks(range(3))
     ax.set_xticklabels(CLASSES, fontsize=fs - 0.5)
     ax.set_xlim(-0.6, 2.6)
@@ -465,7 +475,7 @@ def draw_d(ax, levels, p_classes=None, n_draws=N_DRAWS, fs=5.5):
         ax.spines[s_].set_visible(False)
     from matplotlib.lines import Line2D
     ax.legend([Line2D([], [], color=POOL_COLORS[p], marker="o", ms=3, lw=1.2) for p in POOLS],
-              ["all runs", "random 10", "selected 10"], loc="lower left",
+              ["all runs", "random 10", "selected 10"], loc="upper left",
               bbox_to_anchor=(0.0, 1.0), ncol=3, frameon=False, fontsize=fs - 0.5,
               handlelength=1.0, columnspacing=0.8, handletextpad=0.3, borderaxespad=0.1)
 
@@ -486,9 +496,8 @@ def _draw_pools(ax, all_, p_all, rand, sel, p_sel, p_vs, ylabel, fs=5.5):
     for x, y, p, col in ((0, all_, p_all, "#4D4D4D"), (2, sel, p_sel, SEL_COLOR)):
         ax.text(x, y + 0.04 * span, _pfmt(p), ha="center", va="bottom", fontsize=fs - 1.0,
                 color=col)
+    _bracket(ax, 1.0, 2.0, top + 0.2 * span, 0.04 * span, _pfmt(p_vs), SEL_COLOR, fs)
     ax.set_ylim(ax.get_ylim()[0], top + 0.45 * span)
-    ax.text(1.0, 1.0, "selected vs random\n" + _pfmt(p_vs), ha="center", va="bottom",
-            transform=ax.transAxes, fontsize=fs - 0.5)
     ax.set_xticks(range(3))
     ax.set_xticklabels(["all\nruns", "random\n10 runs", "selected\n10 runs"], fontsize=fs - 0.5)
     ax.set_xlim(-0.6, 2.6)
