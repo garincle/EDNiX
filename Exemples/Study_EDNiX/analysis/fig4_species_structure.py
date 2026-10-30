@@ -22,7 +22,12 @@ Questions (the same statistic is computed for the three pools, selected vs rando
       the mean residual of each species) vs MRCA age of the species pair, Spearman Mantel
       (exact permutation, phylo.py).  Evidence that what remains is biology, ordered by the
       tree, not noise.
-  Both are also given on the raw group profiles (without removing C) for comparison.
+  S3  Is the phylogenetic signal of the RAW profiles carried by one number per species, how
+      strongly the species follows the common profile (alignment a_s = r(species mean profile,
+      C))?  Spearman Mantel of |a_s - a_t| vs MRCA age, and Spearman rho of a_s vs the MRCA
+      age with Human.  If S3 reproduces the raw S2, the raw phylogenetic signal sits in that
+      gradient and not in the shape of the profiles (the residuals, S2 residual).
+  S1 and S2 are also given on the raw group profiles (without removing C) for comparison.
 
     python fig4_species_structure.py
 
@@ -114,6 +119,44 @@ def species_mantel(profiles, sp_of_ds, with_p=True):
     return phylo._corr(Df[iu], Dp[iu], "spearman"), None
 
 
+def species_alignment(profiles, sp_of_ds, C):
+    """Per species: r between the mean profile of its datasets and the common profile."""
+    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import phylo
+    sps = phylo.order_species(sorted(set(sp_of_ds[list(profiles)])))
+    a = {s: _corr(np.nanmean([profiles[d] for d in profiles if sp_of_ds[d] == s], axis=0), C)
+         for s in sps}
+    return sps, a
+
+
+def alignment_mantel(profiles, sp_of_ds, with_p=True):
+    """S3: Spearman Mantel of |a_s - a_t| vs MRCA age, and Spearman rho of a_s vs the MRCA
+    age with Human (species other than Human). Returns dict."""
+    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import phylo
+    C = common_profile(profiles, sp_of_ds)
+    sps, a = species_alignment(profiles, sp_of_ds, C)
+    n = len(sps)
+    Da = np.abs(np.array(list(a.values()))[:, None] - np.array(list(a.values()))[None, :])
+    Dp, _ = phylo.phylo_matrices(sps)
+    if with_p:
+        m = phylo.mantel_test(Da, Dp, method="spearman")
+        rho, p = m["r"], m["p_greater"]
+    else:
+        iu = np.triu_indices(n, 1)
+        rho, p = phylo._corr(Da[iu], Dp[iu], "spearman"), None
+    rho_h = np.nan
+    if "Human" in sps:
+        others = [s_ for s_ in sps if s_ != "Human"]
+        rho_h = float(np.corrcoef(
+            _rank([a[s_] for s_ in others]),
+            _rank([phylo.mrca_age("Human", s_) for s_ in others]))[0, 1])
+    return dict(rho=rho, p=p, rho_human=rho_h, a=a)
+
+
+def _rank(v):
+    from scipy import stats
+    return stats.rankdata(v)
+
+
 def analyse(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, n_perm=N_PERM, seed=SEED):
     rng = np.random.default_rng(seed)
     sets = np.unique(ds)
@@ -129,6 +172,7 @@ def analyse(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, n_perm=N_PERM, seed=S
             gp = gap_perm_p(prof, sp_of_ds, rng, n_perm) if with_p else (gap(prof, sp_of_ds), None)
             rho, p_m = species_mantel(prof, sp_of_ds, with_p=with_p)
             out[name] = dict(gap=gp[0], p_gap=gp[1], rho=rho, p_rho=p_m)
+        out["align"] = alignment_mantel(g, sp_of_ds, with_p=with_p)
         return out
 
     a, s = stats_for(idx_all, True), stats_for(idx_sel, True)
@@ -157,6 +201,18 @@ def analyse(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, n_perm=N_PERM, seed=S
                      f"selected rho = {s[name]['rho']:+.3f} (P = {s[name]['p_rho']:.4g}); "
                      f"P(selected vs random) = "
                      f"{(1 + np.sum(rd >= s[name]['rho'] - 1e-12)) / (n_draws + 1):.4g}")
+    ad = [x["align"] for x in draws]
+    rd3 = np.array([x["rho"] for x in ad])
+    lines.append("  S3 alignment with the common profile (a_s = r of the species mean profile "
+                 "with C), raw profiles")
+    for nm, o in (("all runs", a), ("selected", s)):
+        al = o["align"]
+        lines.append(f"    {nm}: a_s = " + ", ".join(f"{k} {v:.2f}" for k, v in al["a"].items())
+                     + f"; Mantel |a_s - a_t| vs MRCA rho = {al['rho']:+.3f} (P = {al['p']:.4g}); "
+                       f"rho(a_s, MRCA age with Human) = {al['rho_human']:+.3f}")
+    lines.append(f"    random: Mantel |a_s - a_t| vs MRCA median rho {np.nanmedian(rd3):+.3f} "
+                 f"(95th pct {np.nanpercentile(rd3, 95):+.3f}); selected vs random P = "
+                 f"{(1 + np.sum(rd3 >= s['align']['rho'] - 1e-12)) / (n_draws + 1):.4g}")
     lines.append("  reading: S1/S2 on the residuals >= random and > 0 means the species signal "
                  "survives (and is cleaner); a collapse towards 0 would mean the selection "
                  "flattens species differences")
