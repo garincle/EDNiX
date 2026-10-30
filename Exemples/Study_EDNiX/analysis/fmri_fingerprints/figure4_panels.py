@@ -238,7 +238,7 @@ def fig4bc(pairs_by, stats, names, test, intra, D, species_of_label, out, width_
     return out
 
 
-def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=183, height_mm=62):
+def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=183, height_mm=68):
     """Panels b-d (what the selection buys, selection_validation.py) and e (similarity
     matrix, former c) in one figure; lower edges aligned. Clément, 2026-10-30: the
     histograms of the former b are replaced by b (held-out test), c (per dataset) and d
@@ -250,10 +250,11 @@ def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=183, 
         bottom, top = 13.0, height_mm - 9.0
         hb = top - bottom
         W, H = width_mm, height_mm
-        ax_sch = fig.add_axes([9.0 / W, (top + 1.5) / H, 32.0 / W, 3.5 / H])
-        ax_b = fig.add_axes([9.0 / W, bottom / H, 32.0 / W, (hb - 2.0) / H])
-        ax_c = fig.add_axes([53.0 / W, bottom / H, 17.0 / W, (hb - 2.0) / H])
-        ax_d = fig.add_axes([83.0 / W, bottom / H, 33.0 / W, (hb - 2.0) / H])
+        # height 68 mm and matrix side 41 mm as fig4bc (Clément 2026-10-29)
+        ax_sch = fig.add_axes([9.0 / W, (top + 1.5) / H, 30.0 / W, 3.5 / H])
+        ax_b = fig.add_axes([9.0 / W, bottom / H, 30.0 / W, (hb - 2.0) / H])
+        ax_c = fig.add_axes([51.0 / W, bottom / H, 17.0 / W, (hb - 2.0) / H])
+        ax_d = fig.add_axes([80.0 / W, bottom / H, 32.0 / W, (hb - 2.0) / H])
         h = val["heldout"]
         sv.draw_b_schematic(ax_sch, n=h["n_values"], fs=fs)
         sv.draw_b(ax_b, h, fs=fs)
