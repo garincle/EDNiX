@@ -296,6 +296,13 @@ def figure4(inp):
                            *val["species"]["rand"]],
                       p_label_permutation=[val["species"]["p_all"], val["species"]["p_sel"]]
                       + [np.nan] * len(val["species"]["rand"]))),
+                  d_phylo_mantel=pd.DataFrame(
+                      [dict(profiles=k, pool=pool, rho=rho, p=p_)
+                       for k, m in val["species"]["mantel"].items()
+                       for pool, (rho, p_) in (("all runs", m["all"]),
+                                               ("selected", m["selected"]))]
+                      + [dict(profiles=k, pool="random", rho=r_, p=np.nan)
+                         for k, m in val["species"]["mantel"].items() for r_ in m["random"]]),
                   b_pair_class_p=pd.DataFrame(dict(
                       pair_class=["same dataset", "same species, other dataset",
                                   "different species"],
