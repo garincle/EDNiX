@@ -190,7 +190,7 @@ def _matrix_r(ax, cax, D, species_of_label, annotate=True):
 
 
 def fig4bc(pairs_by, stats, names, test, intra, D, species_of_label, out, width_mm=183,
-           height_mm=62):
+           height_mm=68):
     """Panels b (two histograms) and c (similarity matrix) in one figure, the lower edge of
     the matrix level with the x axes of b. Letter 'c' drawn here; 'b' is added by the
     layout (paper_style.compose_images)."""
@@ -200,6 +200,7 @@ def fig4bc(pairs_by, stats, names, test, intra, D, species_of_label, out, width_
         hb = top_b - bottom
         # matrix: square, same lower edge as b, its height = what is left under the names
         names_mm = 17.0
+        # height 62 -> 68 mm (Clément 2026-10-29): matrix side 35 -> 41 mm
         side = min(hb + 9.0 - names_mm + 3.0, 46.0)
         mx = width_mm - side - 9.0
         axes_b = []
