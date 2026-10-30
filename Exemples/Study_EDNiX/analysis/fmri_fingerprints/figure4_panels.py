@@ -239,10 +239,10 @@ def fig4bc(pairs_by, stats, names, test, intra, D, species_of_label, out, width_
 
 
 def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=191, height_mm=68):
-    """Panels b-d (what the selection buys, selection_validation.py) and e (similarity
-    matrix, former c) in one figure; lower edges aligned. Clément, 2026-10-30: the
-    histograms of the former b are replaced by b (noise removed: pair classes), c (phylogenetic
-    gradient, Mantel) and d (species identity kept, residual profiles). Letter 'b' is added by the layout; c, d, e are drawn here."""
+    """Panels b (noise removed), c (similarity matrix), d (phylogenetic gradient) and e (species
+    identity kept) in one figure; lower edges aligned. Clément, 2026-10-30: the matrix comes
+    before the two tests of what the selection does to species structure (it is what the text
+    discusses first). Letter 'b' is added by the layout; c, d, e are drawn here."""
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import selection_validation as sv
     fs = 5.5
     with fa.paper_style():
@@ -250,40 +250,39 @@ def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=191, 
         bottom, top = 13.0, height_mm - 9.0
         hb = top - bottom
         W, H = width_mm, height_mm
-        # height 68 mm and matrix side 41 mm as fig4bc (Clément 2026-10-29)
         ax_sch = fig.add_axes([9.0 / W, (top - 3.0) / H, 30.0 / W, 6.0 / H])
         ax_b = fig.add_axes([9.0 / W, bottom / H, 30.0 / W, (hb - 7.0) / H])
-        ax_c = fig.add_axes([53.0 / W, bottom / H, 24.0 / W, (hb - 7.0) / H])
-        ax_d = fig.add_axes([90.0 / W, bottom / H, 24.0 / W, (hb - 7.0) / H])
+        ax_d = fig.add_axes([123.0 / W, bottom / H, 22.0 / W, (hb - 7.0) / H])
+        ax_e = fig.add_axes([160.0 / W, bottom / H, 22.0 / W, (hb - 7.0) / H])
         h = val["heldout"]
         sv.draw_b_schematic(ax_sch, n=h["n_values"], fs=fs)
         sv.draw_d(ax_b, val["levels"], h["p_classes"], h["n_draws"], fs=fs)
-        sv.draw_phylo(ax_c, val["species"], fs=fs)
-        sv.draw_species(ax_d, val["species"], fs=fs)
-        for ax_, title in ((ax_b, "Less run-to-run noise"), (ax_c, "Phylogenetic gradient"),
-                           (ax_d, "Species identity kept")):
+        sv.draw_phylo(ax_d, val["species"], fs=fs)
+        sv.draw_species(ax_e, val["species"], fs=fs)
+        for ax_, title in ((ax_b, "Less run-to-run noise"), (ax_d, "Phylogenetic gradient"),
+                           (ax_e, "Species identity kept")):
             ax_.set_title(title, fontsize=fs + 0.5, fontweight="bold", pad=1.5, loc="left")
-        ax_e = None
+        ax_c = None
         if D is not None:
             names_mm = 17.0
             side = min(hb + 9.0 - names_mm + 3.0, 46.0)
-            mx = W - side - 9.0
-            ax_e = fig.add_axes([mx / W, bottom / H, side / W, side / H])
+            mx = 62.0
+            ax_c = fig.add_axes([mx / W, bottom / H, side / W, side / H])
             cax = fig.add_axes([(mx + side + 1.5) / W, bottom / H, 1.2 / W, side / H])
-            _matrix_r(ax_e, cax, D, species_of_label)
+            _matrix_r(ax_c, cax, D, species_of_label)
         fig.canvas.draw()
         rend = fig.canvas.get_renderer()
         # letters c, d, e on the line of b (b is added by the layout at the top-left of the
         # image, i.e. at the top of the tight bounding box, set here by the rotated names of
-        # e): all four letters are on that line (Clément 2026-10-30)
+        # the matrix): all four letters are on that line (Clément 2026-10-30)
         xs = {}
-        for ax, letter in ((ax_c, "c"), (ax_d, "d")):
+        for ax, letter in ((ax_d, "d"), (ax_e, "e")):
             xs[letter] = ax.get_tightbbox(rend).x0 / fig.bbox.width - 0.3 / W
-        if ax_e is not None:
-            ylab = ax_e.get_yticklabels()
-            x_e = (min(t.get_window_extent(rend).x0 for t in ylab) / fig.bbox.width
+        if ax_c is not None:
+            ylab = ax_c.get_yticklabels()
+            x_c = (min(t.get_window_extent(rend).x0 for t in ylab) / fig.bbox.width
                    if ylab else mx / W)
-            xs["e"] = x_e - 0.3 / W
+            xs["c"] = x_c - 0.3 / W
         fig.canvas.draw()
         y_top = fig.get_tightbbox(fig.canvas.get_renderer()).y1 / fig.get_figheight()
         for letter, x in xs.items():
