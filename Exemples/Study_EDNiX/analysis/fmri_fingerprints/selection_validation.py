@@ -8,8 +8,13 @@ number of runs per dataset (25-195 before selection) never drives the result.
   b  noise removed: median and IQR of the run-to-run r for the three pair classes (same
      dataset / same species, other dataset / different species), all runs / random /
      selected, on regional values that played no part in the selection (see below).
-  c  convergence (non-circular): each dataset, r(group profile, LOSO consensus) on held-out
-     values, random median -> selected, one line per dataset (species colour, marker)
+  c  phylogenetic gradient: Spearman Mantel between the species distance (1 - r of the
+     species mean group profiles) and the MRCA age (phylo.py, exact permutation), raw
+     profiles, all runs / random / selected. A gradient that the LOSO selection creates on 10
+     runs per dataset (Clément 2026-10-30: it is the purpose of the criterion). A non-circular
+     version (selection on half of the regional values, Mantel on the other half) is in the
+     stats. The per-dataset convergence (r with the LOSO consensus on held-out values) is no
+     longer drawn, kept in the tables.
   d  species identity kept: same-species minus different-species r between the group
      profiles of two datasets, after the common profile (Fig. 4a) is removed from each
      group profile (fig4_species_structure.py, S1 on the residuals). Selected vs 200 random
@@ -236,12 +241,46 @@ def species_signal(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, n_perm=2000, s
                 n_draws=n_draws, mantel=mantel)
 
 
+def phylo_heldout(vecs, ds, sp_of_ds, n_splits=N_SPLITS, n_draws=N_DRAWS, n_keep=10,
+                  seed=SEED):
+    """Non-circular check of panel c: the 10 runs per dataset are chosen on one random half of
+    the regional values (LOSO consensus), the species-level Mantel (raw group profiles vs MRCA
+    age) is computed on the other half; random draws of 10 runs per dataset as reference.
+    Averaged over splits."""
+    from Exemples.Study_EDNiX.analysis import fig4_species_structure as ss
+    rng = np.random.default_rng(seed + 3)
+    nreg = vecs.shape[1]
+    per_ds = {d: np.flatnonzero(ds == d) for d in np.unique(ds)}
+    sel_r, rand_r = [], []
+    for _ in range(n_splits):
+        perm = rng.permutation(nreg)
+        a, b = perm[: nreg // 2], perm[nreg // 2:]
+        va, vb = vecs[:, a], vecs[:, b]
+        ta = _loso_targets(va, ds, sp_of_ds)
+        keep = {}
+        for d, idx in per_ds.items():
+            sc = np.array([_corr(va[i], ta[d]) for i in idx])
+            sc[~np.isfinite(sc)] = -np.inf
+            keep[d] = idx[np.argsort(-sc)[: min(n_keep, len(idx))]]
+        sel_r.append(ss.species_mantel(ss.group_profiles(vb, ds, keep), sp_of_ds,
+                                       with_p=False)[0])
+        rand_r.append([ss.species_mantel(ss.group_profiles(vb, ds, {
+            d: rng.choice(i, min(n_keep, len(i)), replace=False) for d, i in per_ds.items()}),
+            sp_of_ds, with_p=False)[0] for _ in range(n_draws)])
+    sel = float(np.nanmean(sel_r))
+    rand = np.nanmean(np.array(rand_r), axis=0)
+    return dict(selected=sel, random=rand, n_splits=n_splits, n_draws=n_draws,
+                p=float((1 + np.sum(rand >= sel - 1e-12)) / (n_draws + 1)))
+
+
 def compute(c, n_splits=N_SPLITS, n_draws=N_DRAWS):
     vecs, ds, selected, sp_of_ds, labels = run_vectors(c)
     h = heldout(vecs, ds, sp_of_ds, n_splits=n_splits, n_draws=n_draws)
     h["per_dataset"].insert(0, "label", [labels[d] for d in h["per_dataset"]["dataset"]])
     return dict(heldout=h, levels=h["levels"],
-                species=species_signal(vecs, ds, selected, sp_of_ds, n_draws=n_draws))
+                species=species_signal(vecs, ds, selected, sp_of_ds, n_draws=n_draws),
+                phylo_heldout=phylo_heldout(vecs, ds, sp_of_ds, n_splits=n_splits,
+                                            n_draws=n_draws))
 
 
 MEASURES = ("between\ndatasets", "with other\nspecies", "dataset-\nspecific (G)")
@@ -260,7 +299,7 @@ def result_lines(v):
                         else ""))
     pdt = h["per_dataset"]
     up = int((pdt.r_selected > pdt.r_random).sum())
-    lines.append(f"c  convergence: r with the LOSO consensus on test regions, per dataset: improved in "
+    lines.append(f"convergence per dataset (no longer drawn): r with the LOSO consensus on test regions, per dataset: improved in "
                  f"{up}/{len(pdt)}; median {pdt.r_random.median():.3f} (random) -> "
                  f"{pdt.r_selected.median():.3f} (selected); paired Wilcoxon signed-rank "
                  f"one-sided P = {h['p_c']:.4g} (n = {len(pdt)} datasets)")
@@ -281,7 +320,7 @@ def result_lines(v):
                  f"{np.percentile(sp['rand'], 95):+.3f}); selected {sp['gap_sel']:+.3f} "
                  f"(label permutation P = {sp['p_sel']:.4g}); selected vs random P = "
                  f"{sp['p_vs_random']:.4g} ({sp['n_draws']} draws)")
-    lines.append("d  phylogenetic gradient: Spearman Mantel between the species distance (1 - r "
+    lines.append("c  phylogenetic gradient: Spearman Mantel between the species distance (1 - r "
                  "of the species mean group profiles) and the MRCA age (exact permutation, "
                  f"{len(sp['mantel']['raw']['all']) and ''}one-sided)")
     for k, title in (("raw", "raw group profiles"), ("residual", "residuals (common profile "
@@ -292,6 +331,13 @@ def result_lines(v):
                      f"{np.percentile(m['random'], 95):+.3f}); selected rho = "
                      f"{m['selected'][0]:+.3f} (P = {m['selected'][1]:.4g}); selected vs "
                      f"random P = {m['p_vs_random']:.4g}")
+    ph = v.get("phylo_heldout")
+    if ph is not None:
+        lines.append(f"  non-circular check (raw profiles; selection on half of the regional "
+                     f"values, Mantel on the other half; {ph['n_splits']} splits): selected rho "
+                     f"= {ph['selected']:+.3f}, random median {np.median(ph['random']):+.3f} "
+                     f"(95th pct {np.percentile(ph['random'], 95):+.3f}); one-sided P = "
+                     f"{ph['p']:.4g}")
     return lines
 
 
@@ -424,30 +470,43 @@ def draw_d(ax, levels, p_classes=None, n_draws=N_DRAWS, fs=5.5):
               handlelength=1.0, columnspacing=0.8, handletextpad=0.3, borderaxespad=0.1)
 
 
-def draw_species(ax, sp, fs=5.5):
-    """Species identity kept (residual profiles): grey violin = 10 random runs per dataset
-    (one value per draw), grey dot = all runs, red diamond = selected runs; red P = label
-    permutation across datasets for the selection."""
-    vp = ax.violinplot(sp["rand"], positions=[1], widths=0.7, showextrema=False)
+def _draw_pools(ax, all_, p_all, rand, sel, p_sel, p_vs, ylabel, fs=5.5):
+    """Grey violin = 10 random runs per dataset (one value per draw), grey dot = all runs,
+    red diamond = selected runs; P above the dots = test of the value against its null."""
+    vp = ax.violinplot(rand, positions=[1], widths=0.7, showextrema=False)
     for b_ in vp["bodies"]:
         b_.set_facecolor("#BDBDBD")
         b_.set_edgecolor("none")
         b_.set_alpha(1)
-    ax.plot(0, sp["gap_all"], marker="o", ms=3.4, color=POOL_COLORS["random"], mec="white",
-            mew=0.4, zorder=4)
-    ax.plot(2, sp["gap_sel"], marker="D", ms=3.6, color=SEL_COLOR, mec="white", mew=0.4,
+    ax.plot(0, all_, marker="o", ms=3.4, color=POOL_COLORS["random"], mec="white", mew=0.4,
             zorder=4)
-    top = max(sp["gap_all"], sp["gap_sel"], np.max(sp["rand"]))
-    for x, y, p, col in ((0, sp["gap_all"], sp["p_all"], "#4D4D4D"),
-                         (2, sp["gap_sel"], sp["p_sel"], SEL_COLOR)):
-        ax.text(x, y + 0.05, _pfmt(p), ha="center", va="bottom", fontsize=fs - 1.0, color=col)
-    ax.set_ylim(ax.get_ylim()[0], top + 0.2)
-    ax.text(1.0, 1.0, "selected vs random: " + _pfmt(sp["p_vs_random"]), ha="center",
-            va="bottom", transform=ax.transAxes, fontsize=fs - 0.5)
+    ax.plot(2, sel, marker="D", ms=3.6, color=SEL_COLOR, mec="white", mew=0.4, zorder=4)
+    top = max(all_, sel, np.max(rand))
+    span = top - min(all_, sel, np.min(rand))
+    for x, y, p, col in ((0, all_, p_all, "#4D4D4D"), (2, sel, p_sel, SEL_COLOR)):
+        ax.text(x, y + 0.04 * span, _pfmt(p), ha="center", va="bottom", fontsize=fs - 1.0,
+                color=col)
+    ax.set_ylim(ax.get_ylim()[0], top + 0.45 * span)
+    ax.text(1.0, 1.0, "selected vs random\n" + _pfmt(p_vs), ha="center", va="bottom",
+            transform=ax.transAxes, fontsize=fs - 0.5)
     ax.set_xticks(range(3))
     ax.set_xticklabels(["all\nruns", "random\n10 runs", "selected\n10 runs"], fontsize=fs - 0.5)
     ax.set_xlim(-0.6, 2.6)
-    ax.set_ylabel("same - different species, r\n(common profile removed)", fontsize=fs)
+    ax.set_ylabel(ylabel, fontsize=fs)
     ax.tick_params(labelsize=fs - 0.5, length=2)
     for s_ in ("top", "right"):
         ax.spines[s_].set_visible(False)
+
+
+def draw_species(ax, sp, fs=5.5):
+    """Species identity kept (residual profiles); P = label permutation across datasets."""
+    _draw_pools(ax, sp["gap_all"], sp["p_all"], sp["rand"], sp["gap_sel"], sp["p_sel"],
+                sp["p_vs_random"], "same - different species, r\n(common profile removed)", fs)
+
+
+def draw_phylo(ax, sp, fs=5.5):
+    """Phylogenetic gradient (raw profiles): Spearman Mantel, species distance vs MRCA age."""
+    m = sp["mantel"]["raw"]
+    _draw_pools(ax, m["all"][0], m["all"][1], m["random"], m["selected"][0], m["selected"][1],
+                m["p_vs_random"], "Mantel rho, species distance\nvs divergence time", fs)
+    ax.axhline(0, color="#4D4D4D", lw=0.4, ls=":", zorder=0)

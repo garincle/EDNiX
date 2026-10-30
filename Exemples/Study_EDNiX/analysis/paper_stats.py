@@ -234,8 +234,8 @@ def figure4(inp):
        5b run-to-run profile correlation: same species / other dataset vs different
           species, every run and the runs kept by the final round (tables and lines only)
        b-d selection vs 10 random runs per dataset (selection_validation.py): b noise
-          removed (pair classes), c convergence per dataset, d species identity kept
-          (residual profiles)
+          removed (pair classes), c phylogenetic gradient (Mantel, raw profiles), d species
+          identity kept (residual profiles); per-dataset convergence kept in the tables
        e  dataset x dataset similarity r (drawn) / distance 1 - r and sibling test (F16a)"""
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import profile_stats as fa
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import paper_panels as fpp
@@ -296,7 +296,12 @@ def figure4(inp):
                            *val["species"]["rand"]],
                       p_label_permutation=[val["species"]["p_all"], val["species"]["p_sel"]]
                       + [np.nan] * len(val["species"]["rand"]))),
-                  d_phylo_mantel=pd.DataFrame(
+                  c_phylo_heldout=pd.DataFrame(dict(
+                      pool=["selected"] + ["random"] * len(val["phylo_heldout"]["random"]),
+                      rho=[val["phylo_heldout"]["selected"], *val["phylo_heldout"]["random"]],
+                      p=[val["phylo_heldout"]["p"]] + [np.nan]
+                      * len(val["phylo_heldout"]["random"]))),
+                  c_phylo_mantel=pd.DataFrame(
                       [dict(profiles=k, pool=pool, rho=rho, p=p_)
                        for k, m in val["species"]["mantel"].items()
                        for pool, (rho, p_) in (("all runs", m["all"]),
