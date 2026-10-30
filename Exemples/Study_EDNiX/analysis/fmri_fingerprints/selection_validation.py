@@ -8,14 +8,14 @@ number of runs per dataset (25-195 before selection) never drives the result.
   b  noise removed: median and IQR of the run-to-run r for the three pair classes (same
      dataset / same species, other dataset / different species), all runs / random /
      selected, on regional values that played no part in the selection (see below).
-  c  phylogenetic gradient: Spearman Mantel between the species distance (1 - r of the
+  d  phylogenetic gradient: Spearman Mantel between the species distance (1 - r of the
      species mean group profiles) and the MRCA age (phylo.py, exact permutation), raw
      profiles, all runs / random / selected. A gradient that the LOSO selection creates on 10
      runs per dataset (Clément 2026-10-30: it is the purpose of the criterion). A non-circular
      version (selection on half of the regional values, Mantel on the other half) is in the
      stats. The per-dataset convergence (r with the LOSO consensus on held-out values) is no
      longer drawn, kept in the tables.
-  d  species identity kept: same-species minus different-species r between the group
+  e  species identity kept: same-species minus different-species r between the group
      profiles of two datasets, after the common profile (Fig. 4a) is removed from each
      group profile (fig4_species_structure.py, S1 on the residuals). Selected vs 200 random
      draws of 10 runs per dataset; label permutation across datasets for the selection.
@@ -313,14 +313,14 @@ def result_lines(v):
             f"{r.median:.3f} [{r.q25:.3f}, {r.q75:.3f}]" for r in t.itertuples())
             + f"; P = {h['p_classes'][k]:.4g}")
     sp = v["species"]
-    lines.append("d  species identity kept: same-species minus different-species r between "
+    lines.append("e  species identity kept: same-species minus different-species r between "
                  "datasets, group profiles with the common profile removed (S1 on the residuals)")
     lines.append(f"  all runs {sp['gap_all']:+.3f} (label permutation P = {sp['p_all']:.4g}); "
                  f"random 10 per dataset median {np.median(sp['rand']):+.3f} (95th pct "
                  f"{np.percentile(sp['rand'], 95):+.3f}); selected {sp['gap_sel']:+.3f} "
                  f"(label permutation P = {sp['p_sel']:.4g}); selected vs random P = "
                  f"{sp['p_vs_random']:.4g} ({sp['n_draws']} draws)")
-    lines.append("c  phylogenetic gradient: Spearman Mantel between the species distance (1 - r "
+    lines.append("d  phylogenetic gradient: Spearman Mantel between the species distance (1 - r "
                  "of the species mean group profiles) and the MRCA age (exact permutation, "
                  f"{len(sp['mantel']['raw']['all']) and ''}one-sided)")
     for k, title in (("raw", "raw group profiles"), ("residual", "residuals (common profile "
