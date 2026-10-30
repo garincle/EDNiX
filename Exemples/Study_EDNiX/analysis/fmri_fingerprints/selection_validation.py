@@ -203,25 +203,37 @@ def pair_levels(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS_PAIRS, seed=SEED):
 
 def species_signal(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, n_perm=2000, seed=SEED):
     """Panel d numbers: S1 on the residuals (fig4_species_structure.py) for all runs, the
-    selected runs (permutation P) and random draws of as many runs per dataset."""
+    selected runs (permutation P) and random draws of as many runs per dataset. Also the
+    species-level Mantel (Spearman, species distance 1 - r vs MRCA age; exact permutation) on
+    the raw and on the residual group profiles (S2): tables and text only."""
     from Exemples.Study_EDNiX.analysis import fig4_species_structure as ss
     rng = np.random.default_rng(seed + 2)
     sets = np.unique(ds)
     idx_all = {d: np.flatnonzero(ds == d) for d in sets}
     idx_sel = {d: np.flatnonzero((ds == d) & selected) for d in sets}
 
-    def residual_gap(idx_by_ds, with_p):
+    def stats_for(idx_by_ds, with_p):
         g = ss.group_profiles(vecs, ds, idx_by_ds)
         res = ss.residuals(g, ss.common_profile(g, sp_of_ds))
-        return ss.gap_perm_p(res, sp_of_ds, rng, n_perm) if with_p else (ss.gap(res, sp_of_ds), None)
+        gp = ss.gap_perm_p(res, sp_of_ds, rng, n_perm) if with_p else (ss.gap(res, sp_of_ds), None)
+        mant = {k: ss.species_mantel(prof, sp_of_ds, with_p=with_p)
+                for k, prof in (("raw", g), ("residual", res))}
+        return gp, mant
 
-    gap_all, p_all = residual_gap(idx_all, True)
-    gap_sel, p_sel = residual_gap(idx_sel, True)
-    rand = np.array([residual_gap({d: rng.choice(idx_all[d], len(idx_sel[d]), replace=False)
-                                   for d in sets}, False)[0] for _ in range(n_draws)])
+    (gap_all, p_all), m_all = stats_for(idx_all, True)
+    (gap_sel, p_sel), m_sel = stats_for(idx_sel, True)
+    draws = [stats_for({d: rng.choice(idx_all[d], len(idx_sel[d]), replace=False)
+                        for d in sets}, False) for _ in range(n_draws)]
+    rand = np.array([x[0][0] for x in draws])
+    mantel = {}
+    for k in ("raw", "residual"):
+        rr = np.array([x[1][k][0] for x in draws])
+        mantel[k] = dict(all=m_all[k], selected=m_sel[k], random=rr,
+                         p_vs_random=float((1 + np.sum(rr >= m_sel[k][0] - 1e-12))
+                                           / (n_draws + 1)))
     return dict(gap_all=gap_all, p_all=p_all, gap_sel=gap_sel, p_sel=p_sel, rand=rand,
                 p_vs_random=float((1 + np.sum(rand >= gap_sel - 1e-12)) / (n_draws + 1)),
-                n_draws=n_draws)
+                n_draws=n_draws, mantel=mantel)
 
 
 def compute(c, n_splits=N_SPLITS, n_draws=N_DRAWS):
@@ -269,6 +281,17 @@ def result_lines(v):
                  f"{np.percentile(sp['rand'], 95):+.3f}); selected {sp['gap_sel']:+.3f} "
                  f"(label permutation P = {sp['p_sel']:.4g}); selected vs random P = "
                  f"{sp['p_vs_random']:.4g} ({sp['n_draws']} draws)")
+    lines.append("d  phylogenetic gradient: Spearman Mantel between the species distance (1 - r "
+                 "of the species mean group profiles) and the MRCA age (exact permutation, "
+                 f"{len(sp['mantel']['raw']['all']) and ''}one-sided)")
+    for k, title in (("raw", "raw group profiles"), ("residual", "residuals (common profile "
+                                                                  "removed)")):
+        m = sp["mantel"][k]
+        lines.append(f"  {title}: all runs rho = {m['all'][0]:+.3f} (P = {m['all'][1]:.4g}); "
+                     f"random 10 per dataset median {np.median(m['random']):+.3f} (95th pct "
+                     f"{np.percentile(m['random'], 95):+.3f}); selected rho = "
+                     f"{m['selected'][0]:+.3f} (P = {m['selected'][1]:.4g}); selected vs "
+                     f"random P = {m['p_vs_random']:.4g}")
     return lines
 
 
