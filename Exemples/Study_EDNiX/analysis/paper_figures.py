@@ -10,8 +10,9 @@ Nature widths: 89 / 120 / 183 mm; text 5-7 pt; PDF with TrueType fonts, PNG 600 
   figure1  atlas hierarchy (sunburst)                     library/atlas_sunburst.py
   figure2  cortical morphometry, level 2                  library/morphometry_figure.py
   figure3  longitudinal morphometry                       library/longitudinal.py
-  figure4  a common profile + datasets over their LOSO consensus, b run-to-run r (5b),
-           c dataset similarity matrix in r (fmri_fingerprints/figure4_panels.py)
+  figure4  a common profile + datasets over their LOSO consensus, b-d selection vs random
+           runs (selection_validation.py), e dataset similarity matrix in r
+           (fmri_fingerprints/figure4_panels.py)
   figure5  seed maps, selected vs excluded runs (5a)
   figure6  multimodal profile, Human / Macaque (former Figure XX) library/multimodal_figure.py
   supp1-3  pipeline schematics (anat, fMRI, FDG-PET + CT)  library/schematic_*.py
@@ -94,12 +95,13 @@ def figure4(res, inp, paper_dir=None):
     c, d = inp.fmri(), res["draw"]
     sol = c["species_of_label"]
     pa, pbc = (_panel("figure4", n, paper_dir) for n in
-               ("a_common_profile_and_datasets", "bc_within_across_and_similarity"))
+               ("a_common_profile_and_datasets", "be_selection_validation_and_similarity"))
     if not c["matrix_mode"] and len(c["dist_all"]) >= 3:
         _try("4a", f4.fig4a_common_profile, c["vecs_all"], c["dist_all"], sol, c["common"],
              c["order"], c["region_mask"], pa)
-    _try("4bc", f4.fig4bc, d["pairs"], d["stats"], ["All runs", "Selected"], d["test"],
-         d["intra"], c["D"], sol, pbc)
+    # Clément 2026-10-30: b-d = what the selection buys (selection_validation.py), the
+    # former b histograms are no longer drawn; the similarity matrix is now e.
+    _try("4b-e", f4.fig4_validation_and_similarity, d["validation"], c["D"], sol, pbc)
     base = pst.out_base("figure4", paper_dir)
     # Clément 2026-10-28: a moved right and down, b right (same x as a); c level with b.
     # The letters sit in the 3 mm gutter and the saved figure is cropped tight, so dx
