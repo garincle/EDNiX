@@ -289,6 +289,10 @@ def figure4(inp):
                           val["heldout"]["p"])})]),
                   c_heldout_per_dataset=val["heldout"]["per_dataset"],
                   d_pair_levels=val["levels"],
+                  d_pair_class_p=pd.DataFrame(dict(
+                      pair_class=["same dataset", "same species, other dataset",
+                                  "different species"],
+                      p_selected_vs_random=val["heldout"]["p_classes"])),
                   b_within_across=pd.DataFrame([dict(pool=k, **v) for k, v in named.items()
                                                 if v]),
                   e_similarity_matrix=1 - c["D"] if c["D"] is not None else pd.DataFrame(),
