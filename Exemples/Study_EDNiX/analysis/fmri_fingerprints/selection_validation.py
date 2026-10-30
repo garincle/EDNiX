@@ -214,41 +214,56 @@ def _letter(fig, ax, letter, size, dx_mm=7.0):
              fontweight="bold", va="top", ha="left")
 
 
+B_SHOWN = (0, 1)                      # b draws the two similarity measures; G stays in the tables
+B_LABELS = ("run to run,\ndifferent datasets", "dataset profile vs\nother species")
+
+
 def draw_b(ax, h, fs=5.5):
-    """Held-out test: violins of the random draws, red diamond = selection."""
+    """Held-out test. For each measure: grey violin = 10 random runs per dataset (one value
+    per draw), red diamond = selected runs; both computed on regional values that played
+    no part in the selection."""
     rand, sel, p = h["rand"], h["sel"], h["p"]
-    for k in range(3):
-        vp = ax.violinplot(rand[:, k], positions=[k], widths=0.7, showextrema=False)
-        for b in vp["bodies"]:
-            b.set_facecolor("#BDBDBD")
-            b.set_edgecolor("none")
-            b.set_alpha(1)
-        ax.plot([k - 0.18, k + 0.18], [np.median(rand[:, k])] * 2, color="#555555", lw=0.8)
-        ax.plot(k, sel[k], marker="D", ms=3.6, color=SEL_COLOR, mec="white", mew=0.4, zorder=4)
-        top = max(sel[k], np.max(rand[:, k]))
-        pmin = 1 / (h["n_draws"] + 1)
-        star = f"P ≤ {pmin:.1g}" if p[k] <= pmin + 1e-12 else f"P = {p[k]:.2g}"
-        ax.text(k, top + 0.04, star, ha="center", va="bottom", fontsize=fs - 0.5)
-    ax.set_xticks(range(3))
-    ax.set_xticklabels(MEASURES, fontsize=fs - 0.5)
-    ax.set_xlim(-0.6, 2.6)
-    ax.set_ylabel("r on held-out values", fontsize=fs)
+    pmin = 1 / (h["n_draws"] + 1)
+    for x, k in enumerate(B_SHOWN):
+        vp = ax.violinplot(rand[:, k], positions=[x], widths=0.6, showextrema=False)
+        for b_ in vp["bodies"]:
+            b_.set_facecolor("#BDBDBD")
+            b_.set_edgecolor("none")
+            b_.set_alpha(1)
+        ax.plot(x, sel[k], marker="D", ms=3.6, color=SEL_COLOR, mec="white", mew=0.4, zorder=4)
+        lab = f"P ≤ {pmin:.1g}" if p[k] <= pmin + 1e-12 else f"P = {p[k]:.2g}"
+        ax.text(x, max(sel[k], np.max(rand[:, k])) + 0.04, lab, ha="center", va="bottom",
+                fontsize=fs - 0.5)
+    ax.set_xticks(range(len(B_SHOWN)))
+    ax.set_xticklabels(B_LABELS, fontsize=fs - 0.5)
+    ax.set_xlim(-0.55, len(B_SHOWN) - 0.45)
+    ax.set_ylabel("r on test regions", fontsize=fs)
     ax.tick_params(labelsize=fs - 0.5, length=2)
     for s_ in ("top", "right"):
         ax.spines[s_].set_visible(False)
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    ax.legend([Patch(fc="#BDBDBD", ec="none"),
+               Line2D([], [], ls="", marker="D", ms=3.6, color=SEL_COLOR, mec="white")],
+              ["random 10 runs", "selected 10 runs"], loc="lower right", frameon=False,
+              fontsize=fs - 0.5, handlelength=1.0, handletextpad=0.4, borderaxespad=0.1)
 
 
 def draw_b_schematic(ax, n=30, fs=5.5):
-    """Small strip: half the regional values used to select, half to evaluate."""
+    """Strip of the regional values: dark = used to select the runs, white = used to test
+    them (one of the random splits)."""
     rng = np.random.default_rng(3)
     half = set(rng.permutation(n)[: n // 2])
     for i in range(n):
         ax.add_patch(plt_rect(i, 0, 0.86, 1, "#4D4D4D" if i in half else "white"))
     ax.set_xlim(-0.5, n + 0.5)
-    ax.set_ylim(-1.6, 1.3)
-    ax.text(-0.3, -0.5, "select", fontsize=fs - 0.5, va="top", ha="left", color="#4D4D4D",
-            fontweight="bold")
-    ax.text(n, -0.5, "evaluate", fontsize=fs - 0.5, va="top", ha="right", color="#4D4D4D")
+    ax.set_ylim(-2.4, 1.2)
+    ax.add_patch(plt_rect(0, -2.2, 0.86, 1, "#4D4D4D"))
+    ax.text(1.4, -1.7, "select", fontsize=fs - 0.5, va="center", ha="left")
+    ax.add_patch(plt_rect(n / 2, -2.2, 0.86, 1, "white"))
+    ax.text(n / 2 + 1.4, -1.7, "test", fontsize=fs - 0.5, va="center", ha="left")
+    ax.text(n / 2, 1.5, "regional values (random half split, x50)", fontsize=fs - 0.5,
+            ha="center", va="bottom")
     ax.axis("off")
 
 
@@ -266,13 +281,10 @@ def draw_c(ax, h, sol_color, marker_of, fs=5.5):
         for x, y in ((0, r.r_random), (1, r.r_selected)):
             ax.plot(x, y, marker=marker_of(r.label, r.species), ms=3.0, color=col,
                     mec="white", mew=0.3, zorder=3)
-    up = int((pdt.r_selected > pdt.r_random).sum())
-    ax.text(0.5, 1.0, f"{up}/{len(pdt)} datasets improved", transform=ax.transAxes,
-            ha="center", va="bottom", fontsize=fs - 0.5)
     ax.set_xticks([0, 1])
     ax.set_xticklabels(["random\n10 runs", "selected\n10 runs"], fontsize=fs - 0.5)
     ax.set_xlim(-0.3, 1.3)
-    ax.set_ylabel("r with other species,\nheld-out values", fontsize=fs)
+    ax.set_ylabel("dataset profile vs other species,\nr on test regions", fontsize=fs)
     ax.tick_params(labelsize=fs - 0.5, length=2)
     for s_ in ("top", "right"):
         ax.spines[s_].set_visible(False)
