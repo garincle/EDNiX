@@ -241,8 +241,8 @@ def fig4bc(pairs_by, stats, names, test, intra, D, species_of_label, out, width_
 def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=191, height_mm=68):
     """Panels b-d (what the selection buys, selection_validation.py) and e (similarity
     matrix, former c) in one figure; lower edges aligned. Clément, 2026-10-30: the
-    histograms of the former b are replaced by b (held-out test), c (per dataset) and d
-    (pair classes). Letter 'b' is added by the layout; c, d, e are drawn here."""
+    histograms of the former b are replaced by b (noise removed: pair classes), c (convergence,
+    per dataset) and d (species identity kept, residual profiles). Letter 'b' is added by the layout; c, d, e are drawn here."""
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import selection_validation as sv
     fs = 5.5
     with fa.paper_style():
@@ -254,12 +254,12 @@ def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=191, 
         ax_sch = fig.add_axes([9.0 / W, (top - 3.0) / H, 30.0 / W, 6.0 / H])
         ax_b = fig.add_axes([9.0 / W, bottom / H, 30.0 / W, (hb - 7.0) / H])
         ax_c = fig.add_axes([53.0 / W, bottom / H, 17.0 / W, (hb - 7.0) / H])
-        ax_d = fig.add_axes([86.0 / W, bottom / H, 30.0 / W, (hb - 7.0) / H])
+        ax_d = fig.add_axes([86.0 / W, bottom / H, 24.0 / W, (hb - 7.0) / H])
         h = val["heldout"]
         sv.draw_b_schematic(ax_sch, n=h["n_values"], fs=fs)
-        sv.draw_b(ax_b, h, fs=fs)
+        sv.draw_d(ax_b, val["levels"], h["p_classes"], h["n_draws"], fs=fs)
         sv.draw_c(ax_c, h, ps.species_color, ps.dataset_marker, fs=fs)
-        sv.draw_d(ax_d, val["levels"], h["p_classes"], h["n_draws"], fs=fs)
+        sv.draw_species(ax_d, val["species"], fs=fs)
         ax_e = None
         if D is not None:
             names_mm = 17.0

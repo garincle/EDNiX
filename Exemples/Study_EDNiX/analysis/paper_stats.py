@@ -233,8 +233,9 @@ def figure4(inp):
           Figure 4 group maps
        5b run-to-run profile correlation: same species / other dataset vs different
           species, every run and the runs kept by the final round (tables and lines only)
-       b-d selection vs 10 random runs per dataset (selection_validation.py): b held-out
-          values, c per dataset, d pair classes
+       b-d selection vs 10 random runs per dataset (selection_validation.py): b noise
+          removed (pair classes), c convergence per dataset, d species identity kept
+          (residual profiles)
        e  dataset x dataset similarity r (drawn) / distance 1 - r and sibling test (F16a)"""
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import profile_stats as fa
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import paper_panels as fpp
@@ -279,17 +280,23 @@ def figure4(inp):
                  "in the tables, no longer drawn")
     lines += ["  " + ln for ln in sv.result_lines(val)]
     tables = dict(a_distances=dist,
-                  b_heldout_random_draws=pd.DataFrame(val["heldout"]["rand"],
+                  heldout_random_draws=pd.DataFrame(val["heldout"]["rand"],
                                                       columns=["between_datasets",
                                                                "with_other_species", "G"]),
-                  b_heldout_selected=pd.DataFrame([dict(zip(
+                  heldout_selected=pd.DataFrame([dict(zip(
                       ["between_datasets", "with_other_species", "G"], val["heldout"]["sel"]),
                       **{f"p_{k}": v for k, v in zip(
                           ["between_datasets", "with_other_species", "G"],
                           val["heldout"]["p"])})]),
                   c_heldout_per_dataset=val["heldout"]["per_dataset"],
-                  d_pair_levels=val["levels"],
-                  d_pair_class_p=pd.DataFrame(dict(
+                  b_pair_levels=val["levels"],
+                  d_species_signal=pd.DataFrame(dict(
+                      pool=["all runs", "selected"] + ["random"] * len(val["species"]["rand"]),
+                      gap=[val["species"]["gap_all"], val["species"]["gap_sel"],
+                           *val["species"]["rand"]],
+                      p_label_permutation=[val["species"]["p_all"], val["species"]["p_sel"]]
+                      + [np.nan] * len(val["species"]["rand"]))),
+                  b_pair_class_p=pd.DataFrame(dict(
                       pair_class=["same dataset", "same species, other dataset",
                                   "different species"],
                       p_selected_vs_random=val["heldout"]["p_classes"])),
