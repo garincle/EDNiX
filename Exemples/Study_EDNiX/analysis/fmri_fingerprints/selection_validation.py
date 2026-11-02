@@ -206,6 +206,43 @@ def pair_levels(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS_PAIRS, seed=SEED):
     return pd.DataFrame(rows)
 
 
+def mantel_delta(prof_all, prof_sel, sp_of_ds):
+    """Selected vs all runs, one test: Delta = rho(selected) - rho(all runs) of the Spearman
+    Mantel between species distance (1 - r of the species mean group profiles) and MRCA age.
+    Null: the same permutation of the species applied to the distance matrix of both pools,
+    over all n! permutations (7 species: 5,040). One-sided P (Delta at least as large)."""
+    import itertools
+    from scipy import stats
+    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import phylo
+    from Exemples.Study_EDNiX.analysis import fig4_species_structure as ss
+    sps = phylo.order_species(sorted(set(sp_of_ds[list(prof_all)])))
+    n = len(sps)
+
+    def dist(profiles):
+        m = {s_: np.nanmean([profiles[d] for d in profiles if sp_of_ds[d] == s_], axis=0)
+             for s_ in sps}
+        D = np.zeros((n, n))
+        for i in range(n):
+            for j in range(i + 1, n):
+                D[i, j] = D[j, i] = 1.0 - ss._corr(m[sps[i]], m[sps[j]])
+        return D
+
+    Da, Ds = dist(prof_all), dist(prof_sel)
+    Dp, _ = phylo.phylo_matrices(sps)
+    iu = np.triu_indices(n, 1)
+    rp = stats.rankdata(Dp[iu])
+
+    def rho(D, perm):
+        Dq = D[np.ix_(perm, perm)]
+        return float(np.corrcoef(stats.rankdata(Dq[iu]), rp)[0, 1])
+
+    ident = list(range(n))
+    delta = rho(Ds, ident) - rho(Da, ident)
+    null = np.array([rho(Ds, list(pm)) - rho(Da, list(pm))
+                     for pm in itertools.permutations(range(n))])
+    return dict(delta=delta, p=float(np.mean(null >= delta - 1e-12)), n_perm=len(null))
+
+
 def species_signal(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, n_perm=2000, seed=SEED):
     """Panel d numbers: S1 on the residuals (fig4_species_structure.py) for all runs, the
     selected runs (permutation P) and random draws of as many runs per dataset. Also the
@@ -227,6 +264,12 @@ def species_signal(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, n_perm=2000, s
 
     (gap_all, p_all), m_all = stats_for(idx_all, True)
     (gap_sel, p_sel), m_sel = stats_for(idx_sel, True)
+    g_all = ss.group_profiles(vecs, ds, idx_all)
+    g_sel = ss.group_profiles(vecs, ds, idx_sel)
+    delta = {"raw": mantel_delta(g_all, g_sel, sp_of_ds),
+             "residual": mantel_delta(
+                 ss.residuals(g_all, ss.common_profile(g_all, sp_of_ds)),
+                 ss.residuals(g_sel, ss.common_profile(g_sel, sp_of_ds)), sp_of_ds)}
     # random draws also get their own permutation P (500 label permutations, exact Mantel)
     draws = [stats_for({d: rng.choice(idx_all[d], len(idx_sel[d]), replace=False)
                         for d in sets}, True, n_perm=500) for _ in range(n_draws)]
@@ -240,7 +283,7 @@ def species_signal(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, n_perm=2000, s
                          p_vs_random=float((1 + np.sum(rr >= m_sel[k][0] - 1e-12))
                                            / (n_draws + 1)))
     return dict(gap_all=gap_all, p_all=p_all, gap_sel=gap_sel, p_sel=p_sel, rand=rand,
-                rand_p=rand_p,
+                rand_p=rand_p, mantel_delta=delta,
                 p_vs_random=float((1 + np.sum(rand >= gap_sel - 1e-12)) / (n_draws + 1)),
                 n_draws=n_draws, mantel=mantel)
 
@@ -337,6 +380,11 @@ def result_lines(v):
                      f"{np.median(m['random_p']):.3g}); selected rho = "
                      f"{m['selected'][0]:+.3f} (P = {m['selected'][1]:.4g}); selected vs "
                      f"random P = {m['p_vs_random']:.4g}")
+    for k, title in (("raw", "raw"), ("residual", "residual")):
+        dl = sp["mantel_delta"][k]
+        lines.append(f"  selected vs all runs ({title} profiles): Delta rho = {dl['delta']:+.3f}; "
+                     f"one-sided P = {dl['p']:.4g} (same species permutation applied to both "
+                     f"pools, {dl['n_perm']} permutations)")
     ph = v.get("phylo_heldout")
     if ph is not None:
         lines.append(f"  non-circular check (raw profiles; selection on half of the regional "
@@ -486,7 +534,8 @@ def draw_d(ax, levels, p_classes=None, n_draws=N_DRAWS, fs=5.5):
               handlelength=1.0, columnspacing=0.8, handletextpad=0.3, borderaxespad=0.1)
 
 
-def _draw_pools(ax, all_, p_all, rand, p_rand, sel, p_sel, p_vs, ylabel, fs=5.5):
+def _draw_pools(ax, all_, p_all, rand, p_rand, sel, p_sel, p_vs, ylabel, fs=5.5,
+                p_all_sel=None):
     """Grey violin = 10 random runs per dataset (one value per draw), grey dot = all runs,
     red diamond = selected runs; P above the dots = test of the value against its null."""
     vp = ax.violinplot(rand, positions=[1], widths=0.7, showextrema=False)
@@ -505,7 +554,9 @@ def _draw_pools(ax, all_, p_all, rand, p_rand, sel, p_sel, p_vs, ylabel, fs=5.5)
         ax.text(x, y + 0.04 * span, pre + _pfmt(p), ha="center", va="bottom",
                 fontsize=fs - 1.0, color=col)
     _bracket(ax, 1.0, 2.0, top + 0.2 * span, 0.04 * span, _pfmt(p_vs), SEL_COLOR, fs)
-    ax.set_ylim(ax.get_ylim()[0], top + 0.45 * span)
+    if p_all_sel is not None:
+        _bracket(ax, 0.0, 2.0, top + 0.36 * span, 0.04 * span, _pfmt(p_all_sel), SEL_COLOR, fs)
+    ax.set_ylim(ax.get_ylim()[0], top + (0.62 if p_all_sel is not None else 0.45) * span)
     ax.set_xticks(range(3))
     ax.set_xticklabels(["all\nruns", "random\n10 runs", "selected\n10 runs"], fontsize=fs - 0.5)
     ax.set_xlim(-0.6, 2.6)
@@ -527,5 +578,6 @@ def draw_phylo(ax, sp, fs=5.5):
     m = sp["mantel"]["raw"]
     _draw_pools(ax, m["all"][0], m["all"][1], m["random"], float(np.median(m["random_p"])),
                 m["selected"][0], m["selected"][1],
-                m["p_vs_random"], "Mantel rho, species distance\nvs divergence time", fs)
+                m["p_vs_random"], "Mantel rho, species distance\nvs divergence time", fs,
+                p_all_sel=sp["mantel_delta"]["raw"]["p"])
     ax.axhline(0, color="#4D4D4D", lw=0.4, ls=":", zorder=0)

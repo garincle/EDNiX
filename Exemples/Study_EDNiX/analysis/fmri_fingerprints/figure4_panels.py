@@ -34,6 +34,7 @@ from Exemples.Study_EDNiX.analysis import paper_style as ps
 
 MM = 1.0 / 25.4
 LETTER_PT = ps.PANEL_LABEL_SIZE
+Q80_COLOR, Q20_COLOR = "#D7301F", "#2B6CB0"      # 80th / 20th percentile of the regional values
 
 
 def _radar_curve(ax, theta, v, order, **kw):
@@ -111,6 +112,17 @@ def fig4a_common_profile(vecs, dist_df, species_of_label, common, order, region_
         _, b = ff._close(theta, hi[order])
         bax.fill_between(t, a, b, color="0.55", alpha=0.35, lw=0, zorder=2)
         _radar_curve(bax, theta, glob_c, order, color="black", lw=1.0, zorder=3)
+        # Clément 2026-11-02: 80th percentile values red, 20th percentile values blue
+        chan = [str(common[i]).rpartition("|")[2].lower() for i in order]
+        for t_ in bax.texts:
+            lab = t_.get_text().rstrip("*")
+            if lab.endswith("P80"):
+                t_.set_color(Q80_COLOR)
+            elif lab.endswith("P20"):
+                t_.set_color(Q20_COLOR)
+        pc = [Q80_COLOR if c == "q80" else Q20_COLOR if c == "q20" else "black" for c in chan]
+        bax.scatter(theta, glob_c[order], s=6, c=pc, edgecolors="white", linewidths=0.3,
+                    zorder=5)
         bax.tick_params(axis="y", labelsize=4)
         # small radars, best r first
         x0 = big_mm + 3.0
@@ -132,6 +144,10 @@ def fig4a_common_profile(vecs, dist_df, species_of_label, common, order, region_
             ax.set_title(f"{ff.pretty_label(r.label)}\nr = {r.r_consensus:.2f}", fontsize=5,
                          color=ff._tcolor(r.species), pad=1.5)
         handles = [Line2D([], [], color="black", lw=1.0, label="common profile"),
+                   Line2D([], [], ls="", marker="o", ms=3, color=Q80_COLOR,
+                          label="80th percentile values"),
+                   Line2D([], [], ls="", marker="o", ms=3, color=Q20_COLOR,
+                          label="20th percentile values"),
                    Patch(facecolor="0.55", alpha=0.35, lw=0,
                          label=f"IQR across species (n = {n_sp})"),
                    Line2D([], [], color="black", lw=0.6, ls=(0, (2.5, 1.5)),
