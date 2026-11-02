@@ -302,6 +302,8 @@ def figure4(inp):
                       rho=[val["phylo_heldout"]["selected"], *val["phylo_heldout"]["random"]],
                       p=[val["phylo_heldout"]["p"]] + [np.nan]
                       * len(val["phylo_heldout"]["random"]))),
+                  d_phylo_delta=pd.DataFrame([dict(profiles=k, **v_) for k, v_ in
+                                              val["species"]["mantel_delta"].items()]),
                   d_phylo_mantel=pd.DataFrame(
                       [dict(profiles=k, pool=pool, rho=rho, p=p_)
                        for k, m in val["species"]["mantel"].items()
