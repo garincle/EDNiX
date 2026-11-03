@@ -67,6 +67,15 @@ def cortical_regions(names, level):
     return AN.atlas_order(keep)
 
 
+def brain_regions(names, level):
+    """Region keys of `names` whose canonical name is any region of `level` (cortical and subcortical, e.g. striatum,
+    thalamus, hippocampus; ventricles and CSF excluded), in the order of the atlas figure."""
+    allowed = set(AN.get_level_regions(level))
+    keep = sorted(n for n in dict.fromkeys(names)
+                  if canonical(n) in allowed and not NON_BRAIN.search(str(canonical(n))) and not NON_BRAIN.search(str(n)))
+    return AN.atlas_order(keep)
+
+
 def _entity(path, key):
     m = re.search(rf'(?:^|[/_]){key}-([A-Za-z0-9]+)', path)
     return m.group(1) if m else None
