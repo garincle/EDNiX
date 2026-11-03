@@ -68,6 +68,8 @@ SOURCES = {
     },
 }
 FIT_KIND = 'correlation'
+PANEL_C = 'summary'                         # 'summary': heatmap of the profiles + cross-species conservation and superior-inferior
+                                            # position (forest plot); 'radar': per-species radars + consensus
 FC_SOURCE = 'sba'                           # connectivity of panel c: 'sba' = retrosplenial seed Q80/Q20 of the runs kept by the
                                             # Figure 4 selection (10 per dataset); 'matrix' = strength from the correlation matrices
 SBA_INDEX = 'tails'                         # 'tails': positive / negative tail of the seed map in r units ('pos' / 'neg');
@@ -176,7 +178,76 @@ def _text_mm(fig, texts, fontsize):
     return w
 
 
-def build_figure(pngs, rng, prof_b, stats_b, prof_c, regions_c):
+def _panel_c_summary(fig, W, L, top, h, prof_c, regions_c, summ, si):
+    """Left: heatmap (regions x [volume, + coupling, - coupling, FDG, superior-inferior position] per species,
+    z of the mean profile); right: forest plot of the Spearman r (95 % CI over regions; filled = Holm P < 0.05):
+    cross-species conservation of each modality, and relation of each modality to the superior-inferior position."""
+    from matplotlib.colors import TwoSlopeNorm
+    species = SPECIES[:2]
+    mods = [m for m in MP.SUMMARY_MODALITIES if all(m in prof_c[sp] for sp in species)]
+    short = {'morphometry': 'volume', 'pos': '+ coupling', 'neg': '- coupling', 'metabolism': 'FDG'}
+    cols, heads = [], []
+    for k, sp in enumerate(species):
+        for m in mods:
+            z = prof_c[sp][m].reindex(columns=regions_c).mean().values
+            cols.append(z)
+            heads.append((sp, short[m]))
+        if si is not None:
+            v = si[si.species == sp].set_index('region')['si'].reindex(regions_c).values * 2
+            cols.append(v)
+            heads.append((sp, 'S-I'))
+        if k == 0:
+            cols.append(np.full(len(regions_c), np.nan))
+            heads.append(('', ''))
+    mat = np.vstack(cols).T
+    lab_w = 40.0
+    ax = _axes_mm(fig, L + lab_w, top + 13, 70.0, h - 13)
+    ax.imshow(mat, aspect='auto', cmap='RdBu_r', norm=TwoSlopeNorm(0, -2, 2), interpolation='nearest')
+    ax.set_yticks(range(len(regions_c)))
+    ax.set_yticklabels([MP.radar_name(r, 60).replace('\n', ' ') for r in regions_c], fontsize=5)
+    ax.set_xticks(range(len(heads)))
+    ax.set_xticklabels([h_[1] for h_ in heads], rotation=60, ha='left', rotation_mode='anchor', fontsize=5)
+    ax.xaxis.tick_top()
+    ax.tick_params(length=0)
+    for sp_ in ('top', 'right', 'left', 'bottom'):
+        ax.spines[sp_].set_visible(False)
+    n1 = len(mods) + (1 if si is not None else 0)
+    for k, sp in enumerate(species):
+        x0 = k * (n1 + 1)
+        fig.text((L + lab_w + 70.0 * (x0 + n1 / 2) / len(heads)) / W,
+                 1 - (top - 0.5) / (fig.get_figheight() / MM), sp, ha='center', va='top', fontsize=7,
+                 fontweight='bold', color=SPECIES_COLORS.get(sp, 'black'))
+    # forest plot
+    fx = L + lab_w + 70.0 + 28.0
+    axf = _axes_mm(fig, fx, top + 13, W - fx - 4, h - 13)
+    rows = summ.reset_index(drop=True)
+    y = np.arange(len(rows))[::-1].astype(float)
+    # gaps between analyses / species
+    gap = np.cumsum([0] + [0.8 if (rows.loc[i, 'analysis'], rows.loc[i, 'species']) != (rows.loc[i - 1, 'analysis'], rows.loc[i - 1, 'species']) else 0.0 for i in range(1, len(rows))])
+    y = y - gap
+    for yi, r in zip(y, rows.itertuples()):
+        col = MP.MODALITY_COLORS[r.modality]
+        axf.plot([r.ci_low, r.ci_high], [yi, yi], color=col, lw=1.0)
+        axf.plot(r.r, yi, 'o', ms=3.2, color=col, mfc=col if r.p_holm < 0.05 else 'white', mew=0.8)
+    axf.axvline(0, color='0.3', lw=0.5)
+    axf.set_xlim(-1.05, 1.05)
+    axf.set_yticks(y)
+    axf.set_yticklabels([f'{short[r.modality]}' for r in rows.itertuples()], fontsize=5)
+    axf.set_xlabel('Spearman r [95% CI over regions]\nfilled: Holm P < 0.05', fontsize=5.5)
+    axf.tick_params(labelsize=5)
+    for sp_ in ('top', 'right'):
+        axf.spines[sp_].set_visible(False)
+    last = None
+    for yi, r in zip(y, rows.itertuples()):
+        key = (r.analysis, r.species)
+        if key != last:
+            axf.text(1.07, yi, ('conservation: ' if r.analysis == 'conservation' else 'vs S-I position: ') + r.species,
+                     fontsize=5, va='center', ha='left', clip_on=False, color='0.2')
+            last = key
+    fig.text((fx - 6) / W, 1 - (top - 1) / (fig.get_figheight() / MM), 'd', fontsize=8, fontweight='bold', va='top')
+
+
+def build_figure(pngs, rng, prof_b, stats_b, prof_c, regions_c, summ=None, si=None):
     """A: the two species side by side (human left, macaque right), image height set by the aspect of the
     renders so that no space is left empty; B: bars of the bratio drawn from 0; C: the two radars with the
     modality legend between them, their size computed from the width of the region names so that names and
@@ -210,6 +281,12 @@ def build_figure(pngs, rng, prof_b, stats_b, prof_c, regions_c):
         rad_top = top_c + title_h + lab_h                             # top of the circle
         row_h = d + 2 * lab_h + title_h + 4                               # one stacked radar (species left)
         H = rad_top + d + lab_h + row_h + 2
+        if PANEL_C == 'summary' and summ is not None:
+            hh = 3.0 * len(regions_c) + 22.0
+            H = top_c + hh + 4
+        else:
+            row_h = d + 2 * lab_h + title_h + 4                               # one stacked radar (species left)
+            H = rad_top + d + lab_h + row_h + 2
         fig = plt.figure(figsize=(FIG_W, H * MM))
 
         # A: human left, macaque right
@@ -238,40 +315,44 @@ def build_figure(pngs, rng, prof_b, stats_b, prof_c, regions_c):
         axb.set_xticklabels(names_b, rotation=40, ha='right', rotation_mode='anchor', fontsize=5.5)
         axb.legend(fontsize=6.5, frameon=False, ncol=len(SPECIES), loc='lower right', bbox_to_anchor=(1, 1.0))
 
-        # C: left, one radar per species (human top, macaque bottom); right, the consensus across species
-        rmax = max(np.nanmax(np.abs(m.mean().values)) for mods in prof_c.values() for m in mods.values())
-        rmax = float(np.ceil(rmax * 1.2 * 2) / 2)
-        cons = MP.consensus_profiles(prof_c, SPECIES[:2], regions_c)
-        rmax_c = float(np.ceil(max(np.nanmax(np.abs(np.r_[v[1], v[2]])) for v in cons.values()) * 1.2 * 2) / 2)
-        xl = L + lab_w
-        xr = L + (W - L - R) / 2 + lab_w
-        mods_present = [m for m in MP.MODALITIES if any(m in prof_c[sp] for sp in SPECIES[:2])]
-
-        def _yt(ax, r):
-            ax.set_yticks([-r / 2, 0, r / 2])
-            ax.set_yticklabels([f'{-r / 2:g}', '0', f'{r / 2:g}'], fontsize=5, color='0.4')
-            ax.set_rlabel_position(180 / len(regions_c))
-
-        for k, sp in enumerate(SPECIES[:2]):
-            top = rad_top + k * row_h
-            ax = _axes_mm(fig, xl, top, d, d, projection='polar')
-            ns = ' / '.join(str(len(prof_c[sp][m])) for m in mods_present if m in prof_c[sp])
-            MP.draw_radar(ax, prof_c[sp], regions_c, f'{sp}\nn = {ns}', SPECIES_COLORS.get(sp, 'black'),
-                          fontsize=fs_lab, rlim=(-rmax, rmax), width=13)
-            _yt(ax, rmax)
-        top = rad_top + (row_h - 0) / 2
-        ax = _axes_mm(fig, xr, top, d, d, projection='polar')
-        MP.draw_radar_consensus(ax, cons, regions_c, fontsize=fs_lab, rlim=(-rmax_c, rmax_c), width=13)
-        _yt(ax, rmax_c)
-        ax.set_title('Consensus across species\n(mean; shading, range of the species means)', fontsize=fs_lab + 2,
-                     fontweight='bold', pad=4 + 1.25 * fs_lab * 3)
-        axl = _axes_mm(fig, xr - lab_w, rad_top + (row_h - 0) / 2 + d + lab_h + 3, d + 2 * lab_w, 18)
-        axl.axis('off')
-        handles = [plt.Line2D([], [], color=MP.MODALITY_COLORS[m], lw=1.6, ls=MP.MODALITY_LINESTYLE[m])
-                   for m in mods_present]
-        axl.legend(handles, [MP.MODALITY_LABEL[m] for m in mods_present], loc='center', ncol=2, fontsize=6,
-                   frameon=False, handlelength=2.4, title='z across regions (within run / subject)',
-                   title_fontsize=6, columnspacing=1.5)
+        # C: summary (heatmap + forest plot)
+        if PANEL_C == 'summary' and summ is not None:
+            _panel_c_summary(fig, W, L, top_c + 6, hh - 6, prof_c, regions_c, summ, si)
+        else:
+            # C: left, one radar per species (human top, macaque bottom); right, the consensus across species
+            rmax = max(np.nanmax(np.abs(m.mean().values)) for mods in prof_c.values() for m in mods.values())
+            rmax = float(np.ceil(rmax * 1.2 * 2) / 2)
+            cons = MP.consensus_profiles(prof_c, SPECIES[:2], regions_c)
+            rmax_c = float(np.ceil(max(np.nanmax(np.abs(np.r_[v[1], v[2]])) for v in cons.values()) * 1.2 * 2) / 2)
+            xl = L + lab_w
+            xr = L + (W - L - R) / 2 + lab_w
+            mods_present = [m for m in MP.MODALITIES if any(m in prof_c[sp] for sp in SPECIES[:2])]
+    
+            def _yt(ax, r):
+                ax.set_yticks([-r / 2, 0, r / 2])
+                ax.set_yticklabels([f'{-r / 2:g}', '0', f'{r / 2:g}'], fontsize=5, color='0.4')
+                ax.set_rlabel_position(180 / len(regions_c))
+    
+            for k, sp in enumerate(SPECIES[:2]):
+                top = rad_top + k * row_h
+                ax = _axes_mm(fig, xl, top, d, d, projection='polar')
+                ns = ' / '.join(str(len(prof_c[sp][m])) for m in mods_present if m in prof_c[sp])
+                MP.draw_radar(ax, prof_c[sp], regions_c, f'{sp}\nn = {ns}', SPECIES_COLORS.get(sp, 'black'),
+                              fontsize=fs_lab, rlim=(-rmax, rmax), width=13)
+                _yt(ax, rmax)
+            top = rad_top + (row_h - 0) / 2
+            ax = _axes_mm(fig, xr, top, d, d, projection='polar')
+            MP.draw_radar_consensus(ax, cons, regions_c, fontsize=fs_lab, rlim=(-rmax_c, rmax_c), width=13)
+            _yt(ax, rmax_c)
+            ax.set_title('Consensus across species\n(mean; shading, range of the species means)', fontsize=fs_lab + 2,
+                         fontweight='bold', pad=4 + 1.25 * fs_lab * 3)
+            axl = _axes_mm(fig, xr - lab_w, rad_top + (row_h - 0) / 2 + d + lab_h + 3, d + 2 * lab_w, 18)
+            axl.axis('off')
+            handles = [plt.Line2D([], [], color=MP.MODALITY_COLORS[m], lw=1.6, ls=MP.MODALITY_LINESTYLE[m])
+                       for m in mods_present]
+            axl.legend(handles, [MP.MODALITY_LABEL[m] for m in mods_present], loc='center', ncol=2, fontsize=6,
+                       frameon=False, handlelength=2.4, title='z across regions (within run / subject)',
+                       title_fontsize=6, columnspacing=1.5)
         # bold lower-case letters at 8 pt, as every figure of the paper (Nature style)
         for lab, top in zip('abc', [top_a, top_b - 9, top_c]):
             fig.text(1 / W, 1 - top / H, lab, fontsize=8, fontweight='bold', va='top')
@@ -294,21 +375,21 @@ def legend_text(prof_b, stats_b, prof_c, regions_c, rng, cmc):
         f'{TEST} test of {", ".join(SPECIES[1:])} vs {SPECIES[0]}, Benjamini-Hochberg q < {ALPHA} (*), '
         f'< {ALPHA / 5:g} (**), < {ALPHA / 50:g} (***) across {prof_b.shape[1]} regions '
         f'({len(sig)} significant). '
-        f'c, Per-region multimodal profile (level {LEVEL}, bilateral, {len(regions_c)} regions) of each species '
-        f'(left; human top, macaque bottom) and consensus across species (right): morphometry, region volume in % of '
-        f'total brain volume (ventricles and CSF excluded); connectivity, ' + (
-            (f'positive coupling (regional 80th percentile of the voxel values of the retrosplenial seed correlation map, '
-               f'negative values set to 0) and negative coupling (depth of the regional 20th percentile when below 0, |r|), '
-               f'both in r units, ' if SBA_INDEX == 'tails' else
-               f'regional 80th and 20th percentile of the retrosplenial seed correlation map, standardised across regions, ')
-            + f'in the {"runs kept by the final round of the run selection of Figure 4 (10 per dataset)" if SBA_WHICH == "selected" else "runs"}'
-            if FC_SOURCE == 'sba' else
-            f'strength of the region ({FC_STRENGTH}: mean over the other regions of the Fisher z of the correlation)')
-        + f'; metabolism, bratio. '
-        f'Each modality is z-scored across regions within each subject, so radii compare the shape of the profiles, '
-        f'not absolute levels; line, mean across subjects (connectivity: runs) and band, s.e.m.; consensus, mean of the two species means with the range of the species means shaded ('
+        f'c, Per-region multimodal profile (level {LEVEL}, bilateral, {len(regions_c)} regions) of each species: heatmap of '
+        f'the mean profile of each modality (z across regions within subject or run, then averaged; red, high; blue, low), '
+        f'in atlas order: volume, % of total brain volume (ventricles and CSF excluded); + coupling and - coupling, '
+        + ('positive coupling (regional 80th percentile of the voxel values of the retrosplenial seed correlation map, '
+           'negative values set to 0) and negative coupling (depth of the regional 20th percentile when below 0, |r|), in the '
+           + ('runs kept by the final round of the run selection of Figure 4 (10 per dataset)' if SBA_WHICH == 'selected' else 'runs')
+           if FC_SOURCE == 'sba' and SBA_INDEX == 'tails' else 'connectivity') +
+        f'; FDG, bratio; S-I, superior-inferior position of the centroid of the region (-1 inferior, +1 superior, two times '
+        f'scaled for display). d, Spearman r with its 95% CI (bootstrap over regions) between the human and macaque mean '
+        f'profiles of each modality (conservation) and between each mean profile and the superior-inferior position, for '
+        f'each species; filled, Holm P < 0.05 over all the tests (permutation of the regions). These are descriptive '
+        f'region-level statistics: regions are few, coarse and spatially dependent, and the modalities come from different '
+        f'datasets ('
         + '; '.join(f'{sp}: ' + ', '.join(f'{m} n = {k}' for m, k in nc[sp].items()) for sp in SPECIES)
-        + '). Modalities come from different datasets of each species (multimodal_profiles.py). Region names: '
+        + '). Region names: '
         f'those of the connectivity fingerprints (EDNiX atlas labels, level {LEVEL}); in b and c, regions are '
         f'grouped by lobe in the order of the atlas of Figure 1 (radars: counter-clockwise from the top; colour '
         f'strip and rim, lobe colour of Figure 1).'
@@ -368,8 +449,14 @@ def figure6_stats(fmri=None):
     prof_c, regions_c = MP.multimodal_profiles(tables, regions, SPECIES)
     cmc = MP.cross_modal_correlations(prof_c)
     sens = _fc_variants(tables, regions, fmri)
+    try:
+        si = MP.si_table(SOURCES['morphometry'], ATLAS, LEVEL, ATLAS_LIB)
+    except Exception as e:                          # noqa: BLE001
+        print(f'  [S-I] superior-inferior position not computed: {type(e).__name__}: {e}')
+        si = None
+    summ = MP.summary_stats(prof_c, regions_c, SPECIES, si)
     return dict(tables=tables, regions=regions, prof_b=prof_b, stats_b=stats_b, cov_b=cov_b,
-                prof_c=prof_c, regions_c=regions_c, cmc=cmc, sens=sens)
+                prof_c=prof_c, regions_c=regions_c, cmc=cmc, sens=sens, si=si, summ=summ)
 
 
 def stats_tables(st):
@@ -381,6 +468,9 @@ def stats_tables(st):
             out[f'C_{sp}_{m}'[:31]] = v.reset_index()
     out['C_cross_modal_r'] = st['cmc']
     out['C_connectivity_sensitivity'] = st['sens']
+    out['C_summary_stats'] = st['summ']
+    if st.get('si') is not None:
+        out['C_superior_inferior_position'] = st['si']
     return out
 
 
@@ -389,7 +479,7 @@ def draw_figure6(st, pre):
     (<pre>_legend.txt, which needs the colour range of A)."""
     os.makedirs(os.path.dirname(pre), exist_ok=True)
     pngs, rng = surface_pngs()
-    fig = build_figure(pngs, rng, st['prof_b'], st['stats_b'], st['prof_c'], st['regions_c'])
+    fig = build_figure(pngs, rng, st['prof_b'], st['stats_b'], st['prof_c'], st['regions_c'], st.get('summ'), st.get('si'))
     for ext in ('png', 'svg', 'pdf'):
         fig.savefig(f'{pre}.{ext}', dpi=300 if ext == 'png' else None, bbox_inches='tight')
     plt.close(fig)
