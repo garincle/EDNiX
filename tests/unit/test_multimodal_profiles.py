@@ -203,3 +203,10 @@ def test_figure6_paper_stats_and_figure(cfg, tmp_path, monkeypatch):
     pfg.run(res, None, paper_dir=str(tmp_path))
     assert (tmp_path / 'Figure_6' / 'Figure_6.png').is_file()
     assert 'Figure 6 |' in open(str(base) + '_legend.txt').read()
+
+
+def test_brain_regions_keep_subcortical_and_drop_ventricles():
+    keys = ['Prefrontal_cortex_(PFC)', 'Thalamus', 'Lateral_ventricle', 'unknown_x']
+    out = MP.brain_regions(keys, 3)
+    assert 'Prefrontal_cortex_(PFC)' in out and 'Thalamus' in out
+    assert 'Lateral_ventricle' not in out and 'unknown_x' not in out

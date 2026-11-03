@@ -3,7 +3,7 @@ Figure 6 -- Multimodal, multi-species imaging approaches to build an intersectio
 
  A  surface maps of the group-mean brain ratio of FDG uptake (bratio), human left, macaque right, same colour
     scale (Statistics/Group_PET: pet_group.run_group_mean + pet_surface.render_pet_surfaces, ribbon projection);
- B  cross-species comparison of glucose metabolism in the cortical regions of LEVEL (bilateral), in bratio (bars
+ B  cross-species comparison of glucose metabolism in the regions of LEVEL (bilateral), in bratio (bars
     drawn from 0, the values of the maps of A): bars and statistics of Plot_interspecies_regional_profiles.py;
  C  per-region multimodal profile (morphometry, FC, metabolism) on radar axes, one radar per species: each
     modality z-scored across the regions within each subject, mean +- SEM across subjects.
@@ -43,7 +43,8 @@ ATLAS = 'EDNIxCSCLR'
 LEVEL = 3                                   # hierarchy level (1-4, 1-based) of the Figure 4 connectivity fingerprints
                                             # (run_selection ATLAS_LEVEL=3) = volume 2 of the 4D atlases, the FC
                                             # matrices <atlas>_2_run_* of Figure_2_anat (CORR_ATLAS_LEVEL=2, 0-based)
-REGIONS = None                              # None: every cortical region of LEVEL present in all modalities and
+CORTICAL_ONLY = False                       # False: every brain region of LEVEL (cortical + subcortical: striatum, thalamus...)
+REGIONS = None                              # None: every region of LEVEL (see CORTICAL_ONLY) present in all modalities and
                                             # species (fingerprint names = label base names); or a list of names
 SPECIES = ['Human', 'Macaque']              # first = reference of the statistics of panel B
 DESC = ('bratio', 'bratio-mean')            # static human run / dynamic macaque run (window SUV_window)
@@ -132,11 +133,11 @@ def surface_pngs():
 
 # ═════════════════════════════════════════════════════════════════════════════════════════════════ panel B
 def select_regions(tables):
-    """REGIONS, or every cortical region of LEVEL found in the tables (Atlas_nomenclature order)."""
+    """REGIONS, or every region of LEVEL found in the tables (cortical only if CORTICAL_ONLY) (Atlas_nomenclature order)."""
     if REGIONS:
         return list(REGIONS)
     names = pd.concat([t['region'] for t in tables.values()]).unique()
-    return MP.cortical_regions(names, LEVEL)
+    return MP.cortical_regions(names, LEVEL) if CORTICAL_ONLY else MP.brain_regions(names, LEVEL)
 
 
 def metabolism_stats(met, regions):
@@ -268,14 +269,14 @@ def legend_text(prof_b, stats_b, prof_c, regions_c, rng, cmc):
         f'proportional scaling) projected on the inflated cortical surface of each species (ribbon-constrained '
         f'mapping), same colour scale for both species ({rng[0]:.2f}-{rng[1]:.2f}); '
         + ', '.join(f'{sp} n = {n[sp]}' for sp in SPECIES) + '. '
-        f'b, Cross-species comparison of glucose metabolism (bratio) in the cortical regions of the EDNiX atlas, '
+        f'b, Cross-species comparison of glucose metabolism (bratio) in the cortical and subcortical regions of the EDNiX atlas, '
         f'level {LEVEL}, bilateral (valid-voxel-weighted mean of the left and right labels, native PET space), in '
         f'bratio as in a. Bars, mean across subjects +- SEM; dashed line, whole-brain mean (1); dots, one subject (sessions averaged); stars, '
         f'{TEST} test of {", ".join(SPECIES[1:])} vs {SPECIES[0]}, Benjamini-Hochberg q < {ALPHA} (*), '
         f'< {ALPHA / 5:g} (**), < {ALPHA / 50:g} (***) across {prof_b.shape[1]} regions '
         f'({len(sig)} significant). '
         f'c, Per-region multimodal profile of each species on radar axes (level {LEVEL}, bilateral, {len(regions_c)} '
-        f'cortical regions): morphometry, region volume in % of total brain volume (ventricles and CSF excluded); '
+        f'regions): morphometry, region volume in % of total brain volume (ventricles and CSF excluded); '
         f'FC, average connectivity (mean Fisher z of the resting-state correlations of the region with every other '
         f'region); metabolism, bratio. Each modality is z-scored across regions within each subject, so radii '
         f'compare the shape of the profiles, not absolute levels; line, mean; band, SEM across subjects ('
