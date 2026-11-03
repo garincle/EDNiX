@@ -94,7 +94,7 @@ def fig6c_correlations(xlsx):
     import itertools as it
     for sp in ("Human", "Macaque"):
         prof = {m: x[f"C_{sp}_{m}"[:31]].drop(columns="subject").mean()
-                for m in ("morphometry", "FC", "Q80", "Q20", "metabolism") if f"C_{sp}_{m}"[:31] in x}
+                for m in ("morphometry", "FC", "pos", "neg", "Q80", "Q20", "metabolism") if f"C_{sp}_{m}"[:31] in x}
         for a, b in it.combinations(list(prof), 2):
             u, w = prof[a].values, prof[b].values
             r = stats.spearmanr(u, w)[0]

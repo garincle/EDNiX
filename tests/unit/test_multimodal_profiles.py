@@ -246,12 +246,12 @@ def test_sba_tables_from_the_selected_runs():
     try:
         fa._ordered_common_values = lambda p, common, col: p[col].values.astype(float)
         fa._normalize_values = lambda v, norm: v
-        t = MP.sba_tables(cdict, ['Human', 'Macaque'], 'selected')
+        t = MP.sba_tables(cdict, ['Human', 'Macaque'], 'selected', 'z')
         assert set(t) == {'Q80', 'Q20'}
         assert set(t['Q80'].species) == {'Human', 'Macaque'} and len(t['Q80']) == 4   # 2 selected runs x 2 regions
         assert t['Q20'].query("species == 'Human' and region == 'Frontal_lobe'").value.iloc[0] == -.1
         assert t['Q80'].subject.nunique() == 2
-        assert len(MP.sba_tables(cdict, ['Human'], 'all')['Q80']) == 4          # both Human runs, 2 regions
+        assert len(MP.sba_tables(cdict, ['Human'], 'all', 'z')['Q80']) == 4     # both Human runs, 2 regions
     finally:
         fa._ordered_common_values, fa._normalize_values = orig
 
@@ -268,3 +268,21 @@ def test_lower_case_fingerprint_names_are_matched_to_the_atlas_spelling():
     assert set(h['Q80'].region) == {'Prefrontal_cortex_(PFC)', 'Thalamus', 'only_sba'}
     kept, cov = MP.complete_regions(h['Q80'], ['Prefrontal_cortex_(PFC)', 'Thalamus'], ['Human'], 'Q80')
     assert kept == ['Prefrontal_cortex_(PFC)', 'Thalamus'] and (cov.n_missing == 0).all()
+
+
+def test_sba_tails_in_r_units():
+    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import profile_stats as fa
+    common = ['frontal|q80', 'frontal|q20', 'temporal|q80', 'temporal|q20']
+    raw = [.4, -.1, .3, .05]                                   # temporal: even the lowest fifth is positive
+    prof = pd.DataFrame({'base_name': common, 'q20q80_r': [1, -1, 1, -1], 'q20q80_r_raw': raw})
+    c = dict(cfg=dict(VALUE_COL='q20q80_r', ZSCORE=None), common=common, species_of_label={'H': 'Human'},
+             profiles_by_label={'H': {'r': prof}}, selected_units={'H': {'r': prof}})
+    t = MP.sba_tables(c, ['Human'], 'selected')
+    pos = t['pos'].set_index('region').value
+    neg = t['neg'].set_index('region').value
+    assert pos['frontal'] == .4 and pos['temporal'] == .3
+    assert np.isclose(neg['frontal'], .1) and neg['temporal'] == 0.0           # q20 > 0 is not a negative index
+    with pytest.raises(ValueError, match='_raw'):
+        c['profiles_by_label']['H']['r'] = prof.drop(columns='q20q80_r_raw')
+        c['selected_units']['H'] = c['profiles_by_label']['H']
+        MP.sba_tables(c, ['Human'], 'selected')

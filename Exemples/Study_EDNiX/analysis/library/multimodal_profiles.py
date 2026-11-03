@@ -45,13 +45,14 @@ opj = os.path.join
 opb = os.path.basename
 
 NON_BRAIN = re.compile(r'ventric|csf', re.IGNORECASE)
-MODALITIES = ('morphometry', 'FC', 'Q80', 'Q20', 'metabolism')     # FC (matrix strength) and Q80/Q20 (SBA) are alternatives
+MODALITIES = ('morphometry', 'FC', 'pos', 'neg', 'Q80', 'Q20', 'metabolism')     # FC (matrix strength) and Q80/Q20 (SBA) are alternatives
 MODALITY_LABEL = {'morphometry': 'volume (% brain)', 'FC': 'connectivity strength (z)',
+                  'pos': 'positive coupling to the retrosplenial seed (r)', 'neg': 'negative coupling to the retrosplenial seed (|r|)',
                   'Q80': 'retrosplenial SBA, 80th percentile (z)', 'Q20': 'retrosplenial SBA, 20th percentile (z)',
                   'metabolism': 'glucose metabolism (bratio)'}
 # Okabe-Ito blue / green + a purple: none close to the Human orange or the Macaque magenta (Fig 6)
-MODALITY_LINESTYLE = {'morphometry': '-', 'FC': (0, (4, 1.5)), 'Q80': '-', 'Q20': (0, (4, 1.5)), 'metabolism': (0, (1, 1.2))}
-MODALITY_COLORS = {'morphometry': '#0072B2', 'FC': '#009E73', 'Q80': '#009E73', 'Q20': '#7FCBB5', 'metabolism': '#6A3D9A'}
+MODALITY_LINESTYLE = {'morphometry': '-', 'FC': (0, (4, 1.5)), 'pos': '-', 'neg': (0, (4, 1.5)), 'Q80': '-', 'Q20': (0, (4, 1.5)), 'metabolism': (0, (1, 1.2))}
+MODALITY_COLORS = {'morphometry': '#0072B2', 'FC': '#009E73', 'pos': '#009E73', 'neg': '#E69F00', 'Q80': '#009E73', 'Q20': '#7FCBB5', 'metabolism': '#6A3D9A'}
 
 
 def region_key(name):
@@ -207,31 +208,52 @@ def fc_table(sources, atlas, level, fit_kind='correlation', strength='positive')
 
 
 # ======================================================================================== SBA (Fig. 4 selection)
-def sba_tables(c, species, which='selected'):
+def sba_tables(c, species, which='selected', index='tails'):
     """Connectivity from the retrosplenial seed-based maps of Figure 4 instead of the correlation matrices.
     c = Inputs().fmri() (fmri_fingerprints.context + fmri_group). For every run of the datasets of `species`
-    (which = 'selected': the runs kept by the final round of the run selection, 10 per dataset; 'all': every run), the
-    regional 80th and 20th percentile of the seed correlation (the 'region|q80' / 'region|q20' values of the
-    fingerprints, scaled as in Figure 4). Returns {'Q80': long table, 'Q20': long table} (species, bids_dir,
-    subject = dataset:run, region, value); one 'subject' is one run."""
+    (which = 'selected': the runs kept by the final round of the run selection, 10 per dataset; 'all': every run).
+    The saved profile holds, per region, the 80th and 20th percentile of the voxel values of the seed correlation
+    map (q80 / q20, bilateral, pooled L + R voxels) in r units (<VALUE_COL>_raw) and the same values standardised
+    across regions per channel (<VALUE_COL>, what the selection uses).
+      index = 'tails' (default): 'pos' = max(q80_raw, 0): positive coupling of the most coupled fifth of the region;
+              'neg' = max(-q20_raw, 0): depth of the anticorrelation of its least coupled fifth. Both in r units,
+              NOT standardised across regions, so a region without negative voxels has neg = 0.
+      index = 'z': 'Q80' / 'Q20' standardised across regions as in the selection. These two profiles are nearly
+              the same (both follow the regional mean coupling to the seed), and q20 is not a negative-correlation
+              index (a region coupled positively everywhere has q20 > 0).
+    Returns {'pos': table, 'neg': table} or {'Q80': table, 'Q20': table} (species, bids_dir, subject =
+    dataset:run, region, value); one 'subject' is one run."""
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import profile_stats as fa
     cfg, common, sol = c['cfg'], c['common'], c['species_of_label']
     chan = [str(x).rpartition('|')[2].lower() for x in common]
     base = [region_key(str(x).rpartition('|')[0] or str(x)) for x in common]
-    rows = {'Q80': [], 'Q20': []}
+    vcol = cfg['VALUE_COL']
+    if index not in ('tails', 'z'):
+        raise ValueError(f"index must be 'tails' or 'z', got {index!r}")
+    names = {'tails': {'q80': 'pos', 'q20': 'neg'}, 'z': {'q80': 'Q80', 'q20': 'Q20'}}[index]
+    rows = {m: [] for m in names.values()}
     for lab, profs in c['profiles_by_label'].items():
         sp = sol.get(lab)
         if sp not in species:
             continue
         units = c['selected_units'].get(lab, {}) if which == 'selected' else profs
         for key, prof in units.items():
-            v = np.asarray(fa._normalize_values(fa._ordered_common_values(prof, common, cfg['VALUE_COL']),
-                                                cfg['ZSCORE']), float)
+            if index == 'tails':
+                if vcol + '_raw' not in prof.columns:
+                    raise ValueError(f"profile of {lab}:{key} has no '{vcol}_raw' column (r units); the selection "
+                                     f"must use the percentiles profile method (q20q80_r)")
+                v = np.asarray(fa._ordered_common_values(prof, common, vcol + '_raw'), float)
+            else:
+                v = np.asarray(fa._normalize_values(fa._ordered_common_values(prof, common, vcol),
+                                                    cfg['ZSCORE']), float)
             for i, ch in enumerate(chan):
-                m = {'q80': 'Q80', 'q20': 'Q20'}.get(ch)
-                if m and np.isfinite(v[i]):
-                    rows[m].append(dict(species=sp, bids_dir=lab, subject=f'{lab}:{key}', region=base[i],
-                                        value=float(v[i])))
+                m = names.get(ch)
+                if m is None or not np.isfinite(v[i]):
+                    continue
+                x = float(v[i])
+                if index == 'tails':
+                    x = max(x, 0.0) if ch == 'q80' else max(-x, 0.0)
+                rows[m].append(dict(species=sp, bids_dir=lab, subject=f'{lab}:{key}', region=base[i], value=x))
     out = {}
     for m, r in rows.items():
         if not r:
