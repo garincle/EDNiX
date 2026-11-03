@@ -70,6 +70,8 @@ SOURCES = {
 FIT_KIND = 'correlation'
 FC_SOURCE = 'sba'                           # connectivity of panel c: 'sba' = retrosplenial seed Q80/Q20 of the runs kept by the
                                             # Figure 4 selection (10 per dataset); 'matrix' = strength from the correlation matrices
+SBA_INDEX = 'tails'                         # 'tails': positive / negative tail of the seed map in r units ('pos' / 'neg');
+                                            # 'z': Q80 / Q20 standardised across regions (nearly identical profiles)
 SBA_WHICH = 'selected'                      # 'selected' (kept runs) | 'all' (every run) for FC_SOURCE = 'sba'
 FC_STRENGTH = 'positive'                    # 'positive' | 'absolute' | 'signed' (MP.STRENGTHS); the others go to the sensitivity sheet
 MIN_VOXELS = 10                             # PET voxels per hemisphere label, every subject
@@ -295,8 +297,11 @@ def legend_text(prof_b, stats_b, prof_c, regions_c, rng, cmc):
         f'c, Per-region multimodal profile (level {LEVEL}, bilateral, {len(regions_c)} regions) of each species '
         f'(left; human top, macaque bottom) and consensus across species (right): morphometry, region volume in % of '
         f'total brain volume (ventricles and CSF excluded); connectivity, ' + (
-            f'regional 80th (Q80) and 20th (Q20) percentile of the retrosplenial seed-based correlation map in the '
-            f'{"runs kept by the final round of the run selection of Figure 4 (10 per dataset)" if SBA_WHICH == "selected" else "runs"}'
+            (f'positive coupling (regional 80th percentile of the voxel values of the retrosplenial seed correlation map, '
+               f'negative values set to 0) and negative coupling (depth of the regional 20th percentile when below 0, |r|), '
+               f'both in r units, ' if SBA_INDEX == 'tails' else
+               f'regional 80th and 20th percentile of the retrosplenial seed correlation map, standardised across regions, ')
+            + f'in the {"runs kept by the final round of the run selection of Figure 4 (10 per dataset)" if SBA_WHICH == "selected" else "runs"}'
             if FC_SOURCE == 'sba' else
             f'strength of the region ({FC_STRENGTH}: mean over the other regions of the Fisher z of the correlation)')
         + f'; metabolism, bratio. '
@@ -321,7 +326,7 @@ def _fc_variants(tables, regions, fmri):
     sens = []
 
     def run(label, fc):
-        t2 = {k: v for k, v in tables.items() if k not in ('FC', 'Q80', 'Q20')}
+        t2 = {k: v for k, v in tables.items() if k not in ('FC', 'Q80', 'Q20', 'pos', 'neg')}
         t2.update(fc)
         t2 = MP.harmonize_region_names(t2)
         p2, _ = MP.multimodal_profiles(t2, regions, SPECIES)
@@ -332,14 +337,15 @@ def _fc_variants(tables, regions, fmri):
     if fmri is not None:
         try:
             c = fmri() if callable(fmri) else fmri
-            variants = {which: MP.sba_tables(c, SPECIES, which) for which in ('selected', 'all')}
+            variants = {f'SBA {idx}, {which} runs': MP.sba_tables(c, SPECIES, which, idx)
+                        for idx in ('tails', 'z') for which in ('selected', 'all')}
         except Exception as e:                      # noqa: BLE001
             if FC_SOURCE == 'sba':
                 raise
             print(f'  [sensitivity] SBA variants skipped: {type(e).__name__}: {e}')
             variants = {}
-        for which, fc in variants.items():
-            run(f'SBA Q80/Q20, {which} runs', fc)
+        for label, fc in variants.items():
+            run(label, fc)
     return pd.concat(sens, ignore_index=True)
 
 
@@ -355,7 +361,7 @@ def figure6_stats(fmri=None):
         if fmri is None:
             raise ValueError("FC_SOURCE = 'sba' needs the fMRI selection: figure6_stats(fmri=Inputs().fmri)")
         tables.pop('FC', None)
-        tables.update(MP.sba_tables(fmri() if callable(fmri) else fmri, SPECIES, SBA_WHICH))
+        tables.update(MP.sba_tables(fmri() if callable(fmri) else fmri, SPECIES, SBA_WHICH, SBA_INDEX))
     tables = MP.harmonize_region_names(tables)
     regions = select_regions(tables)
     prof_b, stats_b, cov_b = metabolism_stats(tables['metabolism'], regions)
