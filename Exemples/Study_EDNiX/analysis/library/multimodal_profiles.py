@@ -45,12 +45,13 @@ opj = os.path.join
 opb = os.path.basename
 
 NON_BRAIN = re.compile(r'ventric|csf', re.IGNORECASE)
-MODALITIES = ('morphometry', 'FC', 'metabolism')
+MODALITIES = ('morphometry', 'FC', 'Q80', 'Q20', 'metabolism')     # FC (matrix strength) and Q80/Q20 (SBA) are alternatives
 MODALITY_LABEL = {'morphometry': 'volume (% brain)', 'FC': 'connectivity strength (z)',
+                  'Q80': 'retrosplenial SBA, 80th percentile (z)', 'Q20': 'retrosplenial SBA, 20th percentile (z)',
                   'metabolism': 'glucose metabolism (bratio)'}
 # Okabe-Ito blue / green + a purple: none close to the Human orange or the Macaque magenta (Fig 6)
-MODALITY_LINESTYLE = {'morphometry': '-', 'FC': (0, (4, 1.5)), 'metabolism': (0, (1, 1.2))}
-MODALITY_COLORS = {'morphometry': '#0072B2', 'FC': '#009E73', 'metabolism': '#6A3D9A'}
+MODALITY_LINESTYLE = {'morphometry': '-', 'FC': (0, (4, 1.5)), 'Q80': '-', 'Q20': (0, (4, 1.5)), 'metabolism': (0, (1, 1.2))}
+MODALITY_COLORS = {'morphometry': '#0072B2', 'FC': '#009E73', 'Q80': '#009E73', 'Q20': '#7FCBB5', 'metabolism': '#6A3D9A'}
 
 
 def region_key(name):
@@ -185,6 +186,40 @@ def fc_table(sources, atlas, level, fit_kind='correlation', strength='positive')
     return _subject_mean(df)
 
 
+# ======================================================================================== SBA (Fig. 4 selection)
+def sba_tables(c, species, which='selected'):
+    """Connectivity from the retrosplenial seed-based maps of Figure 4 instead of the correlation matrices.
+    c = Inputs().fmri() (fmri_fingerprints.context + fmri_group). For every run of the datasets of `species`
+    (which = 'selected': the runs kept by the final round of the run selection, 10 per dataset; 'all': every run), the
+    regional 80th and 20th percentile of the seed correlation (the 'region|q80' / 'region|q20' values of the
+    fingerprints, scaled as in Figure 4). Returns {'Q80': long table, 'Q20': long table} (species, bids_dir,
+    subject = dataset:run, region, value); one 'subject' is one run."""
+    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import profile_stats as fa
+    cfg, common, sol = c['cfg'], c['common'], c['species_of_label']
+    chan = [str(x).rpartition('|')[2].lower() for x in common]
+    base = [region_key(str(x).rpartition('|')[0] or str(x)) for x in common]
+    rows = {'Q80': [], 'Q20': []}
+    for lab, profs in c['profiles_by_label'].items():
+        sp = sol.get(lab)
+        if sp not in species:
+            continue
+        units = c['selected_units'].get(lab, {}) if which == 'selected' else profs
+        for key, prof in units.items():
+            v = np.asarray(fa._normalize_values(fa._ordered_common_values(prof, common, cfg['VALUE_COL']),
+                                                cfg['ZSCORE']), float)
+            for i, ch in enumerate(chan):
+                m = {'q80': 'Q80', 'q20': 'Q20'}.get(ch)
+                if m and np.isfinite(v[i]):
+                    rows[m].append(dict(species=sp, bids_dir=lab, subject=f'{lab}:{key}', region=base[i],
+                                        value=float(v[i])))
+    out = {}
+    for m, r in rows.items():
+        if not r:
+            raise ValueError(f'no {m} value in the selected runs of {species}')
+        out[m] = pd.DataFrame(r).groupby(['species', 'bids_dir', 'subject', 'region'], as_index=False)['value'].mean()
+    return out
+
+
 # ================================================================================================= metabolism
 def metabolism_table(sources, atlas, level, desc=('bratio', 'bratio-mean'), min_voxels=10):
     """sources: {species: bids_dir or [bids_dir, ...]}. Long table species, subject, region, value (bratio);
@@ -306,6 +341,21 @@ def short_name(region, width=14):
     return '\n'.join(textwrap.wrap(region.replace('_', ' '), width)) or region
 
 
+RADAR_NAMES = {   # shorter spoke names of the radars (full names on the bars of panel b and in the tables)
+    'Middle_Temporal_Inferior_temporal_Temporal_pole_(MIPT)': 'Mid./inf. temporal (MIPT)',
+    'Ventral_areas_of_the_temporal_lobe_(vent_Temp)': 'Ventral temporal',
+    'Insula_and_others_in_lateral_sulcus': 'Insula and lateral sulcus',
+    'Auditory_cortex_(Superior_temporal)': 'Auditory cortex',
+    'Visual_pre_and_extra_striate_cortex': 'Visual extrastriate',
+    'Posterior_medial_cortex_(PMC)': 'Posterior medial (PMC)',
+}
+
+
+def radar_name(region, width=14):
+    import textwrap
+    return '\n'.join(textwrap.wrap(RADAR_NAMES.get(region, region.replace('_', ' ')), width)) or region
+
+
 def draw_radar(ax, mods, regions, title, color_title='black', fontsize=7, rlim=None, width=14):
     """One species: one closed line per modality (mean within-subject z across subjects +- SEM band) on radial
     axes = regions (atlas order, first region at the top, counter-clockwise, lobe ring: PIRP.setup_radar); region
@@ -323,10 +373,10 @@ def draw_radar(ax, mods, regions, title, color_title='black', fontsize=7, rlim=N
         w = mods[mod].reindex(columns=regions)
         m, s = w.mean().values, np.nan_to_num(w.sem().values) if len(w) > 1 else np.zeros(n)
         c = MODALITY_COLORS[mod]
-        ax.plot(angc, np.r_[m, m[:1]], color=c, lw=1.5, label=f'{mod} (n={len(w)})')
+        ax.plot(angc, np.r_[m, m[:1]], color=c, lw=1.4, ls=MODALITY_LINESTYLE[mod], label=f'{mod} (n={len(w)})')
         ax.fill_between(angc, np.r_[m - s, m[:1] - s[:1]], np.r_[m + s, m[:1] + s[:1]], color=c, alpha=0.2, lw=0)
     ax.plot(np.linspace(0, 2 * np.pi, 200), np.zeros(200), 'k--', lw=0.6)
-    labels = [short_name(r, width) for r in regions]
+    labels = [radar_name(r, width) for r in regions]
     PIRP.radar_labels(ax, ang, labels, fontsize=fontsize)
     ax.tick_params(axis='y', labelsize=fontsize - 1)
     top = labels[0].count('\n') + 1 if labels else 0           # lines of the name at the top, above the circle
@@ -352,8 +402,40 @@ def draw_radar_overlay(ax, prof, species, regions, colors, fontsize=6, rlim=None
                 ax.plot(angc, np.r_[m, m[:1]], color=colors.get(sp, 'black'), lw=1.1,
                         ls=MODALITY_LINESTYLE[mod], label=f'{sp} {mod}')
     ax.plot(np.linspace(0, 2 * np.pi, 200), np.zeros(200), color='0.3', ls='-', lw=0.4)
-    labels = [short_name(r, width) for r in regions]
+    labels = [radar_name(r, width) for r in regions]
     PIRP.radar_labels(ax, ang, labels, fontsize=fontsize)
+    ax.tick_params(axis='y', labelsize=fontsize - 1)
+    return rlim
+
+
+def consensus_profiles(prof, species, regions):
+    """{modality: (mean, lo, hi)} across species: mean of the species mean profiles (z) and, as 'variance', the
+    range (min-max) of the species means (two species: the two values; standard deviation is not defined well
+    with so few species)."""
+    out = {}
+    for mod in MODALITIES:
+        arr = [prof[sp][mod].reindex(columns=regions).mean().values for sp in species if mod in prof.get(sp, {})]
+        if len(arr) == len(species):
+            a = np.vstack(arr)
+            out[mod] = (a.mean(axis=0), a.min(axis=0), a.max(axis=0))
+    return out
+
+
+def draw_radar_consensus(ax, cons, regions, fontsize=6, rlim=None, width=14):
+    """Consensus across species, one line per modality (mean of the species means) with the range across species
+    shaded; same axes as draw_radar."""
+    n = len(regions)
+    if rlim is None:
+        r = float(np.ceil(max(np.nanmax(np.abs(np.r_[v[1], v[2]])) for v in cons.values()) * 1.2 * 2) / 2)
+        rlim = (-r, r)
+    ang = PIRP.setup_radar(ax, regions, rlim)
+    angc = np.r_[ang, ang[:1]]
+    for mod, (m, lo, hi) in cons.items():
+        c = MODALITY_COLORS[mod]
+        ax.plot(angc, np.r_[m, m[:1]], color=c, lw=1.3, ls=MODALITY_LINESTYLE[mod])
+        ax.fill_between(angc, np.r_[lo, lo[:1]], np.r_[hi, hi[:1]], color=c, alpha=0.18, lw=0)
+    ax.plot(np.linspace(0, 2 * np.pi, 200), np.zeros(200), 'k--', lw=0.6)
+    PIRP.radar_labels(ax, ang, [radar_name(r, width) for r in regions], fontsize=fontsize)
     ax.tick_params(axis='y', labelsize=fontsize - 1)
     return rlim
 

@@ -91,9 +91,11 @@ def fig6c_correlations(xlsx):
     rng = np.random.default_rng(SEED)
     x = pd.read_excel(xlsx, sheet_name=None)
     rows = []
+    import itertools as it
     for sp in ("Human", "Macaque"):
-        prof = {m: x[f"C_{sp}_{m}"[:31]].drop(columns="subject").mean() for m in ("morphometry", "FC", "metabolism")}
-        for a, b in (("morphometry", "FC"), ("morphometry", "metabolism"), ("FC", "metabolism")):
+        prof = {m: x[f"C_{sp}_{m}"[:31]].drop(columns="subject").mean()
+                for m in ("morphometry", "FC", "Q80", "Q20", "metabolism") if f"C_{sp}_{m}"[:31] in x}
+        for a, b in it.combinations(list(prof), 2):
             u, w = prof[a].values, prof[b].values
             r = stats.spearmanr(u, w)[0]
             null = np.array([stats.spearmanr(u, rng.permutation(w))[0] for _ in range(N_RES)])
@@ -107,7 +109,7 @@ def fig6c_correlations(xlsx):
             rows.append((sp, a, b, len(u), r, lo, hi, p2))
     adj = _holm([r[-1] for r in rows])
     out = ["Fig. 6c: Spearman r between mean regional profiles (descriptive; regions permuted for P, resampled for the CI; "
-           f"{N_RES} each; two-sided P; Holm over the 6 correlations)"]
+           f"{N_RES} each; two-sided P; Holm over all the correlations)"]
     for (sp, a, b, n, r, lo, hi, p2), pa in zip(rows, adj):
         out.append(f"  {sp} {a}-{b}: r = {r:+.2f} [{lo:+.2f}, {hi:+.2f}], n = {n} regions, P = {p2:.3f}, Holm P = {pa:.3f}")
     return out

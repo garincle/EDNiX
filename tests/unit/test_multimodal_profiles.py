@@ -196,6 +196,7 @@ def test_figure6_paper_stats_and_figure(cfg, tmp_path, monkeypatch):
     for k, v in cfg.items():
         monkeypatch.setattr(F, k, v)
     monkeypatch.setattr(F, 'REGIONS', None)
+    monkeypatch.setattr(F, 'FC_SOURCE', 'matrix')           # synthetic trees have no fMRI selection
     monkeypatch.setattr(F, 'surface_pngs', lambda: ({}, (0.5, 1.5)))
     res = pst.run(('figure6',), pst.Inputs(), paper_dir=str(tmp_path))
     st = res['figure6']['draw']['stats']
@@ -227,3 +228,29 @@ def test_fc_strength_kinds(tmp_path):
     assert np.isclose(MP.node_strength(str(f), 'signed')['a'], 0.0)          # +z and -z cancel
     with pytest.raises(ValueError):
         MP.node_strength(str(f), 'mean')
+
+
+def test_sba_tables_from_the_selected_runs():
+    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import profile_stats as fa
+    common = ['Frontal_lobe|q80', 'Frontal_lobe|q20', 'Temporal_lobe|q80', 'Temporal_lobe|q20']
+
+    def prof(a, b, c, d):
+        return pd.DataFrame({'region': common, 'median_r': [a, b, c, d]})
+    cdict = dict(cfg=dict(VALUE_COL='median_r', ZSCORE=None), common=common,
+                 species_of_label={'H1': 'Human', 'M1': 'Macaque', 'R1': 'Rat'},
+                 profiles_by_label={'H1': {'r1': prof(.5, -.1, .4, -.2), 'r2': prof(.6, -.2, .3, -.1)},
+                                    'M1': {'r1': prof(.4, -.1, .5, -.3)}, 'R1': {'r1': prof(.1, .1, .1, .1)}},
+                 selected_units={'H1': {'r1': prof(.5, -.1, .4, -.2)}, 'M1': {'r1': prof(.4, -.1, .5, -.3)},
+                                 'R1': {}})
+    orig = fa._ordered_common_values, fa._normalize_values
+    try:
+        fa._ordered_common_values = lambda p, common, col: p[col].values.astype(float)
+        fa._normalize_values = lambda v, norm: v
+        t = MP.sba_tables(cdict, ['Human', 'Macaque'], 'selected')
+        assert set(t) == {'Q80', 'Q20'}
+        assert set(t['Q80'].species) == {'Human', 'Macaque'} and len(t['Q80']) == 4   # 2 selected runs x 2 regions
+        assert t['Q20'].query("species == 'Human' and region == 'Frontal_lobe'").value.iloc[0] == -.1
+        assert t['Q80'].subject.nunique() == 2
+        assert len(MP.sba_tables(cdict, ['Human'], 'all')['Q80']) == 4          # both Human runs, 2 regions
+    finally:
+        fa._ordered_common_values, fa._normalize_values = orig
