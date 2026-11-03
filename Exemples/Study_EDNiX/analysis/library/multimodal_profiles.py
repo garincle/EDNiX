@@ -81,6 +81,26 @@ def brain_regions(names, level):
     return AN.atlas_order(keep)
 
 
+def harmonize_region_names(tables, reference=('metabolism', 'morphometry', 'FC')):
+    """The seed-based fingerprints (Fig. 4 `common`) carry LOWER-CASE region names (run_selection lower-cases the
+    reference regions), the PET / volume / matrix tables the atlas spelling ('Prefrontal_cortex_(PFC)'). Without a
+    common spelling no region matches across modalities. Every table is renamed to the spelling found in the
+    `reference` tables (compared case-insensitively); names absent from them are kept; rows that then share a
+    name within a subject are averaged."""
+    spell = {}
+    for mod in reference:
+        if mod in tables:
+            for r in tables[mod]['region'].dropna().unique():
+                spell.setdefault(str(r).lower().strip(), str(r))
+    out = {}
+    for mod, df in tables.items():
+        d = df.copy()
+        d['region'] = d['region'].map(lambda r: spell.get(str(r).lower().strip(), r))
+        keys = [c for c in d.columns if c != 'value']
+        out[mod] = d.groupby(keys, as_index=False, dropna=False)['value'].mean()
+    return out
+
+
 def _entity(path, key):
     m = re.search(rf'(?:^|[/_]){key}-([A-Za-z0-9]+)', path)
     return m.group(1) if m else None

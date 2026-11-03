@@ -254,3 +254,17 @@ def test_sba_tables_from_the_selected_runs():
         assert len(MP.sba_tables(cdict, ['Human'], 'all')['Q80']) == 4          # both Human runs, 2 regions
     finally:
         fa._ordered_common_values, fa._normalize_values = orig
+
+
+def test_lower_case_fingerprint_names_are_matched_to_the_atlas_spelling():
+    """Regression (Clement's run, 2026-11-03): SBA names are lower case, PET/volume names are not: no region
+    matched, every region was reported missing in every run."""
+    def tab(names):
+        return pd.DataFrame([dict(species='Human', bids_dir='d', subject=f's{i}', region=n, value=float(i))
+                             for i in range(3) for n in names])
+    t = {'metabolism': tab(['Prefrontal_cortex_(PFC)', 'Thalamus']), 'morphometry': tab(['Prefrontal_cortex_(PFC)']),
+         'Q80': tab(['prefrontal_cortex_(pfc)', 'thalamus', 'only_sba'])}
+    h = MP.harmonize_region_names(t)
+    assert set(h['Q80'].region) == {'Prefrontal_cortex_(PFC)', 'Thalamus', 'only_sba'}
+    kept, cov = MP.complete_regions(h['Q80'], ['Prefrontal_cortex_(PFC)', 'Thalamus'], ['Human'], 'Q80')
+    assert kept == ['Prefrontal_cortex_(PFC)', 'Thalamus'] and (cov.n_missing == 0).all()

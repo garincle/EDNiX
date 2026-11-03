@@ -323,6 +323,7 @@ def _fc_variants(tables, regions, fmri):
     def run(label, fc):
         t2 = {k: v for k, v in tables.items() if k not in ('FC', 'Q80', 'Q20')}
         t2.update(fc)
+        t2 = MP.harmonize_region_names(t2)
         p2, _ = MP.multimodal_profiles(t2, regions, SPECIES)
         sens.append(MP.cross_modal_correlations(p2).assign(connectivity=label))
 
@@ -355,6 +356,7 @@ def figure6_stats(fmri=None):
             raise ValueError("FC_SOURCE = 'sba' needs the fMRI selection: figure6_stats(fmri=Inputs().fmri)")
         tables.pop('FC', None)
         tables.update(MP.sba_tables(fmri() if callable(fmri) else fmri, SPECIES, SBA_WHICH))
+    tables = MP.harmonize_region_names(tables)
     regions = select_regions(tables)
     prof_b, stats_b, cov_b = metabolism_stats(tables['metabolism'], regions)
     prof_c, regions_c = MP.multimodal_profiles(tables, regions, SPECIES)
