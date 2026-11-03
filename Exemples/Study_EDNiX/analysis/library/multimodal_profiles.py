@@ -6,9 +6,12 @@ One value per subject and region, for each modality, from the outputs of the EDN
   morphometry  anat/native/volumes/labels/<sub>_seg-<atlas>_dseg.nii.gz (4D, one level per volume): volume of the
                region (L + R) in % of the total brain volume of that level (every label except ventricles / CSF).
   FC           func/acpc-func/Stats/Correl_matrix/<atlas>/<fit>/<atlas>_<k>_run_<i>_<fit>_matrix.csv
-               (modalities/fMRI/_10_Correl_matrix.py): average connectivity of a region = mean Fisher z of its
-               correlations with every other region of the matrix (node strength / (N - 1)); runs averaged in z,
-               then L and R averaged.
+               (modalities/fMRI/_10_Correl_matrix.py): connectivity strength of a region = mean over the other
+               regions of the matrix (N - 1) of the Fisher z of its correlation, STRENGTHS below: 'positive'
+               (default; negative z counted as 0, weight-conserving positive strength of Rubinov & Sporns 2011,
+               as the hub/degree maps of Buckner 2009 and Tomasi & Volkow 2010), 'absolute' (|z|), 'signed'
+               (plain mean, which lets positive and negative correlations cancel); runs averaged, then L and R
+               averaged.
   metabolism   pet/orig/postprocessing/ROI_analysis/*_seg-<atlas>-lvl<k>_desc-bratio[-mean]_ROIs.tsv (step 7 of
                the PET pipeline): brain ratio (activity / mean activity of the brain mask), L and R merged by
                valid-voxel weighting (Plotting/Plot_interspecies_regional_profiles.py).
@@ -43,9 +46,10 @@ opb = os.path.basename
 
 NON_BRAIN = re.compile(r'ventric|csf', re.IGNORECASE)
 MODALITIES = ('morphometry', 'FC', 'metabolism')
-MODALITY_LABEL = {'morphometry': 'volume (% brain)', 'FC': 'average connectivity (z)',
+MODALITY_LABEL = {'morphometry': 'volume (% brain)', 'FC': 'connectivity strength (z)',
                   'metabolism': 'glucose metabolism (bratio)'}
 # Okabe-Ito blue / green + a purple: none close to the Human orange or the Macaque magenta (Fig 6)
+MODALITY_LINESTYLE = {'morphometry': '-', 'FC': (0, (4, 1.5)), 'metabolism': (0, (1, 1.2))}
 MODALITY_COLORS = {'morphometry': '#0072B2', 'FC': '#009E73', 'metabolism': '#6A3D9A'}
 
 
@@ -138,16 +142,27 @@ def find_matrices(bids_dir, atlas, level, fit_kind='correlation'):
             if not any(x in opb(f) for x in ('check_fit', 'flattened', 'pval', 'tstat'))]
 
 
-def node_strength(path):
-    """Mean Fisher z of each region with every other region of one matrix (diagonal excluded)."""
+STRENGTHS = ('positive', 'absolute', 'signed')
+
+
+def node_strength(path, kind='positive'):
+    """Connectivity strength of each region in one matrix: mean over the other regions (diagonal excluded) of the
+    Fisher z of the correlation, with kind = 'positive' (negative z set to 0, positive strength), 'absolute' (|z|)
+    or 'signed' (plain mean: positive and negative correlations cancel)."""
+    if kind not in STRENGTHS:
+        raise ValueError(f'kind must be one of {STRENGTHS}, got {kind!r}')
     m = pd.read_csv(path, index_col=0)
     r = m.values.astype(float)
     np.fill_diagonal(r, np.nan)
     z = np.arctanh(np.clip(r, -0.999999, 0.999999))
+    if kind == 'positive':
+        z = np.where(np.isnan(z), np.nan, np.clip(z, 0, None))
+    elif kind == 'absolute':
+        z = np.abs(z)
     return pd.Series(np.nanmean(z, axis=1), index=[str(i) for i in m.index])
 
 
-def fc_table(sources, atlas, level, fit_kind='correlation'):
+def fc_table(sources, atlas, level, fit_kind='correlation', strength='positive'):
     """sources: {species: [bids_dir, ...]}. Long table species, bids_dir, subject, region, value (mean z)."""
     rows = []
     for sp, dirs in sources.items():
@@ -155,7 +170,7 @@ def fc_table(sources, atlas, level, fit_kind='correlation'):
             files = find_matrices(bd, atlas, level, fit_kind)
             print(f'  [FC] {sp}: {len(files)} matrices in {bd}')
             for f in files:
-                s = node_strength(f)
+                s = node_strength(f, strength)
                 v = pd.DataFrame({'region': [region_key(n) for n in s.index], 'value': s.values})
                 v = v.groupby('region', as_index=False)['value'].mean()          # L and R averaged
                 v['species'], v['bids_dir'] = sp, opb(os.path.normpath(bd))
@@ -197,7 +212,8 @@ def collect_modalities(cfg):
     if src.get('morphometry'):
         out['morphometry'] = morphometry_table(src['morphometry'], cfg['ATLAS'], cfg['LEVEL'], cfg['ATLAS_LIB'])
     if src.get('FC'):
-        out['FC'] = fc_table(src['FC'], cfg['ATLAS'], cfg['LEVEL'], cfg.get('FIT_KIND', 'correlation'))
+        out['FC'] = fc_table(src['FC'], cfg['ATLAS'], cfg['LEVEL'], cfg.get('FIT_KIND', 'correlation'),
+                             cfg.get('FC_STRENGTH', 'positive'))
     if src.get('metabolism'):
         out['metabolism'] = metabolism_table(src['metabolism'], cfg['ATLAS'], cfg['LEVEL'], cfg['DESC'],
                                              cfg.get('MIN_VOXELS', 10))
@@ -315,6 +331,31 @@ def draw_radar(ax, mods, regions, title, color_title='black', fontsize=7, rlim=N
     ax.tick_params(axis='y', labelsize=fontsize - 1)
     top = labels[0].count('\n') + 1 if labels else 0           # lines of the name at the top, above the circle
     ax.set_title(title, fontsize=fontsize + 2, color=color_title, fontweight='bold', pad=4 + 1.25 * fontsize * top)
+
+
+def draw_radar_overlay(ax, prof, species, regions, colors, fontsize=6, rlim=None, width=18):
+    """All species on ONE radar (regions = axes, atlas order, first at the top, counter-clockwise, lobe ring):
+    colour = species, line style = modality (volume solid, connectivity dashed, metabolism dotted); thin line =
+    mean within-subject z across subjects."""
+    n = len(regions)
+    mods = {sp: prof[sp] for sp in species if sp in prof}
+    if rlim is None:
+        v = [np.abs(m.reindex(columns=regions).mean().values) for d in mods.values() for m in d.values()]
+        r = float(np.ceil(np.nanmax(np.concatenate(v)) * 1.2 * 2) / 2)
+        rlim = (-r, r)
+    ang = PIRP.setup_radar(ax, regions, rlim)
+    angc = np.r_[ang, ang[:1]]
+    for sp, d in mods.items():
+        for mod in MODALITIES:
+            if mod in d:
+                m = d[mod].reindex(columns=regions).mean().values
+                ax.plot(angc, np.r_[m, m[:1]], color=colors.get(sp, 'black'), lw=1.1,
+                        ls=MODALITY_LINESTYLE[mod], label=f'{sp} {mod}')
+    ax.plot(np.linspace(0, 2 * np.pi, 200), np.zeros(200), color='0.3', ls='-', lw=0.4)
+    labels = [short_name(r, width) for r in regions]
+    PIRP.radar_labels(ax, ang, labels, fontsize=fontsize)
+    ax.tick_params(axis='y', labelsize=fontsize - 1)
+    return rlim
 
 
 def autocrop(img, tol=0.02):

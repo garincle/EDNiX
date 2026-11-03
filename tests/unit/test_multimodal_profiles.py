@@ -104,8 +104,12 @@ def test_profiles_and_figure(cfg, tmp_path):
     from Exemples.Study_EDNiX.analysis.library import multimodal_figure as F
     t = MP.collect_modalities(cfg)
     F.REGIONS, F.LEVEL = None, 2
-    assert F.select_regions(t) == ['Frontal_lobe', 'Insular_lobe', 'Temporal_lobe', 'Parietal_lobe',
-                                   'Occipital_lobe']                      # Atlas_nomenclature order, no Brainstem
+    cortical = ['Frontal_lobe', 'Insular_lobe', 'Temporal_lobe', 'Parietal_lobe', 'Occipital_lobe']
+    F.CORTICAL_ONLY = True
+    assert F.select_regions(t) == cortical                                # Atlas_nomenclature order, no Brainstem
+    F.CORTICAL_ONLY = False
+    allr = F.select_regions(t)                                            # every brain region (PR #61), no ventricles
+    assert allr[:5] == cortical and 'Brainstem' in allr and 'Lateral_ventricules' not in allr
     prof_b, stats_b, cov_b = F.metabolism_stats(t['metabolism'], REGIONS)
     assert (cov_b.n_missing == 0).all()
     assert list(prof_b.columns) == REGIONS
@@ -210,3 +214,16 @@ def test_brain_regions_keep_subcortical_and_drop_ventricles():
     out = MP.brain_regions(keys, 3)
     assert 'Prefrontal_cortex_(PFC)' in out and 'Thalamus' in out
     assert 'Lateral_ventricle' not in out and 'unknown_x' not in out
+
+
+def test_fc_strength_kinds(tmp_path):
+    m = pd.DataFrame([[1, .5, -.5], [.5, 1, .2], [-.5, .2, 1]], index=list('abc'), columns=list('abc'))
+    f = tmp_path / 'm.csv'
+    m.to_csv(f)
+    z = np.arctanh
+    pos = MP.node_strength(str(f), 'positive')
+    assert np.isclose(pos['a'], (z(.5) + 0) / 2) and np.isclose(pos['c'], (0 + z(.2)) / 2)
+    assert np.isclose(MP.node_strength(str(f), 'absolute')['a'], (z(.5) + z(.5)) / 2)
+    assert np.isclose(MP.node_strength(str(f), 'signed')['a'], 0.0)          # +z and -z cancel
+    with pytest.raises(ValueError):
+        MP.node_strength(str(f), 'mean')

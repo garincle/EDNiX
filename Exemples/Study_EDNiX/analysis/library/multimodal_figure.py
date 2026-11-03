@@ -68,6 +68,7 @@ SOURCES = {
     },
 }
 FIT_KIND = 'correlation'
+FC_STRENGTH = 'positive'                    # 'positive' | 'absolute' | 'signed' (MP.STRENGTHS); the others go to the sensitivity sheet
 MIN_VOXELS = 10                             # PET voxels per hemisphere label, every subject
 
 # panel A
@@ -192,7 +193,7 @@ def build_figure(pngs, rng, prof_b, stats_b, prof_c, regions_c):
         title_h = 2 * (fs_lab + 2) * 1.25 * pt + 2                   # species name and n of the radar titles
         leg_labels = [MP.MODALITY_LABEL[m].replace(' (', '\n(') for m in MP.MODALITIES]
         leg_w = _text_mm(fig, leg_labels + ['z across regions', '(within subject)'], 6) + 8
-        d = min(70.0, (W - 4 * lab_w - leg_w - 2) / 2)               # radar diameter
+        d = min(105.0, W - 2 * lab_w - 2)                              # radar diameter (one radar, both species)
         names_b = [MP.short_name(r, 30) for r in prof_b.columns]
         b_lab = _text_mm(fig, [n.split('\n')[0] for n in names_b], 5.5) * np.sin(np.radians(40)) + 4
         plt.close(fig)
@@ -202,7 +203,8 @@ def build_figure(pngs, rng, prof_b, stats_b, prof_c, regions_c):
         hb = 48.0
         top_c = top_b + hb + b_lab + 2
         rad_top = top_c + title_h + lab_h                             # top of the circle
-        H = rad_top + d + lab_h + 2
+        leg_h = 22.0                                                  # legend under the radar
+        H = rad_top + d + lab_h + 2 + leg_h
         fig = plt.figure(figsize=(FIG_W, H * MM))
 
         # A: human left, macaque right
@@ -231,28 +233,28 @@ def build_figure(pngs, rng, prof_b, stats_b, prof_c, regions_c):
         axb.set_xticklabels(names_b, rotation=40, ha='right', rotation_mode='anchor', fontsize=5.5)
         axb.legend(fontsize=6.5, frameon=False, ncol=len(SPECIES), loc='lower right', bbox_to_anchor=(1, 1.0))
 
-        # C: radar | legend | radar
-        rmax = max(np.nanmax(np.abs(m.mean().values) + np.nan_to_num(m.sem().values))
+        # C: one radar, both species (colour = species, line style = modality), legend underneath
+        rmax = max(np.nanmax(np.abs(m.mean().values))
                    for mods in prof_c.values() for m in mods.values())
-        rmax = float(np.ceil(rmax * 2) / 2)
-        x0 = (W - (2 * d + 4 * lab_w + leg_w)) / 2
-        xs = [x0 + lab_w, x0 + 3 * lab_w + d + leg_w]
-        axc = []
-        for k, sp in enumerate(SPECIES[:2]):
-            ax = _axes_mm(fig, xs[k], rad_top, d, d, projection='polar')
-            ns = ' / '.join(str(len(prof_c[sp][m])) for m in MP.MODALITIES if m in prof_c[sp])
-            MP.draw_radar(ax, prof_c[sp], regions_c, f'{sp}\nn = {ns}', SPECIES_COLORS.get(sp, 'black'),
-                          fontsize=fs_lab, rlim=(-rmax, rmax), width=15)
-            ax.set_yticks([-rmax / 2, 0, rmax / 2])
-            ax.set_yticklabels([f'{-rmax / 2:g}', '0', f'{rmax / 2:g}'], fontsize=5, color='0.4')
-            ax.set_rlabel_position(180 / len(regions_c))
-            axc.append(ax)
-        axl = _axes_mm(fig, x0 + 2 * lab_w + d + 1, rad_top, leg_w - 2, d)
+        rmax = float(np.ceil(rmax * 1.2 * 2) / 2)
+        xc = (W - d) / 2
+        ax = _axes_mm(fig, xc, rad_top, d, d, projection='polar')
+        MP.draw_radar_overlay(ax, prof_c, SPECIES[:2], regions_c, SPECIES_COLORS, fontsize=fs_lab,
+                              rlim=(-rmax, rmax), width=18)
+        ax.set_yticks([-rmax / 2, 0, rmax / 2])
+        ax.set_yticklabels([f'{-rmax / 2:g}', '0', f'{rmax / 2:g}'], fontsize=5, color='0.4')
+        ax.set_rlabel_position(180 / len(regions_c))
+        ns = '; '.join(f'{sp} n = ' + ' / '.join(str(len(prof_c[sp][m])) for m in MP.MODALITIES if m in prof_c[sp])
+                       for sp in SPECIES[:2])
+        fig.text(0.5, 1 - (rad_top - lab_h - 3) / H, f'{ns}  (morphometry / FC / metabolism)', ha='center',
+                 va='bottom', fontsize=6)
+        axl = _axes_mm(fig, xc, rad_top + d + lab_h + 1, d, leg_h - 2)
         axl.axis('off')
-        handles = [plt.Line2D([], [], color=MP.MODALITY_COLORS[m], lw=1.8) for m in MP.MODALITIES]
-        axl.legend(handles, leg_labels, loc='center', fontsize=6, frameon=False,
-                   title='z across regions\n(within subject)', title_fontsize=6, handlelength=1.5,
-                   labelspacing=1.2)
+        handles = [plt.Line2D([], [], color=SPECIES_COLORS.get(sp, 'black'), lw=1.6, ls=MP.MODALITY_LINESTYLE[m])
+                   for sp in SPECIES[:2] for m in MP.MODALITIES]          # one column per species
+        labs = [f'{sp}, {MP.MODALITY_LABEL[m]}' for sp in SPECIES[:2] for m in MP.MODALITIES]
+        axl.legend(handles, labs, loc='center', ncol=2, fontsize=6, frameon=False, handlelength=2.4,
+                   title='z across regions (within subject)', title_fontsize=6, columnspacing=2)
         # bold lower-case letters at 8 pt, as every figure of the paper (Nature style)
         for lab, top in zip('abc', [top_a, top_b - 9, top_c]):
             fig.text(1 / W, 1 - top / H, lab, fontsize=8, fontweight='bold', va='top')
@@ -275,11 +277,13 @@ def legend_text(prof_b, stats_b, prof_c, regions_c, rng, cmc):
         f'{TEST} test of {", ".join(SPECIES[1:])} vs {SPECIES[0]}, Benjamini-Hochberg q < {ALPHA} (*), '
         f'< {ALPHA / 5:g} (**), < {ALPHA / 50:g} (***) across {prof_b.shape[1]} regions '
         f'({len(sig)} significant). '
-        f'c, Per-region multimodal profile of each species on radar axes (level {LEVEL}, bilateral, {len(regions_c)} '
-        f'regions): morphometry, region volume in % of total brain volume (ventricles and CSF excluded); '
-        f'FC, average connectivity (mean Fisher z of the resting-state correlations of the region with every other '
-        f'region); metabolism, bratio. Each modality is z-scored across regions within each subject, so radii '
-        f'compare the shape of the profiles, not absolute levels; line, mean; band, SEM across subjects ('
+        f'c, Per-region multimodal profile of both species on one radar (level {LEVEL}, bilateral, {len(regions_c)} '
+        f'regions); colour, species; line style, modality: morphometry (solid), region volume in % of total brain volume '
+        f'(ventricles and CSF excluded); FC (dashed), connectivity strength, i.e. the mean over the other regions of the '
+        f'Fisher z of the resting-state correlation of the region, negative correlations counted as 0 (positive strength; '
+        f'{FC_STRENGTH} here, absolute and signed strengths in the sensitivity table); metabolism (dotted), bratio. '
+        f'Each modality is z-scored across regions within each subject, so radii compare the shape of the profiles, '
+        f'not absolute levels; line, mean across subjects ('
         + '; '.join(f'{sp}: ' + ', '.join(f'{m} n = {k}' for m, k in nc[sp].items()) for sp in SPECIES)
         + '). Modalities come from different datasets of each species (multimodal_profiles.py). Region names: '
         f'those of the connectivity fingerprints (EDNiX atlas labels, level {LEVEL}); in b and c, regions are '
@@ -297,14 +301,22 @@ def figure6_stats():
     """Tables of every modality, regions, panel B (bratio per subject and region, species test, region
     coverage) and panel C (z-scored multimodal profiles, cross-modal Spearman r)."""
     cfg = dict(SOURCES=SOURCES, ATLAS=ATLAS, LEVEL=LEVEL, ATLAS_LIB=ATLAS_LIB, DESC=DESC, FIT_KIND=FIT_KIND,
+               FC_STRENGTH=FC_STRENGTH,
                MIN_VOXELS=MIN_VOXELS)
     tables = MP.collect_modalities(cfg)
     regions = select_regions(tables)
     prof_b, stats_b, cov_b = metabolism_stats(tables['metabolism'], regions)
     prof_c, regions_c = MP.multimodal_profiles(tables, regions, SPECIES)
     cmc = MP.cross_modal_correlations(prof_c)
+    sens = []
+    for kind in MP.STRENGTHS:                       # sensitivity of the FC profile to the strength definition
+        t2 = dict(tables)
+        t2['FC'] = MP.fc_table(SOURCES['FC'], ATLAS, LEVEL, FIT_KIND, kind)
+        p2, _ = MP.multimodal_profiles(t2, regions, SPECIES)
+        c2 = MP.cross_modal_correlations(p2)
+        sens.append(c2.assign(fc_strength=kind))
     return dict(tables=tables, regions=regions, prof_b=prof_b, stats_b=stats_b, cov_b=cov_b,
-                prof_c=prof_c, regions_c=regions_c, cmc=cmc)
+                prof_c=prof_c, regions_c=regions_c, cmc=cmc, sens=pd.concat(sens, ignore_index=True))
 
 
 def stats_tables(st):
@@ -315,6 +327,7 @@ def stats_tables(st):
         for m, v in st['prof_c'][sp].items():
             out[f'C_{sp}_{m}'[:31]] = v.reset_index()
     out['C_cross_modal_r'] = st['cmc']
+    out['C_FC_strength_sensitivity'] = st['sens']
     return out
 
 
