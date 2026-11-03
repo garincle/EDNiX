@@ -436,6 +436,8 @@ SUMMARY_MODALITIES = ('morphometry', 'pos', 'neg', 'metabolism')
 def summary_stats(prof, regions, species, si=None, seed=0, n=10000):
     """Two descriptive, region-level analyses of the mean profiles (z within subject, then averaged):
       conservation : Spearman r between the species' mean profiles of each modality (species[0] vs species[1]);
+      difference   : Spearman r between the species difference (species[1] - species[0], z units) of FDG and that of
+                     each other modality (is the FDG gap proportional to the connectivity / volume gap?);
       si           : Spearman r between each mean profile and the superior-inferior position of the region
                      (si: long table species, region, si; None skips it).
     P by permutation of the regions, CI by bootstrap of the regions (regions are few, coarse and spatially
@@ -448,6 +450,15 @@ def summary_stats(prof, regions, species, si=None, seed=0, n=10000):
         r, p, lo, hi = _perm_boot(mean[species[0]][m].values, mean[species[1]][m].values, rng, n)
         rows.append(dict(analysis='conservation', species=f'{species[0]} vs {species[1]}', modality=m,
                          n_regions=len(regions), r=r, p=p, ci_low=lo, ci_high=hi))
+    if 'metabolism' in mods:   # does the species difference in FDG track the species difference in another modality?
+        d = {m: (mean[species[1]][m] - mean[species[0]][m]).values for m in mods}
+        for m in mods:
+            if m == 'metabolism':
+                continue
+            r, p, lo, hi = _perm_boot(d[m], d['metabolism'], rng, n)
+            rows.append(dict(analysis='difference vs FDG difference',
+                             species=f'{species[1]} - {species[0]}', modality=m,
+                             n_regions=len(regions), r=r, p=p, ci_low=lo, ci_high=hi))
     if si is not None:
         for sp in species[:2]:
             s_ = si[si.species == sp].set_index('region')['si'].reindex(regions)

@@ -305,6 +305,8 @@ def test_summary_stats_and_superior_inferior_position(tmp_path):
     s_ = out[out.analysis == 'superior-inferior'].set_index(['species', 'modality'])
     assert s_.loc[('Human', 'metabolism'), 'r'] > .9 and s_.loc[('Macaque', 'metabolism'), 'r'] < -.9
     assert (out.p_holm >= out.p).all()
+    d = out[out.analysis == 'difference vs FDG difference'].set_index('modality')
+    assert 'morphometry' in d.index and np.isfinite(d.loc['morphometry', 'r'])
 
 
 def test_centroid_si_orientation(tmp_path):
