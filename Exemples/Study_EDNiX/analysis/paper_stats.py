@@ -121,7 +121,7 @@ class Inputs:
 
     def multimodal(self):
         from Exemples.Study_EDNiX.analysis.library import multimodal_figure as mmf
-        return self._get("multimodal", mmf.figure6_stats)
+        return self._get("multimodal", lambda: mmf.figure6_stats(fmri=self.fmri))
 
     def fmri(self):
         """Saved selection + shared objects (fmri_fingerprints.context) + the group
