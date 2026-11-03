@@ -286,3 +286,34 @@ def test_sba_tails_in_r_units():
         c['profiles_by_label']['H']['r'] = prof.drop(columns='q20q80_r_raw')
         c['selected_units']['H'] = c['profiles_by_label']['H']
         MP.sba_tables(c, ['Human'], 'selected')
+
+
+def test_summary_stats_and_superior_inferior_position(tmp_path):
+    rng = np.random.default_rng(1)
+    regs = [f'R{i}' for i in range(12)]
+    base = np.linspace(-1.5, 1.5, 12)
+
+    def prof(noise, flip=1):
+        return pd.DataFrame(flip * base + rng.normal(0, noise, (6, 12)), columns=regs)
+    prof_c = {'Human': {'morphometry': prof(.2), 'metabolism': prof(.2)},
+              'Macaque': {'morphometry': prof(.2), 'metabolism': prof(.2, flip=-1)}}
+    si = pd.DataFrame([dict(species=sp, region=r, si=v) for sp in prof_c for r, v in zip(regs, np.linspace(-1, 1, 12))])
+    out = MP.summary_stats(prof_c, regs, ['Human', 'Macaque'], si, n=300)
+    c = out[out.analysis == 'conservation'].set_index('modality')
+    assert c.loc['morphometry', 'r'] > .9 and c.loc['morphometry', 'p_holm'] < .05
+    assert c.loc['metabolism', 'r'] < -.9                                  # mirrored profile
+    s_ = out[out.analysis == 'superior-inferior'].set_index(['species', 'modality'])
+    assert s_.loc[('Human', 'metabolism'), 'r'] > .9 and s_.loc[('Macaque', 'metabolism'), 'r'] < -.9
+    assert (out.p_holm >= out.p).all()
+
+
+def test_centroid_si_orientation(tmp_path):
+    lab = np.zeros((4, 4, 8), np.int16)
+    lab[:, :, :4] = 1                      # inferior half
+    lab[:, :, 4:] = 2                      # superior half
+    img = nib.Nifti1Image(np.stack([lab, lab], axis=3), np.eye(4))     # RAS+: +z = superior
+    f = str(tmp_path / 'd.nii.gz')
+    nib.save(img, f)
+    ldf = pd.DataFrame({'label_id': [1, 2], 'region_name': ['L_Inf', 'L_Sup']})
+    v = MP.centroid_si(f, ldf, 2)
+    assert v['Sup'] > 0 > v['Inf'] and abs(v['Sup'] + v['Inf']) < 1e-9 and v['Sup'] <= 1

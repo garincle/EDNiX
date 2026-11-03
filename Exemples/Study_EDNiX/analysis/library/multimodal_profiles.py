@@ -136,6 +136,46 @@ def volume_percent(dseg, label_df, level):
     return (df.groupby('region')['n'].sum() / tot * 100.0).rename('value')
 
 
+def centroid_si(dseg, label_df, level):
+    """Superior-inferior position of every region (L + R) of one 4D dseg at `level`: z (mm, RAS) of the centroid minus
+    that of the whole brain, divided by half the superior-inferior extent of the brain, so that regions of all species
+    lie on the same -1 (inferior) to +1 (superior) scale."""
+    img = nib.as_closest_canonical(nib.load(dseg))
+    lab = np.asarray(img.dataobj)
+    if lab.ndim == 4:
+        lab = lab[..., level - 1]
+    lab = np.rint(lab).astype(np.int64)
+    names = dict(zip(label_df['label_id'].astype(int), label_df['region_name']))
+    ijk = np.argwhere(lab > 0)
+    z = ijk @ img.affine[2, :3] + img.affine[2, 3]
+    ids = lab[lab > 0]
+    half = (z.max() - z.min()) / 2.0
+    zc = z.mean()
+    out = {}
+    for i in np.unique(ids):
+        name = region_key(names.get(int(i), f'label_{i}'))
+        if NON_BRAIN.search(str(canonical(name))) or NON_BRAIN.search(name):
+            continue
+        out.setdefault(name, []).append(z[ids == i])
+    return pd.Series({k: (np.concatenate(v).mean() - zc) / half for k, v in out.items()}, name='si')
+
+
+def si_table(sources, atlas, level, atlas_lib, max_subjects=5):
+    """Long table species, region, si: median over (up to `max_subjects`) subjects of centroid_si (the atlas is the
+    same for every subject of a species, so this only averages registration noise)."""
+    rows = []
+    for sp, dirs in sources.items():
+        label_df = parse_label_file(get_atlas_label_path(atlas_lib, find_species_path(atlas_lib, sp), atlas))
+        files = [f for bd in _as_list(dirs) for f in find_dseg(bd, atlas)][:max_subjects]
+        if not files:
+            continue
+        v = pd.concat([centroid_si(f, label_df, level) for f in files], axis=1).median(axis=1)
+        rows.append(pd.DataFrame({'species': sp, 'region': v.index, 'si': v.values}))
+    if not rows:
+        raise FileNotFoundError(f'no {atlas} dseg found to compute the superior-inferior position')
+    return pd.concat(rows, ignore_index=True)
+
+
 def morphometry_table(sources, atlas, level, atlas_lib):
     """sources: {species: [bids_dir, ...]}. Long table species, bids_dir, subject, region, value (% brain)."""
     rows = []
@@ -360,6 +400,65 @@ def multimodal_profiles(tables, regions, species):
             if len(w):
                 prof[sp][mod] = zscore_rows(w).droplevel(0)
     return prof, keep
+
+
+def _perm_boot(u, w, rng, n=10000):
+    """Spearman r, two-sided permutation P and 95 % bootstrap CI (regions resampled) of two profiles."""
+    from scipy.stats import spearmanr
+    u, w = np.asarray(u, float), np.asarray(w, float)
+    if len(u) < 4 or len(set(u)) < 2 or len(set(w)) < 2:        # constant or too few regions: no statistic
+        return float('nan'), float('nan'), float('nan'), float('nan')
+    r = spearmanr(u, w).statistic
+    null = np.array([spearmanr(u, rng.permutation(w)).statistic for _ in range(n)])
+    p = (np.sum(np.abs(null) >= abs(r) - 1e-12) + 1) / (n + 1)
+    bs = []
+    for _ in range(n // 2):
+        i = rng.integers(0, len(u), len(u))
+        if len(set(u[i])) > 1 and len(set(w[i])) > 1:
+            bs.append(spearmanr(u[i], w[i]).statistic)
+    lo, hi = np.percentile(bs, [2.5, 97.5]) if bs else (np.nan, np.nan)
+    return float(r), float(p), float(lo), float(hi)
+
+
+def _holm(p):
+    p = np.asarray(p, float)
+    o = np.argsort(p)
+    adj, run = np.empty_like(p), 0.0
+    for rank, i in enumerate(o):
+        run = max(run, (len(p) - rank) * p[i])
+        adj[i] = min(1.0, run)
+    return adj
+
+
+SUMMARY_MODALITIES = ('morphometry', 'pos', 'neg', 'metabolism')
+
+
+def summary_stats(prof, regions, species, si=None, seed=0, n=10000):
+    """Two descriptive, region-level analyses of the mean profiles (z within subject, then averaged):
+      conservation : Spearman r between the species' mean profiles of each modality (species[0] vs species[1]);
+      si           : Spearman r between each mean profile and the superior-inferior position of the region
+                     (si: long table species, region, si; None skips it).
+    P by permutation of the regions, CI by bootstrap of the regions (regions are few, coarse and spatially
+    dependent: descriptive); Holm correction over all rows."""
+    rng = np.random.default_rng(seed)
+    mods = [m for m in SUMMARY_MODALITIES if all(m in prof.get(sp, {}) for sp in species[:2])]
+    rows = []
+    mean = {sp: {m: prof[sp][m].reindex(columns=regions).mean() for m in mods} for sp in species[:2]}
+    for m in mods:
+        r, p, lo, hi = _perm_boot(mean[species[0]][m].values, mean[species[1]][m].values, rng, n)
+        rows.append(dict(analysis='conservation', species=f'{species[0]} vs {species[1]}', modality=m,
+                         n_regions=len(regions), r=r, p=p, ci_low=lo, ci_high=hi))
+    if si is not None:
+        for sp in species[:2]:
+            s_ = si[si.species == sp].set_index('region')['si'].reindex(regions)
+            ok = s_.notna().values
+            for m in mods:
+                r, p, lo, hi = _perm_boot(mean[sp][m].values[ok], s_.values[ok], rng, n)
+                rows.append(dict(analysis='superior-inferior', species=sp, modality=m, n_regions=int(ok.sum()),
+                                 r=r, p=p, ci_low=lo, ci_high=hi))
+    out = pd.DataFrame(rows)
+    out['p_holm'] = _holm(np.nan_to_num(out['p'].values, nan=1.0))
+    return out
 
 
 def cross_modal_correlations(prof):
