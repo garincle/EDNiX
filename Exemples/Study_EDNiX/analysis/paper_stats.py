@@ -366,6 +366,12 @@ def figure6(inp):
               f"(g = {r.hedges_g:+.2f}), q = {r.q_fdr:.3g}" for r in sb.itertuples()]
     lines += [f"C  {r.species} {r.modality_a}-{r.modality_b}: Spearman r = {r.spearman_r:.2f}"
               for r in st["cmc"].itertuples()]
+    summ = st.get("summ")
+    if summ is not None and len(summ):
+        lines.append("C  summary (Spearman over regions; P permutation, CI bootstrap, Holm over all rows)")
+        lines += [f"  {r.analysis} | {r.species} | {r.modality} (n={r.n_regions}): r = {r.r:+.2f} "
+                  f"[{r.ci_low:+.2f}, {r.ci_high:+.2f}], P = {r.p:.3g}, Holm P = {r.p_holm:.3g}"
+                  for r in summ.itertuples()]
     return dict(tables=mmf.stats_tables(st), lines=lines, draw=dict(stats=st))
 
 
