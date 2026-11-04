@@ -7,9 +7,10 @@ Run:  python3 Tools/UNet_Model_training.py            (everything: discover -> s
       python3 Tools/UNet_Model_training.py --dry-run  (discovery + split only, prints counts)
 
 Training pairs (current EDNiX naming, native space, image and mask on the same voxel grid):
-  anat : mask  = <ses>/anat/native/volumes/masks/{ID}_final_mask_orig | {ID}_final_mask | {ID}_backtonative_mask
-                 (hand-corrected, in this priority), else {ID}_space-acpc_mask (automatic)
-         image = whole-head {ID}_space-acpc_desc-template | _desc-Bias | _space-raw {T1w|T2w} on the mask grid
+  anat : mask  = <ses>/anat/native/volumes/masks/{ID}_final_mask_orig | _final_mask | _final_mask_2 |
+                 _backtonative_mask (hand-corrected, in this priority), else {ID}_space-acpc_mask (automatic)
+         image = first whole-head {T1w|T2w} on the mask's voxel grid among native/volumes (acpc),
+                 anat/preprocessing/{ID}_space-raw_desc-* and the raw BIDS anat/sub-*_<T>.nii(.gz)
   func : image = <ses>/func/raw/preprocessing/all_runs_space-func_desc-fMRI_Mean_Image.nii.gz
          mask  = <ses>/func/raw/masks/{ID}_fMRI_mask (= hand-corrected {ID}_final_mask resampled) if a
                  final_mask exists, else mask_ref.nii.gz (QC'd anat mask via the anat->func registration)
@@ -134,19 +135,28 @@ def same_grid(img_path, msk_path):
     return True, ''
 
 
-ANAT_MANUAL_MASKS = ('_final_mask_orig', '_final_mask', '_backtonative_mask')   # priority order
-ANAT_IMAGE_DESCS = ('space-acpc_desc-template', 'space-acpc_desc-Bias', 'space-raw')  # whole-head, priority order
+# hand-corrected anat masks, priority order. In the pipeline, {ID}_final_mask is drawn on
+# preprocessing/{ID}_space-raw_desc-Bias_<T> (loop1/_itk1_QC.py) and {ID}_final_mask_2 on the acpc grid
+# (_loop2.py); {ID}_final_mask_orig is a user-kept copy on the raw grid.
+ANAT_MANUAL_MASKS = ('_final_mask_orig', '_final_mask', '_final_mask_2', '_backtonative_mask')
+_NOT_WHOLE_HEAD = ('desc-SS', '_mask', 'desc-norm', 'step', 'Zp', 'cropped', '-64')
 
 
-def _anat_image_candidates(vol_dir, ID, T):
-    """Whole-head anat images of one contrast, in priority order (skull-stripped / norm images excluded)."""
+def _anat_image_candidates(ses_dir, ID, T):
+    """Whole-head anat images of one contrast, in priority order: native acpc volumes, then the
+    raw-space images of anat/preprocessing, then the raw BIDS input (skull-stripped images excluded)."""
+    vol_dir = ses_dir / 'anat' / 'native' / 'volumes'
+    pre_dir = ses_dir / 'anat' / 'preprocessing'
+    patterns = [vol_dir / f'{ID}_space-acpc_desc-template*{T}.nii.gz',
+                vol_dir / f'{ID}_space-acpc_desc-Bias*{T}.nii.gz',
+                pre_dir / f'{ID}_space-raw_desc-Bias*{T}.nii.gz',
+                pre_dir / f'{ID}_space-raw_desc-reorient*{T}.nii.gz',
+                pre_dir / f'{ID}_space-raw_desc-template*{T}.nii.gz',
+                ses_dir / 'anat' / f'sub-*{T}.nii*']
     out = []
-    for desc in ANAT_IMAGE_DESCS:
-        for f in sorted(glob(str(vol_dir / f'{ID}_{desc}*{T}.nii.gz'))):
-            name = os.path.basename(f)
-            if any(x in name for x in ('desc-SS', '_mask', 'desc-norm', 'step', 'Zp', 'cropped', '-64')):
-                continue
-            if f not in out:
+    for pat in patterns:
+        for f in sorted(glob(str(pat))):
+            if not any(x in os.path.basename(f) for x in _NOT_WHOLE_HEAD) and f not in out:
                 out.append(f)
     return out
 
@@ -174,13 +184,14 @@ def _anat_pairs(ses_dir, meta, anat_contrasts, anat_masks, pairs, skipped):
             masks.append((msk_dir / f'{ID}_space-acpc_mask.nii.gz', 0))
         masks = [(m, man) for m, man in masks if m.is_file()]
         for T in anat_contrasts:
-            imgs = _anat_image_candidates(vol_dir, ID, T)
+            imgs = _anat_image_candidates(ses_dir, ID, T)
             if not imgs or not masks:
                 continue
             found, why = _first_on_grid(masks, imgs)
             if found is None:
                 skipped.append(dict(kind='anat', img=imgs[0], mask=str(masks[0][0]),
-                                    reason=f'no {T} image on the grid of any mask ({why})'))
+                                    reason=f'no {T} image on the grid of {", ".join(m.name for m, _ in masks)} '
+                                           f'(last check: {why})'))
                 continue
             img, mask, man = found
             pairs.append(dict(meta, kind='anat', contrast=T, manual_mask=man,
