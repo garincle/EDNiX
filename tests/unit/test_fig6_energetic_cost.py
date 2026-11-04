@@ -18,14 +18,19 @@ def test_coupling_for_species_end_to_end(tmp_path, monkeypatch):
     field = (field - field.min()) / np.ptp(field)
     shared = rng.standard_normal(nt)
     for sub in ('01', '02', '03'):
+        coarse = sub == '03'                                  # a dataset on its own, coarser fMRI grid
         d = bids / f'sub-{sub}' / 'ses-1' / 'func' / 'templates' / 'EDNiX'
         (d / 'postprocessed_rs').mkdir(parents=True)
         (d / 'labels').mkdir()
-        data = rng.standard_normal(shape + (nt,)).astype(np.float32) + 3 * field[..., None] * shared
-        nib.save(nib.Nifti1Image(data, aff), str(d / 'postprocessed_rs' / f'sub-{sub}_task-rest_bold_space-template_desc-fMRI_residual.nii.gz'))
-        lab = np.zeros(shape + (3,), np.int16)
-        lab[2:12, 2:12, 2:12, 2] = 1
-        nib.save(nib.Nifti1Image(lab, aff), str(d / 'labels' / f'{sub}_seg-EDNIxCSCLR_dseg.nii.gz'))
+        f_ = field[::2, ::2, ::2] if coarse else field
+        a_ = np.diag([2., 2., 2., 1.]) if coarse else aff
+        data = rng.standard_normal(f_.shape + (nt,)).astype(np.float32) + 3 * f_[..., None] * shared
+        nib.save(nib.Nifti1Image(data, a_), str(d / 'postprocessed_rs' / f'sub-{sub}_task-rest_bold_space-template_desc-fMRI_residual.nii.gz'))
+        lab = np.zeros(f_.shape + (3,), np.int16)
+        lab[1:6, 1:6, 1:6, 2] = 1 if coarse else 0
+        if not coarse:
+            lab[2:12, 2:12, 2:12, 2] = 1
+        nib.save(nib.Nifti1Image(lab, a_), str(d / 'labels' / f'{sub}_seg-EDNIxCSCLR_dseg.nii.gz'))
     (pet_dir / 'Results' / 'Grp_PET_mean_desc-bratio').mkdir(parents=True)
     pet = field + .3 * ndimage.gaussian_filter(rng.standard_normal(shape), 2.5)
     nib.save(nib.Nifti1Image(pet.astype(np.float32), aff), str(pet_dir / F.PET_MAP))
