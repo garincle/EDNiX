@@ -103,7 +103,14 @@ def coupling_for_species(c, sp):
     if not runs:
         raise RuntimeError(f'{sp}: no selected run')
     print(f'  [{sp}] {len(runs)} runs: ' + ', '.join(f'{r[1]}:{r[2]}/{r[3]}' for r in runs))
-    maps, aff, mask, lab, names, used = [], None, None, None, None, []
+    # reference grid = the PET group map (anatomical template resolution): the datasets of one species have
+    # their own fMRI grid (e.g. human 60x72x60 and 79x95x79), so every degree map is resampled onto it
+    pet_bids = mmf.SOURCES['metabolism'][sp]
+    pet_bids = pet_bids[0] if isinstance(pet_bids, (list, tuple)) else pet_bids
+    pet_img = nib.load(opj(pet_bids, PET_MAP))
+    pet = np.asarray(pet_img.dataobj, np.float32).squeeze()
+    aff, shape = pet_img.affine, pet.shape
+    maps, lab, names, used = [], None, None, []
     for bids_dir, label, sub, ses, *run in runs:
         bold = find_bold(bids_dir, sub, ses, run[0] if run else None)
         if bold is None:
@@ -114,21 +121,19 @@ def coupling_for_species(c, sp):
         if m is None:
             print(f'    [skip] no template-space dseg for {label} sub-{sub} ses-{ses}')
             continue
-        dm, aff = EC.degree_map(bold, mask=m, p=P_DEGREE)
-        maps.append(dm)
+        dm, daff = EC.degree_map(bold, mask=m, p=P_DEGREE)
+        maps.append(EC.resample_to_grid(dm, daff, shape, aff))
+        if lab is None:                                          # region labels on the reference grid (nearest)
+            lab = np.nan_to_num(EC.resample_to_grid(lb.astype(np.float32), daff, shape, aff, order=0)).astype(np.int64)
+            names = nm
         used.append(dict(species=sp, dataset=label, subject=sub, session=ses, bold=bold))
-        mask, lab, names = (m, lb, nm) if mask is None else (mask | m, lab, names)
-        print(f'    [degree] {os.path.basename(bold)}')
+        print(f'    [degree] {os.path.basename(bold)}  grid {m.shape}')
     if len(maps) < 3:
         raise RuntimeError(f'{sp}: only {len(maps)} usable run(s)')
     deg = EC.group_degree_map(maps)
-    mask = mask & np.isfinite(deg)
-    pet_bids = mmf.SOURCES['metabolism'][sp]
-    pet_bids = pet_bids[0] if isinstance(pet_bids, (list, tuple)) else pet_bids
-    pet_img = nib.load(opj(pet_bids, PET_MAP))
-    pet = EC.resample_to_grid(np.asarray(pet_img.dataobj, np.float32).squeeze(), pet_img.affine, deg.shape, aff)
+    mask = np.isfinite(deg)
     overlap = float(np.isfinite(pet[mask]).mean())
-    print(f'  [{sp}] cortical voxels {int(mask.sum())}, with PET {overlap:.0%}')
+    print(f'  [{sp}] cortical voxels {int(mask.sum())} on the PET grid {shape}, with PET {overlap:.0%}')
     if overlap < 0.5:
         print(f'  [{sp}] [WARN] less than half of the cortical voxels have a PET value: check that the PET group map '
               f'and the fMRI template are in the same space')
