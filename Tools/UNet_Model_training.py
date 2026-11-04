@@ -212,6 +212,18 @@ def _func_pairs(ses_dir, meta, func_masks, pairs, skipped):
                       mask=str(mask), mtime=max(mean_img.stat().st_mtime, mask.stat().st_mtime)))
 
 
+def archive_previous_checkpoints(ckpt_dir):
+    """A new run rewrites model-*-best/last-epoch from epoch -1 on: keep the previous run's ones."""
+    old = [p for p in (ckpt_dir / 'model-cross_species_ft-best-epoch', ckpt_dir / 'model-last-epoch') if p.is_file()]
+    if not old:
+        return
+    dest = ckpt_dir / ('previous_run_' + time.strftime('%Y%m%d_%H%M%S', time.localtime(old[0].stat().st_mtime)))
+    dest.mkdir(exist_ok=True)
+    for p in old:
+        p.rename(dest / p.name)
+    log(f'previous checkpoints moved to {dest}')
+
+
 def log_options(args):
     log('options    : ' + ' '.join(f'{k}={v}' for k, v in sorted(vars(args).items())))
 
@@ -685,6 +697,8 @@ def main():
     (out / 'checkpoints').mkdir(parents=True, exist_ok=True)
     _LOG_FH = open(out / 'train.log', 'a')
     log('=' * 90)
+    if not args.dry_run:
+        archive_previous_checkpoints(out / 'checkpoints')
     log(f'data roots : {[str(r) for r in roots]}')
     log(f'UNet dir   : {unet_dir}')
     log(f'init model : {init_path}')
