@@ -10,7 +10,7 @@ Training pairs (current EDNiX naming, native space, image and mask on the same v
   anat : mask  = <ses>/anat/native/volumes/masks/{ID}_final_mask_orig | _final_mask | _final_mask_2 |
                  _backtonative_mask (hand-corrected, in this priority), else {ID}_space-acpc_mask (automatic)
          image = first whole-head {T1w|T2w} on the mask's voxel grid among native/volumes (acpc),
-                 anat/preprocessing/{ID}_space-raw_desc-* and the raw BIDS anat/sub-*_<T>.nii(.gz)
+                 anat/preprocessing/{ID}_space-raw_desc-* and the raw BIDS input (<ses>/anat/ or <ses>/)
   func : image = <ses>/func/raw/preprocessing/all_runs_space-func_desc-fMRI_Mean_Image.nii.gz
          mask  = <ses>/func/raw/masks/{ID}_fMRI_mask (= hand-corrected {ID}_final_mask resampled) if a
                  final_mask exists, else mask_ref.nii.gz (QC'd anat mask via the anat->func registration)
@@ -152,7 +152,8 @@ def _anat_image_candidates(ses_dir, ID, T):
                 pre_dir / f'{ID}_space-raw_desc-Bias*{T}.nii.gz',
                 pre_dir / f'{ID}_space-raw_desc-reorient*{T}.nii.gz',
                 pre_dir / f'{ID}_space-raw_desc-template*{T}.nii.gz',
-                ses_dir / 'anat' / f'sub-*{T}.nii*']
+                ses_dir / 'anat' / f'sub-*{T}.nii*',
+                ses_dir / f'sub-*{T}.nii*']   # raw BIDS input: _1_correct_orient.py globs it in data_path
     out = []
     for pat in patterns:
         for f in sorted(glob(str(pat))):
