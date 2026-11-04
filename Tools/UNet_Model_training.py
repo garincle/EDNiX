@@ -6,12 +6,13 @@ on the latest EDNiX outputs (anat + func), starting from model-02-_cross_species
 Run:  python3 Tools/UNet_Model_training.py            (everything: discover -> split -> cache -> train -> test)
       python3 Tools/UNet_Model_training.py --dry-run  (discovery + split only, prints counts)
 
-Training pairs (current EDNiX naming, native space, same voxel grid):
-  anat : <ses>/anat/native/volumes/{ID}_space-acpc_desc-template_{T1w|T2w}.nii.gz      (whole head, N4)
-         <ses>/anat/native/volumes/masks/{ID}_backtonative_mask.nii.gz                (manual, priority)
-      or <ses>/anat/native/volumes/masks/{ID}_space-acpc_mask.nii.gz                  (final automatic)
-  func : <ses>/func/raw/preprocessing/all_runs_space-func_desc-fMRI_Mean_Image.nii.gz
-         <ses>/func/raw/masks/{ID}_fMRI_mask.nii.gz  (= {ID}_final_mask resampled when a manual mask exists)
+Training pairs (current EDNiX naming, native space, image and mask on the same voxel grid):
+  anat : mask  = <ses>/anat/native/volumes/masks/{ID}_final_mask_orig | {ID}_final_mask | {ID}_backtonative_mask
+                 (hand-corrected, in this priority), else {ID}_space-acpc_mask (automatic)
+         image = whole-head {ID}_space-acpc_desc-template | _desc-Bias | _space-raw {T1w|T2w} on the mask grid
+  func : image = <ses>/func/raw/preprocessing/all_runs_space-func_desc-fMRI_Mean_Image.nii.gz
+         mask  = <ses>/func/raw/masks/{ID}_fMRI_mask (= hand-corrected {ID}_final_mask resampled) if a
+                 final_mask exists, else mask_ref.nii.gz (QC'd anat mask via the anat->func registration)
 
 The checkpoint written (checkpoints/model-cross_species_ft-best-epoch) keeps the original
 architecture and checkpoint layout: it is a drop-in replacement for muSkullStrip.py -model.
@@ -133,7 +134,35 @@ def same_grid(img_path, msk_path):
     return True, ''
 
 
-def discover_pairs(roots, func_masks='all', anat_contrasts=('T1w', 'T2w'), anat_masks='all'):
+ANAT_MANUAL_MASKS = ('_final_mask_orig', '_final_mask', '_backtonative_mask')   # priority order
+ANAT_IMAGE_DESCS = ('space-acpc_desc-template', 'space-acpc_desc-Bias', 'space-raw')  # whole-head, priority order
+
+
+def _anat_image_candidates(vol_dir, ID, T):
+    """Whole-head anat images of one contrast, in priority order (skull-stripped / norm images excluded)."""
+    out = []
+    for desc in ANAT_IMAGE_DESCS:
+        for f in sorted(glob(str(vol_dir / f'{ID}_{desc}*{T}.nii.gz'))):
+            name = os.path.basename(f)
+            if any(x in name for x in ('desc-SS', '_mask', 'desc-norm', 'step', 'Zp', 'cropped', '-64')):
+                continue
+            if f not in out:
+                out.append(f)
+    return out
+
+
+def discover_pairs(roots, func_masks='reference', anat_contrasts=('T1w', 'T2w'), anat_masks='all'):
+    """
+    anat : mask = hand-corrected {ID}_final_mask_orig > {ID}_final_mask > {ID}_backtonative_mask
+                  (> {ID}_space-acpc_mask, automatic, unless anat_masks='manual');
+           image = first whole-head T1w/T2w of the volumes dir that is on the SAME voxel grid as the mask.
+    func : image = func/raw/preprocessing/all_runs_space-func_desc-fMRI_Mean_Image;
+           mask  = {ID}_fMRI_mask when a hand-corrected {ID}_final_mask exists (it is that mask resampled),
+                   else mask_ref.nii.gz (QC'd anat brain mask brought to func space by the anat->func
+                   registration; func_masks='reference'|'all'),
+                   else the automatic {ID}_fMRI_mask (func_masks='all' only: produced by the func
+                   skull-strip itself, so training on it is partly circular).
+    """
     pairs, skipped = [], []
     for sub_dir in find_subject_dirs(roots):
         species, dataset = species_dataset(sub_dir)
@@ -146,40 +175,62 @@ def discover_pairs(roots, func_masks='all', anat_contrasts=('T1w', 'T2w'), anat_
             vol_dir = ses_dir / 'anat' / 'native' / 'volumes'
             msk_dir = vol_dir / 'masks'
             ids = set()
-            for f in glob(str(msk_dir / '*_space-acpc_mask.nii.gz')):
-                ids.add(os.path.basename(f)[:-len('_space-acpc_mask.nii.gz')])
-            for f in glob(str(msk_dir / '*_backtonative_mask.nii.gz')):
-                ids.add(os.path.basename(f)[:-len('_backtonative_mask.nii.gz')])
+            for suf in ANAT_MANUAL_MASKS + ('_space-acpc_mask',):
+                for f in glob(str(msk_dir / f'*{suf}.nii.gz')):
+                    ids.add(os.path.basename(f)[:-len(suf + '.nii.gz')])
             for ID in sorted(ids):
-                manual = msk_dir / f'{ID}_backtonative_mask.nii.gz'
-                auto = msk_dir / f'{ID}_space-acpc_mask.nii.gz'
-                mask = manual if manual.is_file() else auto
-                if anat_masks == 'manual' and mask != manual:
-                    continue
+                cands = [(msk_dir / f'{ID}{suf}.nii.gz', 1) for suf in ANAT_MANUAL_MASKS]
+                if anat_masks != 'manual':
+                    cands.append((msk_dir / f'{ID}_space-acpc_mask.nii.gz', 0))
+                cands = [(m, man) for m, man in cands if m.is_file()]
                 for T in anat_contrasts:
-                    img = vol_dir / f'{ID}_space-acpc_desc-template_{T}.nii.gz'
-                    if not img.is_file():
+                    imgs = _anat_image_candidates(vol_dir, ID, T)
+                    if not imgs or not cands:
                         continue
-                    ok, why = same_grid(img, mask)
-                    rec = dict(species=species, dataset=dataset, subject=sub, session=ses, kind='anat',
-                               contrast=T, manual_mask=int(mask == manual), img=str(img), mask=str(mask),
-                               mtime=max(img.stat().st_mtime, mask.stat().st_mtime))
-                    (pairs if ok else skipped).append(rec if ok else {**rec, 'reason': why})
+                    found, why = None, ''
+                    for mask, man in cands:            # best mask first, then first image on its grid
+                        for img in imgs:
+                            ok, why = same_grid(img, mask)
+                            if ok:
+                                found = (Path(img), mask, man)
+                                break
+                        if found:
+                            break
+                    if found is None:
+                        skipped.append(dict(kind='anat', img=imgs[0], mask=str(cands[0][0]),
+                                            reason=f'no {T} image on the grid of any mask ({why})'))
+                        continue
+                    img, mask, man = found
+                    pairs.append(dict(species=species, dataset=dataset, subject=sub, session=ses, kind='anat',
+                                      contrast=T, manual_mask=man, mask_type=mask.name[len(ID):-len('.nii.gz')],
+                                      img=str(img), mask=str(mask),
+                                      mtime=max(img.stat().st_mtime, mask.stat().st_mtime)))
 
             # ---- func -------------------------------------------------------------
             raw = ses_dir / 'func' / 'raw'
             mean_img = raw / 'preprocessing' / 'all_runs_space-func_desc-fMRI_Mean_Image.nii.gz'
-            if mean_img.is_file():
-                for f in sorted(glob(str(raw / 'masks' / '*_fMRI_mask.nii.gz'))):
-                    ID = os.path.basename(f)[:-len('_fMRI_mask.nii.gz')]
-                    manual = int((raw / 'masks' / f'{ID}_final_mask.nii.gz').is_file())
-                    if func_masks == 'manual' and not manual:
-                        continue
-                    ok, why = same_grid(mean_img, f)
-                    rec = dict(species=species, dataset=dataset, subject=sub, session=ses, kind='func',
-                               contrast='EPI', manual_mask=manual, img=str(mean_img), mask=f,
-                               mtime=max(mean_img.stat().st_mtime, os.path.getmtime(f)))
-                    (pairs if ok else skipped).append(rec if ok else {**rec, 'reason': why})
+            if not mean_img.is_file():
+                continue
+            cands = []
+            for f in sorted(glob(str(raw / 'masks' / '*_final_mask.nii.gz'))):
+                ID = os.path.basename(f)[:-len('_final_mask.nii.gz')]
+                fm = raw / 'masks' / f'{ID}_fMRI_mask.nii.gz'
+                cands.append((fm if fm.is_file() else Path(f), 1, 'final_mask'))
+            if func_masks in ('reference', 'all') and (raw / 'masks' / 'mask_ref.nii.gz').is_file():
+                cands.append((raw / 'masks' / 'mask_ref.nii.gz', 0, 'mask_ref'))
+            if func_masks == 'all':
+                cands += [(Path(f), 0, 'fMRI_mask') for f in sorted(glob(str(raw / 'masks' / '*_fMRI_mask.nii.gz')))]
+            why = 'no usable mask'
+            for mask, man, mtype in cands:
+                ok, why = same_grid(mean_img, mask)
+                if ok:
+                    pairs.append(dict(species=species, dataset=dataset, subject=sub, session=ses, kind='func',
+                                      contrast='EPI', manual_mask=man, mask_type=mtype, img=str(mean_img),
+                                      mask=str(mask), mtime=max(mean_img.stat().st_mtime, mask.stat().st_mtime)))
+                    break
+            else:
+                if cands:
+                    skipped.append(dict(kind='func', img=str(mean_img), mask=str(cands[0][0]), reason=why))
 
     # Same data mirrored under several roots: keep the most recent outputs only.
     best = {}
@@ -549,17 +600,19 @@ def parse_args():
     p.add_argument('--unet-dir', default=None, help='NHP-BrainExtraction/UNet_Model directory')
     p.add_argument('--init-model', default=None, help=f'init checkpoint (default: {INIT_MODEL_NAME} in UNet_Model/models)')
     p.add_argument('--out-dir', default=None, help='output dir (default: %s)' % default_out_dir())
-    p.add_argument('--func-masks', choices=['all', 'manual'], default='all',
-                   help="'manual': only func sessions with a hand-corrected {ID}_final_mask")
+    p.add_argument('--func-masks', choices=['reference', 'manual', 'all'], default='reference',
+                   help="'reference' (default): {ID}_final_mask if present else mask_ref (QC'd anat mask in func "
+                        "space); 'manual': {ID}_final_mask only; 'all': also the automatic {ID}_fMRI_mask")
     p.add_argument('--anat-masks', choices=['all', 'manual'], default='all',
-                   help="'manual': only anat sessions with a hand-corrected {ID}_backtonative_mask")
+                   help="'manual': only hand-corrected anat masks ({ID}_final_mask_orig, {ID}_final_mask, "
+                        "{ID}_backtonative_mask)")
     p.add_argument('--anat-contrasts', nargs='+', default=['T1w', 'T2w'])
     p.add_argument('--bn-mode', choices=['per-sample', 'batch'], default='per-sample',
                    help="BatchNorm statistics during training: 'per-sample' (= inference) or 'batch' "
                         "(original trainSs_UNet.py). Evaluation is always per-sample, as muSkullStrip.py.")
     p.add_argument('--legacy', action='store_true',
                    help='reproduce the original trainSs_UNet.py recipe on current EDNiX files: hand-corrected '
-                        'masks only (anat + func), uniform block sampling (~all blocks per volume and epoch), '
+                        'anat masks, func final_mask or mask_ref (anat-derived, like maskDilat_Allineate_in_func), uniform block sampling (~all blocks per volume and epoch), '
                         'batches of 20 blocks from one volume, batch BatchNorm, cross-entropy only, no gamma '
                         'augmentation, 40 epochs. Explicit options still override these defaults.')
     p.add_argument('--val-ratio', type=float, default=0.15)
@@ -588,7 +641,7 @@ def parse_args():
     p.add_argument('--dry-run', action='store_true', help='discovery + split only')
     if '--legacy' in sys.argv[1:]:
         # new defaults only: any option given explicitly on the command line still wins
-        p.set_defaults(anat_masks='manual', func_masks='manual', fg_p=0.0, blocks_per_volume=750,
+        p.set_defaults(anat_masks='manual', func_masks='reference', fg_p=0.0, blocks_per_volume=750,
                        blocks_per_visit=20, batch_size=20, bn_mode='batch', dice_weight=0.0, gamma_p=0.0,
                        epochs=40, patience=40, lr=1e-4)
     return p.parse_args()
@@ -638,7 +691,7 @@ def main():
     split = load_or_make_split(pairs, out / 'split.json', args.val_ratio, args.test_ratio, args.seed, args.resplit)
 
     fields = ['uid', 'split', 'species', 'dataset', 'subject', 'session', 'kind', 'contrast', 'manual_mask',
-              'img', 'mask']
+              'mask_type', 'img', 'mask']
     with open(out / 'manifest.csv', 'w', newline='') as fh:
         w = csv.DictWriter(fh, fieldnames=fields, extrasaction='ignore')
         w.writeheader()
@@ -660,6 +713,10 @@ def main():
     for s, sp in split.items():
         n_subj[sp] += 1
     log(f"subjects: train {n_subj['train']}, val {n_subj['val']}, test {n_subj['test']}")
+    mt = defaultdict(int)
+    for r in pairs:
+        mt[(r['kind'], r['mask_type'])] += 1
+    log('masks used: ' + ', '.join(f'{k}:{t}={n}' for (k, t), n in sorted(mt.items())))
     if args.dry_run:
         log('dry run: stop.')
         return
