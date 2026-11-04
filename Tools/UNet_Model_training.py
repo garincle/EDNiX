@@ -151,6 +151,78 @@ def _anat_image_candidates(vol_dir, ID, T):
     return out
 
 
+def _first_on_grid(masks, imgs):
+    """First (mask, manual, image) whose image shares the mask's voxel grid; masks/images in priority order."""
+    why = 'no candidate'
+    for mask, man in masks:
+        for img in imgs:
+            ok, why = same_grid(img, mask)
+            if ok:
+                return (Path(img), mask, man), ''
+    return None, why
+
+
+def _anat_pairs(ses_dir, meta, anat_contrasts, anat_masks, pairs, skipped):
+    vol_dir = ses_dir / 'anat' / 'native' / 'volumes'
+    msk_dir = vol_dir / 'masks'
+    ids = set()
+    for suf in ANAT_MANUAL_MASKS + ('_space-acpc_mask',):
+        ids.update(os.path.basename(f)[:-len(suf + '.nii.gz')] for f in glob(str(msk_dir / f'*{suf}.nii.gz')))
+    for ID in sorted(ids):
+        masks = [(msk_dir / f'{ID}{suf}.nii.gz', 1) for suf in ANAT_MANUAL_MASKS]
+        if anat_masks != 'manual':
+            masks.append((msk_dir / f'{ID}_space-acpc_mask.nii.gz', 0))
+        masks = [(m, man) for m, man in masks if m.is_file()]
+        for T in anat_contrasts:
+            imgs = _anat_image_candidates(vol_dir, ID, T)
+            if not imgs or not masks:
+                continue
+            found, why = _first_on_grid(masks, imgs)
+            if found is None:
+                skipped.append(dict(kind='anat', img=imgs[0], mask=str(masks[0][0]),
+                                    reason=f'no {T} image on the grid of any mask ({why})'))
+                continue
+            img, mask, man = found
+            pairs.append(dict(meta, kind='anat', contrast=T, manual_mask=man,
+                              mask_type=mask.name[len(ID):-len('.nii.gz')], img=str(img), mask=str(mask),
+                              mtime=max(img.stat().st_mtime, mask.stat().st_mtime)))
+
+
+def _func_pairs(ses_dir, meta, func_masks, pairs, skipped):
+    raw = ses_dir / 'func' / 'raw'
+    mean_img = raw / 'preprocessing' / 'all_runs_space-func_desc-fMRI_Mean_Image.nii.gz'
+    if not mean_img.is_file():
+        return
+    masks = []
+    for f in sorted(glob(str(raw / 'masks' / '*_final_mask.nii.gz'))):
+        fm = raw / 'masks' / (os.path.basename(f)[:-len('_final_mask.nii.gz')] + '_fMRI_mask.nii.gz')
+        masks.append((fm if fm.is_file() else Path(f), 1, 'final_mask'))
+    if func_masks in ('reference', 'all') and (raw / 'masks' / 'mask_ref.nii.gz').is_file():
+        masks.append((raw / 'masks' / 'mask_ref.nii.gz', 0, 'mask_ref'))
+    if func_masks == 'all':
+        masks += [(Path(f), 0, 'fMRI_mask') for f in sorted(glob(str(raw / 'masks' / '*_fMRI_mask.nii.gz')))]
+    if not masks:
+        return
+    found, why = _first_on_grid([(m, (man, t)) for m, man, t in masks], [str(mean_img)])
+    if found is None:
+        skipped.append(dict(kind='func', img=str(mean_img), mask=str(masks[0][0]), reason=why))
+        return
+    _, mask, (man, mtype) = found
+    pairs.append(dict(meta, kind='func', contrast='EPI', manual_mask=man, mask_type=mtype, img=str(mean_img),
+                      mask=str(mask), mtime=max(mean_img.stat().st_mtime, mask.stat().st_mtime)))
+
+
+def log_options(args):
+    log('options    : ' + ' '.join(f'{k}={v}' for k, v in sorted(vars(args).items())))
+
+
+def log_mask_types(pairs):
+    mt = defaultdict(int)
+    for r in pairs:
+        mt[(r['kind'], r['mask_type'])] += 1
+    log('masks used: ' + ', '.join(f'{k}:{t}={n}' for (k, t), n in sorted(mt.items())))
+
+
 def discover_pairs(roots, func_masks='reference', anat_contrasts=('T1w', 'T2w'), anat_masks='all'):
     """
     anat : mask = hand-corrected {ID}_final_mask_orig > {ID}_final_mask > {ID}_backtonative_mask
@@ -166,71 +238,12 @@ def discover_pairs(roots, func_masks='reference', anat_contrasts=('T1w', 'T2w'),
     pairs, skipped = [], []
     for sub_dir in find_subject_dirs(roots):
         species, dataset = species_dataset(sub_dir)
-        sub = sub_dir.name
         ses_dirs = sorted(Path(p) for p in glob(str(sub_dir / 'ses-*')) if os.path.isdir(p)) or [sub_dir]
         for ses_dir in ses_dirs:
-            ses = ses_dir.name if ses_dir != sub_dir else 'ses-NA'
-
-            # ---- anat -------------------------------------------------------------
-            vol_dir = ses_dir / 'anat' / 'native' / 'volumes'
-            msk_dir = vol_dir / 'masks'
-            ids = set()
-            for suf in ANAT_MANUAL_MASKS + ('_space-acpc_mask',):
-                for f in glob(str(msk_dir / f'*{suf}.nii.gz')):
-                    ids.add(os.path.basename(f)[:-len(suf + '.nii.gz')])
-            for ID in sorted(ids):
-                cands = [(msk_dir / f'{ID}{suf}.nii.gz', 1) for suf in ANAT_MANUAL_MASKS]
-                if anat_masks != 'manual':
-                    cands.append((msk_dir / f'{ID}_space-acpc_mask.nii.gz', 0))
-                cands = [(m, man) for m, man in cands if m.is_file()]
-                for T in anat_contrasts:
-                    imgs = _anat_image_candidates(vol_dir, ID, T)
-                    if not imgs or not cands:
-                        continue
-                    found, why = None, ''
-                    for mask, man in cands:            # best mask first, then first image on its grid
-                        for img in imgs:
-                            ok, why = same_grid(img, mask)
-                            if ok:
-                                found = (Path(img), mask, man)
-                                break
-                        if found:
-                            break
-                    if found is None:
-                        skipped.append(dict(kind='anat', img=imgs[0], mask=str(cands[0][0]),
-                                            reason=f'no {T} image on the grid of any mask ({why})'))
-                        continue
-                    img, mask, man = found
-                    pairs.append(dict(species=species, dataset=dataset, subject=sub, session=ses, kind='anat',
-                                      contrast=T, manual_mask=man, mask_type=mask.name[len(ID):-len('.nii.gz')],
-                                      img=str(img), mask=str(mask),
-                                      mtime=max(img.stat().st_mtime, mask.stat().st_mtime)))
-
-            # ---- func -------------------------------------------------------------
-            raw = ses_dir / 'func' / 'raw'
-            mean_img = raw / 'preprocessing' / 'all_runs_space-func_desc-fMRI_Mean_Image.nii.gz'
-            if not mean_img.is_file():
-                continue
-            cands = []
-            for f in sorted(glob(str(raw / 'masks' / '*_final_mask.nii.gz'))):
-                ID = os.path.basename(f)[:-len('_final_mask.nii.gz')]
-                fm = raw / 'masks' / f'{ID}_fMRI_mask.nii.gz'
-                cands.append((fm if fm.is_file() else Path(f), 1, 'final_mask'))
-            if func_masks in ('reference', 'all') and (raw / 'masks' / 'mask_ref.nii.gz').is_file():
-                cands.append((raw / 'masks' / 'mask_ref.nii.gz', 0, 'mask_ref'))
-            if func_masks == 'all':
-                cands += [(Path(f), 0, 'fMRI_mask') for f in sorted(glob(str(raw / 'masks' / '*_fMRI_mask.nii.gz')))]
-            why = 'no usable mask'
-            for mask, man, mtype in cands:
-                ok, why = same_grid(mean_img, mask)
-                if ok:
-                    pairs.append(dict(species=species, dataset=dataset, subject=sub, session=ses, kind='func',
-                                      contrast='EPI', manual_mask=man, mask_type=mtype, img=str(mean_img),
-                                      mask=str(mask), mtime=max(mean_img.stat().st_mtime, mask.stat().st_mtime)))
-                    break
-            else:
-                if cands:
-                    skipped.append(dict(kind='func', img=str(mean_img), mask=str(cands[0][0]), reason=why))
+            meta = dict(species=species, dataset=dataset, subject=sub_dir.name,
+                        session=ses_dir.name if ses_dir != sub_dir else 'ses-NA')
+            _anat_pairs(ses_dir, meta, anat_contrasts, anat_masks, pairs, skipped)
+            _func_pairs(ses_dir, meta, func_masks, pairs, skipped)
 
     # Same data mirrored under several roots: keep the most recent outputs only.
     best = {}
@@ -676,7 +689,7 @@ def main():
     log(f'UNet dir   : {unet_dir}')
     log(f'init model : {init_path}')
     log(f'output dir : {out}')
-    log('options    : ' + ' '.join(f'{k}={v}' for k, v in sorted(vars(args).items())))
+    log_options(args)
 
     # ---- discovery -----------------------------------------------------------------------
     t0 = time.time()
@@ -713,10 +726,7 @@ def main():
     for s, sp in split.items():
         n_subj[sp] += 1
     log(f"subjects: train {n_subj['train']}, val {n_subj['val']}, test {n_subj['test']}")
-    mt = defaultdict(int)
-    for r in pairs:
-        mt[(r['kind'], r['mask_type'])] += 1
-    log('masks used: ' + ', '.join(f'{k}:{t}={n}' for (k, t), n in sorted(mt.items())))
+    log_mask_types(pairs)
     if args.dry_run:
         log('dry run: stop.')
         return
