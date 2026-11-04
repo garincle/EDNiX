@@ -133,7 +133,7 @@ def same_grid(img_path, msk_path):
     return True, ''
 
 
-def discover_pairs(roots, func_masks='all', anat_contrasts=('T1w', 'T2w')):
+def discover_pairs(roots, func_masks='all', anat_contrasts=('T1w', 'T2w'), anat_masks='all'):
     pairs, skipped = [], []
     for sub_dir in find_subject_dirs(roots):
         species, dataset = species_dataset(sub_dir)
@@ -154,6 +154,8 @@ def discover_pairs(roots, func_masks='all', anat_contrasts=('T1w', 'T2w')):
                 manual = msk_dir / f'{ID}_backtonative_mask.nii.gz'
                 auto = msk_dir / f'{ID}_space-acpc_mask.nii.gz'
                 mask = manual if manual.is_file() else auto
+                if anat_masks == 'manual' and mask != manual:
+                    continue
                 for T in anat_contrasts:
                     img = vol_dir / f'{ID}_space-acpc_desc-template_{T}.nii.gz'
                     if not img.is_file():
@@ -320,10 +322,18 @@ def load_unet_module(unet_dir):
     return mod
 
 
+BN_MODE = 'per-sample'   # set from --bn-mode in main()
+
+
 def _per_sample_bn_forward(self, x):
+    import torch.nn as nn
     import torch.nn.functional as F
-    # = BatchNorm2d in training mode with batch size 1, which is what muSkullStrip.py actually
-    # runs at inference (it never calls model.eval() and feeds one block at a time).
+    # 'batch' mode, training only: standard BatchNorm2d over the batch of blocks, as the original
+    # trainSs_UNet.py (batches of 20 blocks of the same volume).
+    if BN_MODE == 'batch' and self.training:
+        return nn.BatchNorm2d.forward(self, x)
+    # Otherwise (always at evaluation) = BatchNorm2d in training mode with batch size 1, which is what
+    # muSkullStrip.py actually runs at inference (it never calls model.eval() and feeds one block at a time).
     return F.instance_norm(x, None, None, self.weight, self.bias, True, 0.0, self.eps)
 
 
@@ -541,7 +551,17 @@ def parse_args():
     p.add_argument('--out-dir', default=None, help='output dir (default: %s)' % default_out_dir())
     p.add_argument('--func-masks', choices=['all', 'manual'], default='all',
                    help="'manual': only func sessions with a hand-corrected {ID}_final_mask")
+    p.add_argument('--anat-masks', choices=['all', 'manual'], default='all',
+                   help="'manual': only anat sessions with a hand-corrected {ID}_backtonative_mask")
     p.add_argument('--anat-contrasts', nargs='+', default=['T1w', 'T2w'])
+    p.add_argument('--bn-mode', choices=['per-sample', 'batch'], default='per-sample',
+                   help="BatchNorm statistics during training: 'per-sample' (= inference) or 'batch' "
+                        "(original trainSs_UNet.py). Evaluation is always per-sample, as muSkullStrip.py.")
+    p.add_argument('--legacy', action='store_true',
+                   help='reproduce the original trainSs_UNet.py recipe on current EDNiX files: hand-corrected '
+                        'masks only (anat + func), uniform block sampling (~all blocks per volume and epoch), '
+                        'batches of 20 blocks from one volume, batch BatchNorm, cross-entropy only, no gamma '
+                        'augmentation, 40 epochs. Explicit options still override these defaults.')
     p.add_argument('--val-ratio', type=float, default=0.15)
     p.add_argument('--test-ratio', type=float, default=0.15)
     p.add_argument('--resplit', action='store_true', help='ignore an existing split.json')
@@ -566,12 +586,18 @@ def parse_args():
     p.add_argument('--n-cpus', type=int, default=min(16, os.cpu_count() or 1))
     p.add_argument('--cpu', action='store_true', help='force CPU even if CUDA is available')
     p.add_argument('--dry-run', action='store_true', help='discovery + split only')
+    if '--legacy' in sys.argv[1:]:
+        # new defaults only: any option given explicitly on the command line still wins
+        p.set_defaults(anat_masks='manual', func_masks='manual', fg_p=0.0, blocks_per_volume=750,
+                       blocks_per_visit=20, batch_size=20, bn_mode='batch', dice_weight=0.0, gamma_p=0.0,
+                       epochs=40, patience=40, lr=1e-4)
     return p.parse_args()
 
 
 def main():
-    global _LOG_FH
+    global _LOG_FH, BN_MODE
     args = parse_args()
+    BN_MODE = args.bn_mode
     for v in ('OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'NUMEXPR_NUM_THREADS'):
         os.environ.setdefault(v, str(args.n_cpus))
 
@@ -597,10 +623,11 @@ def main():
     log(f'UNet dir   : {unet_dir}')
     log(f'init model : {init_path}')
     log(f'output dir : {out}')
+    log('options    : ' + ' '.join(f'{k}={v}' for k, v in sorted(vars(args).items())))
 
     # ---- discovery -----------------------------------------------------------------------
     t0 = time.time()
-    pairs, skipped = discover_pairs(roots, args.func_masks, tuple(args.anat_contrasts))
+    pairs, skipped = discover_pairs(roots, args.func_masks, tuple(args.anat_contrasts), args.anat_masks)
     log(f'discovery: {len(pairs)} pairs, {len(skipped)} skipped ({time.time() - t0:.0f}s)')
     for s in skipped[:20]:
         log(f"  skip {s['kind']} {s['img']} : {s['reason']}")
