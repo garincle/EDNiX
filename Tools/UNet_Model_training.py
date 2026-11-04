@@ -95,6 +95,11 @@ def log(msg):
 # ----------------------------------------------------------------------------------------
 # 1. Discovery of image/mask pairs
 # ----------------------------------------------------------------------------------------
+# Datasets that re-use the subjects of another dataset (same animals/people): excluded so that a
+# subject cannot be in train through one dataset and in val/test through the other.
+EXCLUDE_DATASETS = {'BIDS_Zhu_Garin_non_long', 'BIDS_Park_nolong'}   # replaced by --exclude-datasets
+
+
 def find_subject_dirs(roots, max_depth=4):
     seen = set()
     for root in roots:
@@ -105,6 +110,8 @@ def find_subject_dirs(roots, max_depth=4):
                     continue
                 parts = Path(d).parts
                 if any(p.lower() in ('archives', 'archive', 'old', 'derivatives_old') for p in parts):
+                    continue
+                if EXCLUDE_DATASETS.intersection(parts):   # duplicate datasets (same subjects)
                     continue
                 real = os.path.realpath(d)
                 if real not in seen:
@@ -644,6 +651,8 @@ def parse_args():
                    help="'manual': only hand-corrected anat masks ({ID}_final_mask_orig, {ID}_final_mask, "
                         "{ID}_backtonative_mask)")
     p.add_argument('--anat-contrasts', nargs='+', default=['T1w', 'T2w'])
+    p.add_argument('--exclude-datasets', nargs='*', default=sorted(EXCLUDE_DATASETS),
+                   help='dataset folders to skip (duplicates of another dataset); give it empty to keep all')
     p.add_argument('--bn-mode', choices=['per-sample', 'batch'], default='per-sample',
                    help="BatchNorm statistics during training: 'per-sample' (= inference) or 'batch' "
                         "(original trainSs_UNet.py). Evaluation is always per-sample, as muSkullStrip.py.")
@@ -719,6 +728,8 @@ def main():
 
     # ---- discovery -----------------------------------------------------------------------
     t0 = time.time()
+    EXCLUDE_DATASETS.clear()
+    EXCLUDE_DATASETS.update(args.exclude_datasets)
     pairs, skipped = discover_pairs(roots, args.func_masks, tuple(args.anat_contrasts), args.anat_masks)
     log(f'discovery: {len(pairs)} pairs, {len(skipped)} skipped ({time.time() - t0:.0f}s)')
     for s in skipped[:20]:
