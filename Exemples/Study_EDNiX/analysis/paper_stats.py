@@ -15,8 +15,10 @@ lines), and returns them with what paper_figures.py needs to draw the figure.
                                                per-dataset convergence: tables only)
                                             c  dataset x dataset distance + sibling test
   figure5   seed maps after selection       runs kept / not kept per dataset, colour ranges
-  figure6   multimodal profile (PET, FC,    B  bratio per region, Macaque vs Human (permutation,
-            morphometry), Human / Macaque      BH-FDR); C  z-scored profiles, cross-modal r
+  figure6   multimodal profile (PET, FC,    a-b bratio of 2 human + 1 macaque FDG datasets, each human
+            morphometry), Human / Macaque      dataset vs macaque (permutation, BH-FDR); c agreement of the
+                                               human datasets (r, CCC, noise ceiling, pair classes);
+                                               d z-scored profiles, cross-species / cross-modal r
   supp1-3   pipeline schematics (anat MRI,  no statistic
             fMRI, FDG-PET with the CT path)
   supp4     acquisition parameters          the <= 4 parameters reported for every fMRI dataset
@@ -353,22 +355,42 @@ def figure5(inp):
 
 
 def figure6(inp):
-    """Multimodal profile (former Figure XX): B bratio per region and species test,
-    C z-scored morphometry / FC / metabolism profiles (library/multimodal_figure.py)."""
+    """Multimodal profile: a-b bratio of the FDG datasets (two human, one macaque) and difference with the macaque,
+    c reproducibility of the human datasets, d multimodal fingerprints (library/multimodal_figure.py,
+    library/pet_datasets.py)."""
     from Exemples.Study_EDNiX.analysis.library import multimodal_figure as mmf
     st = inp.multimodal()
-    sb = st["stats_b"]
-    lines = [f"level {mmf.LEVEL}, {st['prof_b'].shape[1]} regions (B), {len(st['regions_c'])} regions (C); "
-             f"species {mmf.SPECIES}; test {mmf.TEST} ({mmf.N_PERM} permutations), BH-FDR"]
-    lines.append("B  n subjects: " + ", ".join(f"{sp} {st['prof_b'].loc[sp].shape[0]}"
-                                               for sp in mmf.SPECIES))
-    lines += [f"  {r.region}: {r.species} - {r.reference} = {r.difference:+.3f} "
+    pet = st["pet"]
+    w, sb = pet["w"], pet["stats"]
+    lines = [f"level {mmf.LEVEL}, {len(pet['regions'])} regions (a-c), {len(st['regions_c'])} regions (d); "
+             f"test {mmf.TEST} ({mmf.N_PERM} permutations), BH-FDR within dataset; reference {mmf.REFERENCE_DATASET}"]
+    lines.append("B  n subjects: " + ", ".join(f"{d} {w.loc[d].shape[0]}" for d in pet["labels"]
+                                               if d in w.index.get_level_values(0)))
+    lines += [f"  {r.dataset} | {r.region}: {r.dataset} - {r.reference} = {r.difference:+.3f} "
               f"(g = {r.hedges_g:+.2f}), q = {r.q_fdr:.3g}" for r in sb.itertuples()]
-    lines += [f"C  {r.species} {r.modality_a}-{r.modality_b}: Spearman r = {r.spearman_r:.2f}"
+    g = pet["agree"].iloc[0]
+    lines.append(f"C  agreement {g.dataset_a} vs {g.dataset_b} ({int(g.n_regions)} regions, n {int(g.n_a)} / "
+                 f"{int(g.n_b)}): Pearson r = {g.pearson_r:.3f} [{g.pearson_r_ci_low:.3f}, {g.pearson_r_ci_high:.3f}], "
+                 f"Spearman = {g.spearman_r:.3f}, Lin CCC = {g.lin_ccc:.3f} [{g.lin_ccc_ci_low:.3f}, "
+                 f"{g.lin_ccc_ci_high:.3f}], mean |diff| = {g.mean_abs_difference:.3f}; split-half "
+                 f"{g.reliability_a:.3f} / {g.reliability_b:.3f}, disattenuated r = {g.pearson_r_disattenuated:.3f}")
+    bt = pet["between"]
+    lines.append(f"C  {bt.dataset.iat[0]} - {bt.reference.iat[0]}: {int((bt.q_fdr < mmf.ALPHA).sum())} of {len(bt)} "
+                 f"regions q < {mmf.ALPHA}")
+    lines += [f"  {r.region}: {r.difference:+.3f} (g = {r.hedges_g:+.2f}), q = {r.q_fdr:.3g}"
+              for r in bt.itertuples() if r.q_fdr < mmf.ALPHA]
+    pr = pet["pairs"]
+    if len(pr):
+        lines += [f"C  pairs {c}: n = {len(v)}, median r = {v.median():.3f} [IQR {v.quantile(.25):.3f}-"
+                  f"{v.quantile(.75):.3f}]" for c, v in pr.groupby("pair_class", sort=False)["r"]]
+    for t in pet["ptest"].itertuples():
+        lines.append(f"C  {t.test}: {t.statistic:+.4f} (null {t.null_mean:+.4f} +- {t.null_sd:.4f}), "
+                     f"P = {t.p_permutation:.3g}, {t.n_subjects} subjects")
+    lines += [f"D  {r.species} {r.modality_a}-{r.modality_b}: Spearman r = {r.spearman_r:.2f}"
               for r in st["cmc"].itertuples()]
     summ = st.get("summ")
     if summ is not None and len(summ):
-        lines.append("C  summary (Spearman over regions; P permutation, CI bootstrap, Holm over all rows)")
+        lines.append("D  summary (Spearman over regions; P permutation, CI bootstrap, Holm over all rows)")
         lines += [f"  {r.analysis} | {r.species} | {r.modality} (n={r.n_regions}): r = {r.r:+.2f} "
                   f"[{r.ci_low:+.2f}, {r.ci_high:+.2f}], P = {r.p:.3g}, Holm P = {r.p_holm:.3g}"
                   for r in summ.itertuples()]

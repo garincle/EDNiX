@@ -121,9 +121,39 @@ def test_profiles_and_figure(cfg, tmp_path):
     assert np.allclose(z.mean(axis=1), 0) and np.allclose(z.std(axis=1, ddof=1), 1)
     cmc = MP.cross_modal_correlations(prof_c)
     assert len(cmc) == 6
-    fig = F.build_figure({}, (0.5, 1.5), prof_b, stats_b, prof_c, regions_c)
+    pet = _pet_stats(F, cfg, tmp_path, REGIONS)
+    summ = MP.summary_stats(prof_c, regions_c, F.SPECIES, n=200)
+    fig = F.build_figure({}, (0.5, 1.5), pet, prof_c, regions_c, summ, None, {}, (-0.3, 0.3))
     fig.savefig(tmp_path / 'fig.png')
-    assert "Figure 6" in F.legend_text(prof_b, stats_b, prof_c, regions_c, (0.5, 1.5), cmc)
+    assert "Figure 6" in F.legend_text(pet, prof_c, regions_c, (0.5, 1.5), cmc, summ, (-0.3, 0.3))
+
+
+def _pet_human2(tmp_path, rng, nsub=5):
+    """Second human FDG dataset, two sessions per subject (eyes open / closed), occipital higher when open."""
+    bids = str(tmp_path / 'Human2')
+    for s in range(nsub):
+        for ses, occ in (('open', 1.16), ('closed', 1.08)):
+            d = opj(bids, f'sub-C{s}', f'ses-{ses}', PIRP.ROI_SUBDIR)
+            os.makedirs(d, exist_ok=True)
+            v = dict(zip(NAMES, [1.1, 0.95, 1.05, occ, 1.0, 0.5, 0.8]))
+            rows = [dict(label=10 + i + off, region=f'{h}_{n}', n_voxels=100, n_valid=100, volume_mm3=800.0,
+                         mean=v[n] + rng.normal(0, 0.02), sd=0.1, median=v[n])
+                    for i, n in enumerate(NAMES) for h, off in (('L', 0), ('R', 1000))]
+            pd.DataFrame(rows).to_csv(opj(d, f'sub-C{s}_ses-{ses}_trc-FDG_seg-EDNIxCSCLR-lvl1_desc-bratio-mean_ROIs.tsv'),
+                                      sep='\t', index=False)
+    return bids
+
+
+def _pet_stats(F, cfg, tmp_path, regions, monkeypatch=None):
+    h2 = _pet_human2(tmp_path, np.random.default_rng(3))
+    ds = [('Human_Merida', 'Human', cfg['SOURCES']['metabolism']['Human'][0]), ('Human_Castrillon', 'Human', h2),
+          ('Macaque_Tremblay', 'Macaque', cfg['SOURCES']['metabolism']['Macaque'][0])]
+    if monkeypatch is not None:
+        monkeypatch.setattr(F, 'PET_DATASETS', ds)
+        monkeypatch.setattr(F, 'N_PERM', 200)
+        return None
+    F.PET_DATASETS, F.N_PERM = ds, 200
+    return F.pet_dataset_stats(regions)
 
 
 def test_region_missing_in_one_species_is_dropped_not_the_species(cfg):
@@ -197,14 +227,16 @@ def test_figure6_paper_stats_and_figure(cfg, tmp_path, monkeypatch):
         monkeypatch.setattr(F, k, v)
     monkeypatch.setattr(F, 'REGIONS', None)
     monkeypatch.setattr(F, 'FC_SOURCE', 'matrix')           # synthetic trees have no fMRI selection
-    monkeypatch.setattr(F, 'surface_pngs', lambda: ({}, (0.5, 1.5)))
+    monkeypatch.setattr(F, 'surface_pngs', lambda diffs=None: ({}, (0.5, 1.5), {}, (-0.3, 0.3)))
+    _pet_stats(F, cfg, tmp_path, None, monkeypatch)
     res = pst.run(('figure6',), pst.Inputs(), paper_dir=str(tmp_path))
     st = res['figure6']['draw']['stats']
-    prof_b, stats_b, _ = F.metabolism_stats(MP.collect_modalities(cfg)['metabolism'], st['regions'])
-    pd.testing.assert_frame_equal(st['stats_b'], stats_b)
+    pet = F.pet_dataset_stats()
+    pd.testing.assert_frame_equal(st['pet']['stats'], pet['stats'])
     base = tmp_path / 'Figure_6' / 'Figure_6'
     assert (tmp_path / 'Figure_6' / 'Figure_6_stats.xlsx').is_file()
-    assert 'B_stats' in pd.ExcelFile(tmp_path / 'Figure_6' / 'Figure_6_stats.xlsx').sheet_names
+    sheets = pd.ExcelFile(tmp_path / 'Figure_6' / 'Figure_6_stats.xlsx').sheet_names
+    assert {'B_vs_macaque', 'C_agreement', 'C_pair_similarity'} <= set(sheets)
     pfg.run(res, None, paper_dir=str(tmp_path))
     assert (tmp_path / 'Figure_6' / 'Figure_6.png').is_file()
     assert 'Figure 6 |' in open(str(base) + '_legend.txt').read()
