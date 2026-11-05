@@ -688,6 +688,9 @@ def parse_args():
     p.add_argument('--n-cpus', type=int, default=min(16, os.cpu_count() or 1))
     p.add_argument('--cpu', action='store_true', help='force CPU even if CUDA is available')
     p.add_argument('--dry-run', action='store_true', help='discovery + split only')
+    p.add_argument('--eval-only', default=None, metavar='CHECKPOINT',
+                   help='no training: evaluate this checkpoint vs the init model on the val and test subjects '
+                        '(same discovery/split/cache as training; writes eval_init_vs_finetuned.csv)')
     if '--legacy' in sys.argv[1:]:
         # new defaults only: any option given explicitly on the command line still wins
         p.set_defaults(anat_masks='manual', func_masks='reference', fg_p=0.0, blocks_per_volume=750,
@@ -721,7 +724,7 @@ def main():
     (out / 'checkpoints').mkdir(parents=True, exist_ok=True)
     _LOG_FH = open(out / 'train.log', 'a')
     log('=' * 90)
-    if not args.dry_run:
+    if not args.dry_run and not args.eval_only:
         archive_previous_checkpoints(out / 'checkpoints')
     log(f'data roots : {[str(r) for r in roots]}')
     log(f'UNet dir   : {unet_dir}')
@@ -848,85 +851,92 @@ def main():
                     'config': {k: (v if isinstance(v, (int, float, str, bool, type(None))) else str(v))
                                for k, v in vars(args).items()}}, str(path))
 
-    best, best_epoch, bad = -1.0, -1, 0
-    if val:
-        t = time.time()
-        d0 = val_eval.run(init_model)
-        best, per = macro_dice(val, d0)
-        log(f'epoch -1 (init model) val macro-Dice {best:.4f}  ({time.time() - t:.0f}s)')
-        for k, v in per.items():
-            log(f'    {k:<34}{v:.4f}')
-        save_ckpt(out / 'checkpoints' / 'model-cross_species_ft-best-epoch', -1, list(d0.values()))
+    if args.eval_only:
+        # evaluate an existing checkpoint (e.g. the best of a run stopped by hand): no training
+        best_path = Path(args.eval_only)
+        ck = torch_load(str(best_path))
+        best_epoch, best = int(ck.get('epoch', -1)) if isinstance(ck, dict) else -1, float('nan')
+        log(f'eval only: {best_path} (epoch {best_epoch})')
     else:
-        log('WARNING: no validation subject -> no model selection/early stopping, last epoch is kept.')
+        best, best_epoch, bad = -1.0, -1, 0
+        if val:
+            t = time.time()
+            d0 = val_eval.run(init_model)
+            best, per = macro_dice(val, d0)
+            log(f'epoch -1 (init model) val macro-Dice {best:.4f}  ({time.time() - t:.0f}s)')
+            for k, v in per.items():
+                log(f'    {k:<34}{v:.4f}')
+            save_ckpt(out / 'checkpoints' / 'model-cross_species_ft-best-epoch', -1, list(d0.values()))
+        else:
+            log('WARNING: no validation subject -> no model selection/early stopping, last epoch is kept.')
 
-    log_f = out / 'train_log.csv'
-    new_log = not log_f.is_file()
-    with open(log_f, 'a', newline='') as fh:
-        lw = csv.writer(fh)
-        if new_log:
-            lw.writerow(['epoch', 'lr', 'loss', 'blocks', 'seconds', 'val_macro_dice'])
-        for epoch in range(args.epochs):
-            model.train()
-            t, losses, nb = time.time(), [], 0
-            for it, (x, y) in enumerate(loader):
-                x = x.to(device, non_blocking=True)
-                y = y.to(device, non_blocking=True)
-                with torch.autocast(device_type=device.type, dtype=amp_dtype or torch.float32,
-                                    enabled=amp_dtype is not None):
-                    logits = model(x)
-                logits = logits.float()
-                loss = ce(logits, y)
-                if args.dice_weight > 0:
-                    p1 = torch.softmax(logits, 1)[:, 1]
-                    yf = y.float()
-                    sd = (2 * (p1 * yf).sum() + 1.0) / (p1.sum() + yf.sum() + 1.0)
-                    loss = loss + args.dice_weight * (1.0 - sd)
-                opt.zero_grad(set_to_none=True)
-                if use_scaler:
-                    scaler.scale(loss).backward()
-                    scaler.step(opt)
-                    scaler.update()
+        log_f = out / 'train_log.csv'
+        new_log = not log_f.is_file()
+        with open(log_f, 'a', newline='') as fh:
+            lw = csv.writer(fh)
+            if new_log:
+                lw.writerow(['epoch', 'lr', 'loss', 'blocks', 'seconds', 'val_macro_dice'])
+            for epoch in range(args.epochs):
+                model.train()
+                t, losses, nb = time.time(), [], 0
+                for it, (x, y) in enumerate(loader):
+                    x = x.to(device, non_blocking=True)
+                    y = y.to(device, non_blocking=True)
+                    with torch.autocast(device_type=device.type, dtype=amp_dtype or torch.float32,
+                                        enabled=amp_dtype is not None):
+                        logits = model(x)
+                    logits = logits.float()
+                    loss = ce(logits, y)
+                    if args.dice_weight > 0:
+                        p1 = torch.softmax(logits, 1)[:, 1]
+                        yf = y.float()
+                        sd = (2 * (p1 * yf).sum() + 1.0) / (p1.sum() + yf.sum() + 1.0)
+                        loss = loss + args.dice_weight * (1.0 - sd)
+                    opt.zero_grad(set_to_none=True)
+                    if use_scaler:
+                        scaler.scale(loss).backward()
+                        scaler.step(opt)
+                        scaler.update()
+                    else:
+                        loss.backward()
+                        opt.step()
+                    losses.append(float(loss.detach()))
+                    nb += x.shape[0]
+                    if (it + 1) % 100 == 0:
+                        log(f'  epoch {epoch} it {it + 1}/{len(loader)} loss {np.mean(losses[-100:]):.4f} '
+                            f'({nb / (time.time() - t):.0f} blocks/s)')
+                lr = opt.param_groups[0]['lr']
+                sched.step()
+                dt = time.time() - t
+                vm = float('nan')
+                if val and ((epoch + 1) % args.val_every == 0 or epoch + 1 == args.epochs):
+                    tv = time.time()
+                    dv = val_eval.run(model)
+                    vm, per = macro_dice(val, dv)
+                    log(f'epoch {epoch} loss {np.mean(losses):.4f} lr {lr:.2e} train {dt:.0f}s | '
+                        f'val macro-Dice {vm:.4f} ({time.time() - tv:.0f}s)')
+                    for k, v in per.items():
+                        log(f'    {k:<34}{v:.4f}')
+                    if vm > best:
+                        best, best_epoch, bad = vm, epoch, 0
+                        save_ckpt(out / 'checkpoints' / 'model-cross_species_ft-best-epoch', epoch, list(dv.values()))
+                        log(f'    -> new best model (epoch {epoch})')
+                    else:
+                        bad += 1
                 else:
-                    loss.backward()
-                    opt.step()
-                losses.append(float(loss.detach()))
-                nb += x.shape[0]
-                if (it + 1) % 100 == 0:
-                    log(f'  epoch {epoch} it {it + 1}/{len(loader)} loss {np.mean(losses[-100:]):.4f} '
-                        f'({nb / (time.time() - t):.0f} blocks/s)')
-            lr = opt.param_groups[0]['lr']
-            sched.step()
-            dt = time.time() - t
-            vm = float('nan')
-            if val and ((epoch + 1) % args.val_every == 0 or epoch + 1 == args.epochs):
-                tv = time.time()
-                dv = val_eval.run(model)
-                vm, per = macro_dice(val, dv)
-                log(f'epoch {epoch} loss {np.mean(losses):.4f} lr {lr:.2e} train {dt:.0f}s | '
-                    f'val macro-Dice {vm:.4f} ({time.time() - tv:.0f}s)')
-                for k, v in per.items():
-                    log(f'    {k:<34}{v:.4f}')
-                if vm > best:
-                    best, best_epoch, bad = vm, epoch, 0
-                    save_ckpt(out / 'checkpoints' / 'model-cross_species_ft-best-epoch', epoch, list(dv.values()))
-                    log(f'    -> new best model (epoch {epoch})')
-                else:
-                    bad += 1
-            else:
-                log(f'epoch {epoch} loss {np.mean(losses):.4f} lr {lr:.2e} train {dt:.0f}s')
-            save_ckpt(out / 'checkpoints' / 'model-last-epoch', epoch, [])
-            lw.writerow([epoch, lr, float(np.mean(losses)), nb, round(dt, 1), vm])
-            fh.flush()
-            if val and bad >= args.patience:
-                log(f'early stopping: no improvement for {bad} validations.')
-                break
+                    log(f'epoch {epoch} loss {np.mean(losses):.4f} lr {lr:.2e} train {dt:.0f}s')
+                save_ckpt(out / 'checkpoints' / 'model-last-epoch', epoch, [])
+                lw.writerow([epoch, lr, float(np.mean(losses)), nb, round(dt, 1), vm])
+                fh.flush()
+                if val and bad >= args.patience:
+                    log(f'early stopping: no improvement for {bad} validations.')
+                    break
 
-    if not val:
-        save_ckpt(out / 'checkpoints' / 'model-cross_species_ft-best-epoch', epoch, [])
-    best_path = out / 'checkpoints' / 'model-cross_species_ft-best-epoch'
-    if val and best_epoch < 0:
-        log('WARNING: fine-tuning never beat the init model on validation; the "best" checkpoint is the init model.')
+        if not val:
+            save_ckpt(out / 'checkpoints' / 'model-cross_species_ft-best-epoch', epoch, [])
+        best_path = out / 'checkpoints' / 'model-cross_species_ft-best-epoch'
+        if val and best_epoch < 0:
+            log('WARNING: fine-tuning never beat the init model on validation; the "best" checkpoint is the init model.')
 
     # ---- final evaluation: init vs fine-tuned, on val and held-out test ---------------------
     final = build_model(unet_mod, best_path, device)
