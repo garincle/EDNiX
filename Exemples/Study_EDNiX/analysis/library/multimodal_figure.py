@@ -384,29 +384,46 @@ def _draw_pairs(ax, pairs, ptest, fontsize=5.5):
                      f'(label permutation)', fontsize=fontsize, color='0.2', loc='left', pad=9)
 
 
-def _draw_radars(fig, W, L, R, top, d, lab_w, lab_h, title_h, prof_c, regions_c, fs_lab):
-    """e: one multimodal radar per species (D_MODALITIES), side by side, title = species, legend = modality names only
-    (n, z units and cross-species r: figure legend)."""
+def _draw_radars(fig, W, top, d, lab_w, lab_h, title_h, prof_c, regions_c, summ, fs_lab):
+    """e: one multimodal radar per species (D_MODALITIES), close to each other around the centre of the figure, the
+    species name just above its region names, and right below them one legend line per modality with its
+    cross-species Spearman r [95% CI] (* Holm P < 0.05); n and units: figure legend."""
     mods_present = [m for m in D_MODALITIES if all(m in prof_c[sp] for sp in SPECIES[:2])]
     rmax = max(np.nanmax(np.abs(prof_c[sp][m].reindex(columns=regions_c).mean().values))
                for sp in SPECIES[:2] for m in mods_present)
     rmax = float(np.ceil(rmax * 1.2 * 2) / 2)
-    half = (W - L - R) / 2
-    for k, sp in enumerate(SPECIES[:2]):
-        ax = _axes_mm(fig, L + k * half + (half - d) / 2, top + title_h + lab_h, d, d, projection='polar')
+    gap = 4.0                                                   # mm between the region names of the two radars
+    xs = (W / 2 - gap / 2 - lab_w - d, W / 2 + gap / 2 + lab_w)
+    top_lines = MP.radar_name(regions_c[0], 13).count('\n') + 1
+    for x0, sp in zip(xs, SPECIES[:2]):
+        ax = _axes_mm(fig, x0, top + title_h + lab_h, d, d, projection='polar')
         MP.draw_radar(ax, {m: prof_c[sp][m] for m in mods_present}, regions_c, sp,
                       SPECIES_COLORS.get(sp, 'black'), fontsize=fs_lab, rlim=(-rmax, rmax), width=13)
+        ax.set_title(sp, fontsize=fs_lab + 2, color=SPECIES_COLORS.get(sp, 'black'), fontweight='bold',
+                     pad=1 + 1.2 * fs_lab * top_lines)      # just above the top region name
         ax.set_yticks([-rmax / 2, 0, rmax / 2])
         ax.set_yticklabels([f'{-rmax / 2:g}', '0', f'{rmax / 2:g}'], fontsize=fs_lab - 0.5, color='0.4')
         ax.set_rlabel_position(180 / len(regions_c))
-    short = {'morphometry': 'volume', 'pos': 'positive coupling', 'neg': 'negative coupling', 'metabolism': 'FDG',
-             'FC': 'connectivity strength'}
-    axl = _axes_mm(fig, L, top + title_h + 2 * lab_h + d + 1, W - L - R, 5)
+    short = {'morphometry': 'volume', 'pos': 'positive coupling', 'neg': 'negative coupling',
+             'metabolism': 'FDG (bratio)', 'FC': 'connectivity strength'}
+    cons = {}
+    if summ is not None and len(summ):
+        c = summ[summ.analysis == 'conservation'].set_index('modality')
+        cons = {m: c.loc[m] for m in mods_present if m in c.index}
+    labels_ = []
+    for m in mods_present:
+        s_ = short.get(m, m)
+        if m in cons:
+            r = cons[m]
+            s_ += (f'   {SPECIES[0]}-{SPECIES[1]} r = {r.r:+.2f} [{r.ci_low:+.2f}, {r.ci_high:+.2f}]'
+                   + (' *' if r.p_holm < 0.05 else ''))
+        labels_.append(s_)
+    axl = _axes_mm(fig, 0, top + title_h + 2 * lab_h + d - 1, W, 9)
     axl.axis('off')
     handles = [plt.Line2D([], [], color=MP.MODALITY_COLORS[m], lw=1.4, ls=MP.MODALITY_LINESTYLE[m])
                for m in mods_present]
-    axl.legend(handles, [short.get(m, m) for m in mods_present], loc='center', ncol=len(handles), fontsize=6,
-               frameon=False, handlelength=2.6, columnspacing=2.5)
+    axl.legend(handles, labels_, loc='upper center', ncol=1, fontsize=5.5, frameon=False, handlelength=2.6,
+               borderaxespad=0, labelspacing=0.3)
 
 
 def _axes_mm(fig, x, top, w, h, **kw):
@@ -502,8 +519,8 @@ def _surface_axes(fig, x, top, w, h, img, title, colour, fontsize=7, bold=True):
     else:
         ax.text(0.5, 0.5, 'surface not rendered', ha='center', va='center', fontsize=6, color='0.4',
                 transform=ax.transAxes)
-    ax.text(0.5, 1.02, title, transform=ax.transAxes, ha='center', va='bottom', fontsize=fontsize,
-            fontweight='bold' if bold else 'normal', color=colour)
+    ax.annotate(title, xy=(0.5, 1.0), xycoords='axes fraction', xytext=(0, 7), textcoords='offset points',
+                ha='center', va='bottom', fontsize=fontsize, fontweight='bold' if bold else 'normal', color=colour)
     return ax
 
 
@@ -536,16 +553,16 @@ def build_figure(pngs, rng, pet, prof_c, regions_c, summ=None, si=None, dpngs=No
         plt.close(fig)
 
         # row 1: a (two human surfaces) + b (scatter, square, with its axis labels on the left / below)
-        b_side, b_lab_w = 40.0, 11.0
-        cw1 = (W - L - R - b_side - b_lab_w - 3 * GAP) / 2
+        b_side, b_lab_w, ab_gap = 38.0, 11.0, 10.0              # ab_gap: extra space between a and b
+        cw1 = (W - L - R - b_side - b_lab_w - 2 * GAP - ab_gap) / 2
         ha1 = cw1 / aspect
         top_a = 5.0
         s = min(b_side, ha1)
         # row 2: c (macaque + two differences)
         cw2 = (W - L - R - 2 * GAP) / 3
         ha2 = cw2 / aspect
-        top_c = top_a + 4 + max(ha1, s + 7) + 5
-        top_d = top_c + 4 + ha2 + 8
+        top_c = top_a + 6 + max(ha1, s + 7) + 5
+        top_d = top_c + 6 + ha2 + 8
         hb = 40.0
         top_e = top_d + hb + b_lab + 5
         half = (W - L - R) / 2
@@ -554,25 +571,25 @@ def build_figure(pngs, rng, pet, prof_c, regions_c, summ=None, si=None, dpngs=No
             hh = 3.0 * len(regions_c) + 22.0
             H = top_e + hh + 4
         else:
-            H = top_e + title_h + 2 * lab_h + d + 8
+            H = top_e + title_h + 2 * lab_h + d + 10
         fig = plt.figure(figsize=(FIG_W, H * MM))
 
         # a
         for k, lab in enumerate(humans[:2]):
             n = w.loc[lab].shape[0] if lab in w.index.get_level_values(0) else 0
-            _surface_axes(fig, L + k * (cw1 + GAP), top_a + 4, cw1, ha1, imgs.get(lab), f'{ds_name(lab)} (n = {n})',
+            _surface_axes(fig, L + k * (cw1 + GAP), top_a + 6, cw1, ha1, imgs.get(lab), f'{ds_name(lab)} (n = {n})',
                           PS.text_color(ds_species(lab)))
         # b
-        xb = L + 2 * (cw1 + GAP) + b_lab_w
-        axb = _axes_mm(fig, xb, top_a + 4, s, s)
+        xb = L + 2 * cw1 + GAP + ab_gap + b_lab_w
+        axb = _axes_mm(fig, xb, top_a + 6, s, s)
         _draw_agreement(axb, w, pet['agree'], regions)
         # c: macaque surface, then the differences under the same heading size
         ref = REFERENCE_DATASET
         n = w.loc[ref].shape[0] if ref in w.index.get_level_values(0) else 0
-        _surface_axes(fig, L, top_c + 4, cw2, ha2, imgs.get(ref), f'{ds_name(ref)} (n = {n})',
+        _surface_axes(fig, L, top_c + 6, cw2, ha2, imgs.get(ref), f'{ds_name(ref)} (n = {n})',
                       PS.text_color(ds_species(ref)))
         for k, lab in enumerate(humans[:2]):
-            _surface_axes(fig, L + (k + 1) * (cw2 + GAP), top_c + 4, cw2, ha2, imgs.get(('diff', lab)),
+            _surface_axes(fig, L + (k + 1) * (cw2 + GAP), top_c + 6, cw2, ha2, imgs.get(('diff', lab)),
                           f'{ds_name(lab)} - {ds_species(ref)}', '0.15', fontsize=6.5, bold=False)
         # d
         axd = _axes_mm(fig, L + 6, top_d, W - L - 6 - R, hb)
@@ -584,7 +601,7 @@ def build_figure(pngs, rng, pet, prof_c, regions_c, summ=None, si=None, dpngs=No
         if PANEL_D == 'summary' and summ is not None:
             _panel_c_summary(fig, W, L, top_e + 6, hh - 6, prof_c, regions_c, summ, si)
         else:
-            _draw_radars(fig, W, L, R, top_e, d, lab_w, lab_h, title_h, prof_c, regions_c, fs_lab)
+            _draw_radars(fig, W, top_e, d, lab_w, lab_h, title_h, prof_c, regions_c, summ, fs_lab)
         for lab, x, top in (('a', 1, top_a), ('b', xb - b_lab_w, top_a), ('c', 1, top_c), ('d', 1, top_d - 6),
                             ('e', 1, top_e)):
             fig.text(x / W, 1 - top / H, lab, fontsize=8, fontweight='bold', va='top')
