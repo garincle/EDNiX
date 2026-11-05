@@ -682,6 +682,9 @@ def parse_args():
     p.add_argument('--eval-batch', type=int, default=64)
     p.add_argument('--min-mask-frac', type=float, default=0.001)
     p.add_argument('--max-mask-frac', type=float, default=0.8)
+    p.add_argument('--cache-dir', default=None,
+                   help='where the normalised float16 volumes are cached (default: <out-dir>/cache). Put it on '
+                        'local SSD or /dev/shm: training reads it at random and is IO-bound on network storage')
     p.add_argument('--n-cpus', type=int, default=min(16, os.cpu_count() or 1))
     p.add_argument('--cpu', action='store_true', help='force CPU even if CUDA is available')
     p.add_argument('--dry-run', action='store_true', help='discovery + split only')
@@ -769,8 +772,9 @@ def main():
         return
 
     # ---- cache ---------------------------------------------------------------------------
-    log('building cache (normalise + rescale once, float16) ...')
-    metas, failed = build_cache(pairs, out / 'cache', args.n_cpus, args.min_mask_frac, args.max_mask_frac)
+    cache_dir = Path(args.cache_dir) if args.cache_dir else out / 'cache'
+    log(f'building cache (normalise + rescale once, float16) in {cache_dir} ...')
+    metas, failed = build_cache(pairs, cache_dir, args.n_cpus, args.min_mask_frac, args.max_mask_frac)
     for uid, err in failed:
         r = next(x for x in pairs if x['uid'] == uid)
         log(f"  drop {r['kind']} {r['img']} : {err}")
@@ -819,7 +823,7 @@ def main():
         f"{k}={n * n ** (args.balance_power - 1.0) / sum(m * m ** (args.balance_power - 1.0) for m in n_str.values()):.3f}"
         for k, n in sorted(n_str.items())))
 
-    ds = BlockVisitDataset(out / 'cache', uids, args.gamma_p, (0.7, 1.5))
+    ds = BlockVisitDataset(cache_dir, uids, args.gamma_p, (0.7, 1.5))
     sampler = EpochVisitSampler(train_idx, weights, metas_list, args.blocks_per_volume, args.blocks_per_visit,
                                 args.fg_p, args.seed)
     n_workers = max(0, min(8, args.n_cpus - 1))
@@ -833,8 +837,8 @@ def main():
     scaler = torch.cuda.amp.GradScaler(enabled=use_scaler) if device.type == 'cuda' else None
     ce = nn.CrossEntropyLoss()
 
-    val_eval = Evaluator(val, out / 'cache', device, args.eval_batch, amp_dtype)
-    test_eval = Evaluator(test, out / 'cache', device, args.eval_batch, amp_dtype)
+    val_eval = Evaluator(val, cache_dir, device, args.eval_batch, amp_dtype)
+    test_eval = Evaluator(test, cache_dir, device, args.eval_batch, amp_dtype)
 
     def save_ckpt(path, epoch, vdice):
         torch.save({'epoch': int(epoch),
