@@ -229,7 +229,7 @@ def test_figure6_paper_stats_and_figure(cfg, tmp_path, monkeypatch):
     monkeypatch.setattr(F, 'FC_SOURCE', 'matrix')           # synthetic trees have no fMRI selection
     monkeypatch.setattr(F, 'surface_pngs', lambda diffs=None: ({}, (0.5, 1.5), {}, (-0.3, 0.3)))
     _pet_stats(F, cfg, tmp_path, None, monkeypatch)
-    res = pst.run(('figure6',), pst.Inputs(), paper_dir=str(tmp_path))
+    res = pst.run(('figure6', 'supp13'), pst.Inputs(), paper_dir=str(tmp_path))
     st = res['figure6']['draw']['stats']
     pet = F.pet_dataset_stats()
     pd.testing.assert_frame_equal(st['pet']['stats'], pet['stats'])
@@ -240,6 +240,8 @@ def test_figure6_paper_stats_and_figure(cfg, tmp_path, monkeypatch):
     pfg.run(res, None, paper_dir=str(tmp_path))
     assert (tmp_path / 'Figure_6' / 'Figure_6.png').is_file()
     assert 'Figure 6 |' in open(str(base) + '_legend.txt').read()
+    assert (tmp_path / 'Supp_Fig_13' / 'Supp_Fig_13.png').is_file()
+    assert 'Supplementary Figure 13 |' in open(tmp_path / 'Supp_Fig_13' / 'Supp_Fig_13_legend.txt').read()
 
 
 def test_brain_regions_keep_subcortical_and_drop_ventricles():

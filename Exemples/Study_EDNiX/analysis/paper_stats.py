@@ -19,6 +19,7 @@ lines), and returns them with what paper_figures.py needs to draw the figure.
             morphometry), Human / Macaque      dataset vs macaque (permutation, BH-FDR); c agreement of the
                                                human datasets (r, CCC, noise ceiling, pair classes);
                                                d z-scored profiles, cross-species / cross-modal r
+  supp13    FDG profile similarity          pairs of subjects by class, label-permutation test
   supp1-3   pipeline schematics (anat MRI,  no statistic
             fMRI, FDG-PET with the CT path)
   supp4     acquisition parameters          the <= 4 parameters reported for every fMRI dataset
@@ -57,14 +58,14 @@ opj = os.path.join
 
 SECTIONS = ("figure1", "figure2", "figure3", "figure4", "figure5", "figure6", "supp1", "supp2",
             "supp3", "supp4", "supp5", "supp6", "supp7", "supp8", "supp9", "supp10", "supp11",
-            "supp12", "stable1")
+            "supp12", "supp13", "stable1")
 FOLDER = dict(figure1="Figure_1", figure2="Figure_2", figure3="Figure_3",
               figure4="Figure_4", figure5="Figure_5", figure6="Figure_6", supp1="Supp_Fig_01",
               supp2="Supp_Fig_02", supp3="Supp_Fig_03", supp4="Supp_Fig_04",
               supp5="Supp_Fig_05",
               supp6="Supp_Fig_06", supp7="Supp_Fig_07", supp8="Supp_Fig_08",
               supp9="Supp_Fig_09", supp10="Supp_Fig_10", supp11="Supp_Fig_11",
-              supp12="Supp_Fig_12", stable1="Supp_Table_01")
+              supp12="Supp_Fig_12", supp13="Supp_Fig_13", stable1="Supp_Table_01")
 
 
 def out_base(section, paper_dir=None):
@@ -611,6 +612,21 @@ def supp12(inp):
         else:
             lines.append("b  no external QC table in the saved selection")
     return dict(tables=tables, lines=lines, draw=draw)
+
+
+def supp13(inp):
+    """Similarity of the regional FDG profiles between pairs of subjects (former right half of Figure 6c):
+    classes same subject / other session, within a dataset, between the human datasets, human vs macaque."""
+    pet = inp.multimodal()["pet"]
+    pr, lines = pet["pairs"], []
+    if len(pr):
+        lines += [f"{c}: n = {len(v)} pairs, median r = {v.median():.3f} [IQR {v.quantile(.25):.3f}-"
+                  f"{v.quantile(.75):.3f}]" for c, v in pr.groupby("pair_class", sort=False)["r"]]
+    for t in pet["ptest"].itertuples():
+        lines.append(f"{t.test}: {t.statistic:+.4f} (null {t.null_mean:+.4f} +- {t.null_sd:.4f}), "
+                     f"P = {t.p_permutation:.3g}, {t.n_subjects} subjects, {t.n_perm} permutations")
+    return dict(tables=dict(pairs=pr, test=pet["ptest"], sessions_used=pet["sessions"]), lines=lines,
+                draw=dict(pet=pet))
 
 
 def stable1(inp):
