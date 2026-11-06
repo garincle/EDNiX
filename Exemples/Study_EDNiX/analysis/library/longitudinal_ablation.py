@@ -98,14 +98,15 @@ def find_folder(pattern):
 # ══════════════════════════════════════════════════════════════════════════════
 # STEP 1 -- load both modes with the Fig. 3 loaders
 # ══════════════════════════════════════════════════════════════════════════════
-def load_ablation_data(pairs=PAIRS):
+def load_ablation_data(pairs=None):
     """[(species, {mode: morphometry dict}, age table, age column, {mode: folder})].
+    pairs: list like PAIRS (default PAIRS).
     Morphometry is read with the very function that feeds Fig. 3
     (longitudinal.load_morphometry); the age table comes from the longitudinal
     folder (the cross-sectional copy may lack participants.tsv), same subjects."""
     from Exemples.Study_EDNiX.analysis.library import longitudinal as lg
     rows = []
-    for p in pairs:
+    for p in (PAIRS if pairs is None else pairs):
         sp = p['species']
         folders = {MODE_LONG: find_folder(p['long']), MODE_CROSS: find_folder(p['nolong'])}
         atlas_paths, _ = lg._build_atlas_paths([sp])
@@ -320,7 +321,7 @@ def assoc_primary_both(morph, age_df, species):
     """Fig. 3g-i / Supp. Fig. 7 association - primary paired t-test in both modes."""
     from Exemples.Study_EDNiX.analysis.library import longitudinal as lg
     rows = []
-    for mod, _, _, title in lg.FIG3_MODALITIES:
+    for mod, *_ in lg.FIG3_MODALITIES:
         for mode in (MODE_LONG, MODE_CROSS):
             res = lg.assoc_primary_trajectories(morph[mode], age_df, lg.PRIMARY_REGIONS,
                                                 lg.ASSOCIATION_REGIONS, species_label=species,
@@ -342,7 +343,7 @@ def ablation_stats(rows, n_boot=N_BOOT):
     from Exemples.Study_EDNiX.analysis.library import longitudinal as lg
     summary, assoc, paired, matched = [], [], [], {}
     for sp, morph, age_df, age_col, folders in rows:
-        for mod, col, label, title in lg.FIG3_MODALITIES:
+        for mod, col, label, _ in lg.FIG3_MODALITIES:
             m = matched_sessions(morph, age_df, age_col, mod, col)
             if m.empty or m['subject'].nunique() < 3:
                 warnings.warn(f'{sp} {mod}: fewer than 3 matched subjects, skipped')

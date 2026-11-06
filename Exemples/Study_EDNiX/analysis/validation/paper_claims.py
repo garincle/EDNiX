@@ -404,7 +404,7 @@ def untraced(paras, covered):
         for m in NUM.finditer(masked):
             if (i, m.start('num')) in covered:
                 continue
-            k, sent = sentence_index(t, m.start())
+            k, _ = sentence_index(t, m.start())
             rows.append(dict(paragraph=i + 1, sentence=k, number=m.group(0).strip(),
                              section=(legend.group(1) if legend else section_of(paras, i - 1)[:60]),
                              context=t[max(0, m.start() - 60):m.end() + 30]))
