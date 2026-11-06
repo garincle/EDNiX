@@ -18,9 +18,12 @@ Data
               atlas voxels.
   The thickness definitions differ, so the FreeSurfer surfaces are also measured with the
   EDNiX definition (thickness_vertex_mm, stats only): it separates a definition offset from
-  a surface-placement offset. The FreeSurfer cortex label includes the medial temporal
-  cortex that the EDNiX Isocortex excludes: a positive FreeSurfer offset on area and volume
-  is expected; between-subject agreement (r, ICC(C,1)) is the main readout.
+  a surface-placement offset. The FreeSurfer cortex label covers the whole neocortical
+  sheet minus the medial wall, so it also contains the periallocortex and allocortex that
+  the EDNiX Isocortex excludes (Atlas_nomenclature: entorhinal BA28, perirhinal BA35/36,
+  presubiculum, retrosplenial BA26/29/30, piriform BA27; parahippocampal TH/TF stays in
+  the Isocortex). A positive FreeSurfer offset on area and volume is therefore expected;
+  between-subject agreement (r, ICC(C,1)) is the main readout.
 
 Statistics (per measure, n = subjects with both values)
   Pearson r [95% CI, Fisher z], Spearman rho, ICC(C,1) and ICC(A,1) [95% CI] (two-way,
