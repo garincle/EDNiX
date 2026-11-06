@@ -21,6 +21,20 @@ from modalities.anat.loop1 import myelin
 ########  define orientation    ##########
 ##########################################
 
+def _read_sidecar(nifti_path, diary_file):
+    """Return the BIDS sidecar of a .nii or .nii.gz image as a dict ({} if absent or unreadable)."""
+    json_path = opj(opd(nifti_path), extract_filename(nifti_path) + '.json')
+    if not opi(json_path):
+        run_cmd.msg('WARNING: no .json for ' + nifti_path, diary_file, 'WARNING')
+        return {}
+    try:
+        with open(json_path, encoding='utf-8') as ff:
+            return json.load(ff)
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+        run_cmd.msg('WARNING: cannot parse ' + json_path + ' (' + str(e) + ')', diary_file, 'WARNING')
+        return {}
+
+
 def correct_orient(BIDStype,
                    listTimage,
                    path_rawanat,
@@ -89,17 +103,16 @@ def correct_orient(BIDStype,
             run_cmd.msg(nl, diary_file, 'WARNING')
             list_anat = sorted(glob.glob(opj(path_rawanat, BIDStype.format(ID=ID, Session=Session, Timage=listTimage_orig[Im]))))
 
+        # keep only NIfTI images: a loose BIDStype pattern can also match the .json sidecars
+        list_anat = [a for a in list_anat if a.endswith(('.nii', '.nii.gz'))]
+
         if len(list_anat)>0:
             if humanP[0] == '':
-                if opi(list_anat[0].replace('.nii.gz','.json')):
-                    f = open(list_anat[0].replace('.nii.gz','.json'))
-                    info = json.load(f)
-                    try:
-                        humanP[Im] = info['PatientPosition']
-                        run_cmd.msg('the subject was scanned with the following position parameter : ' + humanP[Im],
-                                    diary_file, 'OKGREEN')
-                    except:
-                        humanP[Im] = humanP[Im]
+                info = _read_sidecar(list_anat[0], diary_file)
+                if 'PatientPosition' in info:
+                    humanP[Im] = info['PatientPosition']
+                    run_cmd.msg('the subject was scanned with the following position parameter : ' + humanP[Im],
+                                diary_file, 'OKGREEN')
 
         if len(list_anat)==1:
             nl = 'INFO: We found only one anat images for this session'
@@ -110,17 +123,6 @@ def correct_orient(BIDStype,
 
             img = nib.load(list_anat[0])
             dims = img.shape
-
-            if humanP[0] == '':
-                if opi(list_anat[0].replace('.nii.gz','.json')):
-                    f = open(list_anat[0].replace('.nii.gz','.json'))
-                    info = json.load(f)
-                    try:
-                        humanPosition = info['PatientPosition']
-                        run_cmd.msg('the subject was scanned with the following position parameter : ' + humanPosition,
-                                    diary_file, 'OKGREEN')
-                    except:
-                        humanPosition = humanP[0]
 
             if len(dims) > 3:
                 os.makedirs(opj(dir_prepro, 'tmp'), exist_ok=True)
@@ -168,13 +170,10 @@ def correct_orient(BIDStype,
             ###################################
             filtered_anat = []
             for anat_path in list_anat:
-                json_path = opj(opd(anat_path), extract_filename(anat_path) + '.json')
-                if not opi(json_path):
-                    run_cmd.msg('WARNING: no .json for ' + anat_path, diary_file, 'WARNING')
+                meta = _read_sidecar(anat_path, diary_file)
+                if not meta:
                     filtered_anat.append(anat_path)  # keep it, can't determine if NORM
                     continue
-                with open(json_path) as ff:
-                    meta = json.load(ff)
                 image_type = meta.get('ImageType', [])
                 if 'NORM' in image_type:
                     run_cmd.msg('Removing ' + extract_filename(anat_path) + ' (NORM)',
