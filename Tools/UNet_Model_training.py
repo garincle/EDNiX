@@ -6,12 +6,14 @@ on the latest EDNiX outputs (anat + func), starting from model-02-_cross_species
 Run:  python3 Tools/UNet_Model_training.py            (everything: discover -> split -> cache -> train -> test)
       python3 Tools/UNet_Model_training.py --dry-run  (discovery + split only, prints counts)
 
-Training pairs (current EDNiX naming, native space, same voxel grid):
-  anat : <ses>/anat/native/volumes/{ID}_space-acpc_desc-template_{T1w|T2w}.nii.gz      (whole head, N4)
-         <ses>/anat/native/volumes/masks/{ID}_backtonative_mask.nii.gz                (manual, priority)
-      or <ses>/anat/native/volumes/masks/{ID}_space-acpc_mask.nii.gz                  (final automatic)
-  func : <ses>/func/raw/preprocessing/all_runs_space-func_desc-fMRI_Mean_Image.nii.gz
-         <ses>/func/raw/masks/{ID}_fMRI_mask.nii.gz  (= {ID}_final_mask resampled when a manual mask exists)
+Training pairs (current EDNiX naming, native space, image and mask on the same voxel grid):
+  anat : mask  = <ses>/anat/native/volumes/masks/{ID}_final_mask_orig | _final_mask | _final_mask_2 |
+                 _backtonative_mask (hand-corrected, in this priority), else {ID}_space-acpc_mask (automatic)
+         image = first whole-head {T1w|T2w} on the mask's voxel grid among native/volumes (acpc),
+                 anat/preprocessing/{ID}_space-raw_desc-* and the raw BIDS input (<ses>/anat/ or <ses>/)
+  func : image = <ses>/func/raw/preprocessing/all_runs_space-func_desc-fMRI_Mean_Image.nii.gz
+         mask  = <ses>/func/raw/masks/{ID}_fMRI_mask (= hand-corrected {ID}_final_mask resampled) if a
+                 final_mask exists, else mask_ref.nii.gz (QC'd anat mask via the anat->func registration)
 
 The checkpoint written (checkpoints/model-cross_species_ft-best-epoch) keeps the original
 architecture and checkpoint layout: it is a drop-in replacement for muSkullStrip.py -model.
@@ -93,6 +95,11 @@ def log(msg):
 # ----------------------------------------------------------------------------------------
 # 1. Discovery of image/mask pairs
 # ----------------------------------------------------------------------------------------
+# Datasets that re-use the subjects of another dataset (same animals/people): excluded so that a
+# subject cannot be in train through one dataset and in val/test through the other.
+EXCLUDE_DATASETS = {'BIDS_Zhu_Garin_non_long', 'BIDS_Park_nolong'}   # replaced by --exclude-datasets
+
+
 def find_subject_dirs(roots, max_depth=4):
     seen = set()
     for root in roots:
@@ -103,6 +110,8 @@ def find_subject_dirs(roots, max_depth=4):
                     continue
                 parts = Path(d).parts
                 if any(p.lower() in ('archives', 'archive', 'old', 'derivatives_old') for p in parts):
+                    continue
+                if EXCLUDE_DATASETS.intersection(parts):   # duplicate datasets (same subjects)
                     continue
                 real = os.path.realpath(d)
                 if real not in seen:
@@ -133,51 +142,139 @@ def same_grid(img_path, msk_path):
     return True, ''
 
 
-def discover_pairs(roots, func_masks='all', anat_contrasts=('T1w', 'T2w')):
+# hand-corrected anat masks, priority order. In the pipeline, {ID}_final_mask is drawn on
+# preprocessing/{ID}_space-raw_desc-Bias_<T> (loop1/_itk1_QC.py) and {ID}_final_mask_2 on the acpc grid
+# (_loop2.py); {ID}_final_mask_orig is a user-kept copy on the raw grid.
+ANAT_MANUAL_MASKS = ('_final_mask_orig', '_final_mask', '_final_mask_2', '_backtonative_mask')
+_NOT_WHOLE_HEAD = ('desc-SS', '_mask', 'desc-norm', 'step', 'Zp', 'cropped', '-64')
+
+
+def _anat_image_candidates(ses_dir, ID, T):
+    """Whole-head anat images of one contrast, in priority order: native acpc volumes, then the
+    raw-space images of anat/preprocessing, then the raw BIDS input (skull-stripped images excluded)."""
+    vol_dir = ses_dir / 'anat' / 'native' / 'volumes'
+    pre_dir = ses_dir / 'anat' / 'preprocessing'
+    patterns = [vol_dir / f'{ID}_space-acpc_desc-template*{T}.nii.gz',
+                vol_dir / f'{ID}_space-acpc_desc-Bias*{T}.nii.gz',
+                pre_dir / f'{ID}_space-raw_desc-Bias*{T}.nii.gz',
+                pre_dir / f'{ID}_space-raw_desc-reorient*{T}.nii.gz',
+                pre_dir / f'{ID}_space-raw_desc-template*{T}.nii.gz',
+                ses_dir / 'anat' / f'sub-*{T}.nii*',
+                ses_dir / f'sub-*{T}.nii*']   # raw BIDS input: _1_correct_orient.py globs it in data_path
+    out = []
+    for pat in patterns:
+        for f in sorted(glob(str(pat))):
+            if not any(x in os.path.basename(f) for x in _NOT_WHOLE_HEAD) and f not in out:
+                out.append(f)
+    return out
+
+
+def _first_on_grid(masks, imgs):
+    """First (mask, manual, image) whose image shares the mask's voxel grid; masks/images in priority order."""
+    why = 'no candidate'
+    for mask, man in masks:
+        for img in imgs:
+            ok, why = same_grid(img, mask)
+            if ok:
+                return (Path(img), mask, man), ''
+    return None, why
+
+
+def _anat_pairs(ses_dir, meta, anat_contrasts, anat_masks, pairs, skipped):
+    vol_dir = ses_dir / 'anat' / 'native' / 'volumes'
+    msk_dir = vol_dir / 'masks'
+    ids = set()
+    for suf in ANAT_MANUAL_MASKS + ('_space-acpc_mask',):
+        ids.update(os.path.basename(f)[:-len(suf + '.nii.gz')] for f in glob(str(msk_dir / f'*{suf}.nii.gz')))
+    for ID in sorted(ids):
+        masks = [(msk_dir / f'{ID}{suf}.nii.gz', 1) for suf in ANAT_MANUAL_MASKS]
+        if anat_masks != 'manual':
+            masks.append((msk_dir / f'{ID}_space-acpc_mask.nii.gz', 0))
+        masks = [(m, man) for m, man in masks if m.is_file()]
+        for T in anat_contrasts:
+            imgs = _anat_image_candidates(ses_dir, ID, T)
+            if not imgs or not masks:
+                continue
+            found, why = _first_on_grid(masks, imgs)
+            if found is None:
+                skipped.append(dict(kind='anat', img=imgs[0], mask=str(masks[0][0]),
+                                    reason=f'no {T} image on the grid of {", ".join(m.name for m, _ in masks)} '
+                                           f'(last check: {why})'))
+                continue
+            img, mask, man = found
+            pairs.append(dict(meta, kind='anat', contrast=T, manual_mask=man,
+                              mask_type=mask.name[len(ID):-len('.nii.gz')], img=str(img), mask=str(mask),
+                              mtime=max(img.stat().st_mtime, mask.stat().st_mtime)))
+
+
+def _func_pairs(ses_dir, meta, func_masks, pairs, skipped):
+    raw = ses_dir / 'func' / 'raw'
+    mean_img = raw / 'preprocessing' / 'all_runs_space-func_desc-fMRI_Mean_Image.nii.gz'
+    if not mean_img.is_file():
+        return
+    masks = []
+    for f in sorted(glob(str(raw / 'masks' / '*_final_mask.nii.gz'))):
+        fm = raw / 'masks' / (os.path.basename(f)[:-len('_final_mask.nii.gz')] + '_fMRI_mask.nii.gz')
+        masks.append((fm if fm.is_file() else Path(f), 1, 'final_mask'))
+    if func_masks in ('reference', 'all') and (raw / 'masks' / 'mask_ref.nii.gz').is_file():
+        masks.append((raw / 'masks' / 'mask_ref.nii.gz', 0, 'mask_ref'))
+    if func_masks == 'all':
+        masks += [(Path(f), 0, 'fMRI_mask') for f in sorted(glob(str(raw / 'masks' / '*_fMRI_mask.nii.gz')))]
+    if not masks:
+        return
+    found, why = _first_on_grid([(m, (man, t)) for m, man, t in masks], [str(mean_img)])
+    if found is None:
+        skipped.append(dict(kind='func', img=str(mean_img), mask=str(masks[0][0]), reason=why))
+        return
+    _, mask, (man, mtype) = found
+    pairs.append(dict(meta, kind='func', contrast='EPI', manual_mask=man, mask_type=mtype, img=str(mean_img),
+                      mask=str(mask), mtime=max(mean_img.stat().st_mtime, mask.stat().st_mtime)))
+
+
+def archive_previous_checkpoints(ckpt_dir):
+    """A new run rewrites model-*-best/last-epoch from epoch -1 on: keep the previous run's ones."""
+    old = [p for p in (ckpt_dir / 'model-cross_species_ft-best-epoch', ckpt_dir / 'model-last-epoch') if p.is_file()]
+    if not old:
+        return
+    dest = ckpt_dir / ('previous_run_' + time.strftime('%Y%m%d_%H%M%S', time.localtime(old[0].stat().st_mtime)))
+    dest.mkdir(exist_ok=True)
+    for p in old:
+        p.rename(dest / p.name)
+    log(f'previous checkpoints moved to {dest}')
+
+
+def log_options(args):
+    log('options    : ' + ' '.join(f'{k}={v}' for k, v in sorted(vars(args).items())))
+
+
+def log_mask_types(pairs):
+    mt = defaultdict(int)
+    for r in pairs:
+        mt[(r['kind'], r['mask_type'])] += 1
+    log('masks used: ' + ', '.join(f'{k}:{t}={n}' for (k, t), n in sorted(mt.items())))
+
+
+def discover_pairs(roots, func_masks='reference', anat_contrasts=('T1w', 'T2w'), anat_masks='all'):
+    """
+    anat : mask = hand-corrected {ID}_final_mask_orig > {ID}_final_mask > {ID}_backtonative_mask
+                  (> {ID}_space-acpc_mask, automatic, unless anat_masks='manual');
+           image = first whole-head T1w/T2w of the volumes dir that is on the SAME voxel grid as the mask.
+    func : image = func/raw/preprocessing/all_runs_space-func_desc-fMRI_Mean_Image;
+           mask  = {ID}_fMRI_mask when a hand-corrected {ID}_final_mask exists (it is that mask resampled),
+                   else mask_ref.nii.gz (QC'd anat brain mask brought to func space by the anat->func
+                   registration; func_masks='reference'|'all'),
+                   else the automatic {ID}_fMRI_mask (func_masks='all' only: produced by the func
+                   skull-strip itself, so training on it is partly circular).
+    """
     pairs, skipped = [], []
     for sub_dir in find_subject_dirs(roots):
         species, dataset = species_dataset(sub_dir)
-        sub = sub_dir.name
         ses_dirs = sorted(Path(p) for p in glob(str(sub_dir / 'ses-*')) if os.path.isdir(p)) or [sub_dir]
         for ses_dir in ses_dirs:
-            ses = ses_dir.name if ses_dir != sub_dir else 'ses-NA'
-
-            # ---- anat -------------------------------------------------------------
-            vol_dir = ses_dir / 'anat' / 'native' / 'volumes'
-            msk_dir = vol_dir / 'masks'
-            ids = set()
-            for f in glob(str(msk_dir / '*_space-acpc_mask.nii.gz')):
-                ids.add(os.path.basename(f)[:-len('_space-acpc_mask.nii.gz')])
-            for f in glob(str(msk_dir / '*_backtonative_mask.nii.gz')):
-                ids.add(os.path.basename(f)[:-len('_backtonative_mask.nii.gz')])
-            for ID in sorted(ids):
-                manual = msk_dir / f'{ID}_backtonative_mask.nii.gz'
-                auto = msk_dir / f'{ID}_space-acpc_mask.nii.gz'
-                mask = manual if manual.is_file() else auto
-                for T in anat_contrasts:
-                    img = vol_dir / f'{ID}_space-acpc_desc-template_{T}.nii.gz'
-                    if not img.is_file():
-                        continue
-                    ok, why = same_grid(img, mask)
-                    rec = dict(species=species, dataset=dataset, subject=sub, session=ses, kind='anat',
-                               contrast=T, manual_mask=int(mask == manual), img=str(img), mask=str(mask),
-                               mtime=max(img.stat().st_mtime, mask.stat().st_mtime))
-                    (pairs if ok else skipped).append(rec if ok else {**rec, 'reason': why})
-
-            # ---- func -------------------------------------------------------------
-            raw = ses_dir / 'func' / 'raw'
-            mean_img = raw / 'preprocessing' / 'all_runs_space-func_desc-fMRI_Mean_Image.nii.gz'
-            if mean_img.is_file():
-                for f in sorted(glob(str(raw / 'masks' / '*_fMRI_mask.nii.gz'))):
-                    ID = os.path.basename(f)[:-len('_fMRI_mask.nii.gz')]
-                    manual = int((raw / 'masks' / f'{ID}_final_mask.nii.gz').is_file())
-                    if func_masks == 'manual' and not manual:
-                        continue
-                    ok, why = same_grid(mean_img, f)
-                    rec = dict(species=species, dataset=dataset, subject=sub, session=ses, kind='func',
-                               contrast='EPI', manual_mask=manual, img=str(mean_img), mask=f,
-                               mtime=max(mean_img.stat().st_mtime, os.path.getmtime(f)))
-                    (pairs if ok else skipped).append(rec if ok else {**rec, 'reason': why})
+            meta = dict(species=species, dataset=dataset, subject=sub_dir.name,
+                        session=ses_dir.name if ses_dir != sub_dir else 'ses-NA')
+            _anat_pairs(ses_dir, meta, anat_contrasts, anat_masks, pairs, skipped)
+            _func_pairs(ses_dir, meta, func_masks, pairs, skipped)
 
     # Same data mirrored under several roots: keep the most recent outputs only.
     best = {}
@@ -320,10 +417,18 @@ def load_unet_module(unet_dir):
     return mod
 
 
+BN_MODE = 'per-sample'   # set from --bn-mode in main()
+
+
 def _per_sample_bn_forward(self, x):
+    import torch.nn as nn
     import torch.nn.functional as F
-    # = BatchNorm2d in training mode with batch size 1, which is what muSkullStrip.py actually
-    # runs at inference (it never calls model.eval() and feeds one block at a time).
+    # 'batch' mode, training only: standard BatchNorm2d over the batch of blocks, as the original
+    # trainSs_UNet.py (batches of 20 blocks of the same volume).
+    if BN_MODE == 'batch' and self.training:
+        return nn.BatchNorm2d.forward(self, x)
+    # Otherwise (always at evaluation) = BatchNorm2d in training mode with batch size 1, which is what
+    # muSkullStrip.py actually runs at inference (it never calls model.eval() and feeds one block at a time).
     return F.instance_norm(x, None, None, self.weight, self.bias, True, 0.0, self.eps)
 
 
@@ -539,9 +644,23 @@ def parse_args():
     p.add_argument('--unet-dir', default=None, help='NHP-BrainExtraction/UNet_Model directory')
     p.add_argument('--init-model', default=None, help=f'init checkpoint (default: {INIT_MODEL_NAME} in UNet_Model/models)')
     p.add_argument('--out-dir', default=None, help='output dir (default: %s)' % default_out_dir())
-    p.add_argument('--func-masks', choices=['all', 'manual'], default='all',
-                   help="'manual': only func sessions with a hand-corrected {ID}_final_mask")
+    p.add_argument('--func-masks', choices=['reference', 'manual', 'all'], default='reference',
+                   help="'reference' (default): {ID}_final_mask if present else mask_ref (QC'd anat mask in func "
+                        "space); 'manual': {ID}_final_mask only; 'all': also the automatic {ID}_fMRI_mask")
+    p.add_argument('--anat-masks', choices=['all', 'manual'], default='all',
+                   help="'manual': only hand-corrected anat masks ({ID}_final_mask_orig, {ID}_final_mask, "
+                        "{ID}_backtonative_mask)")
     p.add_argument('--anat-contrasts', nargs='+', default=['T1w', 'T2w'])
+    p.add_argument('--exclude-datasets', nargs='*', default=sorted(EXCLUDE_DATASETS),
+                   help='dataset folders to skip (duplicates of another dataset); give it empty to keep all')
+    p.add_argument('--bn-mode', choices=['per-sample', 'batch'], default='per-sample',
+                   help="BatchNorm statistics during training: 'per-sample' (= inference) or 'batch' "
+                        "(original trainSs_UNet.py). Evaluation is always per-sample, as muSkullStrip.py.")
+    p.add_argument('--legacy', action='store_true',
+                   help='reproduce the original trainSs_UNet.py recipe on current EDNiX files: hand-corrected '
+                        'anat masks, func final_mask or mask_ref (anat-derived, like maskDilat_Allineate_in_func), uniform block sampling (~all blocks per volume and epoch), '
+                        'batches of 20 blocks from one volume, batch BatchNorm, cross-entropy only, no gamma '
+                        'augmentation, 40 epochs. Explicit options still override these defaults.')
     p.add_argument('--val-ratio', type=float, default=0.15)
     p.add_argument('--test-ratio', type=float, default=0.15)
     p.add_argument('--resplit', action='store_true', help='ignore an existing split.json')
@@ -563,15 +682,27 @@ def parse_args():
     p.add_argument('--eval-batch', type=int, default=64)
     p.add_argument('--min-mask-frac', type=float, default=0.001)
     p.add_argument('--max-mask-frac', type=float, default=0.8)
+    p.add_argument('--cache-dir', default=None,
+                   help='where the normalised float16 volumes are cached (default: <out-dir>/cache). Put it on '
+                        'local SSD or /dev/shm: training reads it at random and is IO-bound on network storage')
     p.add_argument('--n-cpus', type=int, default=min(16, os.cpu_count() or 1))
     p.add_argument('--cpu', action='store_true', help='force CPU even if CUDA is available')
     p.add_argument('--dry-run', action='store_true', help='discovery + split only')
+    p.add_argument('--eval-only', default=None, metavar='CHECKPOINT',
+                   help='no training: evaluate this checkpoint vs the init model on the val and test subjects '
+                        '(same discovery/split/cache as training; writes eval_init_vs_finetuned.csv)')
+    if '--legacy' in sys.argv[1:]:
+        # new defaults only: any option given explicitly on the command line still wins
+        p.set_defaults(anat_masks='manual', func_masks='reference', fg_p=0.0, blocks_per_volume=750,
+                       blocks_per_visit=20, batch_size=20, bn_mode='batch', dice_weight=0.0, gamma_p=0.0,
+                       epochs=40, patience=40, lr=1e-4)
     return p.parse_args()
 
 
 def main():
-    global _LOG_FH
+    global _LOG_FH, BN_MODE
     args = parse_args()
+    BN_MODE = args.bn_mode
     for v in ('OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'NUMEXPR_NUM_THREADS'):
         os.environ.setdefault(v, str(args.n_cpus))
 
@@ -593,14 +724,19 @@ def main():
     (out / 'checkpoints').mkdir(parents=True, exist_ok=True)
     _LOG_FH = open(out / 'train.log', 'a')
     log('=' * 90)
+    if not args.dry_run and not args.eval_only:
+        archive_previous_checkpoints(out / 'checkpoints')
     log(f'data roots : {[str(r) for r in roots]}')
     log(f'UNet dir   : {unet_dir}')
     log(f'init model : {init_path}')
     log(f'output dir : {out}')
+    log_options(args)
 
     # ---- discovery -----------------------------------------------------------------------
     t0 = time.time()
-    pairs, skipped = discover_pairs(roots, args.func_masks, tuple(args.anat_contrasts))
+    EXCLUDE_DATASETS.clear()
+    EXCLUDE_DATASETS.update(args.exclude_datasets)
+    pairs, skipped = discover_pairs(roots, args.func_masks, tuple(args.anat_contrasts), args.anat_masks)
     log(f'discovery: {len(pairs)} pairs, {len(skipped)} skipped ({time.time() - t0:.0f}s)')
     for s in skipped[:20]:
         log(f"  skip {s['kind']} {s['img']} : {s['reason']}")
@@ -611,7 +747,7 @@ def main():
     split = load_or_make_split(pairs, out / 'split.json', args.val_ratio, args.test_ratio, args.seed, args.resplit)
 
     fields = ['uid', 'split', 'species', 'dataset', 'subject', 'session', 'kind', 'contrast', 'manual_mask',
-              'img', 'mask']
+              'mask_type', 'img', 'mask']
     with open(out / 'manifest.csv', 'w', newline='') as fh:
         w = csv.DictWriter(fh, fieldnames=fields, extrasaction='ignore')
         w.writeheader()
@@ -633,13 +769,15 @@ def main():
     for s, sp in split.items():
         n_subj[sp] += 1
     log(f"subjects: train {n_subj['train']}, val {n_subj['val']}, test {n_subj['test']}")
+    log_mask_types(pairs)
     if args.dry_run:
         log('dry run: stop.')
         return
 
     # ---- cache ---------------------------------------------------------------------------
-    log('building cache (normalise + rescale once, float16) ...')
-    metas, failed = build_cache(pairs, out / 'cache', args.n_cpus, args.min_mask_frac, args.max_mask_frac)
+    cache_dir = Path(args.cache_dir) if args.cache_dir else out / 'cache'
+    log(f'building cache (normalise + rescale once, float16) in {cache_dir} ...')
+    metas, failed = build_cache(pairs, cache_dir, args.n_cpus, args.min_mask_frac, args.max_mask_frac)
     for uid, err in failed:
         r = next(x for x in pairs if x['uid'] == uid)
         log(f"  drop {r['kind']} {r['img']} : {err}")
@@ -688,7 +826,7 @@ def main():
         f"{k}={n * n ** (args.balance_power - 1.0) / sum(m * m ** (args.balance_power - 1.0) for m in n_str.values()):.3f}"
         for k, n in sorted(n_str.items())))
 
-    ds = BlockVisitDataset(out / 'cache', uids, args.gamma_p, (0.7, 1.5))
+    ds = BlockVisitDataset(cache_dir, uids, args.gamma_p, (0.7, 1.5))
     sampler = EpochVisitSampler(train_idx, weights, metas_list, args.blocks_per_volume, args.blocks_per_visit,
                                 args.fg_p, args.seed)
     n_workers = max(0, min(8, args.n_cpus - 1))
@@ -702,8 +840,8 @@ def main():
     scaler = torch.cuda.amp.GradScaler(enabled=use_scaler) if device.type == 'cuda' else None
     ce = nn.CrossEntropyLoss()
 
-    val_eval = Evaluator(val, out / 'cache', device, args.eval_batch, amp_dtype)
-    test_eval = Evaluator(test, out / 'cache', device, args.eval_batch, amp_dtype)
+    val_eval = Evaluator(val, cache_dir, device, args.eval_batch, amp_dtype)
+    test_eval = Evaluator(test, cache_dir, device, args.eval_batch, amp_dtype)
 
     def save_ckpt(path, epoch, vdice):
         torch.save({'epoch': int(epoch),
@@ -713,85 +851,92 @@ def main():
                     'config': {k: (v if isinstance(v, (int, float, str, bool, type(None))) else str(v))
                                for k, v in vars(args).items()}}, str(path))
 
-    best, best_epoch, bad = -1.0, -1, 0
-    if val:
-        t = time.time()
-        d0 = val_eval.run(init_model)
-        best, per = macro_dice(val, d0)
-        log(f'epoch -1 (init model) val macro-Dice {best:.4f}  ({time.time() - t:.0f}s)')
-        for k, v in per.items():
-            log(f'    {k:<34}{v:.4f}')
-        save_ckpt(out / 'checkpoints' / 'model-cross_species_ft-best-epoch', -1, list(d0.values()))
+    if args.eval_only:
+        # evaluate an existing checkpoint (e.g. the best of a run stopped by hand): no training
+        best_path = Path(args.eval_only)
+        ck = torch_load(str(best_path))
+        best_epoch, best = int(ck.get('epoch', -1)) if isinstance(ck, dict) else -1, float('nan')
+        log(f'eval only: {best_path} (epoch {best_epoch})')
     else:
-        log('WARNING: no validation subject -> no model selection/early stopping, last epoch is kept.')
+        best, best_epoch, bad = -1.0, -1, 0
+        if val:
+            t = time.time()
+            d0 = val_eval.run(init_model)
+            best, per = macro_dice(val, d0)
+            log(f'epoch -1 (init model) val macro-Dice {best:.4f}  ({time.time() - t:.0f}s)')
+            for k, v in per.items():
+                log(f'    {k:<34}{v:.4f}')
+            save_ckpt(out / 'checkpoints' / 'model-cross_species_ft-best-epoch', -1, list(d0.values()))
+        else:
+            log('WARNING: no validation subject -> no model selection/early stopping, last epoch is kept.')
 
-    log_f = out / 'train_log.csv'
-    new_log = not log_f.is_file()
-    with open(log_f, 'a', newline='') as fh:
-        lw = csv.writer(fh)
-        if new_log:
-            lw.writerow(['epoch', 'lr', 'loss', 'blocks', 'seconds', 'val_macro_dice'])
-        for epoch in range(args.epochs):
-            model.train()
-            t, losses, nb = time.time(), [], 0
-            for it, (x, y) in enumerate(loader):
-                x = x.to(device, non_blocking=True)
-                y = y.to(device, non_blocking=True)
-                with torch.autocast(device_type=device.type, dtype=amp_dtype or torch.float32,
-                                    enabled=amp_dtype is not None):
-                    logits = model(x)
-                logits = logits.float()
-                loss = ce(logits, y)
-                if args.dice_weight > 0:
-                    p1 = torch.softmax(logits, 1)[:, 1]
-                    yf = y.float()
-                    sd = (2 * (p1 * yf).sum() + 1.0) / (p1.sum() + yf.sum() + 1.0)
-                    loss = loss + args.dice_weight * (1.0 - sd)
-                opt.zero_grad(set_to_none=True)
-                if use_scaler:
-                    scaler.scale(loss).backward()
-                    scaler.step(opt)
-                    scaler.update()
+        log_f = out / 'train_log.csv'
+        new_log = not log_f.is_file()
+        with open(log_f, 'a', newline='') as fh:
+            lw = csv.writer(fh)
+            if new_log:
+                lw.writerow(['epoch', 'lr', 'loss', 'blocks', 'seconds', 'val_macro_dice'])
+            for epoch in range(args.epochs):
+                model.train()
+                t, losses, nb = time.time(), [], 0
+                for it, (x, y) in enumerate(loader):
+                    x = x.to(device, non_blocking=True)
+                    y = y.to(device, non_blocking=True)
+                    with torch.autocast(device_type=device.type, dtype=amp_dtype or torch.float32,
+                                        enabled=amp_dtype is not None):
+                        logits = model(x)
+                    logits = logits.float()
+                    loss = ce(logits, y)
+                    if args.dice_weight > 0:
+                        p1 = torch.softmax(logits, 1)[:, 1]
+                        yf = y.float()
+                        sd = (2 * (p1 * yf).sum() + 1.0) / (p1.sum() + yf.sum() + 1.0)
+                        loss = loss + args.dice_weight * (1.0 - sd)
+                    opt.zero_grad(set_to_none=True)
+                    if use_scaler:
+                        scaler.scale(loss).backward()
+                        scaler.step(opt)
+                        scaler.update()
+                    else:
+                        loss.backward()
+                        opt.step()
+                    losses.append(float(loss.detach()))
+                    nb += x.shape[0]
+                    if (it + 1) % 100 == 0:
+                        log(f'  epoch {epoch} it {it + 1}/{len(loader)} loss {np.mean(losses[-100:]):.4f} '
+                            f'({nb / (time.time() - t):.0f} blocks/s)')
+                lr = opt.param_groups[0]['lr']
+                sched.step()
+                dt = time.time() - t
+                vm = float('nan')
+                if val and ((epoch + 1) % args.val_every == 0 or epoch + 1 == args.epochs):
+                    tv = time.time()
+                    dv = val_eval.run(model)
+                    vm, per = macro_dice(val, dv)
+                    log(f'epoch {epoch} loss {np.mean(losses):.4f} lr {lr:.2e} train {dt:.0f}s | '
+                        f'val macro-Dice {vm:.4f} ({time.time() - tv:.0f}s)')
+                    for k, v in per.items():
+                        log(f'    {k:<34}{v:.4f}')
+                    if vm > best:
+                        best, best_epoch, bad = vm, epoch, 0
+                        save_ckpt(out / 'checkpoints' / 'model-cross_species_ft-best-epoch', epoch, list(dv.values()))
+                        log(f'    -> new best model (epoch {epoch})')
+                    else:
+                        bad += 1
                 else:
-                    loss.backward()
-                    opt.step()
-                losses.append(float(loss.detach()))
-                nb += x.shape[0]
-                if (it + 1) % 100 == 0:
-                    log(f'  epoch {epoch} it {it + 1}/{len(loader)} loss {np.mean(losses[-100:]):.4f} '
-                        f'({nb / (time.time() - t):.0f} blocks/s)')
-            lr = opt.param_groups[0]['lr']
-            sched.step()
-            dt = time.time() - t
-            vm = float('nan')
-            if val and ((epoch + 1) % args.val_every == 0 or epoch + 1 == args.epochs):
-                tv = time.time()
-                dv = val_eval.run(model)
-                vm, per = macro_dice(val, dv)
-                log(f'epoch {epoch} loss {np.mean(losses):.4f} lr {lr:.2e} train {dt:.0f}s | '
-                    f'val macro-Dice {vm:.4f} ({time.time() - tv:.0f}s)')
-                for k, v in per.items():
-                    log(f'    {k:<34}{v:.4f}')
-                if vm > best:
-                    best, best_epoch, bad = vm, epoch, 0
-                    save_ckpt(out / 'checkpoints' / 'model-cross_species_ft-best-epoch', epoch, list(dv.values()))
-                    log(f'    -> new best model (epoch {epoch})')
-                else:
-                    bad += 1
-            else:
-                log(f'epoch {epoch} loss {np.mean(losses):.4f} lr {lr:.2e} train {dt:.0f}s')
-            save_ckpt(out / 'checkpoints' / 'model-last-epoch', epoch, [])
-            lw.writerow([epoch, lr, float(np.mean(losses)), nb, round(dt, 1), vm])
-            fh.flush()
-            if val and bad >= args.patience:
-                log(f'early stopping: no improvement for {bad} validations.')
-                break
+                    log(f'epoch {epoch} loss {np.mean(losses):.4f} lr {lr:.2e} train {dt:.0f}s')
+                save_ckpt(out / 'checkpoints' / 'model-last-epoch', epoch, [])
+                lw.writerow([epoch, lr, float(np.mean(losses)), nb, round(dt, 1), vm])
+                fh.flush()
+                if val and bad >= args.patience:
+                    log(f'early stopping: no improvement for {bad} validations.')
+                    break
 
-    if not val:
-        save_ckpt(out / 'checkpoints' / 'model-cross_species_ft-best-epoch', epoch, [])
-    best_path = out / 'checkpoints' / 'model-cross_species_ft-best-epoch'
-    if val and best_epoch < 0:
-        log('WARNING: fine-tuning never beat the init model on validation; the "best" checkpoint is the init model.')
+        if not val:
+            save_ckpt(out / 'checkpoints' / 'model-cross_species_ft-best-epoch', epoch, [])
+        best_path = out / 'checkpoints' / 'model-cross_species_ft-best-epoch'
+        if val and best_epoch < 0:
+            log('WARNING: fine-tuning never beat the init model on validation; the "best" checkpoint is the init model.')
 
     # ---- final evaluation: init vs fine-tuned, on val and held-out test ---------------------
     final = build_model(unet_mod, best_path, device)
