@@ -17,6 +17,7 @@ Nature widths: 89 / 120 / 183 mm; text 5-7 pt; PDF with TrueType fonts, PNG 600 
   figure5  seed maps, selected vs excluded runs (5a)
   figure6  multimodal profile, Human / Macaque (former Figure XX) library/multimodal_figure.py
   supp13   FDG profile similarity between subjects        library/multimodal_figure.py
+  supp15   longitudinal vs cross-sectional processing     library/longitudinal_ablation.py
   supp1-3  pipeline schematics (anat, fMRI, FDG-PET + CT)  library/schematic_*.py
   supp4    acquisition parameters (<= 4, all datasets)    library/acquisition_table.py
   supp5/6  anatomical / functional QC                     library/qc_figures.py
@@ -239,6 +240,11 @@ def supp12(res, inp, paper_dir=None):
 def supp13(res, inp, paper_dir=None):
     from Exemples.Study_EDNiX.analysis.library import multimodal_figure as mmf
     return mmf.draw_supp_pairs(res["draw"]["pet"], pst.out_base("supp13", paper_dir))
+
+
+def supp15(res, inp, paper_dir=None):
+    from Exemples.Study_EDNiX.analysis.library import longitudinal_ablation as la
+    return la.draw_supp15(res["draw"]["stats"], pst.out_base("supp15", paper_dir))
 
 
 def stable1(res, inp, paper_dir=None):
