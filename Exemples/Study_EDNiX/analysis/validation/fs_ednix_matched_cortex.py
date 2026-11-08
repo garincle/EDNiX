@@ -29,9 +29,14 @@ Outputs  <PAPER_DIR>/Validation/FreeSurfer/matched_cortex/
                            e thickness vs age (both tools); f Pearson r between all measures
   matched_cortex.csv       one row per subject
   matched_cortex_stats.txt agreement statistics (same functions as Supp. Fig. 14)
-  QC_<subject>.png         white (blue) / pial (red) contours of each tool on its own T1
-                           (3 coronal + 1 axial slices at the same relative positions) and
-                           vertex-thickness histograms: shows which tool misplaces a surface
+  QC_<subject>.png         both tools on the SAME image and the SAME slices: the recon-all
+                           orig.mgz (the subject's own T1, not skull-stripped). EDNiX surfaces
+                           are brought into it by a rigid mri_robust_register of the EDNiX T1
+                           onto the recon-all brainmask (same scan), LTA cached in
+                           registration/. Rows: recon-all white/pial, EDNiX white/pial, both
+                           pial surfaces together; right: vertex-thickness histograms
+  matched_cortex_stats.txt also gives thickness vs age partialling out surface area (EDNiX
+                           thickness tracks brain size; an age effect could go through size)
 
     python fs_ednix_matched_cortex.py
 """
@@ -73,17 +78,6 @@ def ednix_fs_subject(sub, ses):
     hits = sorted(glob.glob(opj(BIDS_DIR, f'sub-{sub}', f'ses-{ses}', 'anat', 'freesurfer', '*',
                                 'surf', 'lh.white')))
     return os.path.dirname(os.path.dirname(hits[0])) if hits else None
-
-
-def t1_volume(sdir):
-    # orig.mgz first for both tools: the subject's own T1 (EDNiX: the native T1 given to
-    # FreeSurfer; its brain.mgz is a normalised helper image built from the warped seg-4FS,
-    # useless to judge where the real grey matter is).
-    for name in ('orig.mgz', 'orig_raw.mgz', 'T1.mgz', 'norm.mgz', 'brain.mgz', 'brain_raw.mgz'):
-        f = opj(sdir, 'mri', name)
-        if os.path.isfile(f):
-            return f
-    return None
 
 
 def read_hemi(sdir, h):
@@ -135,6 +129,55 @@ def human_ages():
     return a
 
 
+# ----------------------------------------------------------------------------- common space
+def lta_ras2ras(lta, src_img, dst_img):
+    """4x4 scanner-RAS -> scanner-RAS matrix from a FreeSurfer LTA (vox2vox or ras2ras)."""
+    lines = open(lta).read().splitlines()
+    typ = next(int(l.split('=')[1].split()[0]) for l in lines if l.strip().startswith('type'))
+    k = next(i for i, l in enumerate(lines) if l.split() == ['1', '4', '4'])
+    M = np.array([[float(v) for v in lines[k + 1 + r].split()] for r in range(4)])
+    if typ == 0:   # LINEAR_VOX_TO_VOX
+        M = dst_img.affine @ M @ np.linalg.inv(src_img.affine)
+    return M
+
+
+def ednix_to_fs(fs_dir, ed_dir, fsid):
+    """tkr-RAS(EDNiX orig.mgz) -> tkr-RAS(recon-all orig.mgz), by mri_robust_register of the
+    EDNiX T1 onto the recon-all brainmask (same scan: rigid, 6 dof). Returns (4x4, note)."""
+    from Exemples.Study_EDNiX.analysis.validation import freesurfer_vs_ednix as R
+    mov, dst = opj(ed_dir, 'mri', 'orig.mgz'), opj(fs_dir, 'mri', 'brainmask.mgz')
+    fs_orig = opj(fs_dir, 'mri', 'orig.mgz')
+    if not all(os.path.isfile(f) for f in (mov, dst, fs_orig)):
+        return None, 'no common space (orig/brainmask missing)'
+    reg_dir = opj(OUT_DIR, 'registration')
+    os.makedirs(reg_dir, exist_ok=True)
+    lta = opj(reg_dir, f'{fsid}_ednix_to_reconall.lta')
+    if not os.path.isfile(lta):
+        lic_dirs, lic_env = R.license_bind()
+        bind = ','.join(sorted({ed_dir, fs_dir, reg_dir, *lic_dirs}))
+        cmd = (f'{lic_env}singularity exec --bind {bind} {R.FS_SIF} mri_robust_register '
+               f'--mov {mov} --dst {dst} --lta {lta} --satit --iscale --maxit 20')
+        rc = R.sh(cmd, opj(reg_dir, f'{fsid}.log'))
+        if rc != 0 or not os.path.isfile(lta):
+            return None, f'mri_robust_register failed (see {reg_dir}/{fsid}.log)'
+    mov_img, dst_img, fs_img = nib.load(mov), nib.load(dst), nib.load(fs_orig)
+    ras2ras = lta_ras2ras(lta, mov_img, dst_img)
+    T = (np.linalg.inv(fs_img.affine @ np.linalg.inv(fs_img.header.get_vox2ras_tkr()))
+         @ ras2ras @ mov_img.affine @ np.linalg.inv(mov_img.header.get_vox2ras_tkr()))
+    return T, 'EDNiX registered to recon-all (mri_robust_register, rigid)'
+
+
+def transform_hemis(hemis, T):
+    out = {}
+    for h, d in hemis.items():
+        e = dict(d)
+        for k in ('white', 'pial'):
+            v = np.c_[d[k], np.ones(len(d[k]))] @ T.T
+            e[k] = v[:, :3]
+        out[h] = e
+    return out
+
+
 # ----------------------------------------------------------------------------- drawing
 def plane_segments(verts, faces, axis, value):
     """Segments (n, 2, 3) where the mesh crosses the plane coord[axis] = value."""
@@ -154,8 +197,7 @@ def plane_segments(verts, faces, axis, value):
 
 
 def slice_image(img, axis, value, ranges, step=0.5):
-    """Volume resampled on a plane of tkr RAS (axis fixed at value); returns image and
-    the (h_axis, v_axis) extents in mm."""
+    """Volume resampled on a plane of tkr RAS (axis fixed at value)."""
     inv = np.linalg.inv(img.header.get_vox2ras_tkr())
     data = np.asarray(img.dataobj, dtype=np.float32)
     h_ax, v_ax = [a for a in range(3) if a != axis]
@@ -169,19 +211,26 @@ def slice_image(img, axis, value, ranges, step=0.5):
     return out, (hs[0], hs[-1], vs[0], vs[-1]), h_ax, v_ax
 
 
-def draw_slice(ax, img, hemis, axis, frac):
-    allw = np.vstack([d['white'] for d in hemis.values()] + [d['pial'] for d in hemis.values()])
-    lo, hi = allw.min(0) - 5, allw.max(0) + 5
-    value = lo[axis] + 5 + frac * (hi[axis] - lo[axis] - 10)
-    ranges = list(zip(lo, hi))
+def slice_planes(hemis):
+    """The 4 planes (axis, value) and the display box, from one set of surfaces."""
+    allv = np.vstack([d[k] for d in hemis.values() for k in ('white', 'pial')])
+    lo, hi = allv.min(0) - 8, allv.max(0) + 8
+    planes = [(axis, lo[axis] + 8 + f * (hi[axis] - lo[axis] - 16))
+              for axis, f in ((1, 0.3), (1, 0.5), (1, 0.7), (2, 0.55))]
+    return planes, list(zip(lo, hi))
+
+
+def draw_slice(ax, img, layers, axis, value, ranges):
+    """layers: [(hemis, white colour, pial colour, linewidth)]."""
     im, ext, h_ax, v_ax = slice_image(img, axis, value, ranges)
     vmax = np.percentile(im[im > 0], 99) if (im > 0).any() else 1
     ax.imshow(im, origin='lower', extent=ext, cmap='gray', vmin=0, vmax=vmax, interpolation='nearest')
-    for kind, col in (('white', WHITE), ('pial', PIAL)):
-        for d in hemis.values():
-            s = plane_segments(d[kind], d['faces'], axis, value)
-            if len(s):
-                ax.add_collection(LineCollection(s[:, :, [h_ax, v_ax]], colors=col, linewidths=0.35))
+    for hemis, cw, cp, lw in layers:
+        for kind, col in (('white', cw), ('pial', cp)):
+            for d in hemis.values():
+                s = plane_segments(d[kind], d['faces'], axis, value)
+                if len(s):
+                    ax.add_collection(LineCollection(s[:, :, [h_ax, v_ax]], colors=col, linewidths=lw))
     ax.set_xlim(ext[0], ext[1])
     ax.set_ylim(ext[2], ext[3])
     ax.set_xticks([])
@@ -189,36 +238,43 @@ def draw_slice(ax, img, hemis, axis, frac):
     ax.set_title(f'{"xyz"[axis]} = {value:.0f} mm', fontsize=5, pad=1)
 
 
-def qc_page(fsid, tools, out):
-    """tools: [(name, subject dir or None, hemis or None)]."""
-    fig, axes = plt.subplots(2, 5, figsize=(ps.WIDTH_2COL, 80 * ps.MM),
+def qc_page(fsid, fs_dir, fs_h, ed_dir, ed_h, out):
+    """Same image (recon-all orig.mgz: the subject's own T1, not skull-stripped) and the
+    same slices for both tools. Rows: recon-all surfaces, EDNiX surfaces (registered),
+    both pial surfaces together. Falls back to EDNiX in its own space if no registration."""
+    img = nib.load(opj(fs_dir, 'mri', 'orig.mgz'))
+    planes, ranges = slice_planes(fs_h)
+    T, note = (ednix_to_fs(fs_dir, ed_dir, fsid) if ed_h is not None else (None, 'no EDNiX surfaces'))
+    ed_fs = transform_hemis(ed_h, T) if T is not None else None
+    fig, axes = plt.subplots(3, 5, figsize=(ps.WIDTH_2COL, 118 * ps.MM),
                              gridspec_kw=dict(width_ratios=[1, 1, 1, 1, 1.1]))
-    hist = {}
-    for i, (name, sdir, hemis) in enumerate(tools):
-        if sdir is None or hemis is None or t1_volume(sdir) is None:
-            for ax in axes[i, :4]:
-                ax.axis('off')
-            axes[i, 0].text(0, 0.5, f'{name}: no surfaces / T1', fontsize=6)
-            continue
-        img = nib.load(t1_volume(sdir))
-        for j, (axis, frac) in enumerate(((1, 0.3), (1, 0.5), (1, 0.7), (2, 0.55))):
-            draw_slice(axes[i, j], img, hemis, axis, frac)
-        axes[i, 0].set_ylabel(f'{name}\n({os.path.basename(t1_volume(sdir))})', fontsize=6)
-        th = [d['th'][d['idx']] for d in hemis.values() if d['th'] is not None]
-        if th:
-            hist[name] = np.concatenate(th)
+    rows = [('recon-all', [(fs_h, WHITE, PIAL, 0.35)]),
+            ('EDNiX', [(ed_fs, WHITE, PIAL, 0.35)] if ed_fs else []),
+            ('pial: recon-all red\nEDNiX yellow', [(fs_h, 'none', PIAL, 0.35)]
+             + ([(ed_fs, 'none', '#FFD400', 0.35)] if ed_fs else []))]
+    for i, (name, layers) in enumerate(rows):
+        for j, (axis, value) in enumerate(planes):
+            draw_slice(axes[i, j], img, layers, axis, value, ranges)
+        axes[i, 0].set_ylabel(name, fontsize=5.5)
+    if ed_fs is None:
+        axes[1, 0].text(0.02, 0.5, note, transform=axes[1, 0].transAxes, fontsize=5, color='yellow')
     gs = axes[0, 4].get_gridspec()
-    axes[0, 4].remove()
-    axes[1, 4].remove()
+    for r in range(3):
+        axes[r, 4].remove()
     ax = fig.add_subplot(gs[:, 4])
     bins = np.linspace(0, 5, 101)
-    for (name, v), col in zip(hist.items(), ('0.3', ps.species_color('Human'))):
-        ax.hist(v, bins=bins, histtype='step', color=col, lw=0.8, density=True,
-                label=f'{name}: median {np.median(v):.2f} mm')
+    for (name, hemis), col in zip((('recon-all', fs_h), ('EDNiX', ed_h)), ('0.3', ps.species_color('Human'))):
+        if hemis is None:
+            continue
+        th = [d['th'][d['idx']] for d in hemis.values() if d['th'] is not None]
+        if th:
+            v = np.concatenate(th)
+            ax.hist(v, bins=bins, histtype='step', color=col, lw=0.8, density=True,
+                    label=f'{name}: median {np.median(v):.2f} mm')
     ax.set_xlabel('Vertex thickness (mm, nearest-point)')
     ax.set_ylabel('Density')
     ax.legend(fontsize=4.5, loc='upper right')
-    fig.suptitle(f'{fsid}   white = blue, pial = red', fontsize=7, y=0.995)
+    fig.suptitle(f'{fsid}   recon-all orig.mgz, white = blue, pial = red   [{note}]', fontsize=6, y=0.997)
     fig.tight_layout(pad=0.4, w_pad=0.3, h_pad=0.6)
     fig.savefig(out, dpi=300)
     plt.close(fig)
@@ -268,8 +324,7 @@ def main():
               f"EDNiX {row.get('mask_ednix', '-')}")
         rows.append(row)
         try:
-            qc_page(fsid, [('recon-all', fs_dir, fs_h), ('EDNiX', ed_dir, ed_h)],
-                    opj(OUT_DIR, f'QC_{fsid}.png'))
+            qc_page(fsid, fs_dir, fs_h, ed_dir, ed_h, opj(OUT_DIR, f'QC_{fsid}.png'))
         except Exception as e:  # noqa: BLE001 -- one bad subject must not stop the others
             print(f'  [QC] {fsid}: {e}')
     if not rows:
@@ -312,6 +367,17 @@ def main():
             ax.plot(xs, sl * xs + ic, color=c, lw=0.7)
             lines.append(f"Thickness (nearest) vs age, {tool}: r = {r:.2f}, P = {p:.2g}, "
                          f"slope {sl:+.4f} mm/year")
+            acol = f'area_{tool}'
+            ok2 = ok & df[acol].notna()
+            if ok2.sum() >= 4:
+                A = np.c_[np.ones(ok2.sum()), df.loc[ok2, acol].to_numpy(float)]
+                res = [y - A @ np.linalg.lstsq(A, y, rcond=None)[0]
+                       for y in (df.loc[ok2, 'age'].to_numpy(float), df.loc[ok2, col].to_numpy(float))]
+                rp = float(np.corrcoef(*res)[0, 1])
+                n2 = int(ok2.sum())
+                tp = rp * np.sqrt((n2 - 3) / max(1e-12, 1 - rp ** 2))
+                pp = 2 * stats.t.sf(abs(tp), n2 - 3)
+                lines.append(f"  partial r(thickness, age | area), {tool}: {rp:.2f}, P = {pp:.2g} (n = {n2})")
         ax.legend(fontsize=4.5, loc='best')
     ax.set_xlabel('Age (years)')
     ax.set_ylabel('Thickness, nearest-point (mm)')
