@@ -48,6 +48,8 @@ Outputs: `/scratch2/EDNiX/results/EDNiX_Figures/Paper/<Figure>/` (`paper_data.PA
 | Supp. 10 | proximity rows (F16b) | `fmri_fingerprints/supp_panels.py` |
 | Supp. 11 | selection vs variability levels (F20) | `fmri_fingerprints/` |
 | Supp. 12 | a SD of run r with the kept map (F9), b QC vs that r (F10) | `fmri_fingerprints/supp_panels.py` |
+| Supp. 14 | EDNiX vs FreeSurfer recon-all, human (BIDS_Park), standalone script (PR #77) | `validation/supp_freesurfer_comparison.py` |
+| Supp. 15 | longitudinal vs cross-sectional processing of the Fig. 3 datasets (BIDS_Park vs BIDS_Park_nolong, BIDS_Zhu_Garin vs its non-longitudinal copy): residual SD, slope SE, slope bias, paired subject bootstrap | `library/longitudinal_ablation.py` |
 | Supp. Table 1 | acquisition parameters per dataset (BIDS sidecars + NIfTI headers; a fMRI, b anatomy) | `library/acquisition_table.py` |
 
 The panel codes (F15b, 5b, ...) are those of the former Fig5 pipeline, kept so that its outputs
@@ -59,7 +61,7 @@ and the paper can be matched.
 |---|---|
 | `library/` | statistics and drawing engines of Figures 1-3, 6, Supp. 1-7 and Supp. Table 1, called by the paper files. `pipeline_schematic.py` is the drawing engine of Supp. 1-3 (frames from a processed session, else from a synthetic brain built on the MNI ICBM152 template of nilearn, tagged 'synthetic'); each `schematic_*.py` also runs alone with `--synthetic` / `--out DIR` |
 | `fmri_fingerprints/` | fMRI statistics and panels from the saved run selection: `context.py` (loads `07_state`), `settings.py`, `figure4_panels.py`, `fingerprints.py`, `profile_stats.py`, `paper_panels.py`, `supp_panels.py`, `phylo.py` |
-| `validation/` | `paper_vs_pipeline.py`: checks on synthetic data that the paper numbers equal those of the former Fig5 pipeline |
+| `validation/` | `paper_vs_pipeline.py`: checks on synthetic data that the paper numbers equal those of the former Fig5 pipeline. `paper_claims.py` + `paper_claims_registry.py`: traceability of the manuscript (see below) |
 | `sensitivity_analysis/morphometry/` | `morphometry_all_levels.py`: levels 2-4, raw/log/normalised, L/R, cross-modality correlations; `outlier_rates.py`: regional outlier rates (former Supp. 6-8) |
 | `sensitivity_analysis/fmri_qc/` | `qc_all_metrics.py`, `fmri_acquisition_parameters.py`, `check_fd_inputs.py` |
 | `sensitivity_analysis/longitudinal/` | `longitudinal_all_outputs.py`: every Fig. 3 output besides the paper figure |
@@ -74,3 +76,21 @@ Engines kept unchanged at this level: `ednix_bids_tools.py`, `EDNiX_figures.py`,
 The run selection itself (AFNI group maps, consensus selection, `07_state`) is a standalone
 module at the repository root: `Statistics/Group_fMRI/run_selection/` (`launcher.py`,
 `config_ednix.py`, `compare_states.py`).
+
+## Traceability: manuscript number -> stats cell -> code line -> data
+
+    python run_paper.py                                         # (re)compute every stats file
+    python validation_morphometry.py                            # Fig. 2 validation numbers
+    python paper_extra_stats.py                                 # Fig. 2 scaling, Fig. 6c
+    python validation/paper_claims.py /path/to/EDNiX_PaperV3_Claude_v11.docx
+
+`validation/paper_claims_registry.py` lists each number of the text (the words just before
+it, the stats file / sheet / row / column that holds it, the function and line that writes
+it, the datasets it must come from) and the Methods statements to check against the code.
+`paper_claims.py` reads the .docx (tracked insertions included), finds each number, compares
+it with the stats file at the precision written, locates the code line (AST), flags stats
+older than the code, and lists every number of the Results and legends that no entry
+covers. Report: `<PAPER_DIR>/Traceability/paper_claims_report.xlsx|md`.
+Status: OK, MISMATCH, PENDING ([XX] in the text: the computed value is given), NOT_IN_TEXT
+(sentence rewritten: update the prefix), NO_SOURCE (stats not computed yet).
+Covered now: Fig. 2 validation, Fig. 3, Supp. 7, Supp. 14, Supp. 15. Figures 4-6: to add.
