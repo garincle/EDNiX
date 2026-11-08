@@ -76,7 +76,10 @@ def ednix_fs_subject(sub, ses):
 
 
 def t1_volume(sdir):
-    for name in ('T1.mgz', 'brain.mgz', 'norm.mgz', 'orig.mgz', 'brain_raw.mgz', 'orig_raw.mgz'):
+    # orig.mgz first for both tools: the subject's own T1 (EDNiX: the native T1 given to
+    # FreeSurfer; its brain.mgz is a normalised helper image built from the warped seg-4FS,
+    # useless to judge where the real grey matter is).
+    for name in ('orig.mgz', 'orig_raw.mgz', 'T1.mgz', 'norm.mgz', 'brain.mgz', 'brain_raw.mgz'):
         f = opj(sdir, 'mri', name)
         if os.path.isfile(f):
             return f
@@ -200,7 +203,7 @@ def qc_page(fsid, tools, out):
         img = nib.load(t1_volume(sdir))
         for j, (axis, frac) in enumerate(((1, 0.3), (1, 0.5), (1, 0.7), (2, 0.55))):
             draw_slice(axes[i, j], img, hemis, axis, frac)
-        axes[i, 0].set_ylabel(name, fontsize=6)
+        axes[i, 0].set_ylabel(f'{name}\n({os.path.basename(t1_volume(sdir))})', fontsize=6)
         th = [d['th'][d['idx']] for d in hemis.values() if d['th'] is not None]
         if th:
             hist[name] = np.concatenate(th)
