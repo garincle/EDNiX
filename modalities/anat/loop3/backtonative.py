@@ -334,10 +334,36 @@ def _needs_regeneration(mask_path, ss_path, diary_file):
     return False
 
 
+def _check_same_grid(img_a, img_b, diary_file):
+    """
+    Raise if two ACPC-space images are not on the same voxel grid.
+
+    {ID}_space-acpc_desc-SS-step2_* is built in step 5 as N4(desc-template) * mask,
+    so it must share the grid of {ID}_space-acpc_desc-template_*. A mismatch means
+    the two files come from different runs (e.g. loop1 re-run after step 5, or a
+    dataset folder assembled from another processing): the template->native
+    transforms, labels and final SS would then be inconsistent.
+    """
+    differences = check_nii.compare_headers(
+        img_a, img_b, fields_to_compare=['dimensions', 'spacing', 'origin', 'direction'],
+        tolerance=1e-4, check_obliquity=False)
+    if differences:
+        details = '; '.join(f'{k}: {v[0]} vs {v[1]}' for k, v in differences.items())
+        nl = (f'ERROR: {opb(img_a)} and {opb(img_b)} are not on the same grid ({details}). '
+              f'They come from different runs: re-run step 5 (loop2) and step 8 for this '
+              f'subject/session before continuing.')
+        run_cmd.msg(nl, diary_file, 'FAIL')
+        raise RuntimeError(nl)
+
+
 def _apply_final_skull_strip(imgtemplate, mask_path, ss_path,
-                              sing_afni, diary_file, mask_source_label):
+                              sing_afni, sing_wb, diary_file, mask_source_label):
     """
     Apply a brain mask to the template image to produce the final SS anatomy.
+
+    The mask is resampled (nearest neighbour, in place) onto the grid of
+    `imgtemplate` before 3dcalc, whatever its origin (manual backtonative mask
+    or automatic ACPC mask). A failure to write `ss_path` is fatal.
 
     Parameters
     ----------
@@ -349,18 +375,29 @@ def _apply_final_skull_strip(imgtemplate, mask_path, ss_path,
         Output path for the final skull-stripped image.
     sing_afni : str
         AFNI Singularity prefix.
+    sing_wb : str
+        Workbench Singularity prefix (only used by check_nii.resamp for labels).
     diary_file : str
         Diary log path.
     mask_source_label : str
         Human-readable label describing where the mask came from, used in the
         JSON sidecar ('backtonative mask' or 'automatic ACPC mask').
     """
+    check_nii.resamp(mask_path, imgtemplate, 'msk', '', '', diary_file, sing_wb)
+
     cmd = (sing_afni + '3dcalc -overwrite'
            ' -a ' + imgtemplate +
            ' -b ' + mask_path +
            ' -prefix ' + ss_path +
            ' -expr "a*b"')
+    if opi(ss_path):
+        os.remove(ss_path)
     run_cmd.do(cmd, diary_file)
+    if not opi(ss_path):
+        nl = (f'ERROR: final skull strip failed, {ss_path} was not written '
+              f'(3dcalc on {opb(imgtemplate)} x {opb(mask_path)}). See the 3dcalc error above.')
+        run_cmd.msg(nl, diary_file, 'FAIL')
+        raise RuntimeError(nl)
 
     sidecar = {
         'Sources':     [imgtemplate, mask_path],
@@ -412,6 +449,8 @@ def apply(ID, volumes_dir, masks_dir, labels_dir, bids_dir, info, listTimage,
                     #   - Otherwise → skip to avoid unnecessary recomputation.
                     # ------------------------------------------------------------------
 
+                    _check_same_grid(img_ref, imgtemplate, diary_file)
+
                     backtonative_mask = _backtonative_mask_path(masks_dir, ID)
                     acpc_mask         = opj(masks_dir, ID + '_space-acpc_mask.nii.gz')
                     ss_path           = _final_ss_path(volumes_dir, ID, Timage)
@@ -425,14 +464,12 @@ def apply(ID, volumes_dir, masks_dir, labels_dir, bids_dir, info, listTimage,
                             diary_file, 'OKGREEN')
 
                         if _needs_regeneration(backtonative_mask, ss_path, diary_file):
-                            # Resample backtonative mask to match imgtemplate grid
-                            # (safety check: user may have saved at different resolution)
-                            check_nii.resamp(backtonative_mask, imgtemplate,
-                                             'msk', '', '', diary_file, '')
-
+                            # the mask is resampled onto imgtemplate inside
+                            # _apply_final_skull_strip (user may have saved it
+                            # at another resolution)
                             _apply_final_skull_strip(
                                 imgtemplate, backtonative_mask, ss_path,
-                                sing_afni, diary_file,
+                                sing_afni, sing_wb, diary_file,
                                 mask_source_label='backtonative mask (manual)')
 
                     else:
@@ -455,7 +492,7 @@ def apply(ID, volumes_dir, masks_dir, labels_dir, bids_dir, info, listTimage,
                             if _needs_regeneration(acpc_mask, ss_path, diary_file):
                                 _apply_final_skull_strip(
                                     imgtemplate, acpc_mask, ss_path,
-                                    sing_afni, diary_file,
+                                    sing_afni, sing_wb, diary_file,
                                     mask_source_label='automatic ACPC mask')
 
                 # forward normalisation to reference space
