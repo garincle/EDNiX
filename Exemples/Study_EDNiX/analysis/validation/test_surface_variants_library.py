@@ -59,7 +59,6 @@ opj, opb, opd, ope, opi = os.path.join, os.path.basename, os.path.dirname, os.pa
 def ednix_imports(main_path):
     if main_path.rstrip('/') not in sys.path:
         sys.path.insert(0, main_path.rstrip('/'))
-    import ants  # noqa: F401
     from Tools import run_cmd, Load_EDNiX_requirement, get_orientation
     from atlases import templatefeat
     from modalities.anat.freesurfer import preFS, smallbrain, FS_surf
@@ -206,7 +205,7 @@ def run_one(job):
         import ants
         res['stage'] = 'paths'
         fs_tools, BASE_SS, Aseg_ref = library_paths(E, sp, a['lib'])
-        _, sing_fsl, sing_fs, _, _, _, _, _ = E['req'].load_requirement(a['main_path'], a['lib'], a['out'], 'yes')
+        _, _, sing_fs, _, _, _, _, _ = E['req'].load_requirement(a['main_path'], a['lib'], a['out'], 'yes')
         _, _, _, export_fs = E['req'].FS(fs_tools, FS_dir, diary, sing_fs)
 
         res['stage'] = 'prepa'
