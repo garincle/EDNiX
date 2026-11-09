@@ -18,6 +18,10 @@ Variants (same aseg, same FreeSurfer commands as EDNiX: FS_surf.Wcreate then FS_
           hemisphere value, brain = 110) instead of being cortical GM, so the white surface passes over them
           and the pial surface does not wrap them;
         - brain.mgz smoothed with sigma = 0.5 voxel (sub-voxel boundary instead of a voxel staircase).
+  V0m V0 + pial search / thickness limit raised (mris_make_surfaces -max): the default 5 mm is applied in
+      rescaled FreeSurfer mm, i.e. 0.87 / 1.41 / 1.26 real mm for the Mouse / Rat / Mouselemur templates,
+      below their real isocortical thickness. -max = 3 real mm (>= 5).
+  V2m V2 intensities on the V0 grid (EDNiX down-sampling kept) + the same -max.
   Sphere registration / aparc (FS_surf.Wconfig) are skipped: only smoothwm/inflated/curvature, which the
   pial step uses, are computed.
 
@@ -50,7 +54,9 @@ SPECIES_DEFAULT = ['Mouse', 'Rat', 'Mouselemur', 'Marmoset', 'Macaque', 'Cat', '
 SMALLBRAIN_LIBRARY = ['Mouse', 'Rat', 'Mouselemur', 'Bat']      # as in recontruct_surface_based_on_aseg.py
 FACTOR_LIBRARY = 30                                             # as in atlases/template.py
 MAX_DIM = 256
-VARIANTS = ['V0', 'V1', 'V2']
+VARIANTS = ['V0', 'V1', 'V2', 'V0m', 'V2m']
+LEGACY_GRID = ('V0', 'V0m', 'V2m')        # variants that keep the EDNiX smallbrain down-sampling
+MAX_REAL_THICKNESS = 3.0                 # mm, real units: above any small-species isocortex
 HEMIS = ['lh', 'rh']
 
 opj, opb, opd, ope, opi = os.path.join, os.path.basename, os.path.dirname, os.path.exists, os.path.isfile
@@ -138,7 +144,7 @@ def to_freesurfer(E, species, files, FS_dir, change_hd, scaling, legacy_target, 
     prep = opj(opd(FS_dir), 'resampled')
     os.makedirs(prep, exist_ok=True)
     imgs = [ants.image_read(f) for f in files]
-    if variant != 'V0':
+    if variant not in LEGACY_GRID:
         nz = np.argwhere(imgs[3].numpy() > 0)
         lo = np.maximum(nz.min(0) - 8, 0)
         hi = np.minimum(nz.max(0) + 9, np.asarray(imgs[3].shape))
@@ -146,7 +152,7 @@ def to_freesurfer(E, species, files, FS_dir, change_hd, scaling, legacy_target, 
     ref = imgs[0]
     X, S = ref.origin, ref.spacing
     target = legacy_target
-    if variant != 'V0':
+    if variant not in LEGACY_GRID:
         sp_now = float(scaling[0]) if change_hd else float(S[0])
         target = None if max(ref.shape) <= MAX_DIM else math.ceil(max(ref.shape) * sp_now / MAX_DIM * 1000) / 1000
     new_files = []
@@ -157,7 +163,7 @@ def to_freesurfer(E, species, files, FS_dir, change_hd, scaling, legacy_target, 
         if target is not None:
             img = ants.resample_image(img, (target, target, target), False, interp)
             img[img < 0] = 0
-            if variant == 'V0' and 'desc-norm' in f:
+            if variant in LEGACY_GRID and 'desc-norm' in f:
                 img = ants.smooth_image(img, target)
         nf = opj(prep, opb(f))
         ants.image_write(img, nf)
@@ -209,7 +215,7 @@ def run_one(job):
         _, _, _, export_fs = E['req'].FS(fs_tools, FS_dir, diary, sing_fs)
 
         res['stage'] = 'prepa'
-        if variant == 'V2':
+        if variant in ('V2', 'V2m'):
             prepa_v2(E, sp, BASE_SS, Aseg_ref, prep_dir)
         else:
             E['preFS'].prepa_img(sp, BASE_SS, prep_dir, Aseg_ref, prep_dir, '', diary)
@@ -233,7 +239,16 @@ def run_one(job):
         res['stage'] = 'curvature'
         light_config(E, FS_dir, sp, diary, sing_fs, export_fs)
         res['stage'] = 'pial (FS_surf.Pcreate)'
-        E['FS_surf'].Pcreate(sp, 'lr', diary, export_fs)
+        if variant.endswith('m'):
+            # FS_surf.Pcreate + '-max': mris_make_surfaces searches the pial surface and caps the thickness at
+            # 5 mm by default, i.e. 5 x real_mm_per_fs_mm real mm after the smallbrain header rescale.
+            mx = max(5.0, math.ceil(MAX_REAL_THICKNESS / res['real_mm_per_fs_mm']))
+            res['note'] = f'pial -max {mx:g} FS mm'
+            for h in HEMIS:
+                E['run_cmd'].do(export_fs + 'mris_make_surfaces -white NOWRITE -aseg aseg -orig white -noaparc '
+                                f'-mgz -max {mx:g} -T1 brain ' + sp + ' ' + h, diary)
+        else:
+            E['FS_surf'].Pcreate(sp, 'lr', diary, export_fs)
         for h in HEMIS:
             if not opi(opj(FS_dir, sp, 'surf', h + '.pial')) and not opi(opj(FS_dir, sp, 'surf', h + '.pial.T1')):
                 raise RuntimeError(h + '.pial not written')
@@ -417,7 +432,7 @@ def main():
     jobs = []
     for sp in species:
         for v in args.variants:
-            if v == 'V1' and sp not in SMALLBRAIN_LIBRARY:
+            if v in ('V1', 'V0m', 'V2m') and sp not in SMALLBRAIN_LIBRARY:
                 continue        # no rescale / down-sampling in V0 for these species: V1 would be V0 + crop
             jobs.append(dict(species=sp, variant=v, args=dict(main_path=args.main_path, lib=lib, out=args.out,
                                                                 force=args.force)))
