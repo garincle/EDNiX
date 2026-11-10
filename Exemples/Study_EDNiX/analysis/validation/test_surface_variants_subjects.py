@@ -46,7 +46,7 @@ DATASETS = {
     'Dog': '/scratch2/EDNiX/Dog/BIDS_Boch_K9/',
 }
 SPECIES_DEFAULT = ['Mouse', 'Rat', 'Mouselemur', 'Marmoset', 'Macaque']
-VARIANTS_DEFAULT = ['V0', 'V2m', 'V2s', 'V6n']
+VARIANTS_DEFAULT = ['V0', 'V2m', 'V2h']
 SUBJECT_FACTOR = 20          # smallbrain factor for subjects in _loop3.py
 OUT_DEFAULT = '/scratch2/EDNiX/surface_tests/subjects'
 
