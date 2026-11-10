@@ -31,7 +31,6 @@ import sys
 import glob
 import json
 import time
-import shutil
 import argparse
 import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
