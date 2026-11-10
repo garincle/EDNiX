@@ -259,8 +259,10 @@ def run_graph(jobs, deps, log_dir):
 # =====================================================================================================================
 # reset and QC
 # =====================================================================================================================
-def reset_all(launchers):
-    """Preview the reset of every selected launcher, then ONE 'YES' for everything."""
+def reset_all(launchers, confirm=True, preview_only=False):
+    """Preview the reset of every selected launcher, then ONE 'YES' for everything.
+    confirm=False: no question (the caller already asked, e.g. rebuild_all_ednix.py). preview_only=True: dry run only,
+    returns (n anat/PET/CT sessions, n files, n func sessions)."""
     from Tools import data_reset as dr
     from modalities.anat import _000_Data_Reset as anat_r
     from modalities.pet import _000_Data_Reset as pet_r
@@ -284,7 +286,9 @@ def reset_all(launchers):
     for dp, diary in func_paths:
         func_r.reset_func(dp, diary, dry_run=True)
     n = sum(len(p['to_delete']) for p in plans)
-    ans = input(f"\n🚨 Reset {len(plans)} anat/PET/CT session(s) ({n} files) and {len(func_paths)} func session(s) "
+    if preview_only:
+        return len(plans), n, len(func_paths)
+    ans = 'YES' if not confirm else input(f"\n🚨 Reset {len(plans)} anat/PET/CT session(s) ({n} files) and {len(func_paths)} func session(s) "
                 f"listed above? Type 'YES': ")
     if ans.strip() != 'YES':
         print('Reset cancelled: nothing deleted, nothing launched.')

@@ -56,6 +56,15 @@ RESET_DRY_RUN = True       # True: list what would be removed; False: remove, af
 
 Files are removed one by one (manual files stay where the pipeline looks for them), then empty folders are pruned. Every action is written to the subject's diary.
 
+## Full rebuild in one command: `rebuild_all_ednix.py`
+
+`Exemples/Study_EDNiX/rebuild_all_ednix.py` chains everything with one confirmation: it previews the library build, the BIDS reset (dry run, manual masks and crops kept) and the jobs, asks one `YES`, then detaches (survives closing the terminal) and logs to `run_reports/rebuild_<date>.log`. It builds `Atlases_library_V2` (`atlases/build_library_V2.py`), stops if a species fails or if the library does not match its manifest (nothing in the BIDS folders is touched before that), swaps the libraries (`Atlases_library` → `Atlases_library_V1`, `Atlases_library_V2` → `Atlases_library`), resets the BIDS folders and runs `run_all_ednix.py`. If `Atlases_library` is already the V2 library, the build is skipped (resume).
+
+```bash
+python Exemples/Study_EDNiX/rebuild_all_ednix.py --plan     # preview only
+python Exemples/Study_EDNiX/rebuild_all_ednix.py            # preview, YES, then everything in the background
+```
+
 ## Relaunching everything: `run_all_ednix.py`
 
 `Exemples/Study_EDNiX/run_all_ednix.py` runs the example launchers as a dependency graph: per BIDS folder, anat before CT, CT before PET, anat before func; then the QC reports of every dataset and a study-level Excel summary.
