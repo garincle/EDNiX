@@ -309,7 +309,10 @@ def run(ID, Session, data_path, max_ses, creat_study_template, study_template_at
     if 12 in Skip_step:
         run_cmd.msg('INFO: skip step ' + str(12), diary_file, 'OKGREEN')
     else:
-        FS_surf.Pcreate(ID, 'lr', diary_file, export_fs)
+        # pial search capped at preFS.MAX_REAL_THICKNESS real mm (smallbrain header rescale taken into account)
+        FS_surf.Pcreate(ID, 'lr', diary_file, export_fs,
+                        max_fs_mm=preFS.pial_max(preFS.real_mm_per_fs(new_Ref_file,
+                                                                      opj(dir_prepro, ID + '_rescale.json'))))
 
         if opi(T2_img):
             f = open(new_Ref_file.replace('.nii.gz', '.json'))

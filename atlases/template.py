@@ -141,12 +141,14 @@ def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers
         run_cmd.msg(nl, diary_file, 'OKGREEN')
 
         Ref = '_resamp-' + str(scaling[0])
+        real_mm_per_fs = float(S[0]) / float(scaling[0]) if change_hd else 1.0
         list1[0] = opj(dir_prepro, opb(list1[0].replace('.nii.gz', Ref + '.nii.gz')))
         labels_dir = dir_prepro
     else:
         Ref = ''
         DATfile = ''
         labels_dir = BASE_atlas_folder
+        real_mm_per_fs = 1.0
 
     list1[1] = opj(dir_prepro, list1[1] + Ref + '.nii.gz')
     for i in range(2, 5):
@@ -176,7 +178,7 @@ def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers
         #### 4.4.2 Right hemisphere
         FS_flat.map(FS_dir, species, 'right', cmd_tksurfer, cmd_flatten, diary_file, sing_fs, export_fs)
 
-    FS_surf.Pcreate(species, 'lr', diary_file, export_fs)
+    FS_surf.Pcreate(species, 'lr', diary_file, export_fs, max_fs_mm=preFS.pial_max(real_mm_per_fs))
 
     cmd = export_fs + 'mris_volmask --aseg_name aseg --label_left_white 2 --label_left_ribbon 3 --label_right_white 41 --label_right_ribbon 42 --save_ribbon ' + species
     run_cmd.do(cmd, diary_file)

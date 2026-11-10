@@ -13,9 +13,10 @@ What it does
 `python build_library_V2.py --verify` re-hashes the library and reports any file that differs from the manifest.
 `python build_library_V2.py --plan` lists the species found and what would be done, without running anything.
 
-Surface parameters are kept in SURFACE so the variant chosen from the surface tests (PR #84: V0m / V2m / V3m) can be
-plugged in without touching this script's logic: today template.modif exposes the small-brain resampling factor, the
-spherical registration and the flat maps; the selected variant will be added there as a new `method`.
+Surface method: 'V2h', chosen from the surface tests of PR #84 (5 library templates + 10 BIDS subjects): synthetic
+brain.mgz with non-overlapping classes (CSF 10-35, GM 55-85 with the template texture, WM 110, sigma 0.5 voxel),
+hippocampus/amygdala in the GM class, pial search capped at 3 real mm (modalities/anat/freesurfer/preFS.py). The
+smallbrain rescale (factor 30) is kept and now also applies to the Marmoset template. 'legacy' rebuilds as in V1.
 """
 import os
 import sys
@@ -45,9 +46,10 @@ LIBRARY_V1 = opj(opd(MAIN_PATH), 'Atlases_library')          # same rule as atla
 LIBRARY_V2 = opj(opd(MAIN_PATH), 'Atlases_library_' + VERSION)
 SPECIES = 'all'                                             # 'all' (every template found) or e.g. ['Rat', 'Marmoset']
 REFERENCES = ['EDNiX']                                       # reference folder(s) of each species to rebuild
-SMALLBRAIN = ['Mouse', 'Rat', 'Mouselemur', 'Bat']           # species rescaled for FreeSurfer (smallbrain.get)
+SMALLBRAIN = ['Mouse', 'Rat', 'Mouselemur', 'Bat', 'Marmoset']  # species rescaled for FreeSurfer (smallbrain.get);
+#   Marmoset added in V2 (template < 10 cm3, like the subjects): without it FreeSurfer ran in high-resolution mode
 ATLAS_FOLLOWERS = [['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]]
-SURFACE = dict(method='EDNiX_v1',      # surface reconstruction method (only 'EDNiX_v1' today, see docstring)
+SURFACE = dict(method='V2h',           # preFS.SURFACE_METHOD: 'V2h' (surface tests, PR #84) or 'legacy' (EDNiX v1)
                smallbrain_factor=30,   # smallbrain.get factor for the SMALLBRAIN species (V1 value: 30)
                sphere=True,            # spherical registration (needed by the library for fs_LR / BALSA)
                doBALSAspace=True,
@@ -132,8 +134,10 @@ def build_species(sp, ref, template_dir, library, surface):
                                                          'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS')})
     os.environ.setdefault('MPLBACKEND', 'Agg')
     from atlases import template
-    if surface['method'] != 'EDNiX_v1':
-        raise NotImplementedError(f"surface method {surface['method']!r} is not implemented in atlases/template.modif")
+    from modalities.anat.freesurfer import preFS
+    if surface['method'] not in ('V2h', 'legacy'):
+        raise NotImplementedError(f"surface method {surface['method']!r}: 'V2h' or 'legacy'")
+    preFS.SURFACE_METHOD = surface['method']
     t0 = time.time()
     diary = opj(template_dir, ref, f'build_library_{VERSION}_diary.txt')
     open(diary, 'a').close()

@@ -198,7 +198,9 @@ def Wsphere(FS_dir, FS_refs, animal, LR, diary_name, sing_fs, export_fs):
         run_cmd.msg(nl, diary_name,'OKGREEN')
 
 
-def Pcreate(animal,LR,diary_name,export_fs):
+def Pcreate(animal,LR,diary_name,export_fs,max_fs_mm=None):
+    """Pial surfaces. max_fs_mm: maximal cortical thickness searched by mris_make_surfaces (-max, FS mm); None keeps
+    FreeSurfer's default (5). See preFS.pial_max for the real-mm cap used with the smallbrain rescaling."""
 
     nl = 'Create the pial surface'
     run_cmd.msg(nl, diary_name, 'OKGREEN')
@@ -212,8 +214,9 @@ def Pcreate(animal,LR,diary_name,export_fs):
 
     for H in h:
 
-        cmd = (export_fs + 'mris_make_surfaces -white NOWRITE -aseg aseg -orig white -noaparc -mgz -T1 brain ' +
-               animal + ' ' + Hmin[H] + 'h')
+        mx = '' if max_fs_mm is None else '-max ' + ('%g' % max_fs_mm) + ' '
+        cmd = (export_fs + 'mris_make_surfaces -white NOWRITE -aseg aseg -orig white -noaparc -mgz ' + mx +
+               '-T1 brain ' + animal + ' ' + Hmin[H] + 'h')
         run_cmd.do(cmd,diary_name)
 
         nl = surface[H] + ' surface done!'
