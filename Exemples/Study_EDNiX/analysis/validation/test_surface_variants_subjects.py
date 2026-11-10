@@ -125,6 +125,7 @@ def main():
             if opi(f):
                 rows.append(json.loads(open(f).read()))
     else:
+        lock = L.take_lock(args.out)
         with ProcessPoolExecutor(max(1, args.jobs)) as ex:
             futs = {ex.submit(L.run_one, j): j for j in jobs}
             for fu in as_completed(futs):
@@ -132,6 +133,7 @@ def main():
                 rows.append(r)
                 print(f"[{len(rows)}/{len(jobs)}] {r['species']} {r.get('tag', '')} {r['variant']}: {r['status']} "
                       f"({r['seconds'] // 60} min) {r['note'][:120]}", flush=True)
+        os.remove(lock)
     order = {v: i for i, v in enumerate(L.VARIANTS)}
     rows.sort(key=lambda r: (r['species'], r.get('tag', ''), order[r['variant']]))
     L.write_summary(args.out, rows)

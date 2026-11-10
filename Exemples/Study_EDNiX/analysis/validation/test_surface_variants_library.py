@@ -113,6 +113,21 @@ def simulate_resolution(t1_file, aseg_file, out_dir, factor):
     return t1_out, aseg_out
 
 
+def take_lock(out):
+    """Stops a second launch on the same --out: it would delete the folders of the runs still in progress."""
+    lock = opj(out, 'RUNNING.pid')
+    if opi(lock):
+        try:
+            pid = int(open(lock).read().strip())
+            os.kill(pid, 0)
+            sys.exit(f'another run (pid {pid}) is using {out}; stop it or wait (lock {lock})')
+        except (ValueError, ProcessLookupError, PermissionError):
+            pass
+    with open(lock, 'w') as fh:
+        fh.write(str(os.getpid()))
+    return lock
+
+
 def ednix_imports(main_path):
     if main_path.rstrip('/') not in sys.path:
         sys.path.insert(0, main_path.rstrip('/'))
@@ -639,6 +654,7 @@ def main():
             if opi(f):
                 rows.append(json.loads(open(f).read()))
     else:
+        lock = take_lock(args.out)
         with ProcessPoolExecutor(max(1, args.jobs)) as ex:
             futs = {ex.submit(run_one, j): j for j in jobs}
             for fu in as_completed(futs):
@@ -646,6 +662,7 @@ def main():
                 rows.append(r)
                 print(f"[{len(rows)}/{len(jobs)}] {r['species']} {r['variant']}: {r['status']} "
                       f"({r['seconds'] // 60} min) {r['note'][:120]}", flush=True)
+        os.remove(lock)
     order = {v: i for i, v in enumerate(VARIANTS)}
     rows.sort(key=lambda r: (species.index(r['species']) if r['species'] in species else 99, order[r['variant']]))
     write_summary(args.out, rows)
