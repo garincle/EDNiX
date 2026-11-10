@@ -25,10 +25,11 @@ Run:  python3 test_surface_variants_subjects.py                         (default
 import argparse
 import json
 import os
-import random
 import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from glob import glob
+
+import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import test_surface_variants_library as L   # noqa: E402
@@ -104,7 +105,7 @@ def main():
         print(f'{sp}: {len(subs)} subjects with step-10 inputs in {DATASETS[sp]}')
         if not subs:
             continue
-        random.Random(args.seed).shuffle(subs)
+        subs = [subs[i] for i in np.random.default_rng(args.seed).permutation(len(subs))]   # reproducible pick
         chosen[sp] = subs[:args.n]
         for tag, img, aseg in chosen[sp]:
             print(f'   {tag}\n      {img}\n      {aseg}')
