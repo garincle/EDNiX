@@ -36,10 +36,18 @@ Variants (same aseg, same FreeSurfer commands as EDNiX: FS_surf.Wcreate then FS_
       kept at the GM/WM border, sigma 0.5 voxel: sharp thin WM blades in gyrencephalic brains), then brain.mgz
       replaced by the V3 image (constant classes) for the pial step only (no intracortical texture for the
       pial to stop on).
+  V5n V4n on a SMOOTHED aseg: each label is blurred (Gaussian on its one-hot map, sigma 1 voxel) and the
+      label with the highest value is kept (argmax). Removes the voxel staircase of the warped aseg that the
+      native-grid surfaces reproduce (V3n/V4n "crenellated"), without the coarse grid of V2m that merges thin
+      structures. Every FreeSurfer input (brain, wm, filled, aseg) is built from the smoothed aseg.
+  V6n V5n with sigma 2 voxels.
   summary.csv also gives the fidelity of each surface to the aseg it was built from: median distance (real
   mm) of white vertices to the filled.mgz boundary and of pial vertices to the outer GM boundary of aseg.mgz,
   and the fraction of vertices within 1 voxel of it, computed on the ?h.cortex.label vertices only (medial
-  wall excluded). In the QC figures the medial-wall vertices are drawn in light grey.
+  wall excluded). The reference is always the ORIGINAL aseg (aseg.raw.mgz for V5n/V6n): white -> filled
+  structures + hippocampus/amygdala, pial -> aseg brain without CSF. Roughness: 90th percentile of |mean
+  curvature| of the white (?h.curv) and pial (?h.curv.pial) surfaces on cortex vertices, in 1/real mm (a voxel
+  staircase raises it). In the QC figures the medial-wall vertices are drawn in light grey.
   Sphere registration / aparc (FS_surf.Wconfig) are skipped: only smoothwm/inflated/curvature, which the
   pial step uses, are computed.
 
@@ -47,6 +55,10 @@ Outputs (per species / variant):  <out>/<species>/<variant>/freesurfer/<species>
   <out>/summary.csv                     status, runtime, vertices, cortical thickness in REAL mm
   <out>/QC_<species>.png                white (blue) / pial (red) on orig.mgz, rows = variants, same relative
                                         slices, + thickness histograms in real mm
+
+Subject-like resolution: --sim-res F down-samples the template (linear) and its aseg (nearest neighbour, as an
+atlas warped to a subject grid) by F per axis before any variant, to test the variants at BIDS resolution.
+Outputs then go to <out>_simF (e.g. /scratch2/EDNiX/surface_tests/library_sim2).
 
 Run:  python3 test_surface_variants_library.py                                  (all species found)
       python3 test_surface_variants_library.py --species Mouse Marmoset --variants V0 V2 --jobs 4
@@ -73,14 +85,32 @@ SMALLBRAIN_LIBRARY = ['Mouse', 'Rat', 'Mouselemur', 'Bat']      # as in recontru
 M_SPECIES = SMALLBRAIN_LIBRARY + ['Marmoset']   # V*m: smallbrain rule forced (Marmoset template < 10 cm3)
 FACTOR_LIBRARY = 30                                             # as in atlases/template.py
 MAX_DIM = 256
-VARIANTS = ['V0', 'V1', 'V2', 'V0m', 'V2m', 'V3m', 'V0n', 'V2n', 'V3n', 'V4n']
-NATIVE_GRID = ('V0n', 'V2n', 'V3n', 'V4n')             # 1 native voxel = 1 FS mm
+VARIANTS = ['V0', 'V1', 'V2', 'V0m', 'V2m', 'V3m', 'V0n', 'V2n', 'V3n', 'V4n', 'V5n', 'V6n']
+NATIVE_GRID = ('V0n', 'V2n', 'V3n', 'V4n', 'V5n', 'V6n')
+HYBRID = ('V4n', 'V5n', 'V6n')           # white on the V2 image, pial on the V3 image
+LABEL_SIGMA = {'V5n': 1.0, 'V6n': 2.0}   # aseg smoothing, voxels             # 1 native voxel = 1 FS mm
 LEGACY_GRID = ('V0', 'V0m', 'V2m', 'V3m')        # variants that keep the EDNiX smallbrain down-sampling
 MAX_REAL_THICKNESS = 3.0                 # mm, real units: above any small-species isocortex
 HEMIS = ['lh', 'rh']
 CSF_CODES = [4, 5, 43, 44, 14, 15, 24, 72, 30, 62, 31, 63]     # preFS.CSF_edit
+WHITE_CODES = [4, 2, 10, 11, 12, 13, 26, 28, 31, 43, 41, 49, 50, 51, 52, 58, 60, 63, 77, 85,
+               17, 18, 53, 54]                                  # preFS.filled_edit + hippocampus/amygdala
 
 opj, opb, opd, ope, opi = os.path.join, os.path.basename, os.path.dirname, os.path.exists, os.path.isfile
+
+
+def simulate_resolution(t1_file, aseg_file, out_dir, factor):
+    """Template and aseg down-sampled by `factor` per axis (T1 linear, aseg nearest neighbour), written once to
+    out_dir and reused by every variant of the species."""
+    import ants
+    os.makedirs(out_dir, exist_ok=True)
+    t1_out, aseg_out = opj(out_dir, 'T1w_sim.nii.gz'), opj(out_dir, 'aseg_sim.nii.gz')
+    if not (opi(t1_out) and opi(aseg_out)):
+        t1 = ants.image_read(t1_file)
+        sp = tuple(float(s) * factor for s in t1.spacing)
+        ants.image_write(ants.resample_image(t1, sp, False, 0), t1_out)
+        ants.image_write(ants.resample_image(ants.image_read(aseg_file), sp, False, 1), aseg_out)
+    return t1_out, aseg_out
 
 
 def ednix_imports(main_path):
@@ -100,6 +130,26 @@ def library_paths(E, species, lib):
                                 [['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], doBALSAspace=True)
     BASE_SS, Aseg_ref = out[9], out[18]
     return fs_tools, BASE_SS, Aseg_ref
+
+
+def smooth_labels(aseg_file, out_file, sigma):
+    """Smoothed label map: Gaussian (sigma voxels) on the one-hot map of every label, argmax kept.
+    Removes the voxel staircase of a nearest-neighbour warped aseg; structures thinner than ~2 sigma shrink."""
+    import ants
+    from scipy.ndimage import gaussian_filter
+    img = ants.image_read(aseg_file)
+    a = np.round(img.numpy()).astype(np.int32)
+    best = gaussian_filter((a == 0).astype(np.float32), sigma)
+    lab = np.zeros(a.shape, np.int32)
+    for c in np.unique(a):
+        if c == 0:
+            continue
+        g = gaussian_filter((a == c).astype(np.float32), sigma)
+        m = g > best
+        lab[m] = c
+        best[m] = g[m]
+    ants.image_write(img.new_image_like(lab.astype(np.float32)), out_file)
+    return out_file
 
 
 def prepa_v2(E, Subname, Ref_file, aseg_file, prep_dir, const=False):
@@ -169,8 +219,8 @@ def to_freesurfer(E, species, files, FS_dir, change_hd, scaling, legacy_target, 
     V1/V2: crop to the aseg bounding box (+8 voxels), header rescale, resampling only if a dimension
     would still exceed MAX_DIM voxels."""
     import ants
-    names = ['orig.mgz', 'brain.mgz', 'wm.mgz', 'aseg.mgz', 'filled.mgz', 'brain.pial.mgz'][:len(files)]
-    interps = [3, 3, 1, 1, 1, 3][:len(files)]
+    names = ['orig.mgz', 'brain.mgz', 'wm.mgz', 'aseg.mgz', 'filled.mgz', 'brain.pial.mgz', 'aseg.raw.mgz'][:len(files)]
+    interps = [3, 3, 1, 1, 1, 3, 1][:len(files)]
     mri = opj(FS_dir, species, 'mri')
     prep = opj(opd(FS_dir), 'resampled')
     os.makedirs(prep, exist_ok=True)
@@ -200,7 +250,7 @@ def to_freesurfer(E, species, files, FS_dir, change_hd, scaling, legacy_target, 
         sp_now = float(scaling[0]) if change_hd else float(S[0])
         target = None if max(ref.shape) <= MAX_DIM else math.ceil(max(ref.shape) * sp_now / MAX_DIM * 1000) / 1000
     new_files = []
-    for f, img, interp in zip(files, imgs, interps):
+    for i, (f, img, interp) in enumerate(zip(files, imgs, interps)):
         if change_hd:
             ants.set_spacing(img, scaling)
             ants.set_origin(img, [X[i] * scaling[i] / S[i] for i in range(3)])
@@ -209,7 +259,7 @@ def to_freesurfer(E, species, files, FS_dir, change_hd, scaling, legacy_target, 
             img[img < 0] = 0
             if variant in LEGACY_GRID and 'desc-norm' in f:
                 img = ants.smooth_image(img, target)
-        nf = opj(prep, ('pial_' if f in files[5:] else '') + opb(f))
+        nf = opj(prep, (f'x{i}_' if i >= 5 else '') + opb(f))
         ants.image_write(img, nf)
         new_files.append(nf)
     _, _, fwd, _ = E['get_orientation'].use_ants(new_files[0])
@@ -255,20 +305,27 @@ def run_one(job):
         import ants
         res['stage'] = 'paths'
         fs_tools, BASE_SS, Aseg_ref = library_paths(E, sp, a['lib'])
+        if a.get('sim_res', 1.0) > 1.0:
+            BASE_SS, Aseg_ref = simulate_resolution(BASE_SS, Aseg_ref, opj(a['out'], sp, 'sim_input'), a['sim_res'])
         _, _, sing_fs, _, _, _, _, _ = E['req'].load_requirement(a['main_path'], a['lib'], a['out'], 'yes')
         _, _, _, export_fs = E['req'].FS(fs_tools, FS_dir, diary, sing_fs)
 
         res['stage'] = 'prepa'
-        if variant.startswith('V2') or variant.startswith('V3') or variant == 'V4n':
-            prepa_v2(E, sp, BASE_SS, Aseg_ref, prep_dir, const=variant.startswith('V3'))
+        aseg_use = Aseg_ref
+        if variant in LABEL_SIGMA:
+            aseg_use = smooth_labels(Aseg_ref, opj(prep_dir, sp + '_desc-smooth_dseg.nii.gz'), LABEL_SIGMA[variant])
+        if variant.startswith('V2') or variant.startswith('V3') or variant in HYBRID:
+            prepa_v2(E, sp, BASE_SS, aseg_use, prep_dir, const=variant.startswith('V3'))
         else:
             E['preFS'].prepa_img(sp, BASE_SS, prep_dir, Aseg_ref, prep_dir, '', diary)
         files = [BASE_SS, opj(prep_dir, sp + '_desc-norm_T1w.nii.gz'), opj(prep_dir, sp + '_seg-wm_dseg.nii.gz'),
-                 Aseg_ref, opj(prep_dir, sp + '_seg-filled_dseg.nii.gz')]
-        if variant == 'V4n':        # V3 image for the pial step, written in prep_dir/pial
+                 aseg_use, opj(prep_dir, sp + '_seg-filled_dseg.nii.gz')]
+        if variant in HYBRID:       # V3 image for the pial step, written in prep_dir/pial
             os.makedirs(opj(prep_dir, 'pial'), exist_ok=True)
-            prepa_v2(E, sp, BASE_SS, Aseg_ref, opj(prep_dir, 'pial'), const=True)
+            prepa_v2(E, sp, BASE_SS, aseg_use, opj(prep_dir, 'pial'), const=True)
             files.append(opj(prep_dir, 'pial', sp + '_desc-norm_T1w.nii.gz'))
+        if variant in LABEL_SIGMA:  # original aseg, for the fidelity metric only
+            files.append(Aseg_ref)
 
         res['stage'] = 'smallbrain'
         change_hd, scaling, legacy_target = 0, [1., 1., 1.], None
@@ -288,7 +345,7 @@ def run_one(job):
         res['stage'] = 'curvature'
         light_config(E, FS_dir, sp, diary, sing_fs, export_fs)
         res['stage'] = 'pial (FS_surf.Pcreate)'
-        if variant == 'V4n':
+        if variant in HYBRID:
             mri = opj(FS_dir, sp, 'mri')
             shutil.copy(opj(mri, 'brain.mgz'), opj(mri, 'brain.white.mgz'))
             shutil.copy(opj(mri, 'brain.pial.mgz'), opj(mri, 'brain.mgz'))
@@ -447,41 +504,50 @@ def qc_species(sp, out, rows):
 
 
 def aseg_fidelity(FS_dir, sp, k):
-    """Distance of the white / pial vertices to the boundaries they should follow, in real mm:
-    white -> boundary of filled.mgz > 0; pial -> outer boundary of the aseg brain (aseg > 0 without CSF codes,
-    holes filled). Returns {white|pial: (median |d| mm, fraction of vertices with |d| <= 1 voxel)}."""
+    """Distance of the cortex.label vertices of the white / pial surfaces to the ORIGINAL aseg boundaries, in
+    real mm: white -> WHITE_CODES, pial -> aseg brain without CSF codes (holes filled). Also the roughness of each
+    surface (90th percentile of |mean curvature|, 1/real mm).
+    Returns {white|pial: (median |d| mm, fraction of vertices with |d| <= 1 voxel, curvature p90)}."""
     import nibabel as nib
     from scipy import ndimage as ndi
-    mri = opj(FS_dir, sp, 'mri')
+    mri, surf = opj(FS_dir, sp, 'mri'), opj(FS_dir, sp, 'surf')
+    ref = opj(mri, 'aseg.raw.mgz') if opi(opj(mri, 'aseg.raw.mgz')) else opj(mri, 'aseg.mgz')
     out = {}
-    if not (opi(opj(mri, 'filled.mgz')) and opi(opj(mri, 'aseg.mgz'))):
+    if not opi(ref):
         return out
-    fi = nib.load(opj(mri, 'filled.mgz'))
-    vox = float(np.mean(fi.header.get_zooms()[:3]))
-    inv = np.linalg.inv(fi.header.get_vox2ras_tkr())
-    aseg = np.asarray(nib.load(opj(mri, 'aseg.mgz')).dataobj).astype(np.int32)
-    masks = {'white': np.asarray(fi.dataobj) > 0,
+    im = nib.load(ref)
+    vox = float(np.mean(im.header.get_zooms()[:3]))
+    inv = np.linalg.inv(im.header.get_vox2ras_tkr())
+    aseg = np.asarray(im.dataobj).astype(np.int32)
+    masks = {'white': np.isin(aseg, WHITE_CODES),
              'pial': ndi.binary_fill_holes((aseg > 0) & ~np.isin(aseg, CSF_CODES))}
     for kind, m in masks.items():
-        sd = ndi.distance_transform_edt(~m) - ndi.distance_transform_edt(m)    # voxels, 0 on the boundary
-        d = []
+        sd = (ndi.distance_transform_edt(~m) - ndi.distance_transform_edt(m)).astype(np.float32)
+        d, cv = [], []
         for h in HEMIS:
             p = surf_path(FS_dir, sp, h, kind)
-            if p:
-                v = nib.freesurfer.read_geometry(p)[0]
-                v = v[cortex_mask(FS_dir, sp, h, len(v))]
-                ijk = (inv @ np.c_[v, np.ones(len(v))].T)[:3]
-                d.append(np.abs(ndi.map_coordinates(sd.astype(np.float32), ijk, order=1, mode='nearest')))
+            if not p:
+                continue
+            v = nib.freesurfer.read_geometry(p)[0]
+            ctx = cortex_mask(FS_dir, sp, h, len(v))
+            ijk = (inv @ np.c_[v[ctx], np.ones(int(ctx.sum()))].T)[:3]
+            d.append(np.abs(ndi.map_coordinates(sd, ijk, order=1, mode='nearest')))
+            cf = opj(surf, h + ('.curv' if kind == 'white' else '.curv.pial'))
+            if opi(cf):
+                c = nib.freesurfer.read_morph_data(cf)
+                if len(c) == len(v):
+                    cv.append(np.abs(c[ctx]) / k)
         if d:
             d = np.concatenate(d)
-            out[kind] = (float(np.median(d)) * vox * k, float(np.mean(d <= 1.0)))
+            out[kind] = (float(np.median(d)) * vox * k, float(np.mean(d <= 1.0)),
+                         float(np.percentile(np.concatenate(cv), 90)) if cv else '')
     return out
 
 
 def write_summary(out, rows):
     keys = ['species', 'variant', 'status', 'stage', 'seconds', 'grid', 'real_mm_per_fs_mm', 'n_vertices_white',
             'thick_median_mm', 'thick_p05_mm', 'thick_p95_mm', 'white_dist_med_mm', 'white_within_1vox',
-            'pial_dist_med_mm', 'pial_within_1vox', 'note']
+            'pial_dist_med_mm', 'pial_within_1vox', 'white_curv_p90', 'pial_curv_p90', 'note']
     import nibabel as nib
     for r in rows:
         FS_dir = opj(out, r['species'], r['variant'], 'freesurfer')
@@ -500,9 +566,10 @@ def write_summary(out, rows):
             print(f"aseg fidelity {r['species']} {r['variant']} failed: {e}")
             fid = {}
         for kind in ('white', 'pial'):
-            md, fr = fid.get(kind, ('', ''))
+            md, fr, cu = fid.get(kind, ('', '', ''))
             r[kind + '_dist_med_mm'] = round(md, 3) if md != '' else ''
             r[kind + '_within_1vox'] = round(fr, 3) if fr != '' else ''
+            r[kind + '_curv_p90'] = round(cu, 2) if cu != '' else ''
     with open(opj(out, 'summary.csv'), 'w', newline='') as fh:
         w = csv.DictWriter(fh, keys, extrasaction='ignore')
         w.writeheader()
@@ -524,10 +591,14 @@ def main():
     ap.add_argument('--jobs', type=int, default=6, help='species x variant runs in parallel')
     ap.add_argument('--force', action='store_true', help='redo runs that already have done.json')
     ap.add_argument('--qc-only', action='store_true')
+    ap.add_argument('--sim-res', type=float, default=1.0,
+                    help='down-sample template + aseg by this factor per axis (subject-like resolution)')
     args = ap.parse_args()
 
     args.main_path = args.main_path.rstrip('/') + '/'
     lib = opj(opd(args.main_path), 'Atlases_library')       # same rule as atlases/template.py
+    if args.sim_res > 1.0:
+        args.out = args.out.rstrip('/') + f'_sim{args.sim_res:g}'
     os.makedirs(args.out, exist_ok=True)
     E = ednix_imports(args.main_path)
     species = []
@@ -548,9 +619,9 @@ def main():
             if v in ('V0m', 'V2m', 'V3m') and sp not in M_SPECIES:
                 continue        # no smallbrain rescale / down-sampling for these species
             if v in ('V0n', 'V2n') and sp not in SMALLBRAIN_LIBRARY and sp not in ('Marmoset', 'Macaque'):
-                continue        # V3n / V4n run for every species (cross-species comparison of the same rule)        # no rescale / down-sampling in V0 for these species: V1 would be V0 + crop
+                continue        # V3n-V6n run for every species (cross-species comparison of the same rule)        # no rescale / down-sampling in V0 for these species: V1 would be V0 + crop
             jobs.append(dict(species=sp, variant=v, args=dict(main_path=args.main_path, lib=lib, out=args.out,
-                                                                force=args.force)))
+                                                                force=args.force, sim_res=args.sim_res)))
     print(f'{len(jobs)} runs: ' + ', '.join(f"{j['species']}/{j['variant']}" for j in jobs))
 
     rows = []
