@@ -101,6 +101,19 @@ def _result(prefix):
     return {'fwdtransforms': [warp, aff], 'invtransforms': [aff, inv]}
 
 
+def refine(fixed, moving, affine, outprefix, fixed_mask=None, moving_mask=None, params=None):
+    """
+    Candidate B: compliant SyN from `affine`, restricted to the brain masks at every stage. When no mask is given
+    (EDNiX step 6 registers skull-stripped images without masks), the non-zero voxels of the images are used.
+    Returns the ANTsPy-like dict of its files (<outprefix>0GenericAffine.mat, 1Warp, 1InverseWarp).
+    """
+    fm = _mask(fixed, fixed_mask)
+    mm = _mask(moving, moving_mask)
+    ants.registration(fixed=fixed, moving=moving, type_of_transform='SyNOnly', initial_transform=affine,
+                      mask=fm, moving_mask=mm, mask_all_stages=True, outprefix=outprefix, **(params or REFINE))
+    return _result(outprefix)
+
+
 def register(fixed, moving, initial_transform, outprefix, fixed_mask=None, moving_mask=None,
              thresholds=None, log=print):
     """
@@ -125,18 +138,12 @@ def register(fixed, moving, initial_transform, outprefix, fixed_mask=None, movin
     if passes(mA, th):
         report['decision'] = 'A passes the checks: kept (identical to SyNCC).'
     else:
-        # B: compliant SyN from A's affine, masks applied at every stage.
-        prefB = outprefix + 'refine_'
-        ants.registration(fixed=fixed, moving=moving, type_of_transform='SyNOnly',
-                          initial_transform=res['fwdtransforms'][1],
-                          mask=fixed_mask, moving_mask=moving_mask, mask_all_stages=fixed_mask is not None,
-                          outprefix=prefB, **REFINE)
-        resB = _result(prefB)
+        resB = refine(fixed, moving, res['fwdtransforms'][1], outprefix + 'refine_', fixed_mask, moving_mask)
         mB = evaluate(fixed, moving, resB['fwdtransforms'], fixed_mask, moving_mask)
         report['B_refine'] = mB
         log(f'INFO: {NAME} candidate B (compliant masked SyN): ' + ', '.join(f'{k}={v:.4f}' for k, v in mB.items()))
         if mB['tissue_dice'] - mA['tissue_dice'] > th['min_gain'] and mB['folding'] <= th['max_folding']:
-            for a, b in zip(_result(outprefix)['fwdtransforms'] + [res['invtransforms'][1]],
+            for a, b in zip(res['fwdtransforms'] + [res['invtransforms'][1]],
                             resB['fwdtransforms'] + [resB['invtransforms'][1]]):
                 shutil.copyfile(b, a)
             report['chosen'] = 'B_refine'
