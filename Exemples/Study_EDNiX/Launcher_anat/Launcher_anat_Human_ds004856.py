@@ -72,9 +72,7 @@ Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
     align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
-    # 'SyNadaptive' = SyNCC, refined by a compliant masked SyN only for the subjects that fail the overlap checks
-    # (modalities/anat/registration_adaptive.py; per-subject decision in <...>_adaptive_QC.json). 'SyNCC' = previous behaviour.
-    coreg={'type_of_transform': 'SyNadaptive', 'affmetric': '', 'affmetricT': ''})
+    coreg={'type_of_transform': 'SyNCC', 'affmetric': '', 'affmetricT': ''})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 
