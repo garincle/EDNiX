@@ -64,6 +64,17 @@ SUV_window = [20, 45]             # minutes after injection: late frames, as the
 Do_cut = False
 duration = 10
 
+### Reset before relaunch (modalities/pet/_000_Data_Reset.py): deletes the EDNiX outputs of the selected sessions and
+### keeps the raw BIDS files and the crops drawn by hand (desc-crop). RESET_KEEP_REGISTRATION keeps orig/matrices.
+### RESET_BEFORE_RUN = True with RESET_DRY_RUN = True previews; RESET_DRY_RUN = False deletes after ONE 'YES'.
+RESET_BEFORE_RUN = False
+RESET_DRY_RUN = True
+RESET_KEEP_REGISTRATION = False
+if RESET_BEFORE_RUN:
+    from modalities.pet import _000_Data_Reset
+    _000_Data_Reset.reset_all(allinfo_study_c, bids_dir, list_to_keep=list_to_keep, list_to_remove=list_to_remove,
+                              dry_run=RESET_DRY_RUN, keep_registration=RESET_KEEP_REGISTRATION)
+
 Skip_step = ['pvc', 9]            # no partial-volume correction in this first pass (the paper applied iterative Yang PVC
                                   # with GM / WM / CSF masks: a later sensitivity analysis), no PET during fMRI
 _0_Pipeline_launcher.preprocess_pet(

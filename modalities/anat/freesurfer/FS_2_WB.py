@@ -452,7 +452,14 @@ def WB_prep(cmd_mris_convert, FS_dir, FS_refs, dir_path, animal, species, spacin
                     WB_label.mergelabel(animal, opj(dir_native_resol), 'native', h, diary_name, list_atlas[0][a],
                                         list_atlas[2][a], sing_wb)
 
-    if towarp == 1:
+    # surfaces in the BALSA / fs_LR spaces need the spherical registration (step 'sphere')
+    warp_surf = towarp
+    if towarp == 1 and not all(opi(opj(FS_dir, animal, 'surf', Hmin[h] + 'h.sphere.reg')) for h in range(2)):
+        run_cmd.msg('WARNING: doBALSAspace needs ?h.sphere.reg (step sphere): the ' + BALSAname +
+                    ' / fs_LR surfaces are not built. Run the step sphere, then step 15 again.', diary_name, 'WARNING')
+        warp_surf = 0
+
+    if warp_surf == 1:
         # warping of the surfaces
         WB_sphere_reg.warp(animal, ['white', 'pial', 'midthickness'], dir_native_resol, dir_balsa_resol, list_atlas,
                            ref_transfo1,
@@ -552,7 +559,7 @@ def WB_prep(cmd_mris_convert, FS_dir, FS_refs, dir_path, animal, species, spacin
            ' INVALID ' + imfile)
     run_cmd.run(cmd, diary_name)
 
-    if towarp == 1:
+    if warp_surf == 1:
         WB_sphere_reg.cifti(animal, dir_balsa_resol, dir_balsa_32, dir_balsa_64, diary_name, sing_wb)
 
     nl = 'creation of the cifti files: done!'
@@ -569,7 +576,7 @@ def WB_prep(cmd_mris_convert, FS_dir, FS_refs, dir_path, animal, species, spacin
 
     # extras ###########################################################################################
 
-    if species == 'Macaque' and doBALSAspace==True:
+    if species == 'Macaque' and doBALSAspace==True and warp_surf == 1:
         # parcellation from template surfaces to native space volume
         nl = 'Create ' + BALSAname + ' volumetric atlas'
         run_cmd.msg(nl, diary_name, 'OKGREEN')

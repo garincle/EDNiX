@@ -18,7 +18,12 @@ def _defaults_for(name, coreg_block):
         return dict(zip(KEYS, (default_interp, 'Rigid', default_affmetric, default_affmetricT)))
     if name == 'coreg':
         return dict(zip(KEYS, (default_interp, default_intramod_type, default_affmetric, default_affmetricT)))
-    return {k: coreg_block[k] for k in KEYS}
+    block = {k: coreg_block[k] for k in KEYS}
+    if block['type_of_transform'] == 'SyNadaptive':
+        # the adaptive choice is made for the subject -> template registration only; the inherited blocks
+        # (skull-strip templates, study template) use its first candidate, SyNCC.
+        block['type_of_transform'] = 'SyNCC'
+    return block
 
 
 def set(transfo_message, IgotbothT1T2, creat_study_template, brain_skullstrip_1, brain_skullstrip_2,

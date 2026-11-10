@@ -72,7 +72,9 @@ Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
     align={'type_of_transform': 'Rigid', 'affmetric': 'MI', 'affmetricT': 'MI'},
-    coreg={'type_of_transform': 'SyNCC', 'affmetric': '', 'affmetricT': ''})
+    # 'SyNadaptive' = SyNCC, refined by a compliant masked SyN only for the subjects that fail the overlap checks
+    # (modalities/anat/registration_adaptive.py; per-subject decision in <...>_adaptive_QC.json). 'SyNCC' = previous behaviour.
+    coreg={'type_of_transform': 'SyNadaptive', 'affmetric': '', 'affmetricT': ''})
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 
@@ -94,7 +96,18 @@ MNIBcorrect_indiv               = ''                      # 'N4' by default. cou
 #                                                                                                                      #
 ########################################################################################################################
 
-Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean', 'fs_extras']
+### Reset before relaunch (modalities/anat/_000_Data_Reset.py): deletes the EDNiX outputs of the selected subjects and
+### keeps the raw BIDS files and the manual masks (final_mask, final_mask_2, backtonative_mask, desc-manual...).
+### RESET_BEFORE_RUN = True with RESET_DRY_RUN = True previews; RESET_DRY_RUN = False deletes after ONE 'YES'.
+RESET_BEFORE_RUN = False
+RESET_DRY_RUN = True
+RESET_SCOPE = 'all'               # 'all', or 'surfaces' (only freesurfer/ and native/surfaces/: rebuild the surfaces)
+if RESET_BEFORE_RUN:
+    from modalities.anat import _000_Data_Reset
+    _000_Data_Reset.reset_all(allinfo_study_c, bids_dir, list_to_keep=list_to_keep, list_to_remove=list_to_remove,
+                              dry_run=RESET_DRY_RUN, scope=RESET_SCOPE)
+
+Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean', 'fs_extras', 'sphere']
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################

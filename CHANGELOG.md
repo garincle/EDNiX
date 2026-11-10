@@ -1,5 +1,15 @@
 # Changelog
 
+## Faster relaunches, cleaners, QC reports, adaptive human registration, library V2, November 2026
+
+- Anat: the spherical registration (`mris_sphere`, `mris_register`, `mris_jacobian`, `mris_ca_label`) is a separate step `sphere` (`FS_surf.Wsphere`); step 11 keeps white, inflation and curvature. `sphere` is added to `Skip_step` of the example anat launchers. Without it, steps 14–15 skip the fs_LR / BALSA resampling and `fs_extras` (warning) and the T2w pial runs with `-noaparc`. `atlases/template.modif` (library) still runs it.
+- Checkpoints (`Tools/ednix_checkpoint`): step 14 checked `sphere.reg` (now `ribbon.mgz` + `?h.mid`), `flat_map` checked `lh.flat`, which is never written (now `?h.full.flatten.patch.3d`); new `sphere` check; step 11 also checks `?h.sulc`.
+- Cleaners before a relaunch for anat, PET and CT (`modalities/<modality>/_000_Data_Reset`, engine `Tools/data_reset`), same rules as the func cleaner: raw BIDS and manual files kept, one preview, one `YES` per batch; anat `scope='surfaces'`, PET/CT `keep_registration`. Reset block (`RESET_BEFORE_RUN`, `RESET_DRY_RUN`) in every example launcher; `EDNIX_SKIP_RESET=1` disables every reset.
+- `Exemples/Study_EDNiX/run_all_ednix.py`: runs all example launchers as a dependency graph (anat → CT → PET, anat → func per BIDS folder), split by subject within a core budget, longest first, one log per job, then the QC reports.
+- `Tools/QC_report`: subject recap pages, an all-subjects page (robust-z outliers, thumbnails), a dataset page and `QC/EDNiX_BIDS_summary.xlsx` (acquisition with TR checks, status, metrics); surface QC figure at step 16; `study_summary` across datasets.
+- `SyNadaptive` registration (`modalities/anat/registration_adaptive.py`): SyNCC, refined by a compliant masked SyN only when the overlap / folding checks fail; decisions in `*_adaptive_QC.json`. Used by the human example anat launchers.
+- `Exemples/Study_EDNiX/atlases/build_library_V2.py`: versioned copy of the atlas library, surfaces rebuilt per species in parallel, surface QC per species, manifest (git commit, versions, parameters, sha256), `--verify`. `template.modif` gains `library_path`, `smallbrain_factor`, `sphere`.
+
 ## Figure XX: multimodal multi-species profiles, October 2026
 
 - `Exemples/Study_EDNiX/analysis/Figure_XX_multimodal.py` + `multimodal_profiles.py`: (A) group-mean bratio surfaces of human and macaque on one shared colour scale; (B) cross-species bratio of the level-2 cortical regions (bilateral), bars and permutation / FDR statistics of `Plot_interspecies_regional_profiles`; (C) one radar per species with the within-subject z-scored profiles of morphometry (% of brain volume, ventricles / CSF excluded), FC (average connectivity, mean Fisher z) and metabolism (bratio). Region names mapped to the canonical names of `Atlas_nomenclature`; `LEVEL` is the 1-based hierarchy level (volume `LEVEL-1` of the 4D atlases). Article species colours. Tests `tests/unit/test_multimodal_profiles.py`.

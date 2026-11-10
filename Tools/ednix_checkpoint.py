@@ -371,9 +371,20 @@ ANAT_STEPS = [
         'step_id': 11,
         'loop':    3,
         'name':    'Step 11 — White surface construction',
+        # ?h.sulc is written by mris_inflate (end of step 11), after ?h.white
         'check':   lambda p, ID, tn, sp: (
             opi(opj(p['FS_dir'], ID, 'surf', 'lh.white')) and
-            opi(opj(p['FS_dir'], ID, 'surf', 'rh.white'))),
+            opi(opj(p['FS_dir'], ID, 'surf', 'rh.white')) and
+            opi(opj(p['FS_dir'], ID, 'surf', 'lh.sulc')) and
+            opi(opj(p['FS_dir'], ID, 'surf', 'rh.sulc'))),
+    },
+    {
+        'step_id': 'sphere',
+        'loop':    3,
+        'name':    'sphere — Spherical registration (optional: BALSA / fs_LR, fs_extras)',
+        'check':   lambda p, ID, tn, sp: (
+            opi(opj(p['FS_dir'], ID, 'surf', 'lh.sphere.reg')) and
+            opi(opj(p['FS_dir'], ID, 'surf', 'rh.sphere.reg'))),
     },
     {
         'step_id': 12,
@@ -388,16 +399,18 @@ ANAT_STEPS = [
         'loop':    3,
         'name':    'flat_map — Flat map construction',
         'check':   lambda p, ID, tn, sp: (
-            opi(opj(p['FS_dir'], ID, 'surf', 'lh.flat')) and
-            opi(opj(p['FS_dir'], ID, 'surf', 'rh.flat'))),
+            opi(opj(p['FS_dir'], ID, 'surf', 'lh.full.flatten.patch.3d')) and
+            opi(opj(p['FS_dir'], ID, 'surf', 'rh.full.flatten.patch.3d'))),
     },
     {
         'step_id': 14,
         'loop':    3,
         'name':    'Step 14 — FreeSurfer finalise + atlas label mapping',
+        # outputs of FS_finalise: ribbon.mgz and the midthickness surfaces (?h.sphere.reg is the step 'sphere')
         'check':   lambda p, ID, tn, sp: (
-            opi(opj(p['FS_dir'], ID, 'surf', 'lh.sphere.reg')) and
-            opi(opj(p['FS_dir'], ID, 'surf', 'rh.sphere.reg'))),
+            opi(opj(p['FS_dir'], ID, 'mri', 'ribbon.mgz')) and
+            opi(opj(p['FS_dir'], ID, 'surf', 'lh.mid')) and
+            opi(opj(p['FS_dir'], ID, 'surf', 'rh.mid'))),
     },
     {
         'step_id': 15,

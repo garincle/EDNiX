@@ -26,6 +26,23 @@
 
 **Logs**: every command, its output and return code are in the subject's log. With `EDNIX_STRICT=1` the first failing command stops the run; without it, failures are shown in red.
 
+**Surface QC** (step 16, `Tools/QC_report.surface_qc`): white, pial and midthickness contours on three planes over the brain, thickness distribution in real millimetres (small brains: FreeSurfer millimetres divided by the header scale factor) and the distance of the white / pial surfaces to the aseg boundaries. `anat/QC_anat/<ID>_surface_QC.png` and `.json`, copied to `<BIDS>/QC/surfaces/`.
+
+**Adaptive registration** (`SyNadaptive`): candidate kept and its overlap metrics, `<prefix>_adaptive_QC.json`.
+
+## Reports at three levels
+
+`Tools/QC_report.build(bids_dir)` (run by `run_all_ednix.py`, or `python -m Tools.QC_report <BIDS> [<BIDS> ...]`) gathers everything above, without recomputing it, in:
+
+| file | content |
+|---|---|
+| `QC/subjects/sub-<ID>_ses-<S>.html` | one subject / session: processing status of every step, log errors and warnings, anatomical, functional, specificity, PET motion and surface metrics, all its QC images |
+| `QC/QC_all_subjects.html` | one row per subject / session with the key metrics, values more than 3.5 robust SD from the median highlighted, one thumbnail grid per QC check |
+| `QC/QC_dataset.html` | the dataset: modalities, subjects, acquisition parameters, TR flags, completion of each step, distributions |
+| `QC/EDNiX_BIDS_summary.xlsx` | sheets `overview`, `subjects`, `acquisition` (TR from the sidecar and the header, `TR_check` when they differ by more than 5 % or fall outside 0.1–10 s, volumes, duration, voxel size), `status`, `QC_summary`, `anat_QC`, `surface_QC`, `func_QC`, `FC_specificity`, `logs` |
+
+`QC_report.study_summary([bids_1, bids_2, ...], out.xlsx)` stacks the overview and acquisition sheets of several datasets, with a `dataset` column.
+
 ## Reviewing quality control
 
 The **Quality control** tab of the interface lists the QC folders of a dataset, shows the images as a grid (subject filter, full-screen view with the arrow keys) and the QC tables, where values more than 3.5 robust standard deviations (median absolute deviation) from the median are highlighted.

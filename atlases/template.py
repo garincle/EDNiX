@@ -17,13 +17,21 @@ from modalities.anat.freesurfer import smallbrain, preFS, FS_surf, FS_2_WB_short
 
 Hmin    = ['l','r']
 
-def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='ribbon',doflat=0):
+def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='ribbon',doflat=0,
+          library_path='', smallbrain_factor=30, sphere=True):
+    """
+    Rebuild the FreeSurfer / Workbench surfaces of one species template of the atlas library.
+    library_path      : library to work in ('' = <MAIN_PATH>/../Atlases_library, the V1 location; build_library_V2.py
+                        passes its versioned copy so V1 is never modified)
+    smallbrain_factor : 'factor' of smallbrain.get for the small species (30 = V1 value)
+    sphere            : spherical registration (needed for the library: BALSA / fs_LR resampling)
+    """
 
     # reference templates
     if reference == '':
         reference = 'EDNiX'
 
-    reftemplate_path = opj(opd(MAIN_PATH), "Atlases_library")
+    reftemplate_path = library_path if library_path else opj(opd(MAIN_PATH), "Atlases_library")
     fs_tools         = opj(reftemplate_path, 'freesurfer_refs')
     path_BALSA       = opj(reftemplate_path, 'BALSA')
 
@@ -82,7 +90,7 @@ def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers
                 run_cmd.run(cmd, diary_file)
 
         print('do small brain')
-        change_hd, scaling, resamp, new_size, DATfile = smallbrain.get(species, dir_prepro, BASE_SS, '', 30, diary_file)
+        change_hd, scaling, resamp, new_size, DATfile = smallbrain.get(species, dir_prepro, BASE_SS, '', smallbrain_factor, diary_file)
 
         # set images to resolution 1mm
 
@@ -157,7 +165,7 @@ def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers
 
     FS_surf.Wcreate(FS_dir, species, 'lr', diary_file, sing_fs, export_fs)
 
-    FS_surf.Wconfig(FS_dir, FS_refs, species, 'lr', diary_file, sing_fs, export_fs)
+    FS_surf.Wconfig(FS_dir, FS_refs, species, 'lr', diary_file, sing_fs, export_fs, sphere=sphere)
 
     if doflat ==0:
         run_cmd.msg('INFO: skip step ' + str('flat_map'), diary_file, 'OKGREEN')

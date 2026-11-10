@@ -289,8 +289,18 @@ def run(ID, Session, data_path, max_ses, creat_study_template, study_template_at
         if check_visualy_each_img == True:
             FS_freeview.FSview(FS_dir, ID, 'white', sing_fs, FS_refs)
 
+        # inflated surface + curvature only; the spherical registration is the separate step 'sphere' below
+        FS_surf.Wconfig(FS_dir, FS_refs, ID, 'lr', diary_file, sing_fs, export_fs, sphere=False)
+
+    # ...................................................................................................................
+
+    if 'sphere' in Skip_step:
+        run_cmd.msg('INFO: skip step sphere (spherical registration, not needed by the EDNiX native-space outputs; '
+                    'needed only for doBALSAspace / fs_LR, fs_extras and the aparc of the T2w pial)',
+                    diary_file, 'OKGREEN')
+    else:
         # You can go grab a cup of coffe, it can take more than an hour...
-        FS_surf.Wconfig(FS_dir, FS_refs, ID, 'lr', diary_file, sing_fs, export_fs)
+        FS_surf.Wsphere(FS_dir, FS_refs, ID, 'lr', diary_file, sing_fs, export_fs)
 
     # ...................................................................................................................
 
@@ -346,9 +356,14 @@ def run(ID, Session, data_path, max_ses, creat_study_template, study_template_at
 
         # 'fs_extras' in Skip_step: no FreeSurfer parcellation Destrieux / DKT nor FreeSurfer statistics (humans);
         # EDNiX does not use them
+        # the FreeSurfer parcellations of fs_extras are registered through ?h.sphere.reg
+        extras = 'fs_extras' not in Skip_step and FS_surf.sphere_done(FS_dir, ID)
+        if 'fs_extras' not in Skip_step and not extras and species == 'Human':
+            run_cmd.msg('WARNING: fs_extras needs the spherical registration (step sphere): not computed',
+                        diary_file, 'WARNING')
         FS_finalise.FS_finalise(FS_dir, ID, a, list_atlas[1], list_atlas[3], change_hd,
                                 diary_file, sing_fs, export_fs, path_label_code, species, FS_refs, sing_afni, sing_wb,
-                                extras='fs_extras' not in Skip_step)
+                                extras=extras)
 
     # ...................................................................................................................
 
@@ -381,6 +396,15 @@ def run(ID, Session, data_path, max_ses, creat_study_template, study_template_at
         _16_anat_QC_SNR.anat_QC(info, type_norm, ID, volumes_dir, path_anat, masks_dir, labels_dir, targetsuffix,
                                 listTimage,
                                 sing_afni, diary_file)
+
+        # surface QC (white / pial on orig.mgz, thickness in real mm, distance to the aseg boundaries):
+        # anat/QC_anat/<ID>_surface_QC.png (+ .json), copied to <BIDS>/QC/surfaces. Never stops the pipeline.
+        try:
+            from Tools import QC_report
+            if QC_report.surface_qc_subject(data_path, ID, Session, bids_dir):
+                run_cmd.msg('INFO: surface QC written in ' + opj(path_anat, 'QC_anat'), diary_file, 'OKGREEN')
+        except Exception as e:
+            run_cmd.msg('WARNING: surface QC failed: ' + str(e), diary_file, 'WARNING')
 
     # ...................................................................................................................
 

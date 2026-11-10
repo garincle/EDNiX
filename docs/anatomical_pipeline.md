@@ -14,10 +14,12 @@ Entry point: `modalities/anat/_0_Pipeline_launcher.preprocess_anat`. Every param
 | `6` | `loop2/_6_stdyTmax` | registration to the study template, the longitudinal reference session or the atlas template |
 | `8` | `loop3/backtonative` | atlases and masks brought back to native space |
 | `itk_3` | | manual check of the native-space atlases |
-| `9`–`12` | `freesurfer/` | FreeSurfer preparation, input images (small brains rescaled), white and pial surfaces |
+| `9`–`11` | `freesurfer/` | fMRI masks, FreeSurfer preparation and input images (small brains rescaled), white surface, inflation, curvature |
+| `sphere` | `freesurfer/FS_surf.Wsphere` | spherical registration (`sphere.reg`) and `aparc.annot`. Slow and not needed for the native outputs of EDNiX: only for `doBALSAspace` (fs_LR resampling), the human `fs_extras` parcellations and the `aparc` of the T2w pial refinement. Skipped in the example launchers; can be run later alone (`Skip_step` without `sphere`) |
+| `12` | `freesurfer/FS_surf.Pcreate` | pial surface (T2w refinement when available) |
 | `flat_map` | `freesurfer/FS_flat` | flat maps |
 | `14`–`15` | `connectomeWB/` | atlases projected on the surfaces, FreeSurfer to Workbench conversion |
-| `16` | `loop3/_16_anat_QC_SNR` | anatomical quality control |
+| `16` | `loop3/_16_anat_QC_SNR`, `Tools/QC_report` | anatomical quality control and surface QC (`anat/QC_anat/<ID>_surface_QC.png`) |
 | `Clean` | | deletion of intermediate files |
 
 ## Orientation and animal position
@@ -49,9 +51,11 @@ Animal data are often acquired in positions that the scanner does not describe (
 
 The ANTs parameters of each registration (`align`, `between`, `coreg`, `SS1`, `SS2`, `SS3`, `stdyT`) come from `list_transfo` (`load_transfo_parameters.build_transfos`) and `transfo_message` (`'do_it_for_me'`: defaults; `'do_as_I_said'`: your values, completed by defaults).
 
+**`SyNadaptive`** (`coreg` block; used by the human example launchers): the standard `SyNCC` (Avants et al., 2008) is run, then checked inside the template brain mask (Dice of the brain masks, mean Dice of a 3-class k-means tissue segmentation, fraction of folded voxels of the warp). Only when a check fails, a more compliant SyN (`SyN[0.2,2,0]`, CC radius 4) restricted to the brain masks at every stage (cost-function masking, Brett et al., 2001) refines it from the same affine, and replaces it only if the tissue overlap improves by more than 0.01 without folding. Subjects that pass keep outputs identical to `SyNCC`. The decision and metrics are in `<prefix>_adaptive_QC.json` next to the transforms and in the QC reports. The thresholds (`modalities/anat/registration_adaptive.THRESHOLDS`) are not yet calibrated on labelled human data; blocks that inherit from `coreg` (`SS1`–`SS3`, `stdyT`) use `SyNCC`.
+
 ## Surfaces
 
-FreeSurfer is run on the skull-stripped brain. Brains smaller than about 10 cm³ (rodents, bats, mouse lemur, marmoset) are enlarged in the header before FreeSurfer and the results are brought back to the real size: surfaces through the registration file, thickness, sulcal depth and curvature by the same scale factor. The surfaces are then converted to Connectome Workbench (`native/surfaces/Native_resol`, `fsaverage_LR_32k`) with the atlas labels projected on them.
+FreeSurfer is run on the skull-stripped brain. Brains smaller than about 10 cm³ (rodents, bats, mouse lemur, marmoset) are enlarged in the header before FreeSurfer and the results are brought back to the real size: surfaces through the registration file, thickness, sulcal depth and curvature by the same scale factor. Without the `sphere` step, steps 14–15 skip the fs_LR / BALSA resampling and the human `fs_extras` parcellations (with a warning). The surfaces are then converted to Connectome Workbench (`native/surfaces/Native_resol`, `fsaverage_LR_32k`) with the atlas labels projected on them.
 
 ## Main outputs
 

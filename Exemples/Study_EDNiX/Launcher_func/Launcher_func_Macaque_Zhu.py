@@ -60,8 +60,16 @@ selected_atlases = [['EDNIxCSC', 3]]  # Using NEW VERSION format (single atlas)
 doWARPonfunc = 'WARP'
 resting_or_task = 'resting'  # 'resting' or 'task'
 
-#from modalities.fMRI import _000_Data_Reset
-#_000_Data_Reset.reset_all(allinfo_study_c, bids_dir, list_to_keep=None, list_to_remove=list_to_remove, dry_run=False)
+### Reset before relaunch (modalities/fMRI/_000_Data_Reset.py): deletes the EDNiX outputs of the selected subjects and
+### keeps the raw BIDS files and the manual masks (func/raw/masks).
+### RESET_BEFORE_RUN = True with RESET_DRY_RUN = True previews; RESET_DRY_RUN = False deletes after ONE 'YES'.
+RESET_BEFORE_RUN = False
+RESET_DRY_RUN = True
+if RESET_BEFORE_RUN:
+    from modalities.fMRI import _000_Data_Reset
+    _000_Data_Reset.reset_all(allinfo_study_c, bids_dir, list_to_keep=list_to_keep, list_to_remove=list_to_remove,
+                              dry_run=RESET_DRY_RUN)
+
 Skip_step = ['itk_1','itk_2','itk_3','Clean']
 
 _0_Pipeline_launcher.preprocess_fmri(
