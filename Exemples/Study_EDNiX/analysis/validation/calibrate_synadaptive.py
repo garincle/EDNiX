@@ -24,8 +24,8 @@ Design
   recon-all aseg: Dice per structure and hemisphere (cortex, cerebral WM, lateral ventricles, thalamus, caudate,
   putamen, pallidum, hippocampus, amygdala, cerebellar cortex and WM, brainstem), Klein et al. (2009) style.
 - Outputs (OUT_DIR): per-subject table (calibration_subjects.csv), per-structure table (calibration_structures.csv),
-  statistics and recommended thresholds (calibration_summary.json), figure (calibration.png / .pdf), one log per
-  subject. Registrations are cached: re-running only redoes the analysis.
+  statistics and recommended thresholds (calibration_summary.json), figure (calibration.png / .pdf), and a QC
+  figure per subject (QC/<subject>_QC.png) written as soon as that subject is finished. Registrations are cached: re-running only redoes the analysis.
 
 n = 10 (Park, ages 87-97): the analysis is descriptive (paired Wilcoxon, Spearman, bootstrap CI); the thresholds it
 recommends must be read with that sample size in mind.
@@ -192,6 +192,77 @@ def run_subject(args):
     return row
 
 
+
+# --------------------------------------------------------------------------------------- per-subject QC figure
+import nibabel as nib  # noqa: E402
+import matplotlib  # noqa: E402
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt  # noqa: E402
+
+# FreeSurfer codes merged into a few classes for display
+CLASSES = {'cortex': ((3, 42), '#D62728'), 'WM': ((2, 41), '#1F77B4'), 'ventricles': ((4, 43, 5, 44), '#FFD700'),
+           'subcortical': ((10, 49, 11, 50, 12, 51, 13, 52), '#2CA02C'), 'hippo/amyg': ((17, 53, 18, 54), '#9467BD'),
+           'cerebellum': ((7, 46, 8, 47), '#FF7F0E')}
+
+
+def load(p):  # noqa: E302
+    return np.asanyarray(nib.load(p).dataobj)
+
+
+def classes(seg):
+    out = np.zeros(seg.shape, np.int16)
+    for i, (codes, _) in enumerate(CLASSES.values(), 1):
+        out[np.isin(seg, codes)] = i
+    return out
+
+
+def slices(vol, c):
+    return [np.rot90(vol[c[0], :, :]), np.rot90(vol[:, c[1], :]), np.rot90(vol[:, :, c[2]])]
+
+
+def subject_qc(d):
+    sub = os.path.basename(d)
+    with open(opj(d, 'result.json')) as f:
+        r = json.load(f)
+    t1 = load(r['ednix_T1']).astype(float)
+    ref = classes(load(opj(d, 'fs_aseg_in_ednix_native.nii.gz')))
+    segs = {t: classes(load(opj(d, f'{t}_template_seg_in_native.nii.gz'))) for t in ('A', 'B')}
+    nz = np.argwhere(t1 > 0)
+    c = ((nz.min(0) + nz.max(0)) // 2) if len(nz) else np.array(t1.shape) // 2
+    vmax = np.percentile(t1[t1 > 0], 99) if (t1 > 0).any() else 1
+    colors = [col for _, col in CLASSES.values()]
+    fig, ax = plt.subplots(3, 3, figsize=(12, 12), facecolor='k')
+    rows = [('recon-all aseg', ref, None), ('A (SyNCC)', segs['A'], ref), ('B (refine)', segs['B'], ref)]
+    for i, (name, seg, filled) in enumerate(rows):
+        for j, (img, s) in enumerate(zip(slices(t1, c), slices(seg, c))):
+            a = ax[i, j]
+            a.imshow(img, cmap='gray', vmin=0, vmax=vmax)
+            if filled is not None:
+                f = slices(filled, c)[j].astype(float)
+                f[f == 0] = np.nan
+                a.imshow(f, cmap=matplotlib.colors.ListedColormap(colors), vmin=0.5, vmax=len(colors) + 0.5,
+                         alpha=0.25, interpolation='nearest')
+            for k, col in enumerate(colors, 1):
+                if (s == k).any():
+                    a.contour(s == k, levels=[0.5], colors=[col], linewidths=0.6)
+            a.set_axis_off()
+        tag = name.split()[0]
+        txt = (f"fs_align r={r.get('fs_align_corr', np.nan):.3f}" if i == 0 else
+               f"label Dice {r.get(f'{tag}_label_mean', np.nan):.3f} | tissue {r.get(f'{tag}_tissue_dice', np.nan):.3f}"
+               f" | mask {r.get(f'{tag}_mask_dice', np.nan):.3f} | folding {r.get(f'{tag}_folding', np.nan):.1e}")
+        ax[i, 0].set_title(f'{name}: {txt}', color='w', loc='left', fontsize=9)
+    handles = [matplotlib.patches.Patch(color=col, label=n) for n, (_, col) in CLASSES.items()]
+    fig.legend(handles=handles, loc='lower center', ncol=6, fontsize=8, facecolor='k', labelcolor='w')
+    fig.suptitle(f'{sub}: contours = labels, fill = recon-all aseg', color='w')
+    fig.tight_layout(rect=(0, 0.03, 1, 0.97))
+    os.makedirs(opj(OUT_DIR, 'QC'), exist_ok=True)
+    out = opj(OUT_DIR, 'QC', f'{sub}_QC.png')
+    fig.savefig(out, dpi=110, facecolor='k')
+    plt.close(fig)
+    return r, out
+
+
+
 # ------------------------------------------------------------------------------------------------------------ analysis
 def boot_ci(x, n=10000, seed=0):
     x = np.asarray(x, float)
@@ -353,21 +424,29 @@ def main(analyse_only=False):
     os.makedirs(OUT_DIR, exist_ok=True)
     tpl, seg = template_files()
     subs = subjects()
-    print(f'template: {tpl}\n{len(subs)} subject(s) with recon-all and EDNiX outputs')
+    print(f'template: {tpl}\n{len(subs)} subject(s) with recon-all and EDNiX outputs', flush=True)
     rows = []
     if analyse_only:
         for f in sorted(glob.glob(opj(OUT_DIR, '*', 'result.json'))):
             with open(f) as fh:
                 rows.append(json.load(fh))
+            subject_qc(os.path.dirname(f))
     else:
         with ProcessPoolExecutor(max_workers=N_JOBS) as ex:
             futs = {ex.submit(run_subject, (*sb, tpl, seg)): sb[0] for sb in subs}
             for f in as_completed(futs):
                 try:
-                    rows.append(f.result())
-                    print(f'{futs[f]}: done')
+                    r = f.result()
+                    rows.append(r)
+                    print(f"{futs[f]}: done | label Dice A {r['A_label_mean']:.3f} B {r['B_label_mean']:.3f} | "
+                          f"tissue A {r['A_tissue_dice']:.3f} B {r['B_tissue_dice']:.3f} | "
+                          f"fs_align r {r['fs_align_corr']:.3f}", flush=True)
+                    try:
+                        print(f'   QC: {subject_qc(opj(OUT_DIR, futs[f]))[1]}', flush=True)
+                    except Exception as e:
+                        print(f'   QC figure failed: {e}', flush=True)
                 except Exception:
-                    print(f'{futs[f]}: FAILED\n{traceback.format_exc()}')
+                    print(f'{futs[f]}: FAILED\n{traceback.format_exc()}', flush=True)
     if len(rows) < 3:
         sys.exit(f'{len(rows)} subject(s) available: not enough for the analysis.')
     analyse(rows)
