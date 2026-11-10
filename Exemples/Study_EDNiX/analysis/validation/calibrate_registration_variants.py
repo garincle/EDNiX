@@ -54,6 +54,8 @@ THREADS_PER_JOB = 8
 FS_ALIGN_MIN_CORR = 0.80
 PRIOR_WEIGHT = 0.5          # exponent of the spatial prior in the posterior (E, and the tissue maps of D)
 RIBBON_MAX_DIST = 3         # voxels: WM farther than this from the atlas cortex is never relabelled as cortex
+VENT_GROW = 4               # voxels: max geodesic growth of the atlas lateral ventricles into CSF (enlarged ventricles)
+RELABEL_VERSION = 2         # v2: ventricle growth bounded (v1 turned the whole sulcal CSF network into ventricle)
 
 STRUCTURES = {'cortex': (3, 42), 'cerebral_WM': (2, 41), 'lateral_ventricle': (4, 43), 'thalamus': (10, 49),
               'caudate': (11, 50), 'putamen': (12, 51), 'pallidum': (13, 52), 'hippocampus': (17, 53),
@@ -183,25 +185,32 @@ def gmm_posteriors(img, priors, mask, w=PRIOR_WEIGHT, iters=15):
 
 
 def relabel_ribbon(seg, posts, mask):
-    """Cortex / cerebral WM / sulcal CSF of the atlas ribbon re-decided by the posteriors (hemisphere from the atlas)."""
+    """Cortex / cerebral WM / sulcal CSF of the atlas ribbon re-decided by the posteriors (hemisphere from the atlas).
+
+    CSF of the ribbon becomes background (sulcal CSF is 0 in aseg), except CSF reached from the atlas lateral
+    ventricles by a geodesic growth of at most VENT_GROW voxels that stays away from the cortex (enlarged ventricles).
+    """
     from scipy import ndimage as ndi
     L, R = np.isin(seg, (2, 3)), np.isin(seg, (41, 42))
     ribbon = L | R
     zone = mask & (ribbon | (ndi.binary_dilation(ribbon, iterations=1) & (seg == 0)))
     left = ndi.distance_transform_edt(~L) <= ndi.distance_transform_edt(~R)
-    near_cortex = ndi.distance_transform_edt(~np.isin(seg, (3, 42))) <= RIBBON_MAX_DIST
+    is_ctx = np.isin(seg, (3, 42))
+    near_cortex = ndi.distance_transform_edt(~is_ctx) <= RIBBON_MAX_DIST
     cls = np.argmax(np.stack(posts, 0), 0)                      # 0 CSF, 1 GM, 2 WM
     out = seg.copy()
-    z = zone & (cls == 0)
-    out[z] = 0
-    # CSF connected to the atlas lateral ventricles = ventricle (enlarged ventricles of atrophied brains)
+    csf = zone & (cls == 0)
+    out[csf] = 0
     vent = np.isin(seg, (4, 43))
-    comp, _ = ndi.label(z | vent)
-    keep = np.isin(comp, np.unique(comp[vent])) & z & (comp > 0)
+    allowed = (csf & ~near_cortex) | vent
+    grown = vent.copy()
+    for _ in range(VENT_GROW):
+        grown = ndi.binary_dilation(grown) & allowed
+    keep = grown & csf
     out[keep] = np.where(left[keep], 4, 43)
-    z = zone & (cls == 1) & (near_cortex | np.isin(seg, (3, 42)))
+    z = zone & (cls == 1) & (near_cortex | is_ctx)
     out[z] = np.where(left[z], 3, 42)
-    z = zone & ((cls == 2) | ((cls == 1) & ~(near_cortex | np.isin(seg, (3, 42)))))
+    z = zone & ((cls == 2) | ((cls == 1) & ~(near_cortex | is_ctx)))
     out[z] = np.where(left[z], 2, 41)
     return out
 
@@ -219,7 +228,7 @@ def run_subject(args):
     os.makedirs(c, exist_ok=True)
     res_json = opj(d, 'result.json')
     row = json.load(open(res_json)) if opi(res_json) else {}
-    if row and all(f'{v}_label_mean' in row for v in VARIANTS):
+    if row and all(f'{v}_label_mean' in row for v in VARIANTS) and row.get('relabel_version') == RELABEL_VERSION:
         return row
     row.update(fsid=fsid, ednix_T1=t1_path)
     timing = row.setdefault('minutes', {})
@@ -332,6 +341,7 @@ def run_subject(args):
         row[f'{v}_label_mean'] = float(np.nanmean(list(ld.values())))
         if v not in ('E', 'DE') and f'{v}_tissue_dice' not in row:
             row.update({f'{v}_{k}': val for k, val in intensity_checks(fixed, moving, ch['fwd'], ch['warp']).items()})
+    row['relabel_version'] = RELABEL_VERSION
     with open(res_json, 'w') as f:
         json.dump(row, f, indent=1)
     return row
@@ -343,59 +353,92 @@ QC_CLASSES = {'cortex': ((3, 42), '#D62728'), 'WM': ((2, 41), '#1F77B4'), 'ventr
               'hippo/amyg': ((17, 53, 18, 54), '#9467BD'), 'cerebellum': ((7, 46, 8, 47), '#FF7F0E')}
 
 
-def subject_qc(fsid):
+def find_t2(t1_path):
+    """T2w of the same session in the same space and grid as the T1w, or None."""
+    import nibabel as nib
+    vol = os.path.dirname(t1_path)
+    hits = sorted(t for t in glob.glob(opj(vol, '*_space-acpc_desc-SS_*T2w.nii.gz')) if 'desc-SS-step' not in t)
+    if not hits:
+        return None
+    t1, t2 = nib.load(t1_path), nib.load(hits[0])
+    if t1.shape[:3] != t2.shape[:3] or not np.allclose(t1.affine, t2.affine, atol=1e-3):
+        return None
+    return np.asanyarray(t2.dataobj).astype(float)
+
+
+def qc_figure(fsid, t1_path, ref, segs, scores, out, note=''):
+    """One row per image/segmentation, three views through the brain (sagittal through the left hemisphere).
+
+    Rows: T1 alone, T2 alone (if any), recon-all aseg contours on T1, then each variant's contours on T1.
+    No colour fill: the anatomy stays visible under the contours.
+    """
     import nibabel as nib
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    d = opj(OUT_DIR, fsid)
-    r = json.load(open(opj(d, 'result.json')))
 
     def classes(a):
-        out = np.zeros(a.shape, np.int16)
+        o = np.zeros(a.shape, np.int16)
         for i, (codes, _) in enumerate(QC_CLASSES.values(), 1):
-            out[np.isin(a, codes)] = i
-        return out
+            o[np.isin(a, codes)] = i
+        return o
 
-    def sl(v, c):
-        return [np.rot90(v[c[0], :, :]), np.rot90(v[:, c[1], :]), np.rot90(v[:, :, c[2]])]
-
-    t1 = np.asanyarray(nib.load(r['ednix_T1']).dataobj).astype(float)
-    ref = classes(np.asanyarray(nib.load(opj(CACHE_DIR, fsid, 'fs_aseg_in_ednix_native.nii.gz')).dataobj))
+    t1 = np.asanyarray(nib.load(t1_path).dataobj).astype(float)
+    t2 = find_t2(t1_path)
     nz = np.argwhere(t1 > 0)
-    c = (nz.min(0) + nz.max(0)) // 2
-    vmax = np.percentile(t1[t1 > 0], 99)
+    lo, hi = nz.min(0), nz.max(0) + 1
+    c = (lo + hi) // 2
+    c[0] = lo[0] + int(0.3 * (hi[0] - lo[0]))          # sagittal through a hemisphere (cortex, not midline)
+
+    def sl(v):
+        return [np.rot90(v[c[0], lo[1]:hi[1], lo[2]:hi[2]]), np.rot90(v[lo[0]:hi[0], c[1], lo[2]:hi[2]]),
+                np.rot90(v[lo[0]:hi[0], lo[1]:hi[1], c[2]])]
+
+    def vmax(v):
+        return np.percentile(v[v > 0], 99.5)
+
     cols = [col for _, col in QC_CLASSES.values()]
-    rows = [('recon-all aseg', ref, None)] + [
-        (v, classes(np.asanyarray(nib.load(opj(d, f'{v}_template_seg_in_native.nii.gz')).dataobj)), ref)
-        for v in VARIANTS]
-    fig, ax = plt.subplots(len(rows), 3, figsize=(10, 3.3 * len(rows)), facecolor='k')
-    for i, (name, seg, filled) in enumerate(rows):
-        for j, (img, s) in enumerate(zip(sl(t1, c), sl(seg, c))):
+    rows = [('T1w', t1, None)] + ([('T2w', t2, None)] if t2 is not None else []) + \
+        [('recon-all aseg', t1, classes(ref))] + [(v, t1, classes(segs[v])) for v in segs]
+    fig, ax = plt.subplots(len(rows), 3, figsize=(13, 4.2 * len(rows)), facecolor='k',
+                           gridspec_kw=dict(width_ratios=[hi[1] - lo[1], hi[0] - lo[0], hi[0] - lo[0]]))
+    for i, (name, img, seg) in enumerate(rows):
+        imgs = sl(img)
+        segs_sl = sl(seg) if seg is not None else [None] * 3
+        for j in range(3):
             a = ax[i, j]
-            a.imshow(img, cmap='gray', vmin=0, vmax=vmax)
-            if filled is not None:
-                f = sl(filled, c)[j].astype(float)
-                f[f == 0] = np.nan
-                a.imshow(f, cmap=matplotlib.colors.ListedColormap(cols), vmin=0.5, vmax=len(cols) + 0.5,
-                         alpha=0.25, interpolation='nearest')
-            for k, col in enumerate(cols, 1):
-                if (s == k).any():
-                    a.contour(s == k, levels=[0.5], colors=[col], linewidths=0.6)
+            a.imshow(imgs[j], cmap='gray', vmin=0, vmax=vmax(img), interpolation='none')
+            if segs_sl[j] is not None:
+                for k, col in enumerate(cols, 1):
+                    if (segs_sl[j] == k).any():
+                        a.contour(segs_sl[j] == k, levels=[0.5], colors=[col], linewidths=0.7)
             a.set_axis_off()
-        txt = (f"fs_align r={r['fs_align_corr']:.3f}" if filled is None else
-               f"label Dice {r[f'{name}_label_mean']:.3f} | cortex {r[f'{name}_label_cortex']:.3f} | "
-               f"WM {r[f'{name}_label_cerebral_WM']:.3f} | ventr. {r[f'{name}_label_lateral_ventricle']:.3f}")
-        ax[i, 0].set_title(f'{name}: {txt}', color='w', loc='left', fontsize=8)
+        if name in scores:
+            r = scores[name]
+            title = (f"{name}: mean {np.nanmean(list(r.values())):.3f} | cortex {r['cortex']:.3f} | "
+                     f"WM {r['cerebral_WM']:.3f} | ventr. {r['lateral_ventricle']:.3f}")
+        else:
+            title = name
+        ax[i, 0].set_title(title, color='w', loc='left', fontsize=9)
     fig.legend(handles=[matplotlib.patches.Patch(color=col, label=n) for n, (_, col) in QC_CLASSES.items()],
-               loc='lower center', ncol=6, fontsize=7, facecolor='k', labelcolor='w')
-    fig.suptitle(f'{fsid}: contours = labels of each variant, fill = recon-all aseg', color='w', fontsize=10)
-    fig.tight_layout(rect=(0, 0.02, 1, 0.98))
-    os.makedirs(opj(OUT_DIR, 'QC'), exist_ok=True)
-    out = opj(OUT_DIR, 'QC', f'{fsid}_QC.png')
-    fig.savefig(out, dpi=100, facecolor='k')
+               loc='lower center', ncol=6, fontsize=8, facecolor='k', labelcolor='w')
+    fig.suptitle(f'{fsid}{note}: label contours on the T1w (Dice vs recon-all aseg)', color='w', fontsize=11)
+    fig.tight_layout(rect=(0, 0.015, 1, 0.985))
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    fig.savefig(out, dpi=110, facecolor='k')
     plt.close(fig)
     return out
+
+
+def subject_qc(fsid):
+    import nibabel as nib
+    d = opj(OUT_DIR, fsid)
+    r = json.load(open(opj(d, 'result.json')))
+    ref = np.asanyarray(nib.load(opj(CACHE_DIR, fsid, 'fs_aseg_in_ednix_native.nii.gz')).dataobj).astype(int)
+    segs = {v: np.asanyarray(nib.load(opj(d, f'{v}_template_seg_in_native.nii.gz')).dataobj).astype(int)
+            for v in VARIANTS}
+    scores = {v: {k: r[f'{v}_label_{k}'] for k in STRUCTURES} for v in VARIANTS}
+    return qc_figure(fsid, r['ednix_T1'], ref, segs, scores, opj(OUT_DIR, 'QC', f'{fsid}_QC.png'))
 
 
 def subject_line(r):
