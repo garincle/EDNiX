@@ -174,6 +174,9 @@ def main():
     ap.add_argument('--force', action='store_true')
     ap.add_argument('--qc-only', action='store_true')
     ap.add_argument('--list', action='store_true', help='print the subjects found and stop')
+    ap.add_argument('--template', action='store_true',
+                    help='use the Atlases_library template + its seg-4FS of each species instead of BIDS subjects '
+                         '(tag "template", smallbrain factor of the library build)')
     ap.add_argument('--fix-wm', action='store_true',
                     help='relabel bright cortex voxels connected to WM as WM (fix_wm) before FreeSurfer; '
                          'runs are tagged <subject>_fixwm, the original runs are kept')
@@ -182,9 +185,16 @@ def main():
     args.main_path = args.main_path.rstrip('/') + '/'
     lib = opj(opd(args.main_path), 'Atlases_library')
     os.makedirs(args.out, exist_ok=True)
-    jobs, chosen = [], {}
+    jobs, chosen, E = [], {}, None
+    factor = L.FACTOR_LIBRARY if args.template else SUBJECT_FACTOR
     for sp in args.species:
-        subs = find_subjects(DATASETS[sp])
+        if args.template:
+            if E is None:
+                E = L.ednix_imports(args.main_path)
+            _, t_img, t_aseg = L.library_paths(E, sp, lib)
+            subs = [('template', t_img, t_aseg)]
+        else:
+            subs = find_subjects(DATASETS[sp])
         print(f'{sp}: {len(subs)} subjects with step-10 inputs in {DATASETS[sp]}')
         if not subs:
             continue
@@ -202,7 +212,7 @@ def main():
         for tag, img, aseg in chosen[sp]:
             print(f'   {tag}\n      {img}\n      {aseg}')
             for v in args.variants:
-                jobs.append(dict(species=sp, variant=v, tag=tag, img=img, aseg=aseg, factor=SUBJECT_FACTOR,
+                jobs.append(dict(species=sp, variant=v, tag=tag, img=img, aseg=aseg, factor=factor,
                                  args=dict(main_path=args.main_path, lib=lib, out=args.out, force=args.force)))
     with open(opj(args.out, 'subjects_fixwm.json' if args.fix_wm else 'subjects.json'), 'w') as fh:
         json.dump(chosen, fh, indent=1)
