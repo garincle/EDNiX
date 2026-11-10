@@ -167,7 +167,7 @@ def run_subject(args):
                                  f"{rep.get('separation_gm_wm', np.nan):.2f}" if rep['applied'] else
                                  f" NOT APPLIED: {rep.get('reason', '')}"), out)]
     qc = T.qc_figure(f'{species} {tag}: tissue relabel (contours on {opb(chans[0])})', imgs[0], qc_rows,
-                     opj(OUT_DIR, 'QC', f'{species}_{tag}.png'))
+                     opj(OUT_DIR, 'QC', f'{species}_{tag}.png'), zooms)
     row['qc'] = qc
     with open(opj(d, 'result.json'), 'w') as f:
         json.dump(row, f, indent=1, default=float)

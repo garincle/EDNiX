@@ -76,7 +76,8 @@ Align_img_to_template = 'Ants'
 
 list_transfo = build_transfos(
     align={'type_of_transform': 'Rigid', 'affmetric': 'mattes', 'affmetricT': 'mattes'},
-    coreg={'type_of_transform': 'SyNCC', 'affmetric': '', 'affmetricT': ''})
+    coreg={'type_of_transform': 'SyNCC', 'affmetric': '', 'affmetricT': '',
+           'tissue_relabel': True})   # ribbon GM/WM from the subject's intensities (gyrencephalic, good T1 contrast only)
 
 MNIBcorrect_indiv               = ''                      # 'N4' by default. could be set as 'N3'
 

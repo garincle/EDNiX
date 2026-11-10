@@ -186,8 +186,9 @@ QC_CLASSES = {'cortex': (CORTEX, '#D62728'), 'WM': (WM, '#1F77B4'), 'ventricles'
               'hippo/amyg': ((17, 53, 18, 54), '#9467BD'), 'cerebellum': ((7, 46, 8, 47), '#FF7F0E')}
 
 
-def qc_figure(title, img, rows, out_png):
-    """rows: [(name, seg or None)]; contours on the image, sagittal through a hemisphere, cropped to the brain."""
+def qc_figure(title, img, rows, out_png, zooms=(1.0, 1.0, 1.0)):
+    """rows: [(name, seg or None)]; contours on the image, sagittal through a hemisphere, cropped to the brain.
+    zooms: voxel sizes, so anisotropic voxels are displayed with their true proportions."""
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -208,14 +209,17 @@ def qc_figure(title, img, rows, out_png):
 
     cols = [col for _, col in QC_CLASSES.values()]
     vmax = np.percentile(img[img > 0], 99.5)
+    z = [float(v) for v in zooms]
+    ext = [(hi[k] - lo[k]) * z[k] for k in range(3)]                       # physical extent (mm)
+    aspects = [z[2] / z[1], z[2] / z[0], z[1] / z[0]]                     # rows / columns of each displayed view
     fig, ax = plt.subplots(len(rows), 3, figsize=(13, 4.2 * len(rows)), facecolor='k', squeeze=False,
-                           gridspec_kw=dict(width_ratios=[hi[1] - lo[1], hi[0] - lo[0], hi[0] - lo[0]]))
+                           gridspec_kw=dict(width_ratios=[ext[1], ext[0], ext[0]]))
     for i, (name, seg) in enumerate(rows):
         ims = sl(img)
         ss = sl(classes(seg)) if seg is not None else [None] * 3
         for j in range(3):
             a = ax[i, j]
-            a.imshow(ims[j], cmap='gray', vmin=0, vmax=vmax, interpolation='none')
+            a.imshow(ims[j], cmap='gray', vmin=0, vmax=vmax, interpolation='none', aspect=aspects[j])
             if ss[j] is not None:
                 for k, col in enumerate(cols, 1):
                     if (ss[j] == k).any():
@@ -288,7 +292,8 @@ def run(ID, volumes_dir, labels_dir, bids_dir, type_norm, diary_file, params=Non
     try:
         qc_figure(f'{ID}: tissue relabel ({"applied" if rep["applied"] else "NOT applied"})', imgs[0],
                   [(opb(chans[0]), None), ('registration (template seg-4FS warped)', seg),
-                   ('tissue relabel', out)], opj(bids_dir, 'QC', 'tissue_relabel', f'{ID}_tissue_relabel.png'))
+                   ('tissue relabel', out)], opj(bids_dir, 'QC', 'tissue_relabel', f'{ID}_tissue_relabel.png'),
+                  seg_img.header.get_zooms()[:3])
     except Exception as e:  # QC must never stop the pipeline
         run_cmd.msg(f'WARNING: tissue_relabel QC figure failed: {e}', diary_file, 'WARNING')
     return rep
