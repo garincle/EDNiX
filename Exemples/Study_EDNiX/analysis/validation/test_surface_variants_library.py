@@ -282,14 +282,17 @@ def light_config(E, FS_dir, sp, diary, sing_fs, export_fs):
 
 
 def run_one(job):
-    """One species x variant. Every stage is logged; a failure stops this job only."""
+    """One species x variant. Every stage is logged; a failure stops this job only.
+    Library mode: template and aseg from Atlases_library. Subject mode (job['img'], job['aseg'], job['tag']): EDNiX
+    subject files, smallbrain rule applied from the brain volume as in _loop3 (job['factor'], 20 for subjects)."""
     sp, variant, a = job['species'], job['variant'], job['args']
+    tag = job.get('tag', '')
     t0 = time.time()
-    root = opj(a['out'], sp, variant)
+    root = opj(a['out'], sp, tag, variant) if tag else opj(a['out'], sp, variant)
     FS_dir = opj(root, 'freesurfer')
     prep_dir = opj(root, 'prep')
     res = dict(species=sp, variant=variant, status='ok', stage='', seconds=0, real_mm_per_fs_mm=1.0,
-               grid='', note='')
+               grid='', note='', tag=tag)
     if opi(opj(root, 'done.json')) and not a['force']:
         return json.loads(open(opj(root, 'done.json')).read())
     if ope(root):
@@ -305,6 +308,8 @@ def run_one(job):
         import ants
         res['stage'] = 'paths'
         fs_tools, BASE_SS, Aseg_ref = library_paths(E, sp, a['lib'])
+        if tag:
+            BASE_SS, Aseg_ref = job['img'], job['aseg']
         if a.get('sim_res', 1.0) > 1.0:
             BASE_SS, Aseg_ref = simulate_resolution(BASE_SS, Aseg_ref, opj(a['out'], sp, 'sim_input'), a['sim_res'])
         _, _, sing_fs, _, _, _, _, _ = E['req'].load_requirement(a['main_path'], a['lib'], a['out'], 'yes')
@@ -330,8 +335,9 @@ def run_one(job):
         res['stage'] = 'smallbrain'
         change_hd, scaling, legacy_target = 0, [1., 1., 1.], None
         hd = ants.image_header_info(BASE_SS)
-        if sp in SMALLBRAIN_LIBRARY or (variant in ('V0m', 'V2m', 'V3m') and sp in M_SPECIES):
-            change_hd, scaling, resamp, new_size, _ = E['smallbrain'].get(sp, prep_dir, BASE_SS, '', FACTOR_LIBRARY,
+        if tag or sp in SMALLBRAIN_LIBRARY or (variant in ('V0m', 'V2m', 'V3m') and sp in M_SPECIES):
+            change_hd, scaling, resamp, new_size, _ = E['smallbrain'].get(sp, prep_dir, BASE_SS, '',
+                                                                         job.get('factor', FACTOR_LIBRARY),
                                                                          diary)
         if change_hd:
             res['real_mm_per_fs_mm'] = float(hd['spacing'][0]) / float(scaling[0])
@@ -433,21 +439,22 @@ def plane_segments(v, f, axis, c):
     return segs[:, :, keep] if len(segs) else np.zeros((0, 2, 2))
 
 
-def qc_species(sp, out, rows):
+def qc_species(sp, out, rows, tag=''):
     import nibabel as nib
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     from matplotlib.collections import LineCollection
 
-    rows = [r for r in rows if r['species'] == sp]
+    rows = [r for r in rows if r['species'] == sp and r.get('tag', '') == tag]
     if not rows:
         return
+    base = opj(out, sp, tag) if tag else opj(out, sp)
     planes = [('coronal 30 %', 2, 0.30), ('coronal 50 %', 2, 0.50), ('coronal 70 %', 2, 0.70), ('axial 55 %', 1, 0.55)]
     fig, axes = plt.subplots(len(rows), len(planes) + 1, figsize=(3.2 * (len(planes) + 1), 3.2 * len(rows)),
                              squeeze=False)
     for i, r in enumerate(rows):
-        FS_dir = opj(out, sp, r['variant'], 'freesurfer')
+        FS_dir = opj(base, r['variant'], 'freesurfer')
         orig_f = opj(FS_dir, sp, 'mri', 'orig.mgz')
         label = f"{r['variant']}  {r['status']}\ngrid {r['grid']}"
         if not opi(orig_f):
@@ -496,10 +503,10 @@ def qc_species(sp, out, rows):
             ax.set_title(f'median {np.median(t):.2f} mm (real)', fontsize=8)
         ax.set_xlabel('thickness (real mm)', fontsize=8)
         ax.tick_params(labelsize=7)
-    fig.suptitle(f'{sp} template: white (blue) / pial (red) on orig.mgz, medial wall (no cortex.label) grey; '
+    fig.suptitle(f'{sp} {tag or "template"}: white (blue) / pial (red) on orig.mgz, medial wall (no cortex.label) grey; '
                  'rows = variants', fontsize=11)
     fig.tight_layout()
-    fig.savefig(opj(out, f'QC_{sp}.png'), dpi=130)
+    fig.savefig(opj(out, f'QC_{sp}_{tag}.png' if tag else f'QC_{sp}.png'), dpi=130)
     plt.close(fig)
 
 
@@ -545,12 +552,13 @@ def aseg_fidelity(FS_dir, sp, k):
 
 
 def write_summary(out, rows):
-    keys = ['species', 'variant', 'status', 'stage', 'seconds', 'grid', 'real_mm_per_fs_mm', 'n_vertices_white',
+    keys = ['species', 'tag', 'variant', 'status', 'stage', 'seconds', 'grid', 'real_mm_per_fs_mm', 'n_vertices_white',
             'thick_median_mm', 'thick_p05_mm', 'thick_p95_mm', 'white_dist_med_mm', 'white_within_1vox',
             'pial_dist_med_mm', 'pial_within_1vox', 'white_curv_p90', 'pial_curv_p90', 'note']
     import nibabel as nib
     for r in rows:
-        FS_dir = opj(out, r['species'], r['variant'], 'freesurfer')
+        FS_dir = (opj(out, r['species'], r['tag'], r['variant'], 'freesurfer') if r.get('tag')
+                  else opj(out, r['species'], r['variant'], 'freesurfer'))
         n = 0
         for h in HEMIS:
             p = surf_path(FS_dir, r['species'], h, 'white')
