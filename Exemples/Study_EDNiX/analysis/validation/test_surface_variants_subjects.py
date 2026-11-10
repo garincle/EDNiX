@@ -69,34 +69,73 @@ def otsu(x, bins=256):
     return c[np.argmax(w0 * w1 * (m0 - m1) ** 2)]
 
 
-def fix_wm(img_file, aseg_file, out_file):
+def fix_wm(img_file, aseg_file, out_file, rim_mm=0.4, max_frac=0.6):
     """Test correction of an aseg whose cortex label (3/42) swallows the underlying white matter (Marmoset
-    template seg-4FS and every subject warped from it). Inside cortex + cerebral WM labels of each hemisphere, the
-    image is split in two classes (Otsu); cortex voxels on the WM side of the threshold AND connected (26-n) to the
-    existing WM label of the same hemisphere are relabelled WM (3->2, 42->41). Isolated bright voxels are left.
-    Global threshold: a strong bias field will bias it (check the overlay). Returns (out_file, report)."""
+    template seg-4FS and every subject warped from it).
+    1. N4 bias correction of the image inside the brain (a global threshold fails with the lateral bias of
+       sub-02: first version relabelled 100 % of a hemisphere).
+    2. Per hemisphere, Otsu threshold on cortex + WM label intensities clipped to their 1-99th percentiles
+       (bright vessels / non-brain voxels no longer pull the threshold).
+    3. Cortex voxels on the WM side of the threshold, deeper than rim_mm from the brain surface (a cortical
+       rim is always kept) AND connected (26-n) to the WM label of the same hemisphere -> WM (3->2, 42->41).
+    4. Guard: if more than max_frac of a hemisphere's cortex would be relabelled, that hemisphere is left
+       unchanged and the report says so.
+    Also writes <out_file>.png (WM label before = blue, added WM = yellow). Returns (out_file, report)."""
+    import ants
     import nibabel as nib
     from scipy import ndimage
-    im = nib.load(img_file)
-    I = np.asarray(im.dataobj, dtype=np.float32)
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
     an = nib.load(aseg_file)
     A = np.round(np.asarray(an.dataobj)).astype(np.int32)
+    brain = (A > 0) & (A != 24)
+    img = ants.image_read(img_file)
+    mask = img.new_image_like(brain.astype(np.float32))
+    I = ants.n4_bias_field_correction(img, mask=mask).numpy().astype(np.float32)
+    depth = ndimage.distance_transform_edt(brain, sampling=an.header.get_zooms()[:3])
     B = A.copy()
     rep = []
     for ctx_c, wm_c in ((3, 2), (42, 41)):
         ctx, wm = A == ctx_c, A == wm_c
         if not ctx.any() or not wm.any():
             continue
-        t = otsu(I[ctx | wm])
+        v = I[ctx | wm]
+        lo, hi = np.percentile(v, (1, 99))
+        t = otsu(np.clip(v, lo, hi))
         bright_wm = np.median(I[wm]) > np.median(I[ctx])       # T1-like: WM brighter than cortex
-        cand = ctx & ((I > t) if bright_wm else (I < t))
+        cand = ctx & (depth > rim_mm) & ((I > t) if bright_wm else (I < t))
         lab, _ = ndimage.label(cand | wm, structure=np.ones((3, 3, 3)))
-        keep = np.isin(lab, np.unique(lab[wm]))
-        moved = cand & keep
+        ids = np.unique(lab[wm])
+        moved = cand & np.isin(lab, ids[ids > 0])
+        frac = moved.sum() / ctx.sum()
+        if frac > max_frac:
+            rep.append(f'{ctx_c}->{wm_c}: REFUSED ({100 * frac:.0f} % of cortex > {100 * max_frac:.0f} %), unchanged')
+            continue
         B[moved] = wm_c
-        rep.append(f'{ctx_c}->{wm_c}: {int(moved.sum())} vox ({100 * moved.sum() / ctx.sum():.0f} % of cortex), '
+        rep.append(f'{ctx_c}->{wm_c}: {int(moved.sum())} vox ({100 * frac:.0f} % of cortex), '
                    f'WM/cortex {wm.sum() / ctx.sum():.2f} -> {(B == wm_c).sum() / (B == ctx_c).sum():.2f}')
     nib.save(nib.Nifti1Image(B.astype(np.int16), an.affine, an.header), out_file)
+    nz = np.argwhere(brain)
+    lo3, hi3 = nz.min(0), nz.max(0)
+    fig, ax = plt.subplots(1, 4, figsize=(16, 4.5))
+    for k, frac in enumerate((.3, .5, .7, .55)):
+        axis = 1 if k < 3 else 2
+        idx = int(lo3[axis] + frac * (hi3[axis] - lo3[axis]))
+        sl = [slice(None)] * 3
+        sl[axis] = idx
+        sl = tuple(sl)
+        ax[k].imshow(I[sl].T, cmap='gray', origin='lower', vmin=np.percentile(I[brain], 1),
+                     vmax=np.percentile(I[brain], 99))
+        old, new = np.isin(A[sl], (2, 41)), np.isin(B[sl], (2, 41))
+        ax[k].contour(np.isin(B[sl], (3, 42)).T, levels=[.5], colors='tab:red', linewidths=.5)
+        ax[k].contour(old.T, levels=[.5], colors='tab:blue', linewidths=.6)
+        ax[k].contour(new.T, levels=[.5], colors='yellow', linewidths=.6)
+        ax[k].axis('off')
+    fig.suptitle(opb(out_file) + ': cortex red, WM before blue, WM after yellow\n' + '; '.join(rep), fontsize=8)
+    fig.tight_layout()
+    fig.savefig(out_file.replace('.nii.gz', '.png'), dpi=110)
+    plt.close(fig)
     return out_file, '; '.join(rep)
 
 
