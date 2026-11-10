@@ -235,6 +235,16 @@ def main():
                 rows.append(r)
                 print(f"[{len(rows)}/{len(jobs)}] {r['species']} {r.get('tag', '')} {r['variant']}: {r['status']} "
                       f"({r['seconds'] // 60} min) {r['note'][:120]}", flush=True)
+                # intermediate QC: as soon as every variant of one subject is done, its figure and summary.csv
+                # are written, so a run can be stopped after the first subject
+                sp, tag = r['species'], r.get('tag', '')
+                if len([x for x in rows if x['species'] == sp and x.get('tag', '') == tag]) == len(args.variants):
+                    try:
+                        L.write_summary(args.out, sorted(rows, key=lambda x: (x['species'], x.get('tag', ''))))
+                        L.qc_species(sp, args.out, rows, tag)
+                        print(f'   QC ready: {args.out}/QC_{sp}_{tag}.png', flush=True)
+                    except Exception as e:
+                        print(f'   intermediate QC {sp} {tag} failed: {e}', flush=True)
         os.remove(lock)
     order = {v: i for i, v in enumerate(L.VARIANTS)}
     rows.sort(key=lambda r: (r['species'], r.get('tag', ''), order[r['variant']]))
