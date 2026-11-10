@@ -59,6 +59,47 @@ def first_file(patterns):
     return ''
 
 
+def otsu(x, bins=256):
+    h, e = np.histogram(x, bins)
+    c = (e[:-1] + e[1:]) / 2
+    w0 = np.cumsum(h)
+    w1 = w0[-1] - w0
+    m0 = np.cumsum(h * c) / np.maximum(w0, 1)
+    m1 = (np.sum(h * c) - np.cumsum(h * c)) / np.maximum(w1, 1)
+    return c[np.argmax(w0 * w1 * (m0 - m1) ** 2)]
+
+
+def fix_wm(img_file, aseg_file, out_file):
+    """Test correction of an aseg whose cortex label (3/42) swallows the underlying white matter (Marmoset
+    template seg-4FS and every subject warped from it). Inside cortex + cerebral WM labels of each hemisphere, the
+    image is split in two classes (Otsu); cortex voxels on the WM side of the threshold AND connected (26-n) to the
+    existing WM label of the same hemisphere are relabelled WM (3->2, 42->41). Isolated bright voxels are left.
+    Global threshold: a strong bias field will bias it (check the overlay). Returns (out_file, report)."""
+    import nibabel as nib
+    from scipy import ndimage
+    im = nib.load(img_file)
+    I = np.asarray(im.dataobj, dtype=np.float32)
+    an = nib.load(aseg_file)
+    A = np.round(np.asarray(an.dataobj)).astype(np.int32)
+    B = A.copy()
+    rep = []
+    for ctx_c, wm_c in ((3, 2), (42, 41)):
+        ctx, wm = A == ctx_c, A == wm_c
+        if not ctx.any() or not wm.any():
+            continue
+        t = otsu(I[ctx | wm])
+        bright_wm = np.median(I[wm]) > np.median(I[ctx])       # T1-like: WM brighter than cortex
+        cand = ctx & ((I > t) if bright_wm else (I < t))
+        lab, _ = ndimage.label(cand | wm, structure=np.ones((3, 3, 3)))
+        keep = np.isin(lab, np.unique(lab[wm]))
+        moved = cand & keep
+        B[moved] = wm_c
+        rep.append(f'{ctx_c}->{wm_c}: {int(moved.sum())} vox ({100 * moved.sum() / ctx.sum():.0f} % of cortex), '
+                   f'WM/cortex {wm.sum() / ctx.sum():.2f} -> {(B == wm_c).sum() / (B == ctx_c).sum():.2f}')
+    nib.save(nib.Nifti1Image(B.astype(np.int16), an.affine, an.header), out_file)
+    return out_file, '; '.join(rep)
+
+
 def find_subjects(bids_dir):
     """Subjects/sessions with the step-10 inputs. Returns [(tag, image, aseg)], tag = sub-X_ses-Y."""
     out = []
@@ -94,6 +135,9 @@ def main():
     ap.add_argument('--force', action='store_true')
     ap.add_argument('--qc-only', action='store_true')
     ap.add_argument('--list', action='store_true', help='print the subjects found and stop')
+    ap.add_argument('--fix-wm', action='store_true',
+                    help='relabel bright cortex voxels connected to WM as WM (fix_wm) before FreeSurfer; '
+                         'runs are tagged <subject>_fixwm, the original runs are kept')
     args = ap.parse_args()
 
     args.main_path = args.main_path.rstrip('/') + '/'
@@ -107,12 +151,21 @@ def main():
             continue
         subs = [subs[i] for i in np.random.default_rng(args.seed).permutation(len(subs))]   # reproducible pick
         chosen[sp] = subs[:args.n]
+        if args.fix_wm:
+            fixed = []
+            for tag, img, aseg in chosen[sp]:
+                d = opj(args.out, sp, tag + '_fixwm')
+                os.makedirs(d, exist_ok=True)
+                f, rep = fix_wm(img, aseg, opj(d, opb(aseg).replace('_dseg', '_desc-fixwm_dseg')))
+                print(f'   fix_wm {tag}: {rep}')
+                fixed.append((tag + '_fixwm', img, f))
+            chosen[sp] = fixed
         for tag, img, aseg in chosen[sp]:
             print(f'   {tag}\n      {img}\n      {aseg}')
             for v in args.variants:
                 jobs.append(dict(species=sp, variant=v, tag=tag, img=img, aseg=aseg, factor=SUBJECT_FACTOR,
                                  args=dict(main_path=args.main_path, lib=lib, out=args.out, force=args.force)))
-    with open(opj(args.out, 'subjects.json'), 'w') as fh:
+    with open(opj(args.out, 'subjects_fixwm.json' if args.fix_wm else 'subjects.json'), 'w') as fh:
         json.dump(chosen, fh, indent=1)
     if args.list:
         return
