@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """1) V2m vs V2s: label volumes in the FS inputs + thickness per hemisphere (find what V2s broke).
-2) Marmoset aseg overlaid on the T1 (is the error in the aseg or in the surface step?).
+2) Marmoset aseg (2 subjects + library template) overlaid on the T1 (is the error in the aseg or in the surface step?).
 Output: /scratch2/EDNiX/surface_tests/subjects/diag_marmoset_aseg.png + printed tables."""
 import json
 import os
@@ -39,11 +39,27 @@ for sp in ('Marmoset', 'Rat', 'Mouse'):
 print('\n=== Marmoset aseg overlay ===')
 cols = {2: 'tab:blue', 41: 'tab:blue', 3: 'tab:red', 42: 'tab:red', 17: 'tab:green', 53: 'tab:green',
         18: 'tab:orange', 54: 'tab:orange'}
-fig, ax = plt.subplots(len(subs['Marmoset']), 4, figsize=(16, 4.2 * len(subs['Marmoset'])), squeeze=False)
-for r, (tag, img, aseg) in enumerate(subs['Marmoset']):
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+rows = list(subs['Marmoset'])
+try:   # library template + its aseg, as used by step 10 of the template build
+    import test_surface_variants_library as L
+    E = L.ednix_imports(L.MAIN_PATH_DEFAULT)
+    lib = os.path.join(os.path.dirname(L.MAIN_PATH_DEFAULT.rstrip('/') + '/'), 'Atlases_library')
+    _, t_img, t_aseg = L.library_paths(E, 'Marmoset', lib)
+    rows.append(('TEMPLATE', t_img, t_aseg))
+    print('template:', t_img, t_aseg)
+except Exception as e:
+    print('template not plotted:', e)
+fig, ax = plt.subplots(len(rows), 4, figsize=(16, 4.2 * len(rows)), squeeze=False)
+for r, (tag, img, aseg) in enumerate(rows):
     I = nib.as_closest_canonical(nib.load(img)).get_fdata()
     A = np.round(nib.as_closest_canonical(nib.load(aseg)).get_fdata()).astype(int)
-    print(tag, 'T1', I.shape, 'aseg', A.shape, 'labels', np.unique(A)[:40])
+    lab_ids, n = np.unique(A[A > 0], return_counts=True)
+    print(tag, 'T1', I.shape, 'aseg', A.shape)
+    print('   voxels per label:', ', '.join(f'{c}:{k}' for c, k in zip(lab_ids, n)))
+    wm, gm = sum(int((A == c).sum()) for c in (2, 41)), sum(int((A == c).sum()) for c in (3, 42))
+    print(f'   cerebral WM/cortex voxel ratio = {wm / max(gm, 1):.2f}')
     nz = np.argwhere(A > 0)
     lo, hi = nz.min(0), nz.max(0)
     for c, (axis, frac) in enumerate([(1, .30), (1, .50), (1, .70), (2, .55)]):
