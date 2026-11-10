@@ -28,6 +28,13 @@ Variants (same aseg, same FreeSurfer commands as EDNiX: FS_surf.Wcreate then FS_
       grid is only coarsened if the cropped brain still exceeds 256 voxels (Mouse, Mouselemur). Same idea as
       the HCP-NHP ScaleFactor (Autio et al. 2020). -max = 3 real mm (5 for species with voxels >= 0.3 mm).
   V2n V2 intensities on the V0n grid, same -max.
+  V3m V2m with CONSTANT class intensities (CSF 30, GM 75, WM/subcortex 110, smoothed sigma = 1 voxel):
+      no within-class texture left in brain.mgz, so the only edges FreeSurfer can follow are the aseg
+      boundaries. Tests whether the false sulci/gyri of V2/V2n come from intracortical intensity texture.
+  V3n V3m intensities on the V0n grid (native resolution); run for every species.
+  summary.csv also gives the fidelity of each surface to the aseg it was built from: median distance (real
+  mm) of white vertices to the filled.mgz boundary and of pial vertices to the outer GM boundary of aseg.mgz,
+  and the fraction of vertices within 1 voxel of it (medial-wall vertices lower it equally for all variants).
   Sphere registration / aparc (FS_surf.Wconfig) are skipped: only smoothwm/inflated/curvature, which the
   pial step uses, are computed.
 
@@ -58,13 +65,15 @@ MAIN_PATH_DEFAULT = '/home/cgarin/PycharmProjects/EDNiX/'   # trailing '/' as in
 OUT_DEFAULT = '/scratch2/EDNiX/surface_tests/library'
 SPECIES_DEFAULT = ['Mouse', 'Rat', 'Mouselemur', 'Marmoset', 'Macaque', 'Cat', 'Dog', 'Pig', 'Chimpanzee', 'Human']
 SMALLBRAIN_LIBRARY = ['Mouse', 'Rat', 'Mouselemur', 'Bat']      # as in recontruct_surface_based_on_aseg.py
+M_SPECIES = SMALLBRAIN_LIBRARY + ['Marmoset']   # V*m: smallbrain rule forced (Marmoset template < 10 cm3)
 FACTOR_LIBRARY = 30                                             # as in atlases/template.py
 MAX_DIM = 256
-VARIANTS = ['V0', 'V1', 'V2', 'V0m', 'V2m', 'V0n', 'V2n']
-NATIVE_GRID = ('V0n', 'V2n')             # 1 native voxel = 1 FS mm
-LEGACY_GRID = ('V0', 'V0m', 'V2m')        # variants that keep the EDNiX smallbrain down-sampling
+VARIANTS = ['V0', 'V1', 'V2', 'V0m', 'V2m', 'V3m', 'V0n', 'V2n', 'V3n']
+NATIVE_GRID = ('V0n', 'V2n', 'V3n')             # 1 native voxel = 1 FS mm
+LEGACY_GRID = ('V0', 'V0m', 'V2m', 'V3m')        # variants that keep the EDNiX smallbrain down-sampling
 MAX_REAL_THICKNESS = 3.0                 # mm, real units: above any small-species isocortex
 HEMIS = ['lh', 'rh']
+CSF_CODES = [4, 5, 43, 44, 14, 15, 24, 72, 30, 62, 31, 63]     # preFS.CSF_edit
 
 opj, opb, opd, ope, opi = os.path.join, os.path.basename, os.path.dirname, os.path.exists, os.path.isfile
 
@@ -88,8 +97,12 @@ def library_paths(E, species, lib):
     return fs_tools, BASE_SS, Aseg_ref
 
 
-def prepa_v2(E, Subname, Ref_file, aseg_file, prep_dir):
-    """V2 versions of desc-norm_T1w (brain), seg-wm (wm) and seg-filled (filled), written to prep_dir."""
+def prepa_v2(E, Subname, Ref_file, aseg_file, prep_dir, const=False):
+    """V2 (const=False) or V3 (const=True) versions of desc-norm_T1w (brain), seg-wm (wm) and seg-filled
+    (filled), written to prep_dir.
+    V2: CSF 10-35 and GM 55-85 keep the within-class intensity variation of the template, WM 110, sigma 0.5 vox.
+    V3: every class at one value (CSF 30, GM 75, WM + subcortex + hippocampus/amygdala 110), sigma 1 vox:
+        the image edges are the aseg boundaries only."""
     import ants
     P = E['preFS']
     hippo_amyg = [17, 18, 53, 54]
@@ -101,7 +114,7 @@ def prepa_v2(E, Subname, Ref_file, aseg_file, prep_dir):
     def band(codes, lo, hi):
         m = np.isin(a, codes)
         o = np.zeros(a.shape, np.float32)
-        if m.sum() < 10:
+        if const or m.sum() < 10:
             o[m] = (lo + hi) / 2.
             return o
         v = b[m].astype(np.float64)
@@ -110,9 +123,15 @@ def prepa_v2(E, Subname, Ref_file, aseg_file, prep_dir):
         return o
 
     gm_codes = [c for c in P.Cereb_GM_edit if c not in hippo_amyg]
-    norm = band(P.CSF_edit, 10., 35.) + band(gm_codes, 55., 85.)
-    norm[np.isin(a, P.WM_edit + hippo_amyg)] = 110.
-    norm_img = ants.smooth_image(BRAIN.new_image_like(norm), 0.5, sigma_in_physical_coordinates=False)
+    if const:
+        norm = band(P.CSF_edit, 30., 30.) + band(gm_codes, 75., 75.)
+        norm[np.isin(a, P.WM_edit + P.aseg_edit + P.wm_aseg_edit + hippo_amyg)] = 110.
+        sigma = 1.0
+    else:
+        norm = band(P.CSF_edit, 10., 35.) + band(gm_codes, 55., 85.)
+        norm[np.isin(a, P.WM_edit + hippo_amyg)] = 110.
+        sigma = 0.5
+    norm_img = ants.smooth_image(BRAIN.new_image_like(norm), sigma, sigma_in_physical_coordinates=False)
     ants.image_write(norm_img, opj(prep_dir, Subname + '_desc-norm_T1w.nii.gz'), ri=False)
 
     wm = np.zeros(a.shape, np.float32)
@@ -235,8 +254,8 @@ def run_one(job):
         _, _, _, export_fs = E['req'].FS(fs_tools, FS_dir, diary, sing_fs)
 
         res['stage'] = 'prepa'
-        if variant.startswith('V2'):
-            prepa_v2(E, sp, BASE_SS, Aseg_ref, prep_dir)
+        if variant.startswith('V2') or variant.startswith('V3'):
+            prepa_v2(E, sp, BASE_SS, Aseg_ref, prep_dir, const=variant.startswith('V3'))
         else:
             E['preFS'].prepa_img(sp, BASE_SS, prep_dir, Aseg_ref, prep_dir, '', diary)
         files = [BASE_SS, opj(prep_dir, sp + '_desc-norm_T1w.nii.gz'), opj(prep_dir, sp + '_seg-wm_dseg.nii.gz'),
@@ -245,7 +264,7 @@ def run_one(job):
         res['stage'] = 'smallbrain'
         change_hd, scaling, legacy_target = 0, [1., 1., 1.], None
         hd = ants.image_header_info(BASE_SS)
-        if sp in SMALLBRAIN_LIBRARY:
+        if sp in SMALLBRAIN_LIBRARY or (variant in ('V0m', 'V2m', 'V3m') and sp in M_SPECIES):
             change_hd, scaling, resamp, new_size, _ = E['smallbrain'].get(sp, prep_dir, BASE_SS, '', FACTOR_LIBRARY,
                                                                          diary)
         if change_hd:
@@ -400,9 +419,41 @@ def qc_species(sp, out, rows):
     plt.close(fig)
 
 
+def aseg_fidelity(FS_dir, sp, k):
+    """Distance of the white / pial vertices to the boundaries they should follow, in real mm:
+    white -> boundary of filled.mgz > 0; pial -> outer boundary of the aseg brain (aseg > 0 without CSF codes,
+    holes filled). Returns {white|pial: (median |d| mm, fraction of vertices with |d| <= 1 voxel)}."""
+    import nibabel as nib
+    from scipy import ndimage as ndi
+    mri = opj(FS_dir, sp, 'mri')
+    out = {}
+    if not (opi(opj(mri, 'filled.mgz')) and opi(opj(mri, 'aseg.mgz'))):
+        return out
+    fi = nib.load(opj(mri, 'filled.mgz'))
+    vox = float(np.mean(fi.header.get_zooms()[:3]))
+    inv = np.linalg.inv(fi.header.get_vox2ras_tkr())
+    aseg = np.asarray(nib.load(opj(mri, 'aseg.mgz')).dataobj).astype(np.int32)
+    masks = {'white': np.asarray(fi.dataobj) > 0,
+             'pial': ndi.binary_fill_holes((aseg > 0) & ~np.isin(aseg, CSF_CODES))}
+    for kind, m in masks.items():
+        sd = ndi.distance_transform_edt(~m) - ndi.distance_transform_edt(m)    # voxels, 0 on the boundary
+        d = []
+        for h in HEMIS:
+            p = surf_path(FS_dir, sp, h, kind)
+            if p:
+                v = nib.freesurfer.read_geometry(p)[0]
+                ijk = (inv @ np.c_[v, np.ones(len(v))].T)[:3]
+                d.append(np.abs(ndi.map_coordinates(sd.astype(np.float32), ijk, order=1, mode='nearest')))
+        if d:
+            d = np.concatenate(d)
+            out[kind] = (float(np.median(d)) * vox * k, float(np.mean(d <= 1.0)))
+    return out
+
+
 def write_summary(out, rows):
     keys = ['species', 'variant', 'status', 'stage', 'seconds', 'grid', 'real_mm_per_fs_mm', 'n_vertices_white',
-            'thick_median_mm', 'thick_p05_mm', 'thick_p95_mm', 'note']
+            'thick_median_mm', 'thick_p05_mm', 'thick_p95_mm', 'white_dist_med_mm', 'white_within_1vox',
+            'pial_dist_med_mm', 'pial_within_1vox', 'note']
     import nibabel as nib
     for r in rows:
         FS_dir = opj(out, r['species'], r['variant'], 'freesurfer')
@@ -415,15 +466,25 @@ def write_summary(out, rows):
         t = thickness_real(FS_dir, r['species'], r['real_mm_per_fs_mm'])
         for k, q in (('thick_median_mm', 50), ('thick_p05_mm', 5), ('thick_p95_mm', 95)):
             r[k] = round(float(np.percentile(t, q)), 3) if len(t) else ''
+        try:
+            fid = aseg_fidelity(FS_dir, r['species'], r['real_mm_per_fs_mm'])
+        except Exception as e:
+            print(f"aseg fidelity {r['species']} {r['variant']} failed: {e}")
+            fid = {}
+        for kind in ('white', 'pial'):
+            md, fr = fid.get(kind, ('', ''))
+            r[kind + '_dist_med_mm'] = round(md, 3) if md != '' else ''
+            r[kind + '_within_1vox'] = round(fr, 3) if fr != '' else ''
     with open(opj(out, 'summary.csv'), 'w', newline='') as fh:
         w = csv.DictWriter(fh, keys, extrasaction='ignore')
         w.writeheader()
         w.writerows(rows)
-    print(f"\n{'species':<12}{'var':<5}{'status':<8}{'grid':<14}{'min':>6}{'thick med':>10}{'p05-p95':>13}  note")
+    print(f"\n{'species':<12}{'var':<5}{'status':<8}{'grid':<14}{'min':>6}{'thick med':>10}{'p05-p95':>13}"
+          f"{'pial<=1vox':>11}  note")
     for r in rows:
         print(f"{r['species']:<12}{r['variant']:<5}{r['status']:<8}{r['grid']:<14}{r['seconds'] // 60:>6}"
-              f"{str(r['thick_median_mm']):>10}{(str(r['thick_p05_mm']) + '-' + str(r['thick_p95_mm'])):>13}  "
-              f"{r['note'][:60]}")
+              f"{str(r['thick_median_mm']):>10}{(str(r['thick_p05_mm']) + '-' + str(r['thick_p95_mm'])):>13}"
+              f"{str(r['pial_within_1vox']):>11}  {r['note'][:60]}")
 
 
 def main():
@@ -454,10 +515,12 @@ def main():
     jobs = []
     for sp in species:
         for v in args.variants:
-            if v in ('V1', 'V0m', 'V2m') and sp not in SMALLBRAIN_LIBRARY:
+            if v == 'V1' and sp not in SMALLBRAIN_LIBRARY:
                 continue
-            if v in NATIVE_GRID and sp not in SMALLBRAIN_LIBRARY and sp not in ('Marmoset', 'Macaque'):
-                continue        # native voxel already ~1 mm (or 0.5-0.8 mm with a normal-size brain)        # no rescale / down-sampling in V0 for these species: V1 would be V0 + crop
+            if v in ('V0m', 'V2m', 'V3m') and sp not in M_SPECIES:
+                continue        # no smallbrain rescale / down-sampling for these species
+            if v in ('V0n', 'V2n') and sp not in SMALLBRAIN_LIBRARY and sp not in ('Marmoset', 'Macaque'):
+                continue        # V3n runs for every species (cross-species comparison of the same rule)        # no rescale / down-sampling in V0 for these species: V1 would be V0 + crop
             jobs.append(dict(species=sp, variant=v, args=dict(main_path=args.main_path, lib=lib, out=args.out,
                                                                 force=args.force)))
     print(f'{len(jobs)} runs: ' + ', '.join(f"{j['species']}/{j['variant']}" for j in jobs))
