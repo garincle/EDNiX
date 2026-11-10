@@ -32,9 +32,14 @@ Variants (same aseg, same FreeSurfer commands as EDNiX: FS_surf.Wcreate then FS_
       no within-class texture left in brain.mgz, so the only edges FreeSurfer can follow are the aseg
       boundaries. Tests whether the false sulci/gyri of V2/V2n come from intracortical intensity texture.
   V3n V3m intensities on the V0n grid (native resolution); run for every species.
+  V4n hybrid on the V0n grid, run for every species: white surface built on the V2 image (template contrast
+      kept at the GM/WM border, sigma 0.5 voxel: sharp thin WM blades in gyrencephalic brains), then brain.mgz
+      replaced by the V3 image (constant classes) for the pial step only (no intracortical texture for the
+      pial to stop on).
   summary.csv also gives the fidelity of each surface to the aseg it was built from: median distance (real
   mm) of white vertices to the filled.mgz boundary and of pial vertices to the outer GM boundary of aseg.mgz,
-  and the fraction of vertices within 1 voxel of it (medial-wall vertices lower it equally for all variants).
+  and the fraction of vertices within 1 voxel of it, computed on the ?h.cortex.label vertices only (medial
+  wall excluded). In the QC figures the medial-wall vertices are drawn in light grey.
   Sphere registration / aparc (FS_surf.Wconfig) are skipped: only smoothwm/inflated/curvature, which the
   pial step uses, are computed.
 
@@ -68,8 +73,8 @@ SMALLBRAIN_LIBRARY = ['Mouse', 'Rat', 'Mouselemur', 'Bat']      # as in recontru
 M_SPECIES = SMALLBRAIN_LIBRARY + ['Marmoset']   # V*m: smallbrain rule forced (Marmoset template < 10 cm3)
 FACTOR_LIBRARY = 30                                             # as in atlases/template.py
 MAX_DIM = 256
-VARIANTS = ['V0', 'V1', 'V2', 'V0m', 'V2m', 'V3m', 'V0n', 'V2n', 'V3n']
-NATIVE_GRID = ('V0n', 'V2n', 'V3n')             # 1 native voxel = 1 FS mm
+VARIANTS = ['V0', 'V1', 'V2', 'V0m', 'V2m', 'V3m', 'V0n', 'V2n', 'V3n', 'V4n']
+NATIVE_GRID = ('V0n', 'V2n', 'V3n', 'V4n')             # 1 native voxel = 1 FS mm
 LEGACY_GRID = ('V0', 'V0m', 'V2m', 'V3m')        # variants that keep the EDNiX smallbrain down-sampling
 MAX_REAL_THICKNESS = 3.0                 # mm, real units: above any small-species isocortex
 HEMIS = ['lh', 'rh']
@@ -164,8 +169,8 @@ def to_freesurfer(E, species, files, FS_dir, change_hd, scaling, legacy_target, 
     V1/V2: crop to the aseg bounding box (+8 voxels), header rescale, resampling only if a dimension
     would still exceed MAX_DIM voxels."""
     import ants
-    names = ['orig.mgz', 'brain.mgz', 'wm.mgz', 'aseg.mgz', 'filled.mgz']
-    interps = [3, 3, 1, 1, 1]
+    names = ['orig.mgz', 'brain.mgz', 'wm.mgz', 'aseg.mgz', 'filled.mgz', 'brain.pial.mgz'][:len(files)]
+    interps = [3, 3, 1, 1, 1, 3][:len(files)]
     mri = opj(FS_dir, species, 'mri')
     prep = opj(opd(FS_dir), 'resampled')
     os.makedirs(prep, exist_ok=True)
@@ -204,7 +209,7 @@ def to_freesurfer(E, species, files, FS_dir, change_hd, scaling, legacy_target, 
             img[img < 0] = 0
             if variant in LEGACY_GRID and 'desc-norm' in f:
                 img = ants.smooth_image(img, target)
-        nf = opj(prep, opb(f))
+        nf = opj(prep, ('pial_' if f in files[5:] else '') + opb(f))
         ants.image_write(img, nf)
         new_files.append(nf)
     _, _, fwd, _ = E['get_orientation'].use_ants(new_files[0])
@@ -254,12 +259,16 @@ def run_one(job):
         _, _, _, export_fs = E['req'].FS(fs_tools, FS_dir, diary, sing_fs)
 
         res['stage'] = 'prepa'
-        if variant.startswith('V2') or variant.startswith('V3'):
+        if variant.startswith('V2') or variant.startswith('V3') or variant == 'V4n':
             prepa_v2(E, sp, BASE_SS, Aseg_ref, prep_dir, const=variant.startswith('V3'))
         else:
             E['preFS'].prepa_img(sp, BASE_SS, prep_dir, Aseg_ref, prep_dir, '', diary)
         files = [BASE_SS, opj(prep_dir, sp + '_desc-norm_T1w.nii.gz'), opj(prep_dir, sp + '_seg-wm_dseg.nii.gz'),
                  Aseg_ref, opj(prep_dir, sp + '_seg-filled_dseg.nii.gz')]
+        if variant == 'V4n':        # V3 image for the pial step, written in prep_dir/pial
+            os.makedirs(opj(prep_dir, 'pial'), exist_ok=True)
+            prepa_v2(E, sp, BASE_SS, Aseg_ref, opj(prep_dir, 'pial'), const=True)
+            files.append(opj(prep_dir, 'pial', sp + '_desc-norm_T1w.nii.gz'))
 
         res['stage'] = 'smallbrain'
         change_hd, scaling, legacy_target = 0, [1., 1., 1.], None
@@ -279,6 +288,10 @@ def run_one(job):
         res['stage'] = 'curvature'
         light_config(E, FS_dir, sp, diary, sing_fs, export_fs)
         res['stage'] = 'pial (FS_surf.Pcreate)'
+        if variant == 'V4n':
+            mri = opj(FS_dir, sp, 'mri')
+            shutil.copy(opj(mri, 'brain.mgz'), opj(mri, 'brain.white.mgz'))
+            shutil.copy(opj(mri, 'brain.pial.mgz'), opj(mri, 'brain.mgz'))
         if variant[-1] in 'mn':
             # FS_surf.Pcreate + '-max': mris_make_surfaces searches the pial surface and caps the thickness at
             # 5 mm by default, i.e. 5 x real_mm_per_fs_mm real mm after the smallbrain header rescale.
@@ -315,6 +328,17 @@ def surf_path(FS_dir, sp, h, kind):
         return None
     p = opj(s, h + '.' + kind)
     return p if opi(p) else None
+
+
+def cortex_mask(FS_dir, sp, h, n):
+    """Boolean mask of the ?h.cortex.label vertices (all True if the label is missing)."""
+    import nibabel as nib
+    m = np.ones(n, bool)
+    lab = opj(FS_dir, sp, 'label', h + '.cortex.label')
+    if opi(lab):
+        m[:] = False
+        m[nib.freesurfer.read_label(lab)] = True
+    return m
 
 
 def thickness_real(FS_dir, sp, k):
@@ -387,17 +411,19 @@ def qc_species(sp, out, rows):
                 if p:
                     vv, ff = nib.freesurfer.read_geometry(p)
                     vv = (inv @ np.c_[vv, np.ones(len(vv))].T).T[:, :3]
-                    meshes[(kind, h)] = (vv, ff)
+                    ctx = cortex_mask(FS_dir, sp, h, len(vv))[ff].all(1)
+                    meshes[(kind, h, True)] = (vv, ff[ctx])
+                    meshes[(kind, h, False)] = (vv, ff[~ctx])
         for j, (title, axis, frac) in enumerate(planes):
             ax = axes[i, j]
             c = int(round(lo[axis] + frac * (hi[axis] - lo[axis])))
             sl = np.take(vol, c, axis=axis)
             ax.imshow(sl.T, cmap='gray', origin='upper', interpolation='nearest')
-            for (kind, h), (vv, ff) in meshes.items():
-                seg = plane_segments(vv, ff, axis, c)
+            for (kind, h, ctx), (vv, ff) in meshes.items():
+                seg = plane_segments(vv, ff, axis, c) if len(ff) else []
                 if len(seg):
-                    ax.add_collection(LineCollection(seg, colors='tab:blue' if kind == 'white' else 'tab:red',
-                                                     linewidths=0.6))
+                    col = ('tab:blue' if kind == 'white' else 'tab:red') if ctx else '0.75'
+                    ax.add_collection(LineCollection(seg, colors=col, linewidths=0.6 if ctx else 0.4))
             keep = [k for k in range(3) if k != axis]
             ax.set_xlim(lo[keep[0]] - 3, hi[keep[0]] + 3)
             ax.set_ylim(hi[keep[1]] + 3, lo[keep[1]] - 3)
@@ -413,7 +439,8 @@ def qc_species(sp, out, rows):
             ax.set_title(f'median {np.median(t):.2f} mm (real)', fontsize=8)
         ax.set_xlabel('thickness (real mm)', fontsize=8)
         ax.tick_params(labelsize=7)
-    fig.suptitle(f'{sp} template: white (blue) / pial (red) on orig.mgz; rows = variants', fontsize=11)
+    fig.suptitle(f'{sp} template: white (blue) / pial (red) on orig.mgz, medial wall (no cortex.label) grey; '
+                 'rows = variants', fontsize=11)
     fig.tight_layout()
     fig.savefig(opj(out, f'QC_{sp}.png'), dpi=130)
     plt.close(fig)
@@ -442,6 +469,7 @@ def aseg_fidelity(FS_dir, sp, k):
             p = surf_path(FS_dir, sp, h, kind)
             if p:
                 v = nib.freesurfer.read_geometry(p)[0]
+                v = v[cortex_mask(FS_dir, sp, h, len(v))]
                 ijk = (inv @ np.c_[v, np.ones(len(v))].T)[:3]
                 d.append(np.abs(ndi.map_coordinates(sd.astype(np.float32), ijk, order=1, mode='nearest')))
         if d:
@@ -520,7 +548,7 @@ def main():
             if v in ('V0m', 'V2m', 'V3m') and sp not in M_SPECIES:
                 continue        # no smallbrain rescale / down-sampling for these species
             if v in ('V0n', 'V2n') and sp not in SMALLBRAIN_LIBRARY and sp not in ('Marmoset', 'Macaque'):
-                continue        # V3n runs for every species (cross-species comparison of the same rule)        # no rescale / down-sampling in V0 for these species: V1 would be V0 + crop
+                continue        # V3n / V4n run for every species (cross-species comparison of the same rule)        # no rescale / down-sampling in V0 for these species: V1 would be V0 + crop
             jobs.append(dict(species=sp, variant=v, args=dict(main_path=args.main_path, lib=lib, out=args.out,
                                                                 force=args.force)))
     print(f'{len(jobs)} runs: ' + ', '.join(f"{j['species']}/{j['variant']}" for j in jobs))
