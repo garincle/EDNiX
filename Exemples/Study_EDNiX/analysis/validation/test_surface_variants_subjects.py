@@ -12,8 +12,8 @@ Per subject, the inputs are those of anat step 10 (_loop3.py):
   res-iso versions are preferred when present (EDNiX uses them when the native image is not isotropic).
   smallbrain rule from the brain volume with factor 20, as for subjects in _loop3.py.
 
-Default variants: V0 (current EDNiX), V2m (legacy grid, real-contrast image), V4n (native grid, white on V2 image,
-pial on constant-class image), V5n / V6n (V4n on the aseg smoothed by sigma 1 / 2 voxels).
+Default variants: V0 (current EDNiX), V2m (legacy grid, real-contrast image), V2s (V2m + anti-aliased label
+down-sampling), V6n (native grid, aseg smoothed sigma 2 voxels). V4n/V5n remain available with --variants.
 
 Outputs:  <out>/summary.csv  (one row per species x subject x variant, thickness + fidelity + roughness)
           <out>/QC_<species>_<subject>.png
@@ -46,7 +46,7 @@ DATASETS = {
     'Dog': '/scratch2/EDNiX/Dog/BIDS_Boch_K9/',
 }
 SPECIES_DEFAULT = ['Mouse', 'Rat', 'Mouselemur', 'Marmoset', 'Macaque']
-VARIANTS_DEFAULT = ['V0', 'V2m', 'V4n', 'V5n', 'V6n']
+VARIANTS_DEFAULT = ['V0', 'V2m', 'V2s', 'V6n']
 SUBJECT_FACTOR = 20          # smallbrain factor for subjects in _loop3.py
 OUT_DEFAULT = '/scratch2/EDNiX/surface_tests/subjects'
 

@@ -22,6 +22,10 @@ Variants (same aseg, same FreeSurfer commands as EDNiX: FS_surf.Wcreate then FS_
       rescaled FreeSurfer mm, i.e. 0.87 / 1.41 / 1.26 real mm for the Mouse / Rat / Mouselemur templates,
       below their real isocortical thickness. -max = 3 real mm (>= 5).
   V2m V2 intensities on the V0 grid (EDNiX down-sampling kept) + the same -max.
+  V2s V2m with ANTI-ALIASED label down-sampling: wm, aseg and filled are no longer resampled nearest-neighbour
+      to the coarse 1 FS mm grid; each label's binary mask is smoothed (Gaussian, sigma = 0.5 target voxel),
+      resampled linearly and the label with the highest value is kept (argmax). Removes the coarse-grid
+      staircase of V2m (marmoset "crenellated") without changing the grid or the intensities.
   V0n V0 intensities on the NATIVE template grid, with the header rescaled so that 1 native voxel = 1 FS mm
       (instead of the smallbrain volume rule): no down-sampling, and FreeSurfer stays in its standard 1 mm
       mode (V1 failed because voxels < 1 FS mm switch mris_make_surfaces to its high-resolution mode). The
@@ -85,11 +89,11 @@ SMALLBRAIN_LIBRARY = ['Mouse', 'Rat', 'Mouselemur', 'Bat']      # as in recontru
 M_SPECIES = SMALLBRAIN_LIBRARY + ['Marmoset']   # V*m: smallbrain rule forced (Marmoset template < 10 cm3)
 FACTOR_LIBRARY = 30                                             # as in atlases/template.py
 MAX_DIM = 256
-VARIANTS = ['V0', 'V1', 'V2', 'V0m', 'V2m', 'V3m', 'V0n', 'V2n', 'V3n', 'V4n', 'V5n', 'V6n']
+VARIANTS = ['V0', 'V1', 'V2', 'V0m', 'V2m', 'V2s', 'V3m', 'V0n', 'V2n', 'V3n', 'V4n', 'V5n', 'V6n']
 NATIVE_GRID = ('V0n', 'V2n', 'V3n', 'V4n', 'V5n', 'V6n')
 HYBRID = ('V4n', 'V5n', 'V6n')           # white on the V2 image, pial on the V3 image
 LABEL_SIGMA = {'V5n': 1.0, 'V6n': 2.0}   # aseg smoothing, voxels             # 1 native voxel = 1 FS mm
-LEGACY_GRID = ('V0', 'V0m', 'V2m', 'V3m')        # variants that keep the EDNiX smallbrain down-sampling
+LEGACY_GRID = ('V0', 'V0m', 'V2m', 'V2s', 'V3m')        # variants that keep the EDNiX smallbrain down-sampling
 MAX_REAL_THICKNESS = 3.0                 # mm, real units: above any small-species isocortex
 HEMIS = ['lh', 'rh']
 CSF_CODES = [4, 5, 43, 44, 14, 15, 24, 72, 30, 62, 31, 63]     # preFS.CSF_edit
@@ -165,6 +169,29 @@ def smooth_labels(aseg_file, out_file, sigma):
         best[m] = g[m]
     ants.image_write(img.new_image_like(lab.astype(np.float32)), out_file)
     return out_file
+
+
+def resample_labels_smooth(img, target):
+    """Anti-aliased down-sampling of a label image to an isotropic grid of spacing target (physical units).
+    For every label (background included): binary mask -> Gaussian sigma = 0.5 * target (physical, i.e. the
+    anti-aliasing filter of the new grid) -> linear resampling; the label with the highest value is kept.
+    Nearest-neighbour picks one native voxel per coarse voxel and leaves a 1-coarse-voxel staircase; here every
+    coarse voxel takes the majority label of its footprint, so boundaries follow the native shape."""
+    import ants
+    a = np.round(img.numpy()).astype(np.int32)
+    best, lab, ref = None, None, None
+    for c in np.unique(a):
+        m = img.new_image_like((a == c).astype(np.float32))
+        m = ants.smooth_image(m, 0.5 * target, sigma_in_physical_coordinates=True)
+        m = ants.resample_image(m, (target, target, target), False, 0)
+        g = m.numpy()
+        if best is None:
+            ref, best, lab = m, g.copy(), np.full(g.shape, c, np.int32)
+            continue
+        k = g > best
+        lab[k] = c
+        best[k] = g[k]
+    return ref.new_image_like(lab.astype(np.float32))
 
 
 def prepa_v2(E, Subname, Ref_file, aseg_file, prep_dir, const=False):
@@ -270,8 +297,11 @@ def to_freesurfer(E, species, files, FS_dir, change_hd, scaling, legacy_target, 
             ants.set_spacing(img, scaling)
             ants.set_origin(img, [X[i] * scaling[i] / S[i] for i in range(3)])
         if target is not None:
-            img = ants.resample_image(img, (target, target, target), False, interp)
-            img[img < 0] = 0
+            if variant == 'V2s' and interp == 1 and i < 6:
+                img = resample_labels_smooth(img, target)
+            else:
+                img = ants.resample_image(img, (target, target, target), False, interp)
+                img[img < 0] = 0
             if variant in LEGACY_GRID and 'desc-norm' in f:
                 img = ants.smooth_image(img, target)
         nf = opj(prep, (f'x{i}_' if i >= 5 else '') + opb(f))
@@ -350,7 +380,7 @@ def run_one(job):
         res['stage'] = 'smallbrain'
         change_hd, scaling, legacy_target = 0, [1., 1., 1.], None
         hd = ants.image_header_info(BASE_SS)
-        if tag or sp in SMALLBRAIN_LIBRARY or (variant in ('V0m', 'V2m', 'V3m') and sp in M_SPECIES):
+        if tag or sp in SMALLBRAIN_LIBRARY or (variant in ('V0m', 'V2m', 'V2s', 'V3m') and sp in M_SPECIES):
             change_hd, scaling, resamp, new_size, _ = E['smallbrain'].get(sp, prep_dir, BASE_SS, '',
                                                                          job.get('factor', FACTOR_LIBRARY),
                                                                          diary)
@@ -370,7 +400,7 @@ def run_one(job):
             mri = opj(FS_dir, sp, 'mri')
             shutil.copy(opj(mri, 'brain.mgz'), opj(mri, 'brain.white.mgz'))
             shutil.copy(opj(mri, 'brain.pial.mgz'), opj(mri, 'brain.mgz'))
-        if variant[-1] in 'mn':
+        if variant[-1] in 'mns':
             # FS_surf.Pcreate + '-max': mris_make_surfaces searches the pial surface and caps the thickness at
             # 5 mm by default, i.e. 5 x real_mm_per_fs_mm real mm after the smallbrain header rescale.
             lim = MAX_REAL_THICKNESS if res['real_mm_per_fs_mm'] < 0.3 else 5.0
@@ -639,7 +669,7 @@ def main():
         for v in args.variants:
             if v == 'V1' and sp not in SMALLBRAIN_LIBRARY:
                 continue
-            if v in ('V0m', 'V2m', 'V3m') and sp not in M_SPECIES:
+            if v in ('V0m', 'V2m', 'V2s', 'V3m') and sp not in M_SPECIES:
                 continue        # no smallbrain rescale / down-sampling for these species
             if v in ('V0n', 'V2n') and sp not in SMALLBRAIN_LIBRARY and sp not in ('Marmoset', 'Macaque'):
                 continue        # V3n-V6n run for every species (cross-species comparison of the same rule)        # no rescale / down-sampling in V0 for these species: V1 would be V0 + crop
