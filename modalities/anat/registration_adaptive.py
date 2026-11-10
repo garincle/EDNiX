@@ -15,7 +15,7 @@ compliant (folding, noise-driven warps) for the typical ones. SyNadaptive theref
 
 Quality checks (computed in the fixed / template space, inside the template brain mask):
   - mask_dice   : Dice between the warped subject brain mask and the template mask,
-  - tissue_dice : mean Dice of a 3-class k-means segmentation (CSF/GM/WM-like) of the warped subject vs the template,
+  - tissue_dice : mean Dice of a 3-class intensity k-means (CSF/GM/WM-like) of the warped subject vs the template,
                   a label-free proxy of anatomical overlap (Klein et al., 2009 evaluate registration by label overlap),
   - folding     : fraction of voxels with Jacobian determinant <= 0 (non-diffeomorphic voxels).
 
@@ -65,11 +65,32 @@ def _dice(a, b, label=1):
     return float(2 * (a & b).sum() / s) if s else np.nan
 
 
+def _kmeans_labels(values, k=3, iters=100):
+    """1-D k-means of intensities (Lloyd, centres initialised at evenly spaced percentiles, sorted by intensity).
+    Plain numpy: deterministic and independent of the Atropos binary (which fails on some 1 mm images)."""
+    c = np.percentile(values, np.linspace(100 / (2 * k), 100 - 100 / (2 * k), k))
+    for _ in range(iters):
+        lab = np.abs(values[:, None] - c[None, :]).argmin(1)
+        new = np.array([values[lab == i].mean() if (lab == i).any() else c[i] for i in range(k)])
+        if np.allclose(new, c):
+            break
+        c = np.sort(new)
+    return np.abs(values[:, None] - c[None, :]).argmin(1) + 1
+
+
 def _tissue_dice(fixed, warped, mask, k=3):
     """Mean Dice of k-means classes (sorted by intensity, so class i means the same tissue in both images)."""
-    seg_f = ants.kmeans_segmentation(fixed, k, kmask=mask)['segmentation']
-    seg_w = ants.kmeans_segmentation(warped, k, kmask=mask)['segmentation']
-    return float(np.nanmean([_dice(seg_f, seg_w, c) for c in range(1, k + 1)]))
+    m = mask.numpy() > 0
+    if m.sum() < 10 * k:
+        return np.nan
+    lf = _kmeans_labels(fixed.numpy()[m].astype(float), k)
+    lw = _kmeans_labels(warped.numpy()[m].astype(float), k)
+    return float(np.nanmean([dice_arrays(lf == c, lw == c) for c in range(1, k + 1)]))
+
+
+def dice_arrays(a, b):
+    s = a.sum() + b.sum()
+    return float(2 * (a & b).sum() / s) if s else np.nan
 
 
 def _folding(fixed, warp_file, mask):
