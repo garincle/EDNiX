@@ -403,7 +403,7 @@ def run_one(job):
         if variant[-1] in 'mns':
             # FS_surf.Pcreate + '-max': mris_make_surfaces searches the pial surface and caps the thickness at
             # 5 mm by default, i.e. 5 x real_mm_per_fs_mm real mm after the smallbrain header rescale.
-            lim = MAX_REAL_THICKNESS if res['real_mm_per_fs_mm'] < 0.3 else 5.0
+            lim = MAX_REAL_THICKNESS   # 3 real mm for every species (was 5 above 0.3 mm/FS mm: marmoset pial overshoot)
             mx = max(5.0, math.ceil(lim / res['real_mm_per_fs_mm']))
             res['note'] = f'pial -max {mx:g} FS mm'
             for h in HEMIS:
