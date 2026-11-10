@@ -109,12 +109,12 @@ def test_anat_reset_surfaces_scope(bids):
 
 def test_pet_reset_keeps_crop_and_optionally_matrices(bids):
     dp = str(bids / 'sub-01' / 'ses-1')
-    root, to_delete, kept = pet_reset.plan_emission(dp)
+    _, to_delete, kept = pet_reset.plan_emission(dp)
     kn = {os.path.basename(p) for p in kept}
     assert kn == {'sub-01_ses-1_trc-FDG_pet.nii.gz', 'sub-01_ses-1_trc-FDG_pet.json',
                   'sub-01_ses-1_desc-crop_pet.nii.gz'}
     assert any(p.endswith('Prepro_Settings.json') for p in to_delete)
-    _, to_delete2, kept2 = pet_reset.plan_emission(dp, keep_registration=True)
+    _, _, kept2 = pet_reset.plan_emission(dp, keep_registration=True)
     assert any(p.endswith('x_0GenericAffine.mat') for p in kept2)
 
 

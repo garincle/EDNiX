@@ -30,7 +30,6 @@ fails instead of hanging; keep 'itk_*' in Skip_step for unattended runs.
 """
 import ast
 import os
-import re
 import sys
 import glob
 import time
@@ -106,7 +105,8 @@ def parse_launcher(path, kind):
                 insert_line=max(n.end_lineno for n in anchors) if len(anchors) == 2 else None, src=src)
 
 
-def discover(only=None, exclude=EXCLUDE):
+def discover(only=None, exclude=None):
+    exclude = EXCLUDE if exclude is None else exclude
     out = []
     for kind, d in KIND_DIRS.items():
         for p in sorted((HERE / d).glob('*.py')):
@@ -186,7 +186,7 @@ def make_jobs(launchers, work_dir):
 def dependencies(jobs):
     """job index -> set of job indices that must finish first (same BIDS folder: anat -> ct -> pet, anat -> func)."""
     before = {'anat': (), 'ct': ('anat',), 'pet': ('anat', 'ct'), 'func': ('anat',)}
-    norm = lambda b: os.path.normpath(b)
+    norm = os.path.normpath
     deps = {}
     for i, j in enumerate(jobs):
         L = j['launcher']

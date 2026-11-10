@@ -25,7 +25,6 @@ Everything is read-only on the data; a report that cannot be built is reported, 
 """
 import os
 import re
-import io
 import glob
 import json
 import html
@@ -461,7 +460,8 @@ def _pet_motion_rows(data_path):
             import pandas as pd
             try:
                 df = pd.read_csv(f, sep='\t')
-            except Exception:
+            except (OSError, ValueError) as e:
+                print(f'WARNING: unreadable motion file {f}: {e}')
                 continue
             row = dict(file=opb(f), frames=len(df))
             for c in df.columns:
@@ -650,7 +650,7 @@ def group_report(bids_dir, infos, check_images):
         if r.get('log_errors'):
             outliers.add((i, 'log_errors'))
     links = {i: f"subjects/{infos[i]['key']}.html" for i in range(len(infos))}
-    b = [f'<p><a href="QC_dataset.html">dataset summary</a> · <a href="EDNiX_BIDS_summary.xlsx">Excel</a></p>',
+    b = ['<p><a href="QC_dataset.html">dataset summary</a> · <a href="EDNiX_BIDS_summary.xlsx">Excel</a></p>',
          f'<p class="muted">{len(rows)} subject/session(s). Red: |robust z| > {Z_THRESH} (median / MAD over the '
          f'dataset) or errors in the logs. Click a subject for its recap.</p>',
          _table(rows, cols, outliers, links)]

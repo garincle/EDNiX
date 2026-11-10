@@ -76,7 +76,7 @@ def collect(root, keep_loose, keep_file, skip_dirs=()):
 
 def prune_empty_dirs(root):
     """Remove the empty folders below root (root itself is kept)."""
-    for dirpath, dirnames, filenames in os.walk(root, topdown=False):
+    for dirpath, _, _ in os.walk(root, topdown=False):
         if dirpath == root:
             continue
         try:
