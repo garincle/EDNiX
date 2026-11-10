@@ -35,6 +35,7 @@ def run(ID, Session, data_path, max_ses, creat_study_template, study_template_at
     diary_file = diaryfile.create(opj(path_anat, str(ID) + ' session ' + str(Session)), 'BLOCK3')
     cmd_tksurfer, cmd_flatten, cmd_mris, export_fs = Load_EDNiX_requirement.FS(fs_tools, FS_dir, diary_file, sing_fs)
     targetsuffix = 'space-acpc_desc-SS'
+    relabel_opt = next((t.get('tissue_relabel', False) for t in list_transfo if t.get('name') == 'coreg'), False)
 
     if 8 in Skip_step:
         run_cmd.msg('INFO: skip step ' + str(8), diary_file, 'OKGREEN')
@@ -51,7 +52,8 @@ def run(ID, Session, data_path, max_ses, creat_study_template, study_template_at
         targetsuffix = 'space-acpc_desc-SS-step2'
         print(info)
         backtonative.apply(ID, volumes_dir, masks_dir, labels_dir, bids_dir, info, listTimage, targetsuffix, n_for_ANTS,
-                           list_atlas, path_label_code, type_norm, diary_file, sing_afni, sing_wb)
+                           list_atlas, path_label_code, type_norm, diary_file, sing_afni, sing_wb,
+                           tissue_relabel=relabel_opt)
 
     # ................................................................................................................
     ########################## Building fMRI masks for EPI analysis ##############################
@@ -125,7 +127,7 @@ def run(ID, Session, data_path, max_ses, creat_study_template, study_template_at
                 ID, volumes_dir, masks_dir, labels_dir, bids_dir,
                 info, listTimage, 'space-acpc_desc-SS-step2',
                 n_for_ANTS, list_atlas, path_label_code, type_norm,
-                diary_file, sing_afni, sing_wb)
+                diary_file, sing_afni, sing_wb, tissue_relabel=relabel_opt)
 
             # [1] Redo registration with corrected SS T1w as moving image.
             run_cmd.msg(
@@ -159,7 +161,7 @@ def run(ID, Session, data_path, max_ses, creat_study_template, study_template_at
                 ID, volumes_dir, masks_dir, labels_dir, bids_dir,
                 info_updated, listTimage, 'space-acpc_desc-SS-step2',
                 n_for_ANTS, list_atlas, path_label_code, type_norm,
-                diary_file, sing_afni, sing_wb)
+                diary_file, sing_afni, sing_wb, tissue_relabel=relabel_opt)
 
     # ...................................................................................................................
 

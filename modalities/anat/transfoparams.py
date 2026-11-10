@@ -10,6 +10,8 @@ default_interp        = 'hammingWindowedSinc' # should be 'nearestNeighbour','li
 PIPELINE_NAMES = ('align', 'between', 'coreg', 'SS1', 'SS2', 'SS3', 'stdyT')
 LEGACY_NAMES   = {'intra': 'between', 'ss_coarse': 'SS1', 'ss_fine': 'SS2', 'ss_template': 'SS3'}
 KEYS           = ("interpol", "type_of_transform", "affmetric", "affmetricT")
+# options of the 'coreg' block only (not inherited by the other blocks): name -> default
+COREG_OPTIONS  = {'tissue_relabel': False}   # see modalities/anat/tissue_relabel.py (experimental)
 
 
 def _defaults_for(name, coreg_block):
@@ -49,10 +51,13 @@ def set(transfo_message, IgotbothT1T2, creat_study_template, brain_skullstrip_1,
             if name in user:
                 raise ValueError(f'Transformation block "{name}" defined twice.')
             user[name] = {k: d.get(k, '') for k in KEYS}
+            if name == 'coreg':
+                user[name].update({k: d[k] for k in COREG_OPTIONS if k in d})
     else:
         raise ValueError('transfo_message must be "do_it_for_me" or "do_as_I_said"')
 
     coreg = _defaults_for('coreg', None)
+    coreg.update(COREG_OPTIONS)
     coreg.update({k: v for k, v in user.get('coreg', {}).items() if v != ''})
 
     out = []
