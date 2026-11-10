@@ -66,7 +66,16 @@ COLORS = {'A': '#1F77B4', 'B': '#7F7F7F', 'C': '#FF7F0E', 'D': '#2CA02C', 'E': '
 
 
 # ------------------------------------------------------------------------------------------------------------ inputs
+# FreeSurfer codes of the template seg-4FS grouped into tissues, to derive priors when the library has none
+PRIOR_CODES = {'CSF': (4, 5, 14, 15, 24, 43, 44, 72),
+               'GM': (3, 42, 8, 47, 10, 11, 12, 13, 17, 18, 26, 28, 49, 50, 51, 52, 53, 54, 58, 60),
+               'WM': (2, 41, 7, 46, 16, 77, 78, 85, 251, 252, 253, 254, 255)}
+
+
 def template_files():
+    """Template T1, seg-4FS and CSF/GM/WM priors. Priors: <volumes>/priors/ if present, otherwise derived from the
+    seg-4FS (one-hot tissue groups, unlabelled brain voxels = CSF, Gaussian smoothing sigma 1 voxel, normalised) and
+    cached in OUT_DIR/template_priors/."""
     hits = sorted(glob.glob(opj(LIBRARY, 'atlas', '**', SPECIES, REFERENCE, 'volumes',
                                 f'{SPECIES}_space-acpc_desc-SS_T1w.nii.gz'), recursive=True),
                   key=lambda p: (p.count(os.sep), p))
@@ -76,9 +85,24 @@ def template_files():
     vol = os.path.dirname(hits[0])
     f = dict(t1=hits[0], seg=opj(vol, 'labels', f'{SPECIES}_seg-4FS_dseg.nii.gz'),
              **{k: opj(vol, 'priors', f'{SPECIES}_label-{k}_probseg.nii.gz') for k in ('CSF', 'GM', 'WM')})
-    missing = [v for v in f.values() if not opi(v)]
-    if missing:
-        sys.exit(f'Missing template files: {missing}')
+    if not opi(f['seg']):
+        sys.exit(f'Missing template segmentation: {f["seg"]}')
+    if not all(opi(f[k]) for k in ('CSF', 'GM', 'WM')):
+        import nibabel as nib
+        from scipy import ndimage as ndi
+        out = opj(OUT_DIR, 'template_priors')
+        os.makedirs(out, exist_ok=True)
+        seg_img = nib.load(f['seg'])
+        seg = np.asanyarray(seg_img.dataobj).astype(int)
+        brain = np.asanyarray(nib.load(f['t1']).dataobj) > 0
+        hard = {k: np.isin(seg, codes).astype(np.float32) for k, codes in PRIOR_CODES.items()}
+        hard['CSF'][brain & (seg == 0)] = 1
+        soft = {k: ndi.gaussian_filter(v, 1.0) for k, v in hard.items()}
+        tot = sum(soft.values()) + 1e-6
+        for k in ('CSF', 'GM', 'WM'):
+            f[k] = opj(out, f'{SPECIES}_label-{k}_probseg_from-seg4FS.nii.gz')
+            nib.save(nib.Nifti1Image((soft[k] / tot * brain).astype(np.float32), seg_img.affine), f[k])
+        print(f'INFO: no tissue priors in the library: derived from the seg-4FS -> {out}', flush=True)
     return f
 
 
