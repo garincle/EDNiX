@@ -7,7 +7,9 @@ What it does
      in parallel (one process per species, N_JOBS at a time),
   3. writes the surface QC of each species (Tools/QC_report.surface_qc: white/pial/mid on 3 planes, thickness in real
      mm, aseg fidelity) to <V2>/QC_library/,
-  4. writes <V2>/EDNiX_library_manifest.json: EDNiX git commit (+ uncommitted changes flag), package versions, the
+  4. installs the Workbench scenes of the paper Figure 1 into <Species>/EDNiX/scenes/ (install_figure_scenes.py,
+     paths relative to the library),
+  5. writes <V2>/EDNiX_library_manifest.json: EDNiX git commit (+ uncommitted changes flag), package versions, the
      exact parameters, per-species status / duration / QC metrics, and the sha256 of every file of the library.
 
 `python build_library_V2.py --verify` re-hashes the library and reports any file that differs from the manifest.
@@ -188,12 +190,25 @@ def build(species=SPECIES, plan=False):
                 except Exception as e:
                     results[key]['surface_QC'] = {'error': f'{type(e).__name__}: {e}'}
 
+    # Figure 1 scenes (Workbench), paths rewritten relative to the library: before the checksums
+    scenes = {}
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            'install_figure_scenes', opj(os.path.dirname(os.path.abspath(__file__)), 'install_figure_scenes.py'))
+        ifs = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(ifs)
+        scenes = ifs.install(LIBRARY_V2, manifest=False)
+    except Exception as e:
+        print(f'WARNING: Figure 1 scenes not installed: {type(e).__name__}: {e}')
+
     manifest = dict(library=VERSION, built_from=LIBRARY_V1, copied_from_V1_in_this_run=copied,
                     started=started, finished=datetime.datetime.now().isoformat(timespec='seconds'),
                     ednix=git_info(MAIN_PATH), software=versions(),
                     settings=dict(SPECIES=species, REFERENCES=REFERENCES, SMALLBRAIN=SMALLBRAIN,
                                   ATLAS_FOLLOWERS=ATLAS_FOLLOWERS, SURFACE=SURFACE),
-                    species=dict(sorted(results.items())))
+                    species=dict(sorted(results.items())),
+                    figure_scenes={sp: len(v) for sp, v in sorted(scenes.items())})
     if CHECKSUMS:
         print('INFO: hashing the library (sha256)...')
         manifest['files'] = checksums(LIBRARY_V2)
