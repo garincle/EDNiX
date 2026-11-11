@@ -119,12 +119,12 @@ def _draw_grid(fig, rect, images, background='white', title_pt=7, group_pt=8, vi
     fg = 'black' if background == 'white' else 'white'
     x0, y0, w, h = rect
     nrow = int(np.ceil(len(SPECIES) / NCOL))
-    gutter = 0.07 * w                       # left band for the group labels
-    colw, rowh = (w - gutter) / NCOL, h / nrow
+    gutter = 0.06 * w                       # band left of EVERY column for the group labels
+    colw, rowh = (w - NCOL * gutter) / NCOL, h / nrow
     title_h = 0.16 * rowh
     for k, (sp, latin) in enumerate(SPECIES):
         r, c = divmod(k, NCOL)
-        cx, cy = x0 + gutter + c * colw, y0 + h - (r + 1) * rowh
+        cx, cy = x0 + (c + 1) * gutter + c * colw, y0 + h - (r + 1) * rowh
         fig.text(cx + 0.02 * colw, cy + rowh - 0.02 * rowh, latin, fontsize=title_pt, style='italic',
                  color=fg, va='top', ha='left')
         ax = fig.add_axes([cx + 0.06 * colw, cy, 0.92 * colw, rowh - title_h])
@@ -143,8 +143,8 @@ def _draw_grid(fig, rect, images, background='white', title_pt=7, group_pt=8, vi
         rows = [r for r, _ in cells]
         col = min(c for _, c in cells)
         top, bot = y0 + h - min(rows) * rowh - title_h, y0 + h - (max(rows) + 1) * rowh
-        lx = x0 + 0.55 * gutter + col * colw
-        fig.add_artist(plt.Line2D([lx + 0.25 * gutter] * 2, [bot + 0.03 * rowh, top], transform=fig.transFigure,
+        lx = x0 + col * (gutter + colw) + 0.4 * gutter          # inside the gutter of its own column
+        fig.add_artist(plt.Line2D([lx + 0.4 * gutter] * 2, [bot + 0.03 * rowh, top], transform=fig.transFigure,
                                   color=fg, lw=0.8))
         fig.text(lx, 0.5 * (top + bot), name, rotation=90, fontsize=group_pt, fontweight='bold', color=fg,
                  ha='center', va='center')
