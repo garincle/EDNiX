@@ -43,6 +43,8 @@ SCENE = {'white': 'Figure1_white', 'black': 'Figure1'}
 SCENE_NUMBER = 1              # scene of the .scene file to render (name or 1-based number)
 RENDER_SIZE = None            # None: window size saved in the scene (same framing as the hand export); or (w, h) px
 OUT_DIR = opj(pdat.PAPER_DIR, 'Figure_1', 'surfaces')
+BC_GAP = 0.05                 # vertical gap between sunbursts b and c (fraction of the figure height)
+LETTER_OFFSET_MM = (2.0, 2.0) # panel letters: shift (right, down) from the top-left corner of their content
 
 
 def species_scene_dirs(library=pdat.ATLAS_LIB):
@@ -168,8 +170,8 @@ def draw_panel_a(images, out_no_ext, background='white', width=ps.WIDTH_2COL * 0
 def figure1(parts_dir, out_no_ext, library=pdat.ATLAS_LIB, sing_wb=None):
     """Full Figure 1, white background: a (species grid) | b cortical over c non-cortical sunburst, abbreviations
     below. parts_dir holds ednix_sunburst_{cortical,subcortical,legend}.png (atlas_sunburst.write_sunburst_figures).
-    Panel letters: PANEL_LABEL_SIZE (8 pt, as every figure of the paper), level with the top of the drawn content
-    (not with the top of the reserved box, which is empty above an image narrower than its box)."""
+    Panel letters: PANEL_LABEL_SIZE (8 pt, as every figure of the paper), at the top-left corner of the drawn
+    content shifted by LETTER_OFFSET_MM (right, down); b and c separated by BC_GAP (figure fraction)."""
     surf_dir = opj(os.path.dirname(out_no_ext), 'surfaces')
     images = {}
     for variant in ('white', 'black'):
@@ -178,13 +180,16 @@ def figure1(parts_dir, out_no_ext, library=pdat.ATLAS_LIB, sing_wb=None):
     width = ps.WIDTH_2COL
     height = width * 842 / 941                       # proportions of the current Figure 1
     leg_h, a_w = 0.16, 0.60
+    bottom = leg_h + 0.01
+    sb_h = (1.0 - bottom - BC_GAP) / 2               # height of each sunburst box
+    dx, dy = LETTER_OFFSET_MM[0] * ps.MM / width, LETTER_OFFSET_MM[1] * ps.MM / height
     with plt.rc_context(ps.PAPER_RC):
         fig = plt.figure(figsize=(width, height), facecolor='white')
-        grid_rect = (0.0, leg_h + 0.01, a_w, 1.0 - leg_h - 0.01)
+        grid_rect = (0.0, bottom, a_w, 1.0 - bottom)
         _draw_grid(fig, grid_rect, images['white'], 'white')
         lettered = []
-        for letter, name, rect in (('b', 'cortical', (a_w, 0.585, 1 - a_w, 0.415)),
-                                   ('c', 'subcortical', (a_w, leg_h + 0.01, 1 - a_w, 0.415)),
+        for letter, name, rect in (('b', 'cortical', (a_w, bottom + sb_h + BC_GAP, 1 - a_w, sb_h)),
+                                   ('c', 'subcortical', (a_w, bottom, 1 - a_w, sb_h)),
                                    (None, 'legend', (0.0, 0.0, 1.0, leg_h))):
             ax = fig.add_axes(rect)
             ax.axis('off')
@@ -196,10 +201,11 @@ def figure1(parts_dir, out_no_ext, library=pdat.ATLAS_LIB, sing_wb=None):
         fig.canvas.draw()                            # applies the aspect ratio: final position of every image
         for letter, ax in lettered:
             bb = ax.get_position()
-            fig.text(bb.x0, bb.y1, letter, fontsize=ps.PANEL_LABEL_SIZE, fontweight='bold', va='top', ha='left')
+            fig.text(bb.x0 + dx, bb.y1 - dy, letter, fontsize=ps.PANEL_LABEL_SIZE, fontweight='bold',
+                     va='top', ha='left')
         nrow = int(np.ceil(len(SPECIES) / NCOL))
         top_a = grid_rect[1] + grid_rect[3] - 0.02 * grid_rect[3] / nrow     # top of the first species name
-        fig.text(0.0, top_a, 'a', fontsize=ps.PANEL_LABEL_SIZE, fontweight='bold', va='top', ha='left')
+        fig.text(dx, top_a - dy, 'a', fontsize=ps.PANEL_LABEL_SIZE, fontweight='bold', va='top', ha='left')
         paths = ps.save(fig, out_no_ext)
         plt.close(fig)
     return paths
