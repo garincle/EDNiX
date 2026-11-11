@@ -101,14 +101,14 @@ def build_and_swap():
         say(f'{LIB} is already the {L.VERSION} library: steps 1-3 skipped')
         return
     say(f'1. building {LIB_V2} (surface method {L.SURFACE["method"]})')
-    if subprocess.run([PYTHON, str(LIB_SCRIPT)], cwd=str(HERE / 'atlases')).returncode:
+    if subprocess.run([PYTHON, '-u', str(LIB_SCRIPT)], cwd=str(HERE / 'atlases')).returncode:
         sys.exit('STOP: build_library_V2.py failed (BIDS folders untouched).')
     man = json.loads((LIB_V2 / 'EDNiX_library_manifest.json').read_text())
     failed = [k for k, v in man.get('species', {}).items() if v.get('status') != 'ok']
     if failed or not man.get('species'):
         sys.exit(f'STOP: library species failed: {failed or "none built"} (see {LIB_V2}; BIDS folders untouched).')
     say('2. verifying the V2 library against its manifest')
-    if subprocess.run([PYTHON, str(LIB_SCRIPT), '--verify'], cwd=str(HERE / 'atlases')).returncode:
+    if subprocess.run([PYTHON, '-u', str(LIB_SCRIPT), '--verify'], cwd=str(HERE / 'atlases')).returncode:
         sys.exit('STOP: the V2 library differs from its manifest (BIDS folders untouched).')
     old = LIB.with_name(LIB.name + '_V1')
     if old.exists():
@@ -127,7 +127,7 @@ def run(a):
         say('4. resetting the BIDS folders (confirmed at launch)')
         R.reset_all(ls, confirm=False)
     say('5. run_all_ednix')
-    cmd = [PYTHON, str(RUN_ALL), '--only', ','.join(a.only), '--phases', ','.join(a.phases)]
+    cmd = [PYTHON, '-u', str(RUN_ALL), '--only', ','.join(a.only), '--phases', ','.join(a.phases)]
     code = subprocess.run(cmd, cwd=str(MAIN_PATH)).returncode
     say(f'finished (run_all_ednix exit code {code}); reports in {REPORT_DIR}')
     sys.exit(code)
