@@ -328,3 +328,19 @@ def PcreateT2(T2_img,dir_path,aseg,LR,change_hd,diary_name,sing_fs,export_fs):
         nl = surface[H] + ' surface done!'
         run_cmd.msg(nl, diary_name,'OKGREEN')
 
+
+
+def midthickness(FS_dir, animal, hemi, diary_name):
+    """?h.mid = vertex-wise average of ?h.white and ?h.pial (same mesh), the HCP definition of the midthickness
+    surface (Glasser et al. 2013). Replaces mris_expand -thickness 0.5, which in FreeSurfer 7.4 needs ?h.sphere,
+    i.e. the optional step 'sphere'. The volume geometry of ?h.white is kept (mris_convert --to-scanner needs it)."""
+    import numpy as np
+    import nibabel.freesurfer.io as fsio
+    surf = opj(FS_dir, animal, 'surf')
+    white, faces, meta = fsio.read_geometry(opj(surf, hemi + 'h.white'), read_metadata=True)
+    pial, faces_p = fsio.read_geometry(opj(surf, hemi + 'h.pial'))
+    if white.shape != pial.shape or not np.array_equal(faces, faces_p):
+        raise ValueError(f'{hemi}h.white and {hemi}h.pial of {animal} do not share the same mesh')
+    fsio.write_geometry(opj(surf, hemi + 'h.mid'), (white + pial) / 2.0, faces,
+                        create_stamp='EDNiX midthickness = (white + pial) / 2', volume_info=meta)
+    run_cmd.msg('INFO: ' + hemi + 'h.mid = (white + pial) / 2', diary_name, 'OKGREEN')

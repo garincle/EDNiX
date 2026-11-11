@@ -9,6 +9,7 @@ opi = os.path.isfile
 
 from Tools import run_cmd
 from modalities.anat.connectomeWB import WB_label
+from modalities.anat.freesurfer import FS_surf
 
 surface = ['Left', 'Right']
 Hmin = ['l', 'r']
@@ -38,9 +39,7 @@ def FS_finalise(FS_dir, subject, label, CTAB, subC, change_hd, diary_name, sing_
         nl = 'Creation of the Midthickness surface'
         run_cmd.msg(nl, diary_name, 'OKGREEN')
 
-        cmd = sing_fs + 'mris_expand -thickness ' + opj(FS_dir, subject, 'surf', Hmin[H] + 'h.white') + ' 0.5 ' + opj(
-            FS_dir, subject, 'surf', Hmin[H] + 'h.mid')
-        run_cmd.run(cmd, diary_name)
+        FS_surf.midthickness(FS_dir, subject, Hmin[H], diary_name)
 
         if specie == 'Human' and extras:
             # FreeSurfer's own human parcellations (Destrieux, DKT) and statistics. They are extras:

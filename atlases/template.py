@@ -196,8 +196,7 @@ def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers
         nl = 'Creation of the Midthickness surface'
         run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-        cmd = sing_fs + 'mris_expand -thickness ' + opj(FS_dir,species,'surf', Hmin[H] + 'h.white') + ' 0.5 ' + opj(FS_dir,species,'surf',Hmin[H] + 'h.mid')
-        run_cmd.run(cmd,diary_file)
+        FS_surf.midthickness(FS_dir, species, Hmin[H], diary_file)
 
     FS_2_WB_short.WB_prep(cmd_mris, FS_dir, FS_refs, species, species, BASE_SS, DATfile, reference, list_atlas, balsa_folder,
                           BALSAname,
