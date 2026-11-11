@@ -50,6 +50,11 @@ SPECIES = 'all'                                             # 'all' (every templ
 REFERENCES = ['EDNiX']                                       # reference folder(s) of each species to rebuild
 SMALLBRAIN = ['Mouse', 'Rat', 'Mouselemur', 'Bat', 'Marmoset']  # species rescaled for FreeSurfer (smallbrain.get);
 #   Marmoset added in V2 (template < 10 cm3, like the subjects): without it FreeSurfer ran in high-resolution mode
+# per-species smallbrain.get settings, e.g. {'Marmoset': dict(factor=20, volume_ref=300000)}; default: factor
+# SURFACE['smallbrain_factor'] and smallbrain.volume_ref (107 cm3). The FreeSurfer grid is ~factor/10 times coarser than
+# the template (x3 with 30, x2 with 20); with factor 20, volume_ref must be >= 1/8 of the brain voxel count so that a
+# FreeSurfer voxel stays >= 1 FS mm (no high-resolution mode). Test with fix_library_wb_surfaces.py --rebuild --sandbox.
+SMALLBRAIN_SETTINGS = {}
 ATLAS_FOLLOWERS = [['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]]
 SURFACE = dict(method='V2h',           # preFS.SURFACE_METHOD: 'V2h' (surface tests, PR #84) or 'legacy' (EDNiX v1)
                smallbrain_factor=30,   # smallbrain.get factor for the SMALLBRAIN species (V1 value: 30)
@@ -145,9 +150,12 @@ def build_species(sp, ref, template_dir, library, surface):
     open(diary, 'a').close()
     # start from empty surfaces, so no V1 file (e.g. an old sphere.reg) survives silently in V2
     shutil.rmtree(opj(template_dir, ref, 'freesurfer', sp), ignore_errors=True)
+    from modalities.anat.freesurfer import smallbrain
+    sb = SMALLBRAIN_SETTINGS.get(sp, {})
+    smallbrain.volume_ref = sb.get('volume_ref', smallbrain.volume_ref)
     template.modif(surface['doBALSAspace'], SMALLBRAIN, sp, ref, ATLAS_FOLLOWERS, MAIN_PATH, template_dir, diary,
                    proj=surface['proj'], doflat=surface['doflat'], library_path=library,
-                   smallbrain_factor=surface['smallbrain_factor'], sphere=surface['sphere'])
+                   smallbrain_factor=sb.get('factor', surface['smallbrain_factor']), sphere=surface['sphere'])
     return time.time() - t0
 
 
@@ -206,6 +214,7 @@ def build(species=SPECIES, plan=False):
                     started=started, finished=datetime.datetime.now().isoformat(timespec='seconds'),
                     ednix=git_info(MAIN_PATH), software=versions(),
                     settings=dict(SPECIES=species, REFERENCES=REFERENCES, SMALLBRAIN=SMALLBRAIN,
+                                  SMALLBRAIN_SETTINGS=SMALLBRAIN_SETTINGS,
                                   ATLAS_FOLLOWERS=ATLAS_FOLLOWERS, SURFACE=SURFACE),
                     species=dict(sorted(results.items())),
                     figure_scenes={sp: len(v) for sp, v in sorted(scenes.items())})
