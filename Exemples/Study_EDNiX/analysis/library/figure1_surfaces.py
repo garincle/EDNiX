@@ -167,7 +167,9 @@ def draw_panel_a(images, out_no_ext, background='white', width=ps.WIDTH_2COL * 0
 
 def figure1(parts_dir, out_no_ext, library=pdat.ATLAS_LIB, sing_wb=None):
     """Full Figure 1, white background: a (species grid) | b cortical over c non-cortical sunburst, abbreviations
-    below. parts_dir holds ednix_sunburst_{cortical,subcortical,legend}.png (atlas_sunburst.write_sunburst_figures)."""
+    below. parts_dir holds ednix_sunburst_{cortical,subcortical,legend}.png (atlas_sunburst.write_sunburst_figures).
+    Panel letters: PANEL_LABEL_SIZE (8 pt, as every figure of the paper), level with the top of the drawn content
+    (not with the top of the reserved box, which is empty above an image narrower than its box)."""
     surf_dir = opj(os.path.dirname(out_no_ext), 'surfaces')
     images = {}
     for variant in ('white', 'black'):
@@ -178,7 +180,9 @@ def figure1(parts_dir, out_no_ext, library=pdat.ATLAS_LIB, sing_wb=None):
     leg_h, a_w = 0.16, 0.60
     with plt.rc_context(ps.PAPER_RC):
         fig = plt.figure(figsize=(width, height), facecolor='white')
-        _draw_grid(fig, (0.0, leg_h + 0.01, a_w, 1.0 - leg_h - 0.01), images['white'], 'white')
+        grid_rect = (0.0, leg_h + 0.01, a_w, 1.0 - leg_h - 0.01)
+        _draw_grid(fig, grid_rect, images['white'], 'white')
+        lettered = []
         for letter, name, rect in (('b', 'cortical', (a_w, 0.585, 1 - a_w, 0.415)),
                                    ('c', 'subcortical', (a_w, leg_h + 0.01, 1 - a_w, 0.415)),
                                    (None, 'legend', (0.0, 0.0, 1.0, leg_h))):
@@ -188,13 +192,17 @@ def figure1(parts_dir, out_no_ext, library=pdat.ATLAS_LIB, sing_wb=None):
             if os.path.isfile(p):
                 ax.imshow(ps._autocrop(mpimg.imread(p)), interpolation='lanczos')
             if letter:
-                fig.text(rect[0], rect[1] + rect[3], letter, fontsize=ps.PANEL_LABEL_SIZE, fontweight='bold',
-                         va='top', ha='left')
-        fig.text(0.0, 1.0, 'a', fontsize=ps.PANEL_LABEL_SIZE, fontweight='bold', va='top', ha='left')
+                lettered.append((letter, ax))
+        fig.canvas.draw()                            # applies the aspect ratio: final position of every image
+        for letter, ax in lettered:
+            bb = ax.get_position()
+            fig.text(bb.x0, bb.y1, letter, fontsize=ps.PANEL_LABEL_SIZE, fontweight='bold', va='top', ha='left')
+        nrow = int(np.ceil(len(SPECIES) / NCOL))
+        top_a = grid_rect[1] + grid_rect[3] - 0.02 * grid_rect[3] / nrow     # top of the first species name
+        fig.text(0.0, top_a, 'a', fontsize=ps.PANEL_LABEL_SIZE, fontweight='bold', va='top', ha='left')
         paths = ps.save(fig, out_no_ext)
         plt.close(fig)
     return paths
-
 
 if __name__ == '__main__':
     from Exemples.Study_EDNiX.analysis.library import atlas_sunburst as asb
