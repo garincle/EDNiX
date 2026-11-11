@@ -75,3 +75,12 @@ def test_pcreate_command(monkeypatch, mx, expected):
     monkeypatch.setattr(FS_surf.run_cmd, 'msg', lambda *a, **k: None)
     FS_surf.Pcreate('sub', 'lr', 'diary', '', max_fs_mm=mx)
     assert len(cmds) == 2 and all(expected in c for c in cmds)
+
+
+def test_fs_scale_factor_from_rescale_dat(tmp_path):
+    """FS_2_WB_short unscales small-brain surfaces by 1/s read from <ID>_rescale.dat (smallbrain.get layout)."""
+    from modalities.anat.freesurfer import FS_2_WB_short as W
+    dat = tmp_path / 'Marmoset_rescale.dat'
+    dat.write_text('Marmoset\n0.15\n0.15\n0.15\n3.2 0 0 0.9 \n0 3.2 0 0 \n0 0 3.2 0.9 \n0 0 0 1\nround\n')
+    assert W.fs_scale_factor(str(dat)) == 3.2
+    assert W.fs_scale_factor('') == 1.0

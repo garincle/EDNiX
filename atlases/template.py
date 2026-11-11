@@ -18,13 +18,14 @@ from modalities.anat.freesurfer import smallbrain, preFS, FS_surf, FS_2_WB_short
 Hmin    = ['l','r']
 
 def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='ribbon',doflat=0,
-          library_path='', smallbrain_factor=30, sphere=True):
+          library_path='', smallbrain_factor=30, sphere=True, wb_only=False):
     """
     Rebuild the FreeSurfer / Workbench surfaces of one species template of the atlas library.
     library_path      : library to work in ('' = <MAIN_PATH>/../Atlases_library, the V1 location; build_library_V2.py
                         passes its versioned copy so V1 is never modified)
     smallbrain_factor : 'factor' of smallbrain.get for the small species (30 = V1 value)
     sphere            : spherical registration (needed for the library: BALSA / fs_LR resampling)
+    wb_only           : keep the FreeSurfer surfaces, redo only the FreeSurfer -> Workbench conversion (FS_2_WB_short)
     """
 
     # reference templates
@@ -55,6 +56,13 @@ def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers
         os.makedirs(dir_prepro)
 
     cmd_tksurfer, cmd_flatten, cmd_mris, export_fs = Load_EDNiX_requirement.FS(fs_tools, FS_dir, diary_file, sing_fs)
+    if wb_only:
+        # not the path stored in <species>_rescale.json: it names the library folder of the build (V2 before the swap)
+        DATfile = opj(dir_prepro, species + '_rescale.dat') if species in smallbrainspecieslist else ''
+        FS_2_WB_short.WB_prep(cmd_mris, FS_dir, FS_refs, species, species, BASE_SS, DATfile, reference, list_atlas,
+                              balsa_folder, BALSAname, path_label_code, template_dir, proj, diary_file, sing_fs,
+                              sing_wb, export_fs)
+        return
     # modifications of the atlas to T1 already done
     # a little help for segmentation
     preFS.prepa_img(species, BASE_SS, dir_prepro, Aseg_ref, BASE_atlas_folder, '', diary_file)

@@ -27,6 +27,19 @@ RibbonValue = [[2, 3], [41, 42]]
 cras_name = ['c_ras', 'c_ras_r']
 
 
+def fs_scale_factor(datfile):
+    """Isotropic scale s of the smallbrain header rescale (diagonal of the matrix in <ID>_rescale.dat, written by
+    smallbrain.get as new spacing / template spacing); 1.0 without rescale."""
+    if not datfile or not opi(datfile):
+        return 1.0
+    with open(datfile) as fh:
+        lines = [l.strip() for l in fh if l.strip()]
+    diag = [float(lines[4 + i].split()[i]) for i in range(3)]
+    if not np.allclose(diag, diag[0], rtol=1e-6):
+        raise ValueError('Anisotropic FreeSurfer scaling in ' + datfile + ': ' + str(diag))
+    return diag[0]
+
+
 def WB_prep(cmd_mris_convert, FS_dir, FS_refs, animal, species, Ref_file, datfile, reference, list_atlas, balsa_folder,
             BALSAname,
             path_label_code, template_dir, proj, diary_name, sing_fs, sing_wb, export_fs):
@@ -72,23 +85,29 @@ def WB_prep(cmd_mris_convert, FS_dir, FS_refs, animal, species, Ref_file, datfil
     nl = 'Creation of the surface files\n'
     run_cmd.msg(nl, diary_name, 'OKGREEN')
 
+    unscale = None
+    fs_scale = fs_scale_factor(datfile)
+    if fs_scale != 1.0:
+        unscale = opj(vol_dir, 'FS_unscale.mat')
+        np.savetxt(unscale, np.diag([1.0 / fs_scale] * 3 + [1.0]), fmt='%.12f')
+        run_cmd.msg('INFO: FreeSurfer surfaces scaled back by 1/s, s = ' + repr(fs_scale), diary_name, 'OKGREEN')
+
     for h in range(2):
 
         for FS_surf, WB_surf, S_type in zip(['white', 'pial', 'mid'],
                                             ['white', 'pial', 'midthickness'],
                                             ['GRAY_WHITE', 'PIAL', 'MIDTHICKNESS']):
-            if opi(datfile) == True:
-                cmd = (export_fs + 'mri_surf2surf --s ' + animal + ' --sval-xyz ' + FS_surf + ' --reg-inv ' + datfile +
-                       ' --tval-xyz ' + opj(FS_dir, animal, 'mri', 'orig_raw.mgz') + ' --hemi ' + Hmin[
-                           h] + 'h --tval ' + opj(FS_dir, animal, 'surf', Hmin[h] + 'h.' + FS_surf + '_temp'))
-                run_cmd.do(cmd, diary_name)
-                surfname = opj(FS_dir, animal, 'surf', Hmin[h] + 'h.' + FS_surf + '_temp')
-            else:
-                surfname = opj(FS_dir, animal, 'surf', Hmin[h] + 'h.' + FS_surf)
-
-            cmd = (sing_fs + cmd_mris_convert + ' --to-scanner ' + surfname + ' ' + opj(dir_native_resol, animal + '.' + Hmin[
-                h] + '.' + WB_surf + '.surf.gii'))
+            surfname = opj(FS_dir, animal, 'surf', Hmin[h] + 'h.' + FS_surf)
+            out_gii = opj(dir_native_resol, animal + '.' + Hmin[h] + '.' + WB_surf + '.surf.gii')
+            cmd = (sing_fs + cmd_mris_convert + ' --to-scanner ' + surfname + ' ' + out_gii)
             run_cmd.run(cmd, diary_name)
+            if unscale is not None:
+                # small brain: scanner coordinates of the FreeSurfer volumes = s x template world coordinates
+                # (smallbrain header rescale about the origin, resampling keeps the physical space) -> exact
+                # inverse = scaling by 1/s. Replaces mri_surf2surf --reg-inv <rescale.dat>, whose translation
+                # (smallbrain.get 'pos', set per orientation) shifted the surfaces of some templates (Marmoset).
+                cmd = sing_wb + 'wb_command -surface-apply-affine ' + out_gii + ' ' + unscale + ' ' + out_gii
+                run_cmd.run(cmd, diary_name)
 
             cmd = (sing_wb + 'wb_command -set-structure ' + opj(dir_native_resol, animal + '.' + Hmin[h] + '.' + WB_surf + '.surf.gii') +
                    ' ' + CORTEX[h] + ' -surface-type ANATOMICAL -surface-secondary-type ' + S_type)
