@@ -28,7 +28,7 @@ def M(tmp_path, monkeypatch):
         calls.append(cmd)
         if cmd[-1] == '--verify':
             return SimpleNamespace(returncode=m._verify_code)
-        if str(cmd[1]).endswith('build_library_V2.py'):
+        if any(str(c).endswith('build_library_V2.py') for c in cmd):
             v2.mkdir(exist_ok=True)
             (v2 / 'EDNiX_library_manifest.json').write_text(json.dumps(
                 dict(library='V2', species={'Rat/EDNiX': dict(status=m._species_status)})))
@@ -52,7 +52,7 @@ def test_full_sequence(M):
     assert e.value.code == 0
     assert (M.LIB / 'EDNiX_library_manifest.json').exists()                 # V2 swapped in
     assert (M.LIB.with_name('Atlases_library_V1') / 'v1.txt').exists()      # V1 kept
-    assert 'reset' in M._calls and str(M._calls[-1][1]).endswith('run_all_ednix.py')
+    assert 'reset' in M._calls and str(M._calls[-1][2]).endswith('run_all_ednix.py')
 
 
 @pytest.mark.parametrize('what', ['species', 'verify'])
@@ -71,5 +71,5 @@ def test_resume_when_library_is_v2(M):
     (M.LIB / 'EDNiX_library_manifest.json').write_text(json.dumps(dict(library='V2')))
     with pytest.raises(SystemExit):
         M.run(_args())
-    assert not any('build_library_V2.py' in str(c[1]) for c in M._calls if isinstance(c, list))
+    assert not any('build_library_V2.py' in ' '.join(map(str, c)) for c in M._calls if isinstance(c, list))
     assert 'reset' in M._calls
