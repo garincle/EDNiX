@@ -47,13 +47,9 @@ def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers
                                                      '', '','T1w','anat', atlas_followers, doBALSAspace=doBALSAspace)
 
     FS_dir     = opj(template_dir,reference,'freesurfer')
-    if not ope(opj(FS_dir,species)):
-        os.makedirs(FS_dir)
-        os.makedirs(opj(FS_dir,species,'mri'))
-        os.makedirs(opj(FS_dir,species,'surf'))
-        os.makedirs(opj(FS_dir,species,'stats'))
-        os.makedirs(opj(FS_dir,species, 'label'))
-        os.makedirs(opj(FS_dir,species,  'scripts'))
+    # FS_dir may exist with other subjects in it (e.g. library V2: only <FS_dir>/<species> is removed before rebuild)
+    for sub in ('mri', 'surf', 'stats', 'label', 'scripts'):
+        os.makedirs(opj(FS_dir, species, sub), exist_ok=True)
     dir_prepro = opj(template_dir,reference,'preprocessing')
     if not ope(dir_prepro):
         os.makedirs(dir_prepro)
