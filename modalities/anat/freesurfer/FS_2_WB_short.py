@@ -57,6 +57,7 @@ def WB_prep(cmd_mris_convert, FS_dir, FS_refs, animal, species, Ref_file, datfil
     labels_dir = opj(vol_dir, 'labels')
     masks_dir = opj(vol_dir, 'masks')
     dir_native_resol = opj(template_dir, reference, 'surfaces', 'Native_resol')
+    os.makedirs(dir_native_resol, exist_ok=True)   # mris_convert does not create it: no .surf.gii otherwise
 
     ################################################################################################################
     # Get the transformation matrices to convert from Freesurfer to wb
