@@ -27,6 +27,7 @@ Registration (ANTsPy): Macaque SS T1w -> Baboon SS T1w, both masked and intensit
 cut to the baboon brain mask.
 
 Steps (--step, default all, each one resumable):  prepare  register  labels  masks  surfaces  qc
+  (+ 'wb': Workbench conversion only, on existing FreeSurfer surfaces)
   python add_baboon_to_library.py                       # everything
   python add_baboon_to_library.py --plan                # paths and checks only
   python add_baboon_to_library.py --step qc             # one step
@@ -154,6 +155,7 @@ def step_prepare(P):
     check_inputs(P)
     for k in ('vol', 'labels', 'masks', 'code', 'reg', 'qc'):
         os.makedirs(P[k], exist_ok=True)
+    os.makedirs(opj(P['ref'], 'surfaces', 'Native_resol'), exist_ok=True)
     ref = nib.load(P['src_SS'])
     for src, dst in ((P['src_SS'], P['SS']), (P['src_template'], P['template'])):
         im = nib.load(src)
@@ -327,15 +329,37 @@ def _load_build_library(P):
     return mod
 
 
-def step_surfaces(P):
+def step_surfaces(P, wb_only=False):
     """FreeSurfer + Workbench surfaces of the template, as for every library species (build_library_V2 settings,
-    surface method V2h). No BALSA / fs_LR space exists for the baboon in templatefeat: native resolution only."""
+    surface method V2h). No BALSA / fs_LR space exists for the baboon in templatefeat: native resolution only.
+    wb_only=True keeps the FreeSurfer surfaces and redoes only the FreeSurfer -> Workbench conversion (FS_2_WB_short),
+    as fix_library_wb_surfaces.py does."""
     bl = _load_build_library(P)
     if SPECIES in bl.SMALLBRAIN:
         raise RuntimeError('Baboon must not be in SMALLBRAIN')
-    log(P, f'surfaces: atlases/template.modif, SURFACE={bl.SURFACE}')
-    minutes = bl.build_species(SPECIES, REFERENCE, P['bab'], P['library'], bl.SURFACE) / 60
-    log(P, f'surfaces: done in {minutes:.0f} min')
+    # FS_2_WB_short writes into surfaces/Native_resol without creating it (it exists for the V1 species)
+    os.makedirs(opj(P['ref'], 'surfaces', 'Native_resol'), exist_ok=True)
+    if wb_only:
+        if not opi(opj(P['ref'], 'freesurfer', SPECIES, 'surf', 'rh.mid')):
+            raise FileNotFoundError('FreeSurfer surfaces incomplete (no rh.mid): run --step surfaces')
+        os.environ.setdefault('MPLBACKEND', 'Agg')
+        sys.path.insert(1, P['main_path'])
+        from atlases import template
+        from modalities.anat.freesurfer import preFS
+        preFS.SURFACE_METHOD = bl.SURFACE['method']
+        log(P, 'wb: FreeSurfer -> Workbench conversion only (template.modif wb_only=True)')
+        template.modif(bl.SURFACE['doBALSAspace'], bl.SMALLBRAIN, SPECIES, REFERENCE, bl.ATLAS_FOLLOWERS, P['main_path'],
+                       P['bab'], P['diary'], proj=bl.SURFACE['proj'], doflat=bl.SURFACE['doflat'],
+                       library_path=P['library'], smallbrain_factor=bl.SURFACE['smallbrain_factor'],
+                       sphere=bl.SURFACE['sphere'], wb_only=True)
+    else:
+        log(P, f'surfaces: atlases/template.modif, SURFACE={bl.SURFACE}')
+        minutes = bl.build_species(SPECIES, REFERENCE, P['bab'], P['library'], bl.SURFACE) / 60
+        log(P, f'surfaces: done in {minutes:.0f} min')
+    for h in ('l', 'r'):
+        f = opj(P['ref'], 'surfaces', 'Native_resol', f'{SPECIES}.{h}.midthickness.surf.gii')
+        if not opi(f):
+            raise RuntimeError(f'Workbench surfaces missing ({f}): see {P["diary"]} and the build diary')
     try:
         q = bl.species_qc(SPECIES, REFERENCE, P['bab'], P['qc'])
         write_json(opj(P['qc'], 'surface_QC.json'), q if isinstance(q, dict) else {'result': str(q)})
@@ -421,7 +445,8 @@ STEPS = ['prepare', 'register', 'labels', 'masks', 'surfaces', 'qc']
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--step', nargs='+', choices=STEPS + ['all'], default=['all'])
+    ap.add_argument('--step', nargs='+', choices=STEPS + ['wb', 'all'], default=['all'],
+                    help="'wb' = Workbench conversion only, on existing FreeSurfer surfaces")
     ap.add_argument('--plan', action='store_true', help='print paths, check inputs, run nothing')
     ap.add_argument('--force', action='store_true', help='recompute the registration')
     ap.add_argument('--main-path', default=MAIN_PATH)
@@ -432,7 +457,7 @@ if __name__ == '__main__':
     if a.plan:
         plan(P)
         sys.exit(0)
-    steps = STEPS if 'all' in a.step else [s for s in STEPS if s in a.step]
+    steps = STEPS if 'all' in a.step else [s for s in STEPS + ['wb'] if s in a.step]
     for s in steps:
         log(P, f'===== step {s}')
         if s == 'prepare':
@@ -445,6 +470,8 @@ if __name__ == '__main__':
             step_masks(P)
         elif s == 'surfaces':
             step_surfaces(P)
+        elif s == 'wb':
+            step_surfaces(P, wb_only=True)
         elif s == 'qc':
             step_qc(P)
     provenance(P)
