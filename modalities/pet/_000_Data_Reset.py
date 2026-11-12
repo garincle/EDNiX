@@ -7,6 +7,7 @@ KEPT
   - raw BIDS files directly in pet/ (ct/): names starting with 'sub-' (images, sidecars, blood / recording tables),
   - the crops drawn in freeview (steps 3-6, crop_for_MoCo='manual' or 'auto' without study template):
       orig/preprocessing/forMC/<session>_desc-crop_pet.nii.gz (+ .json)      (MANUAL_PATTERNS)
+  - the masks drawn by hand: raw/masks/ (whole folder) and any *_desc-manual_* file (as func/raw/masks/)
   - keep_registration=True also keeps orig/matrices/ (registrations, including a manual correction made with
     do_manual=True). Only valid if step 1 (reorientation) is not run again: the matrices are defined on the
     reoriented image.
@@ -23,7 +24,7 @@ from Tools import data_reset as dr
 opj = os.path.join
 opb = os.path.basename
 
-MANUAL_PATTERNS = ('*_desc-crop_*',)
+MANUAL_PATTERNS = ('*_desc-crop_*', '*_desc-manual_*')
 
 
 def plan_emission(data_path, modality='pet', keep_registration=False):
@@ -32,9 +33,10 @@ def plan_emission(data_path, modality='pet', keep_registration=False):
         raise ValueError(f"modality={modality!r}: expected 'pet' or 'ct'")
     root = opj(data_path, modality)
     matrices = opj(root, 'orig', 'matrices') + os.sep
+    manual_masks = opj(root, 'raw', 'masks') + os.sep
 
     def keep_file(p):
-        if dr.matches(opb(p), MANUAL_PATTERNS):
+        if dr.matches(opb(p), MANUAL_PATTERNS) or p.startswith(manual_masks):
             return True
         return keep_registration and p.startswith(matrices)
 
