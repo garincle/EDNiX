@@ -546,7 +546,7 @@ def rigid_to(fixed_file, moving_file, prefix, metric, mask_file=None, dilate_mm=
 # PET mask, second pass in the brain, synthetic FDG target
 # ---------------------------------------------------------------------------
 
-PET_MASKS = ('none', 'threshold', 'anat')
+PET_MASKS = ('none', 'threshold', 'anat', 'manual')
 
 
 def pet_mask(mode, pet, out, percentile=30.0, dilate_mm=3.0):
@@ -555,11 +555,14 @@ def pet_mask(mode, pet, out, percentile=30.0, dilate_mm=3.0):
       'none'       no mask (the crop box of the motion correction is still applied by loop2);
       'threshold'  percentile threshold + largest connected component + filled holes (threshold_mask);
       'anat'       no mask for the first pass, then the brain of the anatomy back-projected (refine_in_brain);
+      'manual'     the manual brain mask of the session (pet/raw/masks), dilated: resolved by loop2 into a file;
       <file>       a mask drawn on the PET (any grid in the PET world space).
     Returns the mask file or None.
     """
     if not mode or mode in ('none', 'anat'):
         return None
+    if mode == 'manual':
+        raise ValueError("pet_coreg_mask='manual' must be resolved into the mask file of the session (loop2)")
     if mode == 'threshold':
         ants.image_write(threshold_mask(pet, percentile, dilate_mm), out, ri=False)
         pu.write_json(out, [pet], f'PET mask for the registration: > {percentile} percentile of the positive voxels, '
