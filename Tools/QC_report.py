@@ -782,6 +782,19 @@ def _hist_png(values, title, xlabel, out):
     return out
 
 
+_XL_ILLEGAL = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f]')      # control characters refused by openpyxl
+
+
+def _excel_safe(df):
+    """Copy of df whose text cells hold no control character (ANSI colour codes of the logs, AFNI messages...):
+    openpyxl refuses them ('cannot be used in worksheets')."""
+    df = df.copy()
+    for c in df.columns:
+        if df[c].dtype == object:
+            df[c] = df[c].map(lambda v: _XL_ILLEGAL.sub('', v) if isinstance(v, str) else v)
+    return df
+
+
 def dataset_report(bids_dir, infos, summary_rows):
     """QC/EDNiX_BIDS_summary.xlsx and QC/QC_dataset.html. Returns (xlsx, html)."""
     import pandas as pd
@@ -833,7 +846,8 @@ def dataset_report(bids_dir, infos, summary_rows):
         for name, df in (('overview', over), ('subjects', subj), ('acquisition', acq), ('status', status_df),
                          ('QC_summary', pd.DataFrame(summary_rows)), ('anat_QC', anat_df), ('surface_QC', surf_df),
                          ('func_QC', func_df), ('FC_specificity', spec_df), ('logs', logs_df)):
-            (df if len(df) else pd.DataFrame({'info': ['no data']})).to_excel(w, sheet_name=name, index=False)
+            _excel_safe(df if len(df) else pd.DataFrame({'info': ['no data']})).to_excel(w, sheet_name=name,
+                                                                                        index=False)
 
     # html
     figs = opj(qc, 'dataset')
@@ -857,11 +871,11 @@ def dataset_report(bids_dir, infos, summary_rows):
         b.append('<h2>Acquisitions</h2>' + _table(over.to_dict('records'), list(over.columns)))
     if len(acq) and 'TR_check' in acq:
         bad = acq[(acq['modality'] == 'func') & (acq['TR_check'] != 'ok')]
+        # RepetitionTime is absent when no sidecar of the dataset gives it (TR from the NIfTI header only)
+        cols = [c for c in ('subject', 'session', 'file', 'RepetitionTime', 'TR_header_s', 'TR_check') if c in bad]
         if len(bad):
             b.append(f'<h3>TR flagged ({len(bad)})</h3>' +
-                     _table(bad[['subject', 'session', 'file', 'RepetitionTime', 'TR_header_s', 'TR_check']]
-                            .to_dict('records'), ['subject', 'session', 'file', 'RepetitionTime', 'TR_header_s',
-                                                  'TR_check']))
+                     _table(bad[cols].to_dict('records'), cols))
     if len(status_df):
         done = status_df.drop(columns=['subject', 'session'])
         rows = []
@@ -907,6 +921,14 @@ def build(bids_dir, subjects=None, surface=True, verbose=True):
     group, rows = group_report(bids_dir, infos, check_images)
     xlsx, ds = dataset_report(bids_dir, infos, rows)
     if verbose:
+        surf_ok = [i['key'] for i in infos if isinstance(i['surface'], dict) and i['surface']
+                   and 'error' not in i['surface']]
+        surf_err = [(i['key'], i['surface']['error']) for i in infos if isinstance(i['surface'], dict)
+                    and 'error' in i['surface']]
+        print(f'QC_report: surface QC for {len(surf_ok)}/{len(infos)} session(s) '
+              f'(the others have no FreeSurfer surfaces yet); figures in {opj(bids_dir, "QC", "surfaces")}')
+        for k, e in surf_err:
+            print(f'           surface QC failed for {k}: {e}')
         print(f'QC_report: {len(written)} subject recap(s) in {opj(bids_dir, "QC", "subjects")}\n'
               f'           all subjects: {group}\n           dataset: {ds}\n           Excel: {xlsx}')
     return dict(subjects=written, group=group, dataset=ds, xlsx=xlsx)
