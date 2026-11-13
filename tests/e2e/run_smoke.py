@@ -34,7 +34,7 @@ sys.path.insert(0, str(REPO / 'GUI'))
 import ednix_gui_core as G  # noqa: E402
 
 SKIP = {
-    'preprocess_anat': ['itk_1', 'itk_2', 'itk_3', 9, 10, 11, 12, 'flat_map', 14, 15],
+    'preprocess_anat': ['itk_1', 'itk_2', 'itk_3', 9, 10, 11, 'sphere', 12, 'flat_map', 14, 15],
     'preprocess_fmri': ['itk_1', 'itk_2', 'itk_3', 6, 'Clean'],
 }
 

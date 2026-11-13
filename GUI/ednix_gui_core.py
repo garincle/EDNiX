@@ -26,7 +26,7 @@ STATIC_OPTIONS = {
     'orientation': ['', 'RAS', 'LPI', 'RPI', 'LAI', 'LIA', 'LSP', 'RAI'],
     'ICA_cleaning': ['Skip', 'Applied'],
     'n_for_ANTS': ['linear', 'lanczosWindowedSinc', 'hammingWindowedSinc', 'bSpline'],
-    'type_of_transform': ['Rigid', 'Affine', 'SyN', 'SyNCC', 'BOLDRigid', 'BOLDAffine'],
+    'type_of_transform': ['Rigid', 'Affine', 'SyN', 'SyNCC', 'SyNadaptive', 'BOLDRigid', 'BOLDAffine'],
     # PET / CT pipelines
     'crop_for_MoCo': ['auto', 'manual', 'none'],
     'export_resolution': ['pet', 'target'],
@@ -664,7 +664,8 @@ STEPS = {
         ('itk_3', 'Manual check of the native-space atlases in ITK-SNAP'),
         (9, 'FreeSurfer preparation (masks, T2w to T1w)'),
         (10, 'FreeSurfer input images (rescaling of small brains)'),
-        (11, 'FreeSurfer white surface'),
+        (11, 'FreeSurfer white surface, inflated surface and curvature'),
+        ('sphere', 'Spherical registration (slow; only for doBALSAspace / fs_LR, fs_extras and the aparc of the T2w pial: can be run later alone)'),
         (12, 'FreeSurfer pial surface'),
         ('flat_map', 'Flat maps'),
         ('fs_extras', 'FreeSurfer parcellations Destrieux / DKT and FreeSurfer statistics (humans only; not used by EDNiX)'),

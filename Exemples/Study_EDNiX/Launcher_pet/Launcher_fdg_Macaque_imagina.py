@@ -66,6 +66,17 @@ srtm = False
 reference_signal = 'unknown'
 DV_time = 0
 
+### Reset before relaunch (modalities/pet/_000_Data_Reset.py): deletes the EDNiX outputs of the selected sessions and
+### keeps the raw BIDS files and the crops drawn by hand (desc-crop). RESET_KEEP_REGISTRATION keeps orig/matrices.
+### RESET_BEFORE_RUN = True with RESET_DRY_RUN = True previews; RESET_DRY_RUN = False deletes after ONE 'YES'.
+RESET_BEFORE_RUN = False
+RESET_DRY_RUN = True
+RESET_KEEP_REGISTRATION = False
+if RESET_BEFORE_RUN:
+    from modalities.pet import _000_Data_Reset
+    _000_Data_Reset.reset_all(allinfo_study_c, bids_dir, list_to_keep=list_to_keep, list_to_remove=list_to_remove,
+                              dry_run=RESET_DRY_RUN, keep_registration=RESET_KEEP_REGISTRATION)
+
 Skip_step = [1,2,3,4,'pvc', 9]
 _0_Pipeline_launcher.preprocess_pet(
     Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endpet, tracer,

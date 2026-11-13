@@ -254,6 +254,17 @@ def WB_prep(cmd_mris_convert, FS_dir, FS_refs, dir_path, animal, species, spacin
     nl = 'Creation of the surface files\n'
     run_cmd.msg(nl, diary_name, 'OKGREEN')
 
+    # Small brains: FreeSurfer ran on a header scaled by s about the origin (smallbrain.get; the resampling keeps the
+    # physical space), so scanner coordinates of the FreeSurfer surfaces = s x native world coordinates -> the exact
+    # inverse is a scaling by 1/s. Replaces mri_surf2surf --reg-inv <rescale.dat>, which (i) needs ?h.sphere.reg (step
+    # 'sphere', optional) and (ii) adds the per-orientation translation 'pos' of the .dat (surfaces shifted).
+    unscale = None
+    fs_scale = _fs_scale_factor(datfile)
+    if fs_scale != 1.0:
+        unscale = opj(dir_native_resol, 'FS_unscale.mat')
+        np.savetxt(unscale, np.diag([1.0 / fs_scale] * 3 + [1.0]), fmt='%.12f')
+        run_cmd.msg('INFO: FreeSurfer surfaces scaled back by 1/s, s = ' + repr(fs_scale), diary_name, 'OKGREEN')
+
     for h in range(2):
 
         labels = glob.glob(opj(FS_dir, animal, 'label', Hmin[h] + 'h.' + animal + '_*.annot'))
@@ -261,19 +272,15 @@ def WB_prep(cmd_mris_convert, FS_dir, FS_refs, dir_path, animal, species, spacin
         for FS_surf, WB_surf, S_type in zip(['white', 'pial', 'mid'],
                                             ['white', 'pial', 'midthickness'],
                                             ['GRAY_WHITE', 'PIAL', 'MIDTHICKNESS']):
-
-            if opi(datfile) == True:
-                cmd = (export_fs + 'mri_surf2surf --s ' + animal + ' --sval-xyz ' + FS_surf + ' --reg-inv ' + datfile +
-                       ' --tval-xyz ' + opj(FS_dir, animal, 'mri', 'orig_raw.mgz') + ' --hemi ' + Hmin[
-                           h] + 'h --tval ' + opj(FS_dir, animal, 'surf', Hmin[h] + 'h.' + FS_surf + '_temp'))
-                run_cmd.do(cmd, diary_name)
-                surfname = opj(FS_dir, animal, 'surf', Hmin[h] + 'h.' + FS_surf + '_temp')
-            else:
-                surfname = opj(FS_dir, animal, 'surf', Hmin[h] + 'h.' + FS_surf)
-
-            cmd = (sing_fs + cmd_mris_convert + ' --to-scanner ' + surfname + ' ' + opj(dir_native_resol, animal + '.' + Hmin[
-                h] + '.' + WB_surf + '.surf.gii'))
+            surfname = opj(FS_dir, animal, 'surf', Hmin[h] + 'h.' + FS_surf)
+            out_gii = opj(dir_native_resol, animal + '.' + Hmin[h] + '.' + WB_surf + '.surf.gii')
+            cmd = sing_fs + cmd_mris_convert + ' --to-scanner ' + surfname + ' ' + out_gii
             run_cmd.run(cmd, diary_name)
+            if not opi(out_gii):
+                raise RuntimeError('FS_2_WB: ' + out_gii + ' not written (mris_convert failed on ' + surfname + ')')
+            if unscale is not None:
+                cmd = sing_wb + 'wb_command -surface-apply-affine ' + out_gii + ' ' + unscale + ' ' + out_gii
+                run_cmd.run(cmd, diary_name)
 
             cmd = (sing_wb + 'wb_command -set-structure ' + opj(dir_native_resol, animal + '.' + Hmin[h] + '.' + WB_surf + '.surf.gii') +
                    ' ' + CORTEX[h] + ' -surface-type ANATOMICAL -surface-secondary-type ' + S_type)
@@ -452,7 +459,14 @@ def WB_prep(cmd_mris_convert, FS_dir, FS_refs, dir_path, animal, species, spacin
                     WB_label.mergelabel(animal, opj(dir_native_resol), 'native', h, diary_name, list_atlas[0][a],
                                         list_atlas[2][a], sing_wb)
 
-    if towarp == 1:
+    # surfaces in the BALSA / fs_LR spaces need the spherical registration (step 'sphere')
+    warp_surf = towarp
+    if towarp == 1 and not all(opi(opj(FS_dir, animal, 'surf', Hmin[h] + 'h.sphere.reg')) for h in range(2)):
+        run_cmd.msg('WARNING: doBALSAspace needs ?h.sphere.reg (step sphere): the ' + BALSAname +
+                    ' / fs_LR surfaces are not built. Run the step sphere, then step 15 again.', diary_name, 'WARNING')
+        warp_surf = 0
+
+    if warp_surf == 1:
         # warping of the surfaces
         WB_sphere_reg.warp(animal, ['white', 'pial', 'midthickness'], dir_native_resol, dir_balsa_resol, list_atlas,
                            ref_transfo1,
@@ -552,7 +566,7 @@ def WB_prep(cmd_mris_convert, FS_dir, FS_refs, dir_path, animal, species, spacin
            ' INVALID ' + imfile)
     run_cmd.run(cmd, diary_name)
 
-    if towarp == 1:
+    if warp_surf == 1:
         WB_sphere_reg.cifti(animal, dir_balsa_resol, dir_balsa_32, dir_balsa_64, diary_name, sing_wb)
 
     nl = 'creation of the cifti files: done!'
@@ -569,7 +583,7 @@ def WB_prep(cmd_mris_convert, FS_dir, FS_refs, dir_path, animal, species, spacin
 
     # extras ###########################################################################################
 
-    if species == 'Macaque' and doBALSAspace==True:
+    if species == 'Macaque' and doBALSAspace==True and warp_surf == 1:
         # parcellation from template surfaces to native space volume
         nl = 'Create ' + BALSAname + ' volumetric atlas'
         run_cmd.msg(nl, diary_name, 'OKGREEN')

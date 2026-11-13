@@ -35,7 +35,114 @@ min_max = [[1,35,80,110,40,90],
 Ventri_mask = [4,43,5,44,14,15]
 White_mask  = [2,41,251,252,253,254,255]
 
-def prepa_img(Subname,Ref_file,dir_prepro,aseg_file,labels_dir,midsection,diary_name):
+# Surface reconstruction method (step 10 brain/wm/filled images, step 12 pial search distance).
+#   'V2h' (default, chosen Nov 2026 from the surface tests of PR #84 on 5 library templates + 10 BIDS subjects):
+#         synthetic brain.mgz with non-overlapping classes (CSF 10-35, GM 55-85 keeping the within-class texture,
+#         WM 110, Gaussian sigma 0.5 voxel), wm.mgz WM 110 / subcortex 250, hippocampus/amygdala kept in the GM class
+#         and out of wm/filled; pial search capped at MAX_REAL_THICKNESS real mm (see pial_max).
+#   'legacy': EDNiX v1 (overlapping class ranges of min_max, wm.mgz with the rescaled WM intensities, FreeSurfer
+#         default 5 FS-mm pial cap whatever the smallbrain rescaling).
+SURFACE_METHOD = 'V2h'
+MAX_REAL_THICKNESS = 3.0     # mm, real units: above the isocortex thickness of every species of the library
+
+def pial_max(real_mm_per_fs_mm, method=None):
+    """-max of mris_make_surfaces (FS mm) for a MAX_REAL_THICKNESS real-mm cap, or None for FreeSurfer's default.
+    real_mm_per_fs_mm: real voxel size / FreeSurfer voxel size (1 without the smallbrain header rescale)."""
+    if (method or SURFACE_METHOD) == 'legacy':
+        return None
+    return max(5.0, math.ceil(MAX_REAL_THICKNESS / float(real_mm_per_fs_mm)))
+
+
+def real_mm_per_fs(ref_file, rescale_json):
+    """Real mm per FreeSurfer mm from the smallbrain rescale json (1.0 when the header was not rescaled)."""
+    if not opi(rescale_json):
+        return 1.0
+    with open(rescale_json) as f:
+        info = json.load(f)
+    if not info.get('change_hd'):
+        return 1.0
+    return float(ants.image_header_info(ref_file)['spacing'][0]) / float(info['spacing'][0])
+
+
+def prepa_img(Subname,Ref_file,dir_prepro,aseg_file,labels_dir,midsection,diary_name,method=None):
+    """brain (desc-norm), wm (seg-wm) and filled (seg-filled) images for FreeSurfer, by SURFACE_METHOD."""
+    if (method or SURFACE_METHOD) == 'V2h':
+        return prepa_img_v2h(Subname, Ref_file, dir_prepro, aseg_file, labels_dir, midsection, diary_name)
+    return prepa_img_legacy(Subname, Ref_file, dir_prepro, aseg_file, labels_dir, midsection, diary_name)
+
+
+def _type_norm(Ref_file, diary_name):
+    fname = opb(Ref_file)
+    stem = fname[:-7] if fname.lower().endswith('.nii.gz') else os.path.splitext(fname)[0]
+    suffix = stem.rsplit('_', 1)[-1]
+    for token, out in (('T1w', 'T1w'), ('T2w', 'T2w'), ('T1', 'T1w'), ('T2', 'T2w')):
+        if token in suffix:
+            if token != out:
+                run_cmd.msg(f'WARNING: Found "{suffix}", mapping to {out} for surface purposes.', diary_name, 'WARNING')
+            return out
+    raise ValueError(f"Cannot infer T1/T2 suffix from filename '{Ref_file}'. Expected a chunk containing 'T1' or 'T2'.")
+
+
+def _filled(aseg, a, hd_BRAIN, midsection, extra_left=(), extra_right=()):
+    """filled image: 127 left / 255 right; bilateral labels split at midsection, side decided by the thalamus
+    centroid (same rule as the legacy prepa_img)."""
+    if midsection == '':
+        midsection = math.ceil(int(hd_BRAIN['dimensions'][0]) / 2)
+    cent = ants.get_centroids(ants.mask_image(aseg, aseg, 10))
+    pos = cent[0][0] * hd_BRAIN['direction'][0][0]
+    orig = hd_BRAIN['origin'][0] * hd_BRAIN['direction'][0][0]
+    dist = np.abs(pos - orig) / hd_BRAIN['spacing'][0]
+    filled = np.zeros(a.shape, np.float32)
+    filled[np.isin(a, filled_edit[0] + list(extra_left))] = 127
+    filled[np.isin(a, filled_edit[1] + list(extra_right))] = 255
+    bil = np.isin(a, filled_edit[2])
+    left, right = bil.copy(), bil.copy()
+    left[midsection:, :, :] = False
+    right[:midsection, :, :] = False
+    filled[left] = 127 if dist < midsection else 255
+    filled[right] = 255 if dist < midsection else 127
+    return filled
+
+
+def prepa_img_v2h(Subname, Ref_file, dir_prepro, aseg_file, labels_dir, midsection, diary_name):
+    """V2h images (see SURFACE_METHOD). Same file names and folders as the legacy prepa_img."""
+    run_cmd.msg(' step 10 : synthetic brain / wm / filled images for FreeSurfer (surface method V2h)',
+                diary_name, 'HEADER')
+    Type_norm = _type_norm(Ref_file, diary_name)
+    BRAIN = ants.image_read(Ref_file)
+    aseg = ants.image_read(aseg_file)
+    hd_BRAIN = ants.image_header_info(Ref_file)
+    b = BRAIN.numpy().astype(np.float32)
+    a = np.round(aseg.numpy()).astype(np.int32)
+
+    def band(codes, lo, hi):
+        """class rescaled into [lo, hi] (1st-99th percentile), keeping its within-class texture"""
+        m = np.isin(a, codes)
+        o = np.zeros(a.shape, np.float32)
+        if m.sum() < 10:
+            o[m] = (lo + hi) / 2.
+            return o
+        v = b[m].astype(np.float64)
+        p1, p99 = np.percentile(v, [1, 99])
+        o[m] = lo + np.clip((v - p1) / max(p99 - p1, 1e-6), 0, 1) * (hi - lo)
+        return o
+
+    norm = band(CSF_edit, 10., 35.) + band(Cereb_GM_edit, 55., 85.)    # hippocampus/amygdala stay in the GM class
+    norm[np.isin(a, WM_edit)] = 110.
+    norm_img = ants.smooth_image(BRAIN.new_image_like(norm), 0.5, sigma_in_physical_coordinates=False)
+    ants.image_write(norm_img, opj(dir_prepro, Subname + '_desc-norm_' + Type_norm + '.nii.gz'), ri=False)
+
+    wm = np.zeros(a.shape, np.float32)
+    wm[np.isin(a, wm_aseg_edit)] = 110.
+    wm[np.isin(a, aseg_edit)] = 250.
+    ants.image_write(BRAIN.new_image_like(wm), opj(labels_dir, Subname + '_seg-wm_dseg.nii.gz'), ri=False)
+
+    filled = _filled(aseg, a, hd_BRAIN, midsection)
+    ants.image_write(BRAIN.new_image_like(filled), opj(labels_dir, Subname + '_seg-filled_dseg.nii.gz'), ri=False)
+    run_cmd.msg('Done', diary_name, 'OKGREEN')
+
+
+def prepa_img_legacy(Subname,Ref_file,dir_prepro,aseg_file,labels_dir,midsection,diary_name):
 
     nl = ' step 10 : Prepare for the left/rigth hemisphere separation (get the filled.nii.gz file)'
     run_cmd.msg(nl, diary_name,'HEADER')

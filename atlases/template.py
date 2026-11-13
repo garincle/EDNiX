@@ -17,13 +17,22 @@ from modalities.anat.freesurfer import smallbrain, preFS, FS_surf, FS_2_WB_short
 
 Hmin    = ['l','r']
 
-def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='ribbon',doflat=0):
+def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers,MAIN_PATH,bids_dir,diary_file,proj='ribbon',doflat=0,
+          library_path='', smallbrain_factor=30, sphere=True, wb_only=False):
+    """
+    Rebuild the FreeSurfer / Workbench surfaces of one species template of the atlas library.
+    library_path      : library to work in ('' = <MAIN_PATH>/../Atlases_library, the V1 location; build_library_V2.py
+                        passes its versioned copy so V1 is never modified)
+    smallbrain_factor : 'factor' of smallbrain.get for the small species (30 = V1 value)
+    sphere            : spherical registration (needed for the library: BALSA / fs_LR resampling)
+    wb_only           : keep the FreeSurfer surfaces, redo only the FreeSurfer -> Workbench conversion (FS_2_WB_short)
+    """
 
     # reference templates
     if reference == '':
         reference = 'EDNiX'
 
-    reftemplate_path = opj(opd(MAIN_PATH), "Atlases_library")
+    reftemplate_path = library_path if library_path else opj(opd(MAIN_PATH), "Atlases_library")
     fs_tools         = opj(reftemplate_path, 'freesurfer_refs')
     path_BALSA       = opj(reftemplate_path, 'BALSA')
 
@@ -39,18 +48,21 @@ def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers
                                                      '', '','T1w','anat', atlas_followers, doBALSAspace=doBALSAspace)
 
     FS_dir     = opj(template_dir,reference,'freesurfer')
-    if not ope(opj(FS_dir,species)):
-        os.makedirs(FS_dir)
-        os.makedirs(opj(FS_dir,species,'mri'))
-        os.makedirs(opj(FS_dir,species,'surf'))
-        os.makedirs(opj(FS_dir,species,'stats'))
-        os.makedirs(opj(FS_dir,species, 'label'))
-        os.makedirs(opj(FS_dir,species,  'scripts'))
+    # FS_dir may exist with other subjects in it (e.g. library V2: only <FS_dir>/<species> is removed before rebuild)
+    for sub in ('mri', 'surf', 'stats', 'label', 'scripts'):
+        os.makedirs(opj(FS_dir, species, sub), exist_ok=True)
     dir_prepro = opj(template_dir,reference,'preprocessing')
     if not ope(dir_prepro):
         os.makedirs(dir_prepro)
 
     cmd_tksurfer, cmd_flatten, cmd_mris, export_fs = Load_EDNiX_requirement.FS(fs_tools, FS_dir, diary_file, sing_fs)
+    if wb_only:
+        # not the path stored in <species>_rescale.json: it names the library folder of the build (V2 before the swap)
+        DATfile = opj(dir_prepro, species + '_rescale.dat') if species in smallbrainspecieslist else ''
+        FS_2_WB_short.WB_prep(cmd_mris, FS_dir, FS_refs, species, species, BASE_SS, DATfile, reference, list_atlas,
+                              balsa_folder, BALSAname, path_label_code, template_dir, proj, diary_file, sing_fs,
+                              sing_wb, export_fs)
+        return
     # modifications of the atlas to T1 already done
     # a little help for segmentation
     preFS.prepa_img(species, BASE_SS, dir_prepro, Aseg_ref, BASE_atlas_folder, '', diary_file)
@@ -82,7 +94,7 @@ def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers
                 run_cmd.run(cmd, diary_file)
 
         print('do small brain')
-        change_hd, scaling, resamp, new_size, DATfile = smallbrain.get(species, dir_prepro, BASE_SS, '', 30, diary_file)
+        change_hd, scaling, resamp, new_size, DATfile = smallbrain.get(species, dir_prepro, BASE_SS, '', smallbrain_factor, diary_file)
 
         # set images to resolution 1mm
 
@@ -133,12 +145,14 @@ def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers
         run_cmd.msg(nl, diary_file, 'OKGREEN')
 
         Ref = '_resamp-' + str(scaling[0])
+        real_mm_per_fs = float(S[0]) / float(scaling[0]) if change_hd else 1.0
         list1[0] = opj(dir_prepro, opb(list1[0].replace('.nii.gz', Ref + '.nii.gz')))
         labels_dir = dir_prepro
     else:
         Ref = ''
         DATfile = ''
         labels_dir = BASE_atlas_folder
+        real_mm_per_fs = 1.0
 
     list1[1] = opj(dir_prepro, list1[1] + Ref + '.nii.gz')
     for i in range(2, 5):
@@ -157,7 +171,7 @@ def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers
 
     FS_surf.Wcreate(FS_dir, species, 'lr', diary_file, sing_fs, export_fs)
 
-    FS_surf.Wconfig(FS_dir, FS_refs, species, 'lr', diary_file, sing_fs, export_fs)
+    FS_surf.Wconfig(FS_dir, FS_refs, species, 'lr', diary_file, sing_fs, export_fs, sphere=sphere)
 
     if doflat ==0:
         run_cmd.msg('INFO: skip step ' + str('flat_map'), diary_file, 'OKGREEN')
@@ -168,7 +182,7 @@ def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers
         #### 4.4.2 Right hemisphere
         FS_flat.map(FS_dir, species, 'right', cmd_tksurfer, cmd_flatten, diary_file, sing_fs, export_fs)
 
-    FS_surf.Pcreate(species, 'lr', diary_file, export_fs)
+    FS_surf.Pcreate(species, 'lr', diary_file, export_fs, max_fs_mm=preFS.pial_max(real_mm_per_fs))
 
     cmd = export_fs + 'mris_volmask --aseg_name aseg --label_left_white 2 --label_left_ribbon 3 --label_right_white 41 --label_right_ribbon 42 --save_ribbon ' + species
     run_cmd.do(cmd, diary_file)
@@ -182,8 +196,7 @@ def modif(doBALSAspace, smallbrainspecieslist, species,reference,atlas_followers
         nl = 'Creation of the Midthickness surface'
         run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-        cmd = sing_fs + 'mris_expand -thickness ' + opj(FS_dir,species,'surf', Hmin[H] + 'h.white') + ' 0.5 ' + opj(FS_dir,species,'surf',Hmin[H] + 'h.mid')
-        run_cmd.run(cmd,diary_file)
+        FS_surf.midthickness(FS_dir, species, Hmin[H], diary_file)
 
     FS_2_WB_short.WB_prep(cmd_mris, FS_dir, FS_refs, species, species, BASE_SS, DATfile, reference, list_atlas, balsa_folder,
                           BALSAname,

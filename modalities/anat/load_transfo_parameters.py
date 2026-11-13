@@ -35,6 +35,9 @@ def build_transfos(
         'type_of_transform' : ANTs transform ("Rigid", "Affine", "SyN", "SyNCC", ...)
         'affmetric'         : metric for affine stage ("MI", "mattes", "GC", "meansquare")
         'affmetricT'        : metric for nonlinear stage (optional, depends on type)
+        'tissue_relabel'    : coreg only; True re-decides cortex/WM of the warped seg-4FS ribbon from the subject's
+                              intensities (modalities/anat/tissue_relabel.py). Use for gyrencephalic species with good
+                              GM/WM contrast only (Human, Macaque); it degraded Rat and Marmoset in tests.
 
     Returns
     -------

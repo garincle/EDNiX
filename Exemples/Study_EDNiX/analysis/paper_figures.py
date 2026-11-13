@@ -7,7 +7,7 @@ panels are drawn at print size into <PAPER_DIR>/<Figure>/panels/ and laid out, w
 their letters, as <PAPER_DIR>/<Figure>/<Figure>.pdf|png (paper_style.compose_images).
 Nature widths: 89 / 120 / 183 mm; text 5-7 pt; PDF with TrueType fonts, PNG 600 dpi.
 
-  figure1  atlas hierarchy (sunburst)                     library/atlas_sunburst.py
+  figure1  atlas surfaces + hierarchy (sunburst)          library/figure1_surfaces.py, atlas_sunburst.py
   figure2  cortical morphometry, level 2                  library/morphometry_figure.py
   figure3  longitudinal morphometry                       library/longitudinal.py
   figure4  a common profile + datasets over their LOSO consensus, b selection vs random runs
@@ -72,9 +72,14 @@ def _try(name, fn, *a, **k):
 
 # ═══════════════════════════════════════════════════════════════════════════
 def figure1(res, inp, paper_dir=None):
+    """a surfaces of the atlas levels per species (Workbench scenes of the atlas library, rendered by
+    library/figure1_surfaces.py), b/c cortical and non-cortical sunbursts + abbreviations (atlas_sunburst)."""
     from Exemples.Study_EDNiX.analysis.library import atlas_sunburst as asb
+    from Exemples.Study_EDNiX.analysis.library import figure1_surfaces as f1s
     base = pst.out_base("figure1", paper_dir)
-    asb.write_sunburst_figures(out_dir=opj(os.path.dirname(base), "parts"), paper_out=base)
+    parts = opj(os.path.dirname(base), "parts")
+    asb.write_sunburst_figures(out_dir=parts, paper_out=opj(parts, "Figure_1bc_sunburst"))
+    f1s.figure1(parts, base)
     return base
 
 

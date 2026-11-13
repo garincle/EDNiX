@@ -13,7 +13,7 @@ doBALSAspace=True
 atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]]
 MAIN_PATH = opj('//')
 Hmin    = ['l','r']
-smallbrainspecieslist = ['Mouse','Rat','Mouselemur','Bat']
+smallbrainspecieslist = ['Mouse','Rat','Mouselemur','Bat','Marmoset']
 for species in ['Mouse','Rat','Mouselemur', 'Marmoset']:
     reference = 'EDNiX' # search for the relevant folder
     for dirpath, dirnames, filenames in os.walk(os.path.join('/Atlases_library/', 'atlas')):

@@ -414,7 +414,7 @@ def _apply_final_skull_strip(imgtemplate, mask_path, ss_path,
 
 def apply(ID, volumes_dir, masks_dir, labels_dir, bids_dir, info, listTimage,
           targetsuffix, n_for_ANTS, list_atlas, path_label_code, type_norm,
-          diary_file, sing_afni, sing_wb):
+          diary_file, sing_afni, sing_wb, tissue_relabel=False):
     '''
     to debug if necessary: structure of info should be (check the function just above ...):
     info[i] = [sourcename, sourcefile, sourcemask, sourcelabeldir, target_voldir,
@@ -589,3 +589,9 @@ def apply(ID, volumes_dir, masks_dir, labels_dir, bids_dir, info, listTimage,
             name    = opb(listimg[i]).split('_')
             newname = '_'.join([name[0]] + name[2:])
             shutil.move(listimg[i], opj(opd(listimg[i]), newname))
+
+    # optional: GM/WM/CSF of the cortical ribbon re-decided from the subject's own intensities
+    if tissue_relabel:
+        from modalities.anat import tissue_relabel as _tr
+        _tr.run(ID, volumes_dir, labels_dir, bids_dir, type_norm, diary_file,
+                tissue_relabel if isinstance(tissue_relabel, dict) else None)
