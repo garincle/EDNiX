@@ -232,6 +232,23 @@ def _write_censor_files(fd, threshold, n_vols, censore1D, censoretxt,
     return censor, n_censored
 
 
+def _mask_on_image_grid(mask_img, IMG, tol_mm=1e-3):
+    """
+    Mask on the exact grid of IMG. ITK (N4) refuses images whose origins differ by more than ~1e-6 x spacing; AFNI
+    rewrites headers in float32 (3dmask_tool -fill_holes), so a mask made from IMG can be off by ~1e-5 mm.
+    Same shape and origin / spacing / direction within tol_mm -> IMG header copied onto the mask (no resampling);
+    any larger difference -> nearest-neighbour resampling onto IMG.
+    """
+    same = (tuple(mask_img.shape) == tuple(IMG.shape)
+            and np.allclose(mask_img.origin, IMG.origin, atol=tol_mm)
+            and np.allclose(mask_img.spacing, IMG.spacing, atol=tol_mm)
+            and np.allclose(mask_img.direction, IMG.direction, atol=1e-5))
+    if same:
+        return ants.copy_image_info(IMG, mask_img)
+    print('[WARNING] N4: mask not on the image grid -> nearest-neighbour resampling of the mask onto the image')
+    return ants.resample_image_to_target(mask_img, IMG, interp_type='nearestNeighbor')
+
+
 def _adaptive_n4_correction(input_image, output_path, mask=None,
                              auto_tune=True, species_info=None):
     """
@@ -274,6 +291,7 @@ def _adaptive_n4_correction(input_image, output_path, mask=None,
         mask_img = ants.image_read(mask)
     else:
         mask_img = mask
+    mask_img = _mask_on_image_grid(mask_img, IMG)
 
     brain_voxels      = int(np.sum(mask_img.numpy() > 0))
     brain_volume_mm3  = brain_voxels * voxel_volume
