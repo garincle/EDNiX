@@ -1,6 +1,6 @@
 """
 freesurfer_vs_ednix.py -- standard FreeSurfer recon-all on the raw T1w of the human Park
-dataset, as the reference for the FreeSurfer vs EDNiX comparison (Supp. Fig. 14).
+dataset, as the reference for the FreeSurfer vs EDNiX comparison (Supp. Fig. 7).
 
 Human only (Clément, 2026-11-06): recon-all is not designed for non-human brains, so a
 macaque run would test the header-scaling workaround, not EDNiX.

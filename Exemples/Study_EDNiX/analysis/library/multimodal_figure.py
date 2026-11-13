@@ -15,16 +15,16 @@ Figure 6 -- Multimodal, multi-species imaging approaches to build an intersectio
  e  multimodal fingerprint of each species (radar, PANEL_D = 'radar'): volume, positive coupling to the retrosplenial
     seed and FDG, each z-scored across the regions within each subject, mean +- SEM. PANEL_D = 'summary': heatmap +
     forest plot of the former panels c-d.
- Supplementary Figure 13 (draw_supp_pairs): Pearson r between the regional profiles of pairs of subjects by class
+ Supplementary Figure 15 (draw_supp_pairs): Pearson r between the regional profiles of pairs of subjects by class
     (same subject eyes open / closed, within a dataset, between the human datasets, human vs macaque).
 Regions grouped by lobe in the order of the atlas sunburst of Figure 1 (Atlas_nomenclature.atlas_order), radars
 counter-clockwise from the top as the sunburst, lobe colours of Figure 1 on the rim and under the bars.
 
 Data, units and level conventions: multimodal_profiles.py, pet_datasets.py. Colours: species colour of the article
 (paper_style.py); the datasets of a species differ by marker (paper_style.dataset_marker) and, for the bars, by hatching.
-  figure6_stats()        every table and test (paper_stats.figure6, paper_stats.supp13)
+  figure6_stats()        every table and test (paper_stats.figure6, paper_stats.supp15)
   draw_figure6()         surface renders + the figure + its legend (paper_figures.figure6)
-  draw_supp_pairs()      Supplementary Figure 13 (paper_figures.supp13)
+  draw_supp_pairs()      Supplementary Figure 15 (paper_figures.supp15)
 Clément 2026-11-05: Castrillon added (a, b), difference with the macaque, reproducibility of the human datasets (c),
 multimodal fingerprint (d).
 """
@@ -530,7 +530,7 @@ def build_figure(pngs, rng, pet, prof_c, regions_c, summ=None, si=None, dpngs=No
       c  macaque surface, then the two differences human - macaque on the human surface
       d  regional bratio of the three datasets (bars)
       e  multimodal radars (PANEL_D = 'summary': the former heatmap + forest plot)
-    The pairwise subject similarity is Supplementary Figure 13 (draw_supp_pairs). Positions in mm (Nature double
+    The pairwise subject similarity is Supplementary Figure 15 (draw_supp_pairs). Positions in mm (Nature double
     column, FIG_W wide); the height follows the content."""
     dpngs = dpngs or {}
     w, regions = pet['w'], pet['regions']
@@ -609,7 +609,7 @@ def build_figure(pngs, rng, pet, prof_c, regions_c, summ=None, si=None, dpngs=No
 
 
 def draw_supp_pairs(pet, pre):
-    """Supplementary Figure 13: Pearson r between the regional FDG profiles of pairs of subjects, by class
+    """Supplementary Figure 15: Pearson r between the regional FDG profiles of pairs of subjects, by class
     (<pre>.png/.svg/.pdf and <pre>_legend.txt)."""
     os.makedirs(os.path.dirname(pre), exist_ok=True)
     with plt.rc_context(PAPER_RC):
@@ -629,7 +629,7 @@ def supp_pairs_legend(pet):
     a, b = HUMAN_DATASETS
     t = pet['ptest'].iloc[0] if len(pet['ptest']) else None
     return (
-        f'Supplementary Figure 13 | Similarity of the regional FDG profiles between subjects. Pearson r between the '
+        f'Supplementary Figure 15 | Similarity of the regional FDG profiles between subjects. Pearson r between the '
         f'regional bratio profiles (EDNiX level {LEVEL}, {len(pet["regions"])} regions) of pairs of subjects, by '
         f'class: the same {ds_name(b)} subject in its two sessions (eyes open vs eyes closed), two subjects of the same '
         f'dataset, one subject of each human dataset, a human and a macaque. One session per subject in the '
@@ -660,7 +660,7 @@ def legend_text(pet, prof_c, regions_c, rng, cmc, summ=None, drng=None):
         f'r = {g.pearson_r:.2f} [{g.pearson_r_ci_low:.2f}, {g.pearson_r_ci_high:.2f}], Lin concordance CCC = '
         f'{g.lin_ccc:.2f} [{g.lin_ccc_ci_low:.2f}, {g.lin_ccc_ci_high:.2f}] (95% CI, bootstrap of the subjects); '
         f'split-half reliabilities {g.reliability_a:.2f} and {g.reliability_b:.2f} (Spearman-Brown), disattenuated r = '
-        f'{g.pearson_r_disattenuated:.2f}. Similarity between individual profiles: Supplementary Figure 13. '
+        f'{g.pearson_r_disattenuated:.2f}. Similarity between individual profiles: Supplementary Figure 15. '
         f'c, Left, group-mean bratio of the macaque ({ds_name(ref)}, n = {n.get(ref, 0)}, anaesthetised) on the '
         f'macaque surface, same scale as a. Middle and right, regional difference of each human dataset with the '
         f'macaque (mean bratio, human - macaque, per homologous EDNiX region of level {LEVEL}) painted on the human '

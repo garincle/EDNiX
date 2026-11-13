@@ -1,5 +1,5 @@
 """
-longitudinal_ablation.py -- Supplementary Figure 15: what does the longitudinal mode buy?
+longitudinal_ablation.py -- Supplementary Figure 8: what does the longitudinal mode buy?
 =======================================================================================
 
 Question (Results, "Tracking development and ageing within individuals", Fig. 3)
@@ -47,13 +47,13 @@ Statistics, per species x modality (surface area, thickness, volume)
     5. Model-free check: per subject with >= 3 sessions, SD of the residuals around its
        own least-squares line; paired Wilcoxon signed-rank, longitudinal vs
        cross-sectional.
-    6. Fig. 3g-i (macaque) / Supp. Fig. 7 (human): association vs primary paired t-test,
+    6. Fig. 3g-i (macaque) / Supp. Fig. 9 (human): association vs primary paired t-test,
        recomputed in each mode (t, P, d_z).
 
-Outputs (paper_stats.supp15 / paper_figures.supp15, run_paper.py supp15)
-    <PAPER_DIR>/Supp_Fig_15/Supp_Fig_15.pdf|png
-    <PAPER_DIR>/Supp_Fig_15/Supp_Fig_15_stats.xlsx   sheets summary, assoc_primary, paired_values
-    <PAPER_DIR>/Supp_Fig_15/Supp_Fig_15_stats.txt
+Outputs (paper_stats.supp8 / paper_figures.supp8, run_paper.py supp8)
+    <PAPER_DIR>/Supp_Fig_08/Supp_Fig_08.pdf|png
+    <PAPER_DIR>/Supp_Fig_08/Supp_Fig_08_stats.xlsx   sheets summary, assoc_primary, paired_values
+    <PAPER_DIR>/Supp_Fig_08/Supp_Fig_08_stats.txt
 """
 import glob
 import os
@@ -318,7 +318,7 @@ def nonlinearity(m, age_col):
 
 
 def assoc_primary_both(morph, age_df, species):
-    """Fig. 3g-i / Supp. Fig. 7 association - primary paired t-test in both modes."""
+    """Fig. 3g-i / Supp. Fig. 9 association - primary paired t-test in both modes."""
     from Exemples.Study_EDNiX.analysis.library import longitudinal as lg
     rows = []
     for mod, *_ in lg.FIG3_MODALITIES:
@@ -336,7 +336,7 @@ def assoc_primary_both(morph, age_df, species):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# STEP 6 -- all species and modalities; text of Supp_Fig_15_stats.txt
+# STEP 6 -- all species and modalities; text of Supp_Fig_08_stats.txt
 # ══════════════════════════════════════════════════════════════════════════════
 def ablation_stats(rows, n_boot=N_BOOT):
     """rows = load_ablation_data(). Returns dict(summary, assoc, paired, lines, matched)."""
@@ -367,7 +367,7 @@ def _p(p):
 
 
 def result_lines(summary, assoc):
-    L = ['Supp. Fig. 15 -- longitudinal vs cross-sectional processing of the same scans',
+    L = ['Supp. Fig. 8 -- longitudinal vs cross-sectional processing of the same scans',
          f'{REGION}, level 1, left hemisphere, subjects with >= 2 matched sessions; LMM '
          'metric ~ age + (1|subject), ML; ratios = cross-sectional / longitudinal; '
          'delta = longitudinal - cross-sectional; paired subject bootstrap 95% CI and P.', '']
@@ -392,7 +392,7 @@ def result_lines(summary, assoc):
                      f'{r.resid_sd_long_median:.4g} vs {r.resid_sd_cross_median:.4g}, '
                      f'Wilcoxon {_p(r.resid_sd_wilcoxon_p)}')
     if not assoc.empty:
-        L += ['', 'Association - primary, paired t on last-session % change (Fig. 3g-i, Supp. Fig. 7):']
+        L += ['', 'Association - primary, paired t on last-session % change (Fig. 3g-i, Supp. Fig. 9):']
         for r in assoc.itertuples():
             L.append(f'  {r.species} {r.modality} {r.mode}: {r.assoc_pct:+.2f}% vs '
                      f'{r.primary_pct:+.2f}%, t({r.n - 1}) = {r.t:.2f}, {_p(r.p)}, dz = {r.dz:.2f}')

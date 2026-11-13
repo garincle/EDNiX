@@ -380,7 +380,7 @@ def f20_variability_levels(table, draws, species_of_label, out, width_mm=183, nc
     return out
 
 
-# ── F16 b: proximity of each dataset to every other one (Supp. Fig. 10) ─────
+# ── F16 b: proximity of each dataset to every other one (Supp. Fig. 12) ─────
 def f16b_proximity_rows(D, dist_df, species_of_label, test, out, width_mm=120, row_mm=5.2):
     """One row per dataset: dots = 1 - r to every other dataset (species colour of
     that dataset), star = the other dataset of the same species, black tick = the

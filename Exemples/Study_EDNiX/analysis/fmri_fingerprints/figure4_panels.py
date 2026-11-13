@@ -255,8 +255,8 @@ def fig4bc(pairs_by, stats, names, test, intra, D, species_of_label, out, width_
 
 
 def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=191, height_mm=68):
-    """Panels b (noise removed), c (similarity matrix), d (phylogenetic gradient) and e (species
-    identity kept) in one figure; lower edges aligned. Clément, 2026-10-30: the matrix comes
+    """Panels b (noise removed), c (similarity matrix), d (species identity kept) and e
+    (phylogenetic gradient) in one figure; lower edges aligned. Clément, 2026-10-30: the matrix comes
     before the two tests of what the selection does to species structure (it is what the text
     discusses first). Letter 'b' is added by the layout; c, d, e are drawn here."""
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import selection_validation as sv
@@ -273,9 +273,11 @@ def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=191, 
         h = val["heldout"]
         sv.draw_b_schematic(ax_sch, n=h["n_values"], fs=fs)
         sv.draw_d(ax_b, val["levels"], h["p_classes"], h["n_draws"], fs=fs)
-        sv.draw_phylo(ax_d, val["species"], fs=fs)
-        sv.draw_species(ax_e, val["species"], fs=fs)
-        for ax_, title in ((ax_d, "Phylogenetic gradient"), (ax_e, "Species identity kept")):
+        # Clément 2026-11-13 (V4 comments): species identity first (d), then the finer
+        # phylogenetic gradient (e), the order in which the Results discuss them.
+        sv.draw_species(ax_d, val["species"], fs=fs)
+        sv.draw_phylo(ax_e, val["species"], fs=fs)
+        for ax_, title in ((ax_d, "Species identity kept"), (ax_e, "Phylogenetic gradient")):
             ax_.set_title(title, fontsize=fs + 0.5, fontweight="bold", pad=1.5, loc="left")
         ax_c = None
         if D is not None:

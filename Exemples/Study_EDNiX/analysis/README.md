@@ -4,7 +4,7 @@ This folder holds the paper and nothing else at its top level: statistics, figur
 runner. Every other analysis is filed by category below.
 
     python run_paper.py                    # statistics + figures, every figure
-    python run_paper.py figure4 supp10     # some figures (stable1 = Supp. Table 1)
+    python run_paper.py figure4 supp12     # some figures (stable1 = Supp. Table 1)
     python run_paper.py --stats-only       # numbers only
     python run_paper.py --refresh          # re-read the EDNiX outputs (no cache)
 
