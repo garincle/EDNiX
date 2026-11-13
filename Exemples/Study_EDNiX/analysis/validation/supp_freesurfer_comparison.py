@@ -1,5 +1,5 @@
 """
-supp_freesurfer_comparison.py -- Supp. Fig. 14: subject-by-subject agreement between EDNiX and
+supp_freesurfer_comparison.py -- Supp. Fig. 7: subject-by-subject agreement between EDNiX and
 standard FreeSurfer recon-all (Fischl 2012) on the same human T1w images.
 
 Question: where a reference tool exists (adult human brain), does EDNiX's cross-species
@@ -34,11 +34,11 @@ Statistics (per measure, n = subjects with both values)
 Figure (183 mm wide): a-c EDNiX vs FreeSurfer per subject (dashed: identity; solid: OLS),
 d-f Bland-Altman (solid: bias, shaded: its 95% CI, dashed: limits of agreement).
 
-Outputs  <PAPER_DIR>/Supp_Fig_14/
-  Supp_Fig_14.pdf / .png
-  Supp_Fig_14_stats.xlsx   sheets paired (one row per subject), stats (one row per measure),
+Outputs  <PAPER_DIR>/Supp_Fig_07/
+  Supp_Fig_07.pdf / .png
+  Supp_Fig_07_stats.xlsx   sheets paired (one row per subject), stats (one row per measure),
                            fs_status (recon-all outcome)
-  Supp_Fig_14_stats.txt    the same, as sentences for Results/legend
+  Supp_Fig_07_stats.txt    the same, as sentences for Results/legend
 
     python supp_freesurfer_comparison.py
     python supp_freesurfer_comparison.py --refresh   # rebuild the EDNiX morphometry cache
@@ -67,7 +67,7 @@ opj = os.path.join
 SPECIES = 'Human'
 BIDS = 'BIDS_Park'
 FS_DIR = opj('/scratch2/EDNiX/FreeSurfer_benchmark', BIDS)
-OUT_BASE = opj(pdat.PAPER_DIR, 'Supp_Fig_14', 'Supp_Fig_14')
+OUT_BASE = opj(pdat.PAPER_DIR, 'Supp_Fig_07', 'Supp_Fig_07')
 STATUS_CSV = opj(pdat.PAPER_DIR, 'Validation', 'FreeSurfer', 'fs_status.csv')
 REGION = 'Isocortex'
 # (column, axis label, display divisor, display unit)
@@ -230,7 +230,7 @@ def p_text(p):
 
 
 def sentences(st, status):
-    lines = [f'Supp. Fig. 14 -- EDNiX vs standard FreeSurfer recon-all, {SPECIES} ({BIDS}), '
+    lines = [f'Supp. Fig. 7 -- EDNiX vs standard FreeSurfer recon-all, {SPECIES} ({BIDS}), '
              f'{REGION} (EDNiX level 1) vs FreeSurfer cortex label, bilateral, one session per '
              'subject (latest). Bias and limits of agreement (LoA) on (EDNiX - FreeSurfer) / mean, %.', '']
     if status is not None:

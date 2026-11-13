@@ -2,7 +2,7 @@
 run_paper.py -- statistics then figures of the EDNiX paper.
 
     python run_paper.py                    # every figure
-    python run_paper.py figure4 supp10     # some figures
+    python run_paper.py figure4 supp12     # some figures
     python run_paper.py --stats-only       # numbers only, no drawing
     python run_paper.py --refresh          # re-read the EDNiX outputs (no cache)
 

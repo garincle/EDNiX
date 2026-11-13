@@ -1,8 +1,8 @@
 """
 fs_ednix_matched_cortex.py -- FreeSurfer vs EDNiX on MATCHED cortex and MATCHED definitions
-(diagnostic behind Supp. Fig. 14).
+(diagnostic behind Supp. Fig. 7).
 
-Supp. Fig. 14 compares EDNiX level-1 Isocortex (atlas-defined, excludes the periallocortex
+Supp. Fig. 7 compares EDNiX level-1 Isocortex (atlas-defined, excludes the periallocortex
 and allocortex) with the FreeSurfer cortex label, and EDNiX's thickness definition with
 FreeSurfer's. Region and definition then differ as well as the tools. Here both tools are
 measured on the same region with the same code and the same definitions:
@@ -21,14 +21,14 @@ measured on the same region with the same code and the same definitions:
            hemispheres. Identical computation for the two tools; includes the thin
            medial-wall slab in both.
 
-Same scan for both tools (latest session of BIDS_Park, the Supp. Fig. 14 pairs).
+Same scan for both tools (latest session of BIDS_Park, the Supp. Fig. 7 pairs).
 
 Outputs  <PAPER_DIR>/Validation/FreeSurfer/matched_cortex/
   matched_cortex.png/.pdf  a-d recon-all vs EDNiX (area, thickness nearest, thickness
                            vertex, volume) with identity line, r, ICC(C,1), ICC(A,1), bias;
                            e thickness vs age (both tools); f Pearson r between all measures
   matched_cortex.csv       one row per subject
-  matched_cortex_stats.txt agreement statistics (same functions as Supp. Fig. 14)
+  matched_cortex_stats.txt agreement statistics (same functions as Supp. Fig. 7)
   QC_<subject>.png         both tools on the SAME image and the SAME slices: the recon-all
                            orig.mgz (the subject's own T1, not skull-stripped). EDNiX surfaces
                            are brought into it by a rigid mri_robust_register of the EDNiX T1

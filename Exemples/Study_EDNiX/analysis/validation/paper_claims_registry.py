@@ -23,8 +23,8 @@ Entry keys
     data      dataset names the value must come from; checked as literals in `data_files`
               (default: the producer file)
 
-Coverage: Fig. 2 (validation paragraph), Fig. 3 / Supp. Fig. 7 (longitudinal), Supp. Fig. 14
-(FreeSurfer), Supp. Fig. 15 (longitudinal vs cross-sectional). Figures 4-6 are not
+Coverage: Fig. 2 (validation paragraph), Fig. 3 / Supp. Fig. 9 (longitudinal), Supp. Fig. 7
+(FreeSurfer), Supp. Fig. 8 (longitudinal vs cross-sectional). Figures 4-6 are not
 registered yet: their numbers appear in the 'untraced' sheet of the report.
 """
 import numpy as np
@@ -40,12 +40,12 @@ ABL = A + 'library/longitudinal_ablation.py'
 PDATA = A + 'paper_data.py'
 
 F3 = 'Figure_3/Figure_3_stats.xlsx'
-S7 = 'Supp_Fig_07/Supp_Fig_07_stats.xlsx'
+S7 = 'Supp_Fig_09/Supp_Fig_09_stats.xlsx'
 VAL = 'Validation/validation_morphometry.xlsx'
 F2 = 'Figure_2/Figure_2_stats.xlsx'
 XS = 'Supplementary_stats/extra_stats.txt'
-S14 = 'Supp_Fig_14/Supp_Fig_14_stats.xlsx'
-S15 = 'Supp_Fig_15/Supp_Fig_15_stats.xlsx'
+S14 = 'Supp_Fig_07/Supp_Fig_07_stats.xlsx'
+S15 = 'Supp_Fig_08/Supp_Fig_08_stats.xlsx'
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────
@@ -288,37 +288,37 @@ CLAIMS = [
     dict(id='F3.legend.hum.sessions', figure='Fig. 3 legend', what='human sessions in the trajectories', prefix='and 10 humans (',
          source=f3('Human', 'surface', 'n_sessions'), producer=(LONG, 'figure3_stats', 'n_sessions=len(rdf)')),
 
-    # ═════════════ Supp. Fig. 14 -- EDNiX vs FreeSurfer, human (BIDS_Park); PR #77
-    dict(id='S14.n', figure='Supp. Fig. 14', what='subjects with both FreeSurfer and EDNiX values', prefix='(latest session; n = ',
+    # ═════════════ Supp. Fig. 7 -- EDNiX vs FreeSurfer, human (BIDS_Park); PR #77
+    dict(id='S14.n', figure='Supp. Fig. 7', what='subjects with both FreeSurfer and EDNiX values', prefix='(latest session; n = ',
          source=s14('Surface area', 'n'), producer=(FS, 'agreement', 'return dict(n=n'), data=['BIDS_Park']),
     ] + [
-    dict(id=f'S14.{tag}.{q}', figure='Supp. Fig. 14', what=f'{meas}: {q}', prefix=pre, k=k, within='FreeSurfer recon-all',
+    dict(id=f'S14.{tag}.{q}', figure='Supp. Fig. 7', what=f'{meas}: {q}', prefix=pre, k=k, within='FreeSurfer recon-all',
          source=s14(meas, col), producer=(FS, 'agreement', key))
     for meas, tag, pre in (('Surface area', 'area', 'agreement between EDNiX and FreeSurfer was r = '),
                            ('Volume', 'vol', ') for surface area, r = '),
                            ('Thickness', 'thick', ') for grey-matter volume and r = '))
     for q, k, col, key in (('Pearson r', 0, 'pearson_r', 'pearson_r=r'), ('ICC(C,1)', 1, 'icc_c1', 'icc_c1=ic'))
     ] + [
-    dict(id=f'S14.{tag}.bias', figure='Supp. Fig. 14', what=f'{meas}: Bland-Altman bias (%)',
+    dict(id=f'S14.{tag}.bias', figure='Supp. Fig. 7', what=f'{meas}: Bland-Altman bias (%)',
          prefix='(EDNiX - FreeSurfer, % of the mean) of ', k=k, source=s14(meas, 'bias_pct'),
          producer=(FS, 'agreement', 'bias_pct=bias'))
     for k, (meas, tag) in enumerate((('Surface area', 'area'), ('Volume', 'vol'), ('Thickness', 'thick')))
     ] + [
-    dict(id='S14.thick.vertexdef.bias', figure='Supp. Fig. 14', what='thickness bias with the EDNiX definition on FreeSurfer surfaces (%)',
+    dict(id='S14.thick.vertexdef.bias', figure='Supp. Fig. 7', what='thickness bias with the EDNiX definition on FreeSurfer surfaces (%)',
          prefix='on the FreeSurfer surfaces, the thickness offset was ',
          source=s14('Thickness (FreeSurfer surfaces, EDNiX definition)', 'bias_pct'), producer=(FS, 'fs_measures', 'thick_v.append')),
 
-    # ═════════════ Supp. Fig. 15 -- longitudinal vs cross-sectional processing
-    dict(id='S15.ref.diff', figure='Supp. Fig. 15', what='reference session |difference|, max over species x modality (%)',
+    # ═════════════ Supp. Fig. 8 -- longitudinal vs cross-sectional processing
+    dict(id='S15.ref.diff', figure='Supp. Fig. 8', what='reference session |difference|, max over species x modality (%)',
          prefix='gave the same values (median absolute difference ', source=s15_range('ref_abs_diff_pct_median', 'max'),
          producer=(ABL, 'compare_modes', "out['ref_abs_diff_pct_median']"), data=['BIDS_Park', 'BIDS_Zhu_Garin']),
     dict(id='S15.sigma.min', figure='Supp. Fig. 15g', what='residual SD ratio cross/long, min', prefix='residual standard deviation was ',
          source=s15_range('sigma_e_ratio', 'min'), producer=(ABL, 'compare_modes', "out['sigma_e_ratio'] =")),
     dict(id='S15.sigma.max', figure='Supp. Fig. 15g', what='residual SD ratio cross/long, max', prefix='residual standard deviation was ', k=1,
          source=s15_range('sigma_e_ratio', 'max'), producer=(ABL, 'compare_modes', "out['sigma_e_ratio'] =")),
-    dict(id='S15.neq.min', figure='Supp. Fig. 15', what='sample-size equivalence (SE ratio²), min', prefix='would need ',
+    dict(id='S15.neq.min', figure='Supp. Fig. 8', what='sample-size equivalence (SE ratio²), min', prefix='would need ',
          within='cross-sectional mode', source=s15_range('n_equivalent_ratio', 'min'), producer=(ABL, 'compare_modes', "out['n_equivalent_ratio']")),
-    dict(id='S15.neq.max', figure='Supp. Fig. 15', what='sample-size equivalence (SE ratio²), max', prefix='would need ', k=1,
+    dict(id='S15.neq.max', figure='Supp. Fig. 8', what='sample-size equivalence (SE ratio²), max', prefix='would need ', k=1,
          within='cross-sectional mode', source=s15_range('n_equivalent_ratio', 'max'), producer=(ABL, 'compare_modes', "out['n_equivalent_ratio']")),
     dict(id='S15.delta.pmin', figure='Supp. Fig. 15h', what='slope difference long - cross, smallest bootstrap P',
          prefix='slope difference between modes, smallest P = ', source=s15_range('delta_slope_p', 'min'),

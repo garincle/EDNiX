@@ -225,22 +225,22 @@ def compare(old_root, new_paper):
           opj(fig, "Fig5", "5a_surface_maps_selected_vs_excluded.png"))
     # Supp 8
     for n in ("F1e_convergence", "F1c_consensus_by_dataset", "F5_region_invariance"):
-        panel(f"Supp 8 {n}", N("Supp_Fig_08", {"F1e_convergence": "a_", "F5_region_invariance":
+        panel(f"Supp 10 {n}", N("Supp_Fig_10", {"F1e_convergence": "a_", "F5_region_invariance":
                                                "c_"}.get(n, "b_") + n),
               opj(fig, "Paper", n + ".png"))
     # Supp 9
-    table("Supp 9b run r by state", P("Supp_Fig_09"), "b_run_r_by_state",
+    table("Supp 13b run r by state", P("Supp_Fig_13"), "b_run_r_by_state",
           opj(gm, "run_r_to_selection_criterion_by_state.xlsx"))
-    lines("Supp 9b statistics", T("Supp_Fig_09"), opj(fig, "Fig6", "6c_arousal_state_F8b.txt"),
+    lines("Supp 13b statistics", T("Supp_Fig_13"), opj(fig, "Fig6", "6c_arousal_state_F8b.txt"),
           ("Mouse", "Marmoset", "Rat", "Dog", "Macaque", "Human", "Mouselemur", "POOLED"),
           after="b  ")
-    panel("Supp 9a panel", N("Supp_Fig_09", "a_F3_score_distributions"),
+    panel("Supp 13a panel", N("Supp_Fig_13", "a_F3_score_distributions"),
           opj(fig, "Paper", "F3_score_distributions.png"))
-    panel("Supp 9b panel", N("Supp_Fig_09", "b_6c_arousal_state_F8b"),
+    panel("Supp 13b panel", N("Supp_Fig_13", "b_6c_arousal_state_F8b"),
           opj(fig, "Fig6", "6c_arousal_state_F8b.png"))
     # Supp 10
-    table("Supp 10 sibling ranks", P("Supp_Fig_10"), "sibling_ranks", fp, "sibling_ranks")
-    panel("Supp 10 panel", N("Supp_Fig_10", "F16b_proximity_rows"),
+    table("Supp 12 sibling ranks", P("Supp_Fig_12"), "sibling_ranks", fp, "sibling_ranks")
+    panel("Supp 12 panel", N("Supp_Fig_12", "F16b_proximity_rows"),
           opj(fig, "Paper", "F16b_proximity_rows.png"))
     # Supp 11
     table("Supp 11 variability levels", P("Supp_Fig_11"), "variability_levels", fp,
@@ -251,15 +251,15 @@ def compare(old_root, new_paper):
     panel("Supp 11 panel", N("Supp_Fig_11", "F20_variability_levels"),
           opj(fig, "Paper", "F20_variability_levels.png"))
     # Supp 12
-    table("Supp 12a run r to kept map", P("Supp_Fig_12"), "a_run_r_to_kept_map",
+    table("Supp 14a run r to kept map", P("Supp_Fig_14"), "a_run_r_to_kept_map",
           opj(gm, "run_distance_to_reference.xlsx"))
-    table("Supp 12b QC correlations", P("Supp_Fig_12"), "b_qc_correlation_per_dataset",
+    table("Supp 14b QC correlations", P("Supp_Fig_14"), "b_qc_correlation_per_dataset",
           opj(gm, "qc_vs_distance_correlation_per_bids.xlsx"))
-    table("Supp 12b QC meta-analysis", P("Supp_Fig_12"), "b_qc_meta_analysis",
+    table("Supp 14b QC meta-analysis", P("Supp_Fig_14"), "b_qc_meta_analysis",
           opj(gm, "qc_vs_distance_meta_analysis.xlsx"))
-    panel("Supp 12a panel", N("Supp_Fig_12", "a_F9_run_distance_sd"),
+    panel("Supp 14a panel", N("Supp_Fig_14", "a_F9_run_distance_sd"),
           opj(fig, "Paper", "F9_run_distance_sd.png"))
-    panel("Supp 12b panel", N("Supp_Fig_12", "b_F10_qc_vs_distance"),
+    panel("Supp 14b panel", N("Supp_Fig_14", "b_F10_qc_vs_distance"),
           opj(fig, "Paper", "F10_qc_vs_distance.png"))
     return out
 
@@ -293,7 +293,7 @@ def main(old_repo, synthetic_root, work):
     c = context.prepare(context.load_state(root_new, settings=settings))
     c.update(pst.fmri_group(c))
     inp._cache["fmri"] = c
-    sections = ("figure4", "figure5", "supp8", "supp9", "supp10", "supp11", "supp12")
+    sections = ("figure4", "figure5", "supp10", "supp13", "supp12", "supp11", "supp14")
     res = pst.run(sections, inp, paper_dir=paper)
     pfg.run(res, inp, paper_dir=paper)
     checks = compare(root_old, paper)

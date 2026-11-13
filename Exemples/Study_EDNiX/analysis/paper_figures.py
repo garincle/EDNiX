@@ -16,17 +16,17 @@ Nature widths: 89 / 120 / 183 mm; text 5-7 pt; PDF with TrueType fonts, PNG 600 
            (fmri_fingerprints/figure4_panels.py)
   figure5  seed maps, selected vs excluded runs (5a)
   figure6  multimodal profile, Human / Macaque (former Figure XX) library/multimodal_figure.py
-  supp13   FDG profile similarity between subjects        library/multimodal_figure.py
-  supp15   longitudinal vs cross-sectional processing     library/longitudinal_ablation.py
+  supp15   FDG profile similarity between subjects        library/multimodal_figure.py
+  supp8   longitudinal vs cross-sectional processing     library/longitudinal_ablation.py
   supp1-3  pipeline schematics (anat, fMRI, FDG-PET + CT)  library/schematic_*.py
   supp4    acquisition parameters (<= 4, all datasets)    library/acquisition_table.py
   supp5/6  anatomical / functional QC                     library/qc_figures.py
-  supp7    human association vs primary                   library/human_assoc_primary.py
-  supp8    a convergence (F1e), b consensus by dataset (F1c), c region invariance (F5)
-  supp9    a selection scores (F3), b r with the criterion by arousal state (6c)
-  supp10   proximity rows (F16b)
-  supp11   selection vs variability levels (F20)
-  supp12   a SD of run r with the kept map (F9), b QC vs that r (F10)
+  supp9    human association vs primary                   library/human_assoc_primary.py
+  supp10    a convergence (F1e), b consensus by dataset (F1c), c region invariance (F5)
+  supp13    a selection scores (F3), b r with the criterion by arousal state (6c)
+  supp12   proximity rows (F16b)
+  supp11    a selection vs variability levels (F20), b raw species gap (selected vs random)
+  supp14   a SD of run r with the kept map (F9), b QC vs that r (F10)
   stable1  Supplementary Table 1, acquisition parameters (library/acquisition_table.py)
 fMRI panels: fmri_fingerprints/ (fingerprints.py, profile_stats.py, paper_panels.py,
 supp_panels.py), the drawing functions of the former Fig5 pipeline.
@@ -165,49 +165,49 @@ def supp6(res, inp, paper_dir=None):
     return qf.plot_supp5(res["draw"]["df"], pst.out_base("supp6", paper_dir))
 
 
-def supp7(res, inp, paper_dir=None):
+def supp9(res, inp, paper_dir=None):
     from Exemples.Study_EDNiX.analysis.library import human_assoc_primary as hap
-    return hap.draw_supp6(res["draw"]["stats"], pst.out_base("supp7", paper_dir))
+    return hap.draw_supp6(res["draw"]["stats"], pst.out_base("supp9", paper_dir))
 
 
-def supp8(res, inp, paper_dir=None):
+def supp10(res, inp, paper_dir=None):
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import supp_panels as fsp
     c = inp.fmri()
     cfg, ss = c["cfg"], c["ss"]
-    pa, pb, pc = (_panel("supp8", n, paper_dir) for n in
+    pa, pb, pc = (_panel("supp10", n, paper_dir) for n in
                   ("a_F1e_convergence", "b_F1c_consensus_by_dataset", "c_F5_region_invariance"))
     if c.get("conv_df") is not None and not c["conv_df"].empty:
         _try("S7a", fsp.f1e_convergence, c["conv_df"], pa)
     _try("S7b", fsp.f1c_consensus_by_dataset, c["ana_species_profiles"], c["common"],
          c["species_of_label"], cfg["VALUE_COL"], cfg["ZSCORE"], pb)
     _try("S7c", fsp.f5_region_invariance, ss["invariance"], ss["common"], ss["region_mask"], pc)
-    base = pst.out_base("supp8", paper_dir)
+    base = pst.out_base("supp10", paper_dir)
     ps.compose_images([_png(pa), _png(pb), _png(pc)], base, layout=[[0, 1], [2]])
     return base
 
 
-def supp9(res, inp, paper_dir=None):
+def supp13(res, inp, paper_dir=None):
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import fingerprints as ff
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import supp_panels as fsp
     c, d = inp.fmri(), res["draw"]
-    pa, pb = (_panel("supp9", n, paper_dir) for n in
+    pa, pb = (_panel("supp13", n, paper_dir) for n in
               ("a_F3_score_distributions", "b_6c_arousal_state_F8b"))
     _try("S8a", fsp.f3_score_distributions, c["sel"]["rankings"], c["selections"], pa)
     if not d["d"].empty:
         _try("S8b", ff.plot_f8b_by_state, d["d"], d["tests"], pb + ".png", paper=True)
-    base = pst.out_base("supp9", paper_dir)
+    base = pst.out_base("supp13", paper_dir)
     ps.compose_images([_png(pa), _png(pb)], base, layout=[[0], [1]])
     return base
 
 
-def supp10(res, inp, paper_dir=None):
+def supp12(res, inp, paper_dir=None):
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import supp_panels as fsp
     c = inp.fmri()
-    p = _panel("supp10", "F16b_proximity_rows", paper_dir)
+    p = _panel("supp12", "F16b_proximity_rows", paper_dir)
     if c["D"] is not None:
         _try("S9", fsp.f16b_proximity_rows, c["D"], c["dist_all"], c["species_of_label"],
              c["sibling"], p)
-    base = pst.out_base("supp10", paper_dir)
+    base = pst.out_base("supp12", paper_dir)
     ps.compose_images([_png(p)], base, letters=" ")
     return base
 
@@ -215,36 +215,40 @@ def supp10(res, inp, paper_dir=None):
 def supp11(res, inp, paper_dir=None):
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import supp_panels as fsp
     c, d = inp.fmri(), res["draw"]
+    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import selection_validation as sv
     p = _panel("supp11", "F20_variability_levels", paper_dir)
+    pb = _panel("supp11", "b_species_gap_raw", paper_dir)
     if d and not d["vt"].empty:
-        _try("S10", fsp.f20_variability_levels, d["vt"], d["vdraws"], c["species_of_label"], p)
+        _try("S11a", fsp.f20_variability_levels, d["vt"], d["vdraws"], c["species_of_label"], p)
+    if d and d.get("species", {}).get("raw"):
+        _try("S11b", sv.plot_species_raw, d["species"], pb)
     base = pst.out_base("supp11", paper_dir)
-    ps.compose_images([_png(p)], base, letters=" ")
+    ps.compose_images([_png(p), _png(pb)], base, layout=[[0, 1]])
     return base
 
 
-def supp12(res, inp, paper_dir=None):
+def supp14(res, inp, paper_dir=None):
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import supp_panels as fsp
     c, d = inp.fmri(), res["draw"]
-    pa, pb = (_panel("supp12", n, paper_dir) for n in
+    pa, pb = (_panel("supp14", n, paper_dir) for n in
               ("a_F9_run_distance_sd", "b_F10_qc_vs_distance"))
     if d.get("dist") is not None and not d["dist"].empty:
         _try("S11a", fsp.f9_run_distance_sd, d["dist"], pa)
     if d.get("meta") is not None and not d["meta"].empty:
         _try("S11b", fsp.f10_qc_vs_distance, d["meta"], pb, alpha=c["cfg"]["QC_META_ALPHA"])
-    base = pst.out_base("supp12", paper_dir)
+    base = pst.out_base("supp14", paper_dir)
     ps.compose_images([_png(pa), _png(pb)], base, layout=[[0, 1]])
     return base
 
 
-def supp13(res, inp, paper_dir=None):
-    from Exemples.Study_EDNiX.analysis.library import multimodal_figure as mmf
-    return mmf.draw_supp_pairs(res["draw"]["pet"], pst.out_base("supp13", paper_dir))
-
-
 def supp15(res, inp, paper_dir=None):
+    from Exemples.Study_EDNiX.analysis.library import multimodal_figure as mmf
+    return mmf.draw_supp_pairs(res["draw"]["pet"], pst.out_base("supp15", paper_dir))
+
+
+def supp8(res, inp, paper_dir=None):
     from Exemples.Study_EDNiX.analysis.library import longitudinal_ablation as la
-    return la.draw_supp15(res["draw"]["stats"], pst.out_base("supp15", paper_dir))
+    return la.draw_supp15(res["draw"]["stats"], pst.out_base("supp8", paper_dir))
 
 
 def stable1(res, inp, paper_dir=None):

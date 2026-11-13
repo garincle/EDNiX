@@ -10,40 +10,43 @@ lines), and returns them with what paper_figures.py needs to draw the figure.
   figure3   longitudinal morphometry        spline LMM, linear LME, association vs primary
   figure4   selection of the fMRI runs      a  r of every dataset with the LOSO consensus
                                             b, d, e selection vs 10 random runs per dataset:
-                                               noise (pair classes), phylogenetic gradient,
-                                               species identity (former 5b histograms and
-                                               per-dataset convergence: tables only)
+                                               noise (pair classes), species identity (d),
+                                               phylogenetic gradient (e) (former 5b histograms
+                                               and per-dataset convergence: tables only)
                                             c  dataset x dataset distance + sibling test
   figure5   seed maps after selection       runs kept / not kept per dataset, colour ranges
   figure6   multimodal profile (PET, FC,    a-b bratio of 2 human + 1 macaque FDG datasets, each human
             morphometry), Human / Macaque      dataset vs macaque (permutation, BH-FDR); c agreement of the
                                                human datasets (r, CCC, noise ceiling, pair classes);
                                                d z-scored profiles, cross-species / cross-modal r
-  supp13    FDG profile similarity          pairs of subjects by class, label-permutation test
-  supp15    longitudinal vs cross-sectional same scans processed with and without the longitudinal
-            processing (Fig. 3 datasets)       option: residual SD, slope SE and bias (subject bootstrap)
   supp1-3   pipeline schematics (anat MRI,  no statistic
             fMRI, FDG-PET with the CT path)
   supp4     acquisition parameters          the <= 4 parameters reported for every fMRI dataset
   supp5     anatomical QC                   per dataset summary of every panel
   supp6     functional QC                   per dataset summary of every panel
-  supp7     human association vs primary    paired t-tests (BIDS_Park)
-  supp8     behaviour of the selection      convergence, consensus by dataset, invariance
-  supp9     scores and arousal state        selection scores; r with the criterion by state
-  supp10    proximity of the datasets       sibling rank of every dataset
-  supp11    selection vs variability levels animal / session gaps vs random subsets
-  supp12    run dispersion and QC           SD of r with the kept map; QC meta-analysis
+  (supp7    FreeSurfer vs EDNiX, human      validation/supp_freesurfer_comparison.py, not here)
+  supp8     longitudinal vs cross-sectional same scans processed with and without the longitudinal
+            (Fig. 3 datasets)                  option: residual SD, slope SE and bias (subject bootstrap)
+  supp9     human association vs primary    paired t-tests (BIDS_Park)
+  supp10    behaviour of the selection      convergence, consensus by dataset, invariance
+  supp11    selection vs variability levels animal / session gaps vs random subsets;
+                                            b raw species gap, selected vs random
+  supp12    proximity of the datasets       sibling rank of every dataset
+  supp13    scores and arousal state        selection scores; r with the criterion by state;
+                                            units kept per state
+  supp14    run dispersion and QC           SD of r with the kept map; QC meta-analysis
+  supp15    FDG profile similarity          pairs of subjects by class, label-permutation test
   stable1   acquisition parameters          per dataset: n, field, scanner, TR, TE, flip, voxel,
                                             volumes, duration, arousal state; implausible TRs flagged
 
-fMRI statistics (figure4, figure5, supp8-supp12) read only the saved run selection
+fMRI statistics (figure4, figure5, supp10-supp14) read only the saved run selection
 (Statistics/Group_fMRI/run_selection, <FMRI_SELECTION_ROOT>/07_state), with the settings
 of fmri_fingerprints/settings.py: the functions and the settings are those of the former
 Fig5 pipeline (sensitivity_analysis/fmri_selection/exploration_pipeline.py), so every
 number is the one that pipeline wrote (checked on synthetic data: validation/).
 
     python paper_stats.py                  # every figure
-    python paper_stats.py figure4 supp10   # some figures
+    python paper_stats.py figure4 supp12   # some figures
 Everything (statistics and figures): run_paper.py.
 """
 import os
@@ -59,15 +62,15 @@ from Exemples.Study_EDNiX.analysis import paper_data as pdat
 opj = os.path.join
 
 SECTIONS = ("figure1", "figure2", "figure3", "figure4", "figure5", "figure6", "supp1", "supp2",
-            "supp3", "supp4", "supp5", "supp6", "supp7", "supp8", "supp9", "supp10", "supp11",
-            "supp12", "supp13", "supp15", "stable1")
+            "supp3", "supp4", "supp5", "supp6", "supp8", "supp9", "supp10", "supp11", "supp12",
+            "supp13", "supp14", "supp15", "stable1")
 FOLDER = dict(figure1="Figure_1", figure2="Figure_2", figure3="Figure_3",
               figure4="Figure_4", figure5="Figure_5", figure6="Figure_6", supp1="Supp_Fig_01",
               supp2="Supp_Fig_02", supp3="Supp_Fig_03", supp4="Supp_Fig_04",
               supp5="Supp_Fig_05",
-              supp6="Supp_Fig_06", supp7="Supp_Fig_07", supp8="Supp_Fig_08",
-              supp9="Supp_Fig_09", supp10="Supp_Fig_10", supp11="Supp_Fig_11",
-              supp12="Supp_Fig_12", supp13="Supp_Fig_13", supp15="Supp_Fig_15",
+              supp6="Supp_Fig_06", supp9="Supp_Fig_09", supp10="Supp_Fig_10",
+              supp13="Supp_Fig_13", supp12="Supp_Fig_12", supp11="Supp_Fig_11",
+              supp14="Supp_Fig_14", supp15="Supp_Fig_15", supp8="Supp_Fig_08",
               stable1="Supp_Table_01")
 
 
@@ -301,20 +304,20 @@ def figure4(inp):
                           val["heldout"]["p"])})]),
                   c_heldout_per_dataset=val["heldout"]["per_dataset"],
                   b_pair_levels=val["levels"],
-                  e_species_signal=pd.DataFrame(dict(
+                  d_species_signal=pd.DataFrame(dict(
                       pool=["all runs", "selected"] + ["random"] * len(val["species"]["rand"]),
                       gap=[val["species"]["gap_all"], val["species"]["gap_sel"],
                            *val["species"]["rand"]],
                       p_label_permutation=[val["species"]["p_all"], val["species"]["p_sel"],
                                            *val["species"]["rand_p"]])),
-                  d_phylo_heldout=pd.DataFrame(dict(
+                  e_phylo_heldout=pd.DataFrame(dict(
                       pool=["selected"] + ["random"] * len(val["phylo_heldout"]["random"]),
                       rho=[val["phylo_heldout"]["selected"], *val["phylo_heldout"]["random"]],
                       p=[val["phylo_heldout"]["p"]] + [np.nan]
                       * len(val["phylo_heldout"]["random"]))),
-                  d_phylo_delta=pd.DataFrame([dict(profiles=k, **v_) for k, v_ in
+                  e_phylo_delta=pd.DataFrame([dict(profiles=k, **v_) for k, v_ in
                                               val["species"]["mantel_delta"].items()]),
-                  d_phylo_mantel=pd.DataFrame(
+                  e_phylo_mantel=pd.DataFrame(
                       [dict(profiles=k, pool=pool, rho=rho, p=p_)
                        for k, m in val["species"]["mantel"].items()
                        for pool, (rho, p_) in (("all runs", m["all"]),
@@ -470,7 +473,7 @@ def supp6(inp):
                 lines=lines, draw=dict(df=df))
 
 
-def supp7(inp):
+def supp9(inp):
     from Exemples.Study_EDNiX.analysis.library import human_assoc_primary as hap
     morph, age = inp.human_park()
     st = hap.supp6_stats(morph, age)
@@ -478,7 +481,7 @@ def supp7(inp):
                 draw=dict(stats=st))
 
 
-def supp8(inp):
+def supp10(inp):
     """a  convergence of the iterative selection (F1e)
        b  regional profile of every dataset (all runs) and the consensus (F1c)
        c  invariance of every region; regions used by the score (F5)"""
@@ -509,10 +512,11 @@ def supp8(inp):
         names="region") if per else f1c, c_region_invariance=inv), lines=lines, draw={})
 
 
-def supp9(inp):
+def supp13(inp):
     """a  selection score of every unit, per dataset (F3)
        b  r of every run with its dataset's final-round selection criterion, by arousal
-          state; within-animal sign-flip test (F8b / 6c)"""
+          state; within-animal sign-flip test (F8b / 6c)
+       c  units kept in each state (datasets holding both states)"""
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import profile_stats as fa
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import paper_panels as fpp
     c = inp.fmri()
@@ -545,11 +549,46 @@ def supp9(inp):
     state_t = pd.DataFrame([dict(label=k, **{kk: vv for kk, vv in v.items()
                                              if kk != "subject_diffs"})
                             for k, v in tests.items()])
-    return dict(tables=dict(a_selection_scores=rk, b_run_r_by_state=d, b_state_tests=state_t),
+    kept_t, klines = _kept_by_state(d, list(tests))
+    lines += klines
+    return dict(tables=dict(a_selection_scores=rk, b_run_r_by_state=d, b_state_tests=state_t,
+                            c_kept_by_state=kept_t),
                 lines=lines, draw=dict(d=d, tests=tests))
 
 
-def supp10(inp):
+def _kept_by_state(d, labels):
+    """Number of units (run x seed) kept by the selection in each arousal state, for the
+    datasets holding both states (Clément, V4 comment: 'XX awake and XX anaesthetised runs
+    kept'). Fisher exact test (two-sided) of kept vs not kept x awake vs anaesthetised per
+    dataset; it treats units as independent, so it is descriptive only (runs are nested in
+    animals; the within-animal test of section b is the inferential one)."""
+    from scipy.stats import fisher_exact
+    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import fingerprints as ff
+    if d is None or d.empty or "is_kept" not in d or "state_class" not in d:
+        return pd.DataFrame(), ["c  kept units by state: not computed (no state or kept column)"]
+    rows, lines = [], ["c  units kept by the selection, by arousal state (datasets with both "
+                       "states; Fisher exact test, descriptive)"]
+    for lab in labels:
+        g = d[d["label"] == lab]
+        cnt = {}
+        for st in (ff.AWAKE, ff.ANESTH):
+            s_ = g[g["state_class"] == st]
+            cnt[st] = (int(s_["is_kept"].sum()), int(len(s_)))
+        (ka, na), (kn, nn) = cnt[ff.AWAKE], cnt[ff.ANESTH]
+        p = (fisher_exact([[ka, na - ka], [kn, nn - kn]])[1]
+             if min(na, nn) > 0 else np.nan)
+        rows.append(dict(label=lab, kept_awake=ka, n_awake=na, kept_anaesthetised=kn,
+                         n_anaesthetised=nn, p_fisher=p))
+        lines.append(f"  {lab}: kept {ka}/{na} awake, {kn}/{nn} anaesthetised; "
+                     f"Fisher p = {ff._fmt_p(p) if p == p else 'n/a'}")
+    tot = pd.DataFrame(rows)
+    if not tot.empty:
+        lines.append(f"  total: kept {int(tot['kept_awake'].sum())} awake and "
+                     f"{int(tot['kept_anaesthetised'].sum())} anaesthetised units")
+    return tot, lines
+
+
+def supp12(inp):
     """Proximity of every dataset to its sibling and to the other species (F16b)."""
     c = inp.fmri()
     return dict(tables=dict(distances=c["dist_all"],
@@ -559,8 +598,9 @@ def supp10(inp):
 
 
 def supp11(inp):
-    """Inter-run / inter-session / inter-animal similarity, selected runs vs random
-    subsets of the same size (F20)."""
+    """a  inter-run / inter-session / inter-animal similarity, selected runs vs random
+          subsets of the same size (F20)
+       b  species gap on the raw group profiles (common profile kept), selected vs random"""
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import fingerprints as ff
     c = inp.fmri()
     cfg = c["cfg"]
@@ -574,11 +614,16 @@ def supp11(inp):
     lines = ff.variability_result_lines(vt, pooled) if not vt.empty else ["no dataset with "
                                                                           "several runs per animal"]
     pooled_t = pd.DataFrame([dict(gap=k, **t) for k, t in pooled.items() if t])
-    return dict(tables=dict(variability_levels=vt, pooled=pooled_t), lines=lines,
-                draw=dict(vt=vt, vdraws=vdraws))
+    # b (Clément, V4 comment): species gap on the raw group profiles, selected vs random
+    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import selection_validation as sv
+    sp = sv.compute(c)["species"]
+    lines = ["a  " + lines[0]] + lines[1:] + sv.raw_gap_lines(sp)
+    return dict(tables=dict(variability_levels=vt, pooled=pooled_t,
+                            b_species_gap_raw=sv.raw_gap_table(sp)), lines=lines,
+                draw=dict(vt=vt, vdraws=vdraws, species=sp))
 
 
-def supp12(inp):
+def supp14(inp):
     """a  SD across runs of r with the dataset's kept group map (F9)
        b  external QC vs that r: per-dataset correlations, meta-analysis (F10)"""
     from Exemples.Study_EDNiX.analysis.fmri_fingerprints import profile_stats as fa
@@ -621,7 +666,7 @@ def supp12(inp):
     return dict(tables=tables, lines=lines, draw=draw)
 
 
-def supp13(inp):
+def supp15(inp):
     """Similarity of the regional FDG profiles between pairs of subjects (former right half of Figure 6c):
     classes same subject / other session, within a dataset, between the human datasets, human vs macaque."""
     pet = inp.multimodal()["pet"]
@@ -636,7 +681,7 @@ def supp13(inp):
                 draw=dict(pet=pet))
 
 
-def supp15(inp):
+def supp8(inp):
     """Longitudinal vs cross-sectional processing of the Fig. 3 datasets
     (library/longitudinal_ablation.py): same scans, same LMM as the Fig. 3 inset."""
     from Exemples.Study_EDNiX.analysis.library import longitudinal_ablation as la

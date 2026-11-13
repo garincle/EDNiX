@@ -1,4 +1,4 @@
-"""Supp. Fig. 15 (library/longitudinal_ablation.py) on synthetic longitudinal data."""
+"""Supp. Fig. 8 (library/longitudinal_ablation.py) on synthetic longitudinal data."""
 import numpy as np
 import pandas as pd
 import pytest

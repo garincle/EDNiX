@@ -260,6 +260,9 @@ def species_signal(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, n_perm=2000, s
         gp = ss.gap_perm_p(res, sp_of_ds, rng, n_perm) if with_p else (ss.gap(res, sp_of_ds), None)
         mant = {k: ss.species_mantel(prof, sp_of_ds, with_p=with_p)
                 for k, prof in (("raw", g), ("residual", res))}
+        # raw gap (common profile kept): Supplementary Fig. 11b (Clément, V4 comment)
+        mant["gap_raw"] = (ss.gap_perm_p(g, sp_of_ds, rng, n_perm) if with_p
+                           else (ss.gap(g, sp_of_ds), None))
         return gp, mant
 
     (gap_all, p_all), m_all = stats_for(idx_all, True)
@@ -282,8 +285,14 @@ def species_signal(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, n_perm=2000, s
                          random_p=np.array([x[1][k][1] for x in draws]),
                          p_vs_random=float((1 + np.sum(rr >= m_sel[k][0] - 1e-12))
                                            / (n_draws + 1)))
+    rr = np.array([x[1]["gap_raw"][0] for x in draws])
+    raw = dict(gap_all=m_all["gap_raw"][0], p_all=m_all["gap_raw"][1],
+               gap_sel=m_sel["gap_raw"][0], p_sel=m_sel["gap_raw"][1], rand=rr,
+               rand_p=np.array([x[1]["gap_raw"][1] for x in draws]),
+               p_vs_random=float((1 + np.sum(rr >= m_sel["gap_raw"][0] - 1e-12))
+                                 / (n_draws + 1)), n_draws=n_draws)
     return dict(gap_all=gap_all, p_all=p_all, gap_sel=gap_sel, p_sel=p_sel, rand=rand,
-                rand_p=rand_p, mantel_delta=delta,
+                rand_p=rand_p, mantel_delta=delta, raw=raw,
                 p_vs_random=float((1 + np.sum(rand >= gap_sel - 1e-12)) / (n_draws + 1)),
                 n_draws=n_draws, mantel=mantel)
 
@@ -320,7 +329,19 @@ def phylo_heldout(vecs, ds, sp_of_ds, n_splits=N_SPLITS, n_draws=N_DRAWS, n_keep
                 p=float((1 + np.sum(rand >= sel - 1e-12)) / (n_draws + 1)))
 
 
+_CACHE = {}
+
+
 def compute(c, n_splits=N_SPLITS, n_draws=N_DRAWS):
+    """All numbers of Fig. 4b, d, e and Supplementary Fig. 11b. Cached per fMRI context
+    (figure4 and supp11 of paper_stats call it in the same process)."""
+    key = (id(c), n_splits, n_draws)
+    if key not in _CACHE:
+        _CACHE[key] = _compute(c, n_splits, n_draws)
+    return _CACHE[key]
+
+
+def _compute(c, n_splits=N_SPLITS, n_draws=N_DRAWS):
     vecs, ds, selected, sp_of_ds, labels = run_vectors(c)
     h = heldout(vecs, ds, sp_of_ds, n_splits=n_splits, n_draws=n_draws)
     h["per_dataset"].insert(0, "label", [labels[d] for d in h["per_dataset"]["dataset"]])
@@ -368,6 +389,7 @@ def result_lines(v):
                  f"draws {np.median(sp['rand_p']):.3g}); selected {sp['gap_sel']:+.3f} "
                  f"(label permutation P = {sp['p_sel']:.4g}); selected vs random P = "
                  f"{sp['p_vs_random']:.4g} ({sp['n_draws']} draws)")
+    lines += raw_gap_lines(sp)
     lines.append("d  phylogenetic gradient: Spearman Mantel between the species distance (1 - r "
                  "of the species mean group profiles) and the MRCA age (exact permutation, "
                  f"{len(sp['mantel']['raw']['all']) and ''}one-sided)")
@@ -571,6 +593,54 @@ def draw_species(ax, sp, fs=5.5):
     _draw_pools(ax, sp["gap_all"], sp["p_all"], sp["rand"], float(np.median(sp["rand_p"])),
                 sp["gap_sel"], sp["p_sel"],
                 sp["p_vs_random"], "same - different species, r\n(common profile removed)", fs)
+
+
+def raw_gap_lines(sp):
+    """Supplementary Fig. 11b: the same test on the raw group profiles (common profile kept)."""
+    r = sp.get("raw")
+    if not r:
+        return []
+    return ["S11b  raw species gap (common profile kept): all runs "
+            f"{r['gap_all']:+.3f} (label permutation P = {r['p_all']:.4g}); random 10 per "
+            f"dataset median {np.median(r['rand']):+.3f}; selected {r['gap_sel']:+.3f} (label "
+            f"permutation P = {r['p_sel']:.4g}); selected vs random one-sided P = "
+            f"{r['p_vs_random']:.4g} ({r['n_draws']} draws). Mixes the species signal with how "
+            "closely each species follows the common profile (the target of the criterion), "
+            "hence not used in Fig. 4d"]
+
+
+def raw_gap_table(sp):
+    r = sp.get("raw")
+    if not r:
+        return pd.DataFrame()
+    return pd.DataFrame(dict(pool=["all runs", "selected"] + ["random"] * len(r["rand"]),
+                             gap=[r["gap_all"], r["gap_sel"], *r["rand"]],
+                             p_label_permutation=[r["p_all"], r["p_sel"], *r["rand_p"]],
+                             p_selected_vs_random=[np.nan, r["p_vs_random"]]
+                             + [np.nan] * len(r["rand"])))
+
+
+def draw_species_raw(ax, sp, fs=5.5):
+    """Supplementary Fig. 11b: species gap on the raw group profiles (common profile kept)."""
+    r = sp["raw"]
+    _draw_pools(ax, r["gap_all"], r["p_all"], r["rand"], float(np.median(r["rand_p"])),
+                r["gap_sel"], r["p_sel"], r["p_vs_random"],
+                "same - different species, r\n(raw profiles)", fs)
+
+
+def plot_species_raw(sp, out, width_mm=45, height_mm=55):
+    """Stand-alone panel (Supplementary Fig. 11b); writes <out>.png/.pdf."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from Exemples.Study_EDNiX.analysis.fmri_fingerprints import profile_stats as fa
+    with fa.paper_style():
+        fig, ax = plt.subplots(figsize=(width_mm / 25.4, height_mm / 25.4))
+        draw_species_raw(ax, sp)
+        ax.set_title("Raw species gap", fontsize=6, fontweight="bold", pad=1.5, loc="left")
+        fa.save_paper(fig, out)
+        plt.close(fig)
+    return out
 
 
 def draw_phylo(ax, sp, fs=5.5):
