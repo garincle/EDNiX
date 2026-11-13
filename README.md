@@ -93,6 +93,7 @@ To open the interface of a remote server from your computer: `bash GUI/open_remo
 
 | Topic | Page |
 |---|---|
+| **Step-by-step guides (beginner + developer), one per modality** | [ANAT](docs/guide/anat.html), [fMRI](docs/guide/fmri.html), [PET](docs/guide/pet.html), [CT](docs/guide/ct.html) — online: <https://garincle.github.io/EDNiX/guide/> |
 | Installation, containers, atlas library | [docs/installation.md](docs/installation.md) |
 | Writing and running launchers | [docs/launchers.md](docs/launchers.md) |
 | BIDS data and subject selection | [docs/bids.md](docs/bids.md) |

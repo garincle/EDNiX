@@ -1,0 +1,920 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EDNiX ANAT Guide</title>
+<style>
+:root{--ink:#20262d;--muted:#66717b;--soft:#f5f7f8;--panel:#ffffff;--line:#dce2e6;--green:#285a42;--green2:#edf5f0;--orange:#a95310;--orange2:#fff6ec;--blue:#345b78;--blue2:#eef4f8;--red:#9c3c35;--red2:#fbefee;--code:#f3f5f6;--sidebar:#f7f8f8;--max:1120px}
+*{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;color:var(--ink);background:#fff;font:15.5px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif} a{color:var(--green)} code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border:1px solid #e3e7e9;border-radius:4px;padding:.08rem .3rem;font-size:.91em;overflow-wrap:anywhere} .layout{display:grid;grid-template-columns:290px minmax(0,1fr);min-height:100vh}
+.sidebar{position:sticky;top:0;height:100vh;overflow:auto;background:var(--sidebar);border-right:1px solid var(--line);padding:22px 18px 30px} .brand{border-top:5px solid var(--green);padding-top:13px;margin-bottom:18px} .brand .small{font:700 11px/1.2 ui-monospace,monospace;color:var(--orange);letter-spacing:.08em;text-transform:uppercase} .brand h1{font-size:23px;line-height:1.1;margin:5px 0 6px;color:#1c3529} .brand p{font-size:12.5px;color:var(--muted);margin:0}
+.search{width:100%;padding:9px 10px;border:1px solid #ccd4d8;border-radius:5px;background:#fff;margin:4px 0 14px;font:inherit;font-size:13px} .where{font-size:11.5px;color:var(--muted);padding:9px 10px;background:#fff;border:1px solid var(--line);border-radius:5px;margin-bottom:16px} .where b{display:block;color:var(--green);margin-bottom:2px}
+.nav-group{margin:15px 0} .nav-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:#8a949c;font-weight:800;margin:0 8px 5px} .nav-group a{display:block;text-decoration:none;color:#4f5a63;padding:5px 8px;border-left:3px solid transparent;border-radius:0 4px 4px 0;font-size:13px} .nav-group a:hover{background:#eef1f2;color:#25333c} .nav-group a.active{border-left-color:var(--green);background:#eaf1ed;color:#163d2b;font-weight:700}
+main{min-width:0} .topbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.94);backdrop-filter:blur(7px);border-bottom:1px solid var(--line)} .topbar-inner{max-width:var(--max);margin:auto;padding:9px 28px;font-size:12.5px;color:var(--muted)} .topbar code{background:transparent;border:0;padding:0;color:var(--green)} .content{max-width:var(--max);margin:auto;padding:42px 28px 90px}
+.hero{padding-bottom:30px;border-bottom:1px solid var(--line)} .kicker{font:800 11px ui-monospace,monospace;color:var(--orange);letter-spacing:.08em;text-transform:uppercase} .hero h1{font-size:42px;line-height:1.12;letter-spacing:-.035em;margin:8px 0 14px} .hero .lead{font-size:19px;max-width:900px;color:#4d5962;margin:0} .source-note{margin-top:22px;padding:12px 15px;border-left:4px solid var(--green);background:var(--green2);font-size:13px;color:#44514a}
+.doc-section{padding-top:42px;scroll-margin-top:60px} .doc-section>h2{font-size:28px;letter-spacing:-.02em;margin:0 0 8px} .doc-section>.intro{color:var(--muted);max-width:900px;margin:0 0 20px} .callout{padding:16px 18px;border:1px solid var(--line);border-left:4px solid var(--blue);background:var(--blue2);border-radius:4px;margin:18px 0} .callout strong{color:#244b67} .callout.warning{border-left-color:var(--orange);background:var(--orange2)} .callout.danger{border-left-color:var(--red);background:var(--red2)}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0} .legend span,.status{display:inline-flex;align-items:center;border:1px solid var(--line);padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#fff} .status-manual{border-color:#e9c498;background:#fff7ec;color:#8a470d} .status-conditional,.status-optional{border-color:#b9d0de;background:#f2f8fb;color:#315b78} .status-core{border-color:#b8d1c2;background:#f0f7f3;color:#285a42} .status-surface{border-color:#c5c8e1;background:#f4f4fb;color:#4c4f82} .status-qc{border-color:#bdd0bb;background:#f3f8f1;color:#3d6838} .status-destructive{border-color:#e2b4b0;background:#fcf2f1;color:#8e342f} .status-gap{color:#788087;background:#fafafa} .status-orchestration,.status-automatic{color:#51616c;background:#f2f5f6}
+.tree{background:#1f2924;color:#e7efe9;border-radius:6px;padding:18px 20px;overflow:auto;font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre} .tree .d{color:#8dc4a6} .tree .f{color:#f2c58b}
+.roadmap{display:grid;gap:7px;margin-top:18px} .road-row{display:grid;grid-template-columns:66px 1fr auto;align-items:center;border:1px solid var(--line);border-radius:5px;background:#fff;padding:9px 11px;text-decoration:none;color:inherit} .road-row:hover{border-color:#aab8b1;background:#fbfcfb} .road-num{font:800 12px ui-monospace,monospace;color:var(--green)} .road-title{font-weight:700} .road-note{font-size:12px;color:var(--muted)}
+.route-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px} .route-card{border:1px solid var(--line);border-radius:6px;padding:15px;background:#fff} .route-card h3{font-size:15px;margin:0 0 5px} .route-card p{font-size:13px;color:var(--muted);margin:0} .route-card code{display:block;margin-top:8px}
+.stage{border:1px solid #d8dfe2;border-radius:7px;margin:28px 0;scroll-margin-top:64px;box-shadow:0 1px 2px rgba(31,43,50,.04);background:#fff} .stage.filtered{display:none} .stage-head{display:grid;grid-template-columns:66px minmax(0,1fr) auto;gap:14px;align-items:start;padding:18px 20px;border-bottom:1px solid var(--line);background:#fbfcfc;border-radius:7px 7px 0 0} .step-number{width:54px;min-height:40px;display:grid;place-items:center;background:#263c31;color:#fff;border-radius:4px;font:800 12px ui-monospace,monospace;padding:6px;text-align:center} .stage-title-wrap h2{font-size:23px;line-height:1.2;margin:2px 0 5px;letter-spacing:-.015em} .eyebrow{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--orange);font-weight:800} .script-line code{font-size:11.5px;color:#4d5962} .stage-body{padding:20px} .why{border-left:4px solid var(--green);padding:1px 0 1px 14px;margin-bottom:19px} .why strong{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--green)} .why p{margin:4px 0 0;color:#45515a}
+.io-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px} .io-block{min-width:0} .io-title{font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px;color:#4e5962} .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:5px} table{width:100%;border-collapse:collapse} td{padding:9px 10px;border-bottom:1px solid #e9edef;vertical-align:top;font-size:12.5px} tr:last-child td{border-bottom:0} td:first-child{width:53%} .io-kind{display:inline-block;font:800 9px ui-monospace,monospace;letter-spacing:.04em;color:var(--green);margin-right:6px;vertical-align:1px} .io-kind.warn{color:var(--orange)} .io-kind.keep{color:var(--blue)} table code{font-size:11.2px}
+.how-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(250px,.65fr);gap:18px;margin-top:20px} .how-grid h3,.inspect h3{font-size:14px;margin:0 0 8px} .how-grid ol{margin:0;padding-left:22px} .how-grid li{margin:5px 0} .inspect{background:#f7f9f9;border:1px solid var(--line);border-radius:5px;padding:14px} .inspect p{font-size:13px;color:#59656e;margin:0} .next{margin-top:18px;padding:10px 12px;background:#f2f7f4;border-radius:4px;color:#365044;font-size:13px} .dev{margin-top:16px;border-top:1px solid var(--line);padding-top:11px} .dev summary{cursor:pointer;font-weight:700;font-size:12.5px;color:#53616a} .dev-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:10px} .dev-grid>div{padding:10px;background:#f7f8f8;border-radius:4px;min-width:0} .dev-grid span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#818b92;margin-bottom:4px} .dev-grid code{font-size:10.5px}
+.method-grid,.glossary-grid,.devmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px} .mini-card{border:1px solid var(--line);border-radius:5px;padding:14px;background:#fff} .mini-card h3{font-size:14px;margin:0 0 5px} .mini-card p{font-size:13px;color:var(--muted);margin:0} .mini-card code{display:block;margin-top:7px;font-size:11px}
+footer{margin-top:50px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:#7a858d}
+@media(max-width:1050px){.layout{grid-template-columns:245px 1fr}.sidebar{padding-left:12px;padding-right:12px}.io-grid,.route-grid{grid-template-columns:1fr}}
+@media(max-width:780px){.layout{display:block}.sidebar{position:relative;height:auto;border-right:0;border-bottom:1px solid var(--line)}.nav-group{display:none}.where{display:none}.topbar{position:relative}.content{padding:28px 16px 70px}.hero h1{font-size:34px}.stage-head{grid-template-columns:54px 1fr}.stage-head .status{grid-column:2;justify-self:start}.io-grid,.how-grid,.dev-grid,.method-grid,.glossary-grid,.devmap-grid{grid-template-columns:1fr}.road-row{grid-template-columns:52px 1fr}.road-note{display:none}}
+@media print{.sidebar,.topbar,.search{display:none!important}.layout{display:block}.content{max-width:none;padding:0 20px}.stage{break-inside:avoid;box-shadow:none}details.dev{display:none}}
+.nav-group.guides a.active{border-left-color:var(--orange);background:var(--orange2);color:#6d3a0c;font-weight:700}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <div class="brand"><div class="small">EDNiX documentation</div><h1>ANAT pipeline</h1><p>Beginner-first, code-grounded anatomical processing guide.</p></div>
+  <input class="search" id="search" type="search" placeholder="Filter stages…" aria-label="Filter stages">
+  <div class="where"><b>You are here</b><span id="whereText">Overview</span></div>
+  <nav><div class="nav-group guides"><div class="nav-label">EDNiX guides</div><a href="index.html">Overview</a><a href="anat.html" class="active">ANAT pipeline</a><a href="fmri.html">fMRI pipeline</a><a href="pet.html">PET pipeline</a><a href="ct.html">CT pipeline</a></div><div class="nav-group"><div class="nav-label">Start here</div><a href="#overview" data-target="overview">Overview</a><a href="#mental-model" data-target="mental-model">How to read the pipeline</a><a href="#directory-map" data-target="directory-map">Output directory map</a><a href="#roadmap" data-target="roadmap">Processing roadmap</a><a href="#routing" data-target="routing">Registration routing</a></div><div class="nav-group"><div class="nav-label">Volume preprocessing</div><a href="#step0" data-target="step0">0 · Launcher</a><a href="#step1" data-target="step1">1 · Prepare/orient</a><a href="#step2" data-target="step2">2 · Initial skull strip</a><a href="#itk1" data-target="itk1">itk_1 · Mask QC</a></div><div class="nav-group"><div class="nav-label">Study-template branch</div><a href="#step3" data-target="step3">3 · Build template</a><a href="#step4" data-target="step4">4 · Template skull strip</a></div><div class="nav-group"><div class="nav-label">Refinement + registration</div><a href="#step5" data-target="step5">5 · Refine mask + N4</a><a href="#itk2" data-target="itk2">itk_2 · Mask QC</a><a href="#step6" data-target="step6">6 · Register subject</a><a href="#step7" data-target="step7">7 · Template ↔ atlas</a></div><div class="nav-group"><div class="nav-label">Final native products</div><a href="#step8" data-target="step8">8 · Back to native</a><a href="#itk3" data-target="itk3">itk_3 · Final mask QC</a><a href="#isotropic" data-target="isotropic">Isotropic prep</a><a href="#step9" data-target="step9">9 · fMRI masks</a></div><div class="nav-group"><div class="nav-label">Surface branch</div><a href="#step10" data-target="step10">10 · FreeSurfer prep</a><a href="#step11" data-target="step11">11 · White surfaces</a><a href="#sphere" data-target="sphere">sphere · Spherical reg.</a><a href="#step12" data-target="step12">12 · Pial surfaces</a><a href="#flatmap" data-target="flatmap">flat_map</a><a href="#step13" data-target="step13">13 · No stage</a><a href="#step14" data-target="step14">14 · Finalize FS</a><a href="#step15" data-target="step15">15 · Workbench</a></div><div class="nav-group"><div class="nav-label">Finish</div><a href="#step16" data-target="step16">16 · Automated QC</a><a href="#batch" data-target="batch">Batch runs + reports</a><a href="#cleanup" data-target="cleanup">Clean · Cleanup</a><a href="#skullstrip" data-target="skullstrip">Skull-strip methods</a><a href="#glossary" data-target="glossary">File glossary</a><a href="#developer-map" data-target="developer-map">Developer map</a></div></nav>
+</aside>
+<main>
+<div class="topbar"><div class="topbar-inner">Source tree: <code>modalities/anat</code> · path contract: <code>Tools/getpath.py</code> · code: <a href="https://github.com/garincle/EDNiX/tree/master/modalities/anat">GitHub</a></div></div>
+<div class="content">
+<section class="hero" id="overview">
+  <div class="kicker">EDNiX · ANATOMICAL MRI</div>
+  <h1>How EDNiX turns BIDS anatomy into final volumes, masks, surfaces and QC</h1>
+  <p class="lead">This page is written for two readers at once: a beginner who wants to understand what happens to their T1w/T2w data, and a developer who needs to know which script creates which file. The workflow is explained in execution order, not folder order.</p>
+  <div class="source-note"><b>Source-of-truth rule:</b> stage order, filenames, directory structure and rerun behaviour on this page were checked against the EDNiX repository (<code>modalities/anat</code>, <code>Tools/getpath.py</code>, master, 13 November 2026). When the code and this page disagree, the code wins: update the stage’s input/output table first. Every parameter is listed in the <a href="https://github.com/garincle/EDNiX/blob/master/docs/reference/anat_parameters.md">anatomical parameter reference</a>.</div>
+</section>
+
+<section class="doc-section" id="mental-model">
+<h2>How to read this pipeline</h2>
+<p class="intro">Each stage uses the same structure: why it exists, what it reads, what it creates, how those outputs are created, what to inspect, and what consumes the result next.</p>
+<div class="legend"><span>FILE = concrete on-disk file/pattern</span><span>SETTING = runtime configuration</span><span>STATE = in-memory routing/control</span><span>SIDE EFFECT = rerun or deletion</span></div>
+<div class="callout"><strong>Three names matter:</strong> <code>&lt;ID&gt;</code> is the subject identifier used internally, <code>&lt;Timage&gt;</code> is an anatomical contrast such as T1w or T2w, and <code>&lt;type_norm&gt;</code> is the contrast selected as the registration/normalization reference.</div>
+<div class="callout warning"><strong>“Final” does not mean the same thing at every point.</strong> Files containing <code>desc-SS-step1</code> and <code>desc-SS-step2</code> are intermediate skull-stripped anatomies. The canonical final subject anatomy created in Step 8 is <code>&lt;ID&gt;_space-acpc_desc-SS_&lt;Timage&gt;.nii.gz</code>.</div>
+</section>
+
+<section class="doc-section" id="directory-map">
+<h2>Where EDNiX writes anatomical files</h2>
+<p class="intro">For each subject/session, <code>Tools/getpath.py</code> defines the anatomical derivative tree below the session’s <code>anat</code> directory.</p>
+<div class="tree"><span class="d">&lt;data_path&gt;/anat/</span>
+├── <span class="d">preprocessing/</span>          working images, bias correction, FreeSurfer-prep NIfTIs
+├── <span class="d">matrices/</span>               ACPC/template affine and warp transforms
+├── <span class="d">native/</span>
+│   ├── <span class="d">volumes/</span>            canonical ACPC/native anatomical volumes
+│   │   ├── <span class="d">masks/</span>          brain/tissue masks and manual overrides
+│   │   └── <span class="d">labels/</span>         4FS and atlas segmentations
+│   └── <span class="d">surfaces/</span>           Workbench/GIFTI native and standard-mesh products
+├── <span class="d">freesurfer/</span>
+│   └── <span class="d">&lt;ID&gt;/</span>
+│       ├── <span class="d">mri/</span>            orig.mgz, brain.mgz, wm.mgz, aseg.mgz, filled.mgz…
+│       ├── <span class="d">surf/</span>           white, pial, sphere, inflated, mid surfaces…
+│       ├── <span class="d">label/</span>          cortical labels / annotations
+│       ├── <span class="d">stats/</span>          FreeSurfer statistics
+│       └── <span class="d">scripts/</span>
+├── <span class="d">templates/</span>
+│   ├── <span class="d">&lt;reference&gt;/volumes/</span>    subject↔reference derivatives
+│   ├── <span class="d">studyTemplate/volumes/</span>   when study-template routing is enabled
+│   └── <span class="d">refSession/volumes/</span>      when longitudinal routing is enabled
+└── <span class="d">QC_anat/</span>               final automated anatomical QC
+
+<span class="d">&lt;bids_dir&gt;/sty_template/</span>       cohort-level study-template workspace
+├── <span class="d">derivatives/tmp/</span>             template construction working files
+└── <span class="d">derivatives/acpc/</span>            template transforms / volumes / masks / labels</div>
+</section>
+
+<section class="doc-section" id="roadmap">
+<h2>The whole ANAT route on one page</h2>
+<p class="intro">This is the active execution order in the current launcher. Study-template stages are cohort-level and conditional; the surface branch starts after the final native-space mask has been accepted.</p>
+<div class="roadmap">
+<a class="road-row" href="#step0"><span class="road-num">0</span><span class="road-title">Launcher</span><span class="road-note">plan only</span></a><a class="road-row" href="#step1"><span class="road-num">1</span><span class="road-title">Prepare / average / orient anatomy</span><span class="road-note">per subject/session</span></a><a class="road-row" href="#step2"><span class="road-num">2</span><span class="road-title">Initial skull strip + ACPC workspace</span><span class="road-note">per subject/session</span></a><a class="road-row" href="#itk1"><span class="road-num">itk_1</span><span class="road-title">Manual first-mask QC</span><span class="road-note">can rerun Step 2</span></a><a class="road-row" href="#step3"><span class="road-num">3</span><span class="road-title">Build study template</span><span class="road-note">optional cohort branch</span></a><a class="road-row" href="#step4"><span class="road-num">4</span><span class="road-title">Skull-strip study template</span><span class="road-note">optional cohort branch</span></a><a class="road-row" href="#step5"><span class="road-num">5</span><span class="road-title">Refine mask + masked N4</span><span class="road-note">per subject/session</span></a><a class="road-row" href="#itk2"><span class="road-num">itk_2</span><span class="road-title">Manual second-mask QC</span><span class="road-note">can rerun Step 5</span></a><a class="road-row" href="#step6"><span class="road-num">6</span><span class="road-title">Subject → selected reference registration</span><span class="road-note">route-dependent</span></a><a class="road-row" href="#step7"><span class="road-num">7</span><span class="road-title">Study template ↔ atlas</span><span class="road-note">study-template only</span></a><a class="road-row" href="#step8"><span class="road-num">8</span><span class="road-title">Back to subject + final SS anatomy</span><span class="road-note">creates canonical final volumes</span></a><a class="road-row" href="#itk3"><span class="road-num">itk_3</span><span class="road-title">Final mask QC</span><span class="road-note">can rerun 6 + 8</span></a><a class="road-row" href="#isotropic"><span class="road-num">prep</span><span class="road-title">Isotropic-grid check</span><span class="road-note">automatic</span></a><a class="road-row" href="#step9"><span class="road-num">9</span><span class="road-title">Create functional nuisance/tissue masks</span><span class="road-note">optional</span></a><a class="road-row" href="#step10"><span class="road-num">10</span><span class="road-title">Prepare FreeSurfer inputs</span><span class="road-note">surface branch</span></a><a class="road-row" href="#step11"><span class="road-num">11</span><span class="road-title">White surfaces</span><span class="road-note">surface branch</span></a><a class="road-row" href="#sphere"><span class="road-num">sphere</span><span class="road-title">Spherical registration</span><span class="road-note">optional, slow</span></a><a class="road-row" href="#step12"><span class="road-num">12</span><span class="road-title">Pial surfaces</span><span class="road-note">surface branch</span></a><a class="road-row" href="#flatmap"><span class="road-num">flat_map</span><span class="road-title">Optional flat maps</span><span class="road-note">optional</span></a><a class="road-row" href="#step13"><span class="road-num">13</span><span class="road-title">No active stage</span><span class="road-note">numbering gap</span></a><a class="road-row" href="#step14"><span class="road-num">14</span><span class="road-title">Finalize FreeSurfer atlases/ribbon</span><span class="road-note">surface branch</span></a><a class="road-row" href="#step15"><span class="road-num">15</span><span class="road-title">Workbench export</span><span class="road-note">surface branch</span></a><a class="road-row" href="#step16"><span class="road-num">16</span><span class="road-title">Automated anatomical QC</span><span class="road-note">final QC</span></a><a class="road-row" href="#cleanup"><span class="road-num">Clean</span><span class="road-title">Optional cleanup</span><span class="road-note">destructive</span></a>
+</div>
+</section>
+
+<section class="doc-section" id="routing">
+<h2>Which reference does Step 6 use?</h2>
+<p class="intro">This routing decision is one of the easiest parts of the pipeline to misunderstand. Loop 2 chooses the target before Steps 5–6.</p>
+<div class="route-grid">
+<div class="route-card"><h3>No longitudinal registration + no study template</h3><p>The subject registers directly to the EDNiX/reference brain.</p><code>source = EDNiX / BASE_SS</code></div>
+<div class="route-card"><h3>No longitudinal registration + study template</h3><p>The subject registers to the cohort’s study template.</p><code>source = studyTemplate</code></div>
+<div class="route-card"><h3>Longitudinal, earlier session</h3><p>The earlier session registers to the subject’s maximum/latest session.</p><code>source = refSession</code></div>
+<div class="route-card"><h3>Longitudinal, max/latest session</h3><p>The max session becomes the longitudinal anchor, then targets the study template if present, otherwise the EDNiX/reference brain.</p><code>source = studyTemplate or EDNiX</code></div>
+</div>
+</section>
+
+<div id="stages">
+<section class="stage" id="step0" data-search="0 launcher and runtime plan modalities/anat/_0_pipeline_launcher.py before any image is changed, ednix resolves which subjects and sessions will run, which anatomical contrast is the normalization reference, which atlas/template is available, which skull-stripping methods are selected, and which stages should be skipped.">
+  <div class="stage-head">
+    <div class="step-number">0</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Orchestration</div>
+      <h2>Launcher and runtime plan</h2>
+      <div class="script-line"><code>modalities/anat/_0_Pipeline_launcher.py</code></div>
+    </div>
+    <span class="status status-orchestration">Orchestration</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Before any image is changed, EDNiX resolves which subjects and sessions will run, which anatomical contrast is the normalization reference, which atlas/template is available, which skull-stripping methods are selected, and which stages should be skipped.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">SETTING</span><code>&lt;bids_dir&gt;</code></td><td>Root of the BIDS dataset.</td></tr><tr><td><span class="io-kind ">DATA</span><code>subject/session table + keep/remove lists</code></td><td>Defines which subject/session pairs are processed.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>type_norm / otheranat / masking_img</code></td><td>Normalization contrast, optional second contrast, and image used to estimate the brain mask.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>reference / species / atlas settings</code></td><td>Chooses EDNiX reference resources and atlases.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>Skip_step</code></td><td>List of numeric stages or named checkpoints to skip.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">STATE</span><code>all_ID, all_Session, all_data_path</code></td><td>Resolved subject/session processing list.</td></tr><tr><td><span class="io-kind ">STATE</span><code>BASE_SS, BASE_mask, BASE_atlas_folder</code></td><td>Resolved reference brain, mask and atlas resources.</td></tr><tr><td><span class="io-kind ">STATE</span><code>list_transfo</code></td><td>Normalized transform configuration used by later registration stages.</td></tr><tr><td><span class="io-kind ">STATE</span><code>Loop 1 → optional study-template block → Loop 2 → optional Step 7 → Loop 3</code></td><td>Actual execution plan.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>Normalizes anatomy labels such as T1/T1w and T2/T2w.</li><li>Loads AFNI, FSL, FreeSurfer, ITK-SNAP, Workbench and other configured runtimes.</li><li>Builds the optional study-template workspace at &lt;bids_dir&gt;/sty_template.</li><li>Dispatches each subject/session through Loop 1, then the cohort-level branch if requested, then Loop 2 and Loop 3.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>At this point no anatomical derivative should be interpreted as processed. This stage only decides what will run and where resources come from.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Loop 1 begins with Step 1 for every selected subject/session.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/_0_Pipeline_launcher.py</code></div>
+        <div><span>Entry point</span><code>preprocess_anat(...)</code></div>
+        <div><span>Main toolchain</span><code>PyBIDS / EDNiX Tools / atlas configuration</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="step1" data-search="1 prepare, average and orient the anatomy modalities/anat/loop1/_1_correct_orient.py raw anatomical scans can have different orientation, obliquity, repeated acquisitions and intensity bias. ednix first turns them into a stable set of subject-specific inputs before masking or registration.">
+  <div class="stage-head">
+    <div class="step-number">1</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Core stage</div>
+      <h2>Prepare, average and orient the anatomy</h2>
+      <div class="script-line"><code>modalities/anat/loop1/_1_correct_orient.py</code></div>
+    </div>
+    <span class="status status-core">Core stage</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Raw anatomical scans can have different orientation, obliquity, repeated acquisitions and intensity bias. EDNiX first turns them into a stable set of subject-specific inputs before masking or registration.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>&lt;data_path&gt;/anat/sub-&lt;ID&gt;_ses-&lt;Session&gt;_*&lt;Timage&gt;.nii*</code></td><td>BIDS anatomy for BIDStype=1. Other BIDStype patterns are supported.</td></tr><tr><td><span class="io-kind ">FILE</span><code>matching .json sidecars</code></td><td>Used when available to inspect acquisition metadata and filter repeated scans.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>orientation</code></td><td>Requested output orientation, for example LSP/LPI depending the study.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>MNIBcorrect_indiv</code></td><td>Bias correction choice: N4, N3, or configured alternative.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/preprocessing/&lt;ID&gt;_space-raw_desc-template_&lt;Timage&gt;.nii.gz</code></td><td>One stable image per contrast. A single scan is copied; repeated scans can be robustly averaged.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/preprocessing/&lt;ID&gt;_space-raw_desc-reorient_&lt;Timage&gt;.nii.gz</code></td><td>Deobliqued/reoriented working image.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/preprocessing/&lt;ID&gt;_space-raw_desc-Bias_&lt;Timage&gt;.nii.gz</code></td><td>Bias-field-corrected image used by Step 2.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/preprocessing/&lt;ID&gt;_space-raw_desc-template_T1wdividedbyT2w.nii.gz</code></td><td>Optional T1/T2-derived myelin-like image when both contrasts are available/configured.</td></tr><tr><td><span class="io-kind ">FILE</span><code>matching .json files</code></td><td>Provenance sidecars describing sources and operations.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>EDNiX discovers the requested T1w/T2w files from the BIDS anatomy folder.</li><li>If one usable image is found, it becomes the working template. If several are found, the current code can use FreeSurfer mri_robust_template to co-register and average them.</li><li>AFNI checks obliquity and orientation; the image is deobliqued/copy-adjusted and its orientation header is set as configured.</li><li>If two anatomical contrasts are present, the secondary image is resampled to the normalization contrast when needed.</li><li>ANTsPy performs N4/N3 bias correction and writes the desc-Bias image.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Check orientation before continuing. A left/right or anterior/posterior error here contaminates every downstream transform.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 2 skull-strips the desc-Bias image and creates the first ACPC-space products.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/loop1/_1_correct_orient.py</code></div>
+        <div><span>Entry point</span><code>correct_orient(...)</code></div>
+        <div><span>Main toolchain</span><code>FreeSurfer mri_robust_template, AFNI 3dWarp / 3drefit, ANTsPy N4/N3</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="step2" data-search="2 initial skull strip and acpc workspace modalities/anat/loop1/_2_clean_anat.py this stage estimates a first brain mask and establishes the subject’s working acpc-style space. it is deliberately an early, conservative mask because later stages refine it.">
+  <div class="stage-head">
+    <div class="step-number">2</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Core stage</div>
+      <h2>Initial skull strip and ACPC workspace</h2>
+      <div class="script-line"><code>modalities/anat/loop1/_2_clean_anat.py</code></div>
+    </div>
+    <span class="status status-core">Core stage</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>This stage estimates a first brain mask and establishes the subject’s working ACPC-style space. It is deliberately an early, conservative mask because later stages refine it.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/preprocessing/&lt;ID&gt;_space-raw_desc-Bias_&lt;masking_img&gt;.nii.gz</code></td><td>Bias-corrected image used to estimate the first brain mask.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/preprocessing/&lt;ID&gt;_space-raw_desc-reorient_&lt;Timage&gt;.nii.gz</code></td><td>May be used for contrasts where bias-corrected input is not selected.</td></tr><tr><td><span class="io-kind ">FILE</span><code>BASE_SS + BASE_mask</code></td><td>Reference skull-stripped anatomy and reference mask.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>brain_skullstrip_1</code></td><td>First-pass skull-stripping method.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/masks/&lt;ID&gt;_desc-step1_mask.nii.gz</code></td><td>First brain mask in the pre-ACPC working grid.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/preprocessing/&lt;ID&gt;_brain4AlignCenter_&lt;type_norm&gt;.nii.gz</code></td><td>Bias-corrected anatomy multiplied by the first mask for alignment.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/preprocessing/&lt;ID&gt;_space-acpc_desc-64_&lt;type_norm&gt;.nii.gz</code></td><td>Intermediate ACPC/alignment result.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/preprocessing/&lt;ID&gt;_space-acpc_desc-cropped_&lt;Timage&gt;.nii.gz</code></td><td>Autoboxed/cropped ACPC working image.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/masks/&lt;ID&gt;_space-acpc_desc-step1_mask.nii.gz</code></td><td>Step-1 mask resampled into the ACPC grid.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/&lt;ID&gt;_space-acpc_desc-template_&lt;Timage&gt;.nii.gz</code></td><td>Unmasked ACPC anatomical template for each contrast.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/&lt;ID&gt;_space-acpc_desc-SS-step1_&lt;Timage&gt;.nii.gz</code></td><td>Step-1 skull-stripped ACPC anatomy.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/QC/skullstrip_step1/...png</code></td><td>Skull-strip QC mosaic.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/QC/align_rigid_to_template/...png</code></td><td>Alignment QC mosaic.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>The shared Skullstrip_method dispatcher creates &lt;ID&gt;_desc-step1_mask.nii.gz. A correctly named manual mask can override the automatic method.</li><li>3dcalc multiplies the mask with the normalization anatomy to create a brain-only registration target.</li><li>The configured ACPC/reference alignment is estimated. The code can also use an identity/copy route when alignment is disabled.</li><li>3dAutobox crops the aligned image, and the first mask is resampled onto that grid.</li><li>Every anatomical contrast is resampled into the same ACPC grid, written as desc-template, then multiplied by the ACPC mask to create desc-SS-step1.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Inspect both the skull-strip mosaic and rigid-alignment mosaic. Step 1 products are still intermediate and are expected to be refined.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> The itk_1 checkpoint lets a human correct the first mask. If edited, Step 2 is automatically rerun.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/loop1/_2_clean_anat.py</code></div>
+        <div><span>Entry point</span><code>clean_anat(...)</code></div>
+        <div><span>Main toolchain</span><code>Skullstrip_method, AFNI 3dcalc / 3dAutobox, ANTs/EDNiX registration helpers</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="itk1" data-search="itk_1 manual qc gate for the first mask modalities/anat/loop1/_itk1_qc.py automatic skull stripping is not trusted blindly. the first mask can be inspected and corrected before it contributes to a study template or later registration.">
+  <div class="stage-head">
+    <div class="step-number">itk_1</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Manual QC</div>
+      <h2>Manual QC gate for the first mask</h2>
+      <div class="script-line"><code>modalities/anat/loop1/_itk1_QC.py</code></div>
+    </div>
+    <span class="status status-manual">Manual QC</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Automatic skull stripping is not trusted blindly. The first mask can be inspected and corrected before it contributes to a study template or later registration.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/preprocessing/&lt;ID&gt;_space-raw_desc-Bias_&lt;type_norm&gt;.nii.gz</code></td><td>Greyscale image displayed in ITK-SNAP.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/masks/&lt;ID&gt;_desc-step1_mask.nii.gz</code></td><td>Current segmentation layer.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/masks/&lt;ID&gt;_final_mask.nii.gz</code></td><td>Manual override, only when the user saves one under this exact name.</td></tr><tr><td><span class="io-kind ">STATE</span><code>mask_was_updated=True/False</code></td><td>Tells Loop 1 whether the correction changed the pipeline state.</td></tr><tr><td><span class="io-kind warn">SIDE EFFECT</span><code>Step 2 rerun when edited</code></td><td>The corrected mask is copied/resampled into the active Step-1 mask and Step 2 is regenerated.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>ITK-SNAP opens the anatomy and current Step-1 mask.</li><li>The code records the manual mask modification time before and after the viewer session.</li><li>If &lt;ID&gt;_final_mask.nii.gz is created or modified, the checkpoint reports an update.</li><li>Loop 1 reruns Step 2 so all ACPC/template and skull-stripped products inherit the correction.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Saving under a different filename does not activate the override. The exact canonical filename matters.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> After all subjects finish Loop 1, EDNiX either builds an optional study template (Steps 3–4) or goes directly to Loop 2.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/loop1/_itk1_QC.py</code></div>
+        <div><span>Entry point</span><code>_itk_check_masks(...)</code></div>
+        <div><span>Main toolchain</span><code>ITK-SNAP</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="step3" data-search="3 build a study-specific template modalities/anat/studytemplate/_3_make_template.py a cohort-specific template can reduce the anatomical mismatch between the study population and a generic atlas. this is a group-level stage, not a per-subject stage.">
+  <div class="stage-head">
+    <div class="step-number">3</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Study-template only</div>
+      <h2>Build a study-specific template</h2>
+      <div class="script-line"><code>modalities/anat/studytemplate/_3_make_template.py</code></div>
+    </div>
+    <span class="status status-conditional">Study-template only</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>A cohort-specific template can reduce the anatomical mismatch between the study population and a generic atlas. This is a group-level stage, not a per-subject stage.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/&lt;ID&gt;_space-acpc_desc-SS-step1_&lt;type_norm&gt;.nii.gz</code></td><td>Step-1 skull-stripped anatomy from selected subjects/sessions.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>which_on = all or max</code></td><td>Chooses all eligible sessions or one/max session per subject for template construction.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/sty_template/derivatives/tmp/&lt;ID&gt;_space-acpc_desc-SS-step1_&lt;type_norm&gt;Zp.nii.gz</code></td><td>Zero-padded/common-grid subject image used during template building.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/sty_template/derivatives/tmp/warped_3_adjusted_mean.nii.gz</code></td><td>Group mean produced by the template-building routine.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/sty_template/derivatives/tmp/studyTemplate_&lt;type_norm&gt;.nii.gz</code></td><td>Unmasked study template image prepared for Step 4.</td></tr><tr><td><span class="io-kind ">FILE</span><code>matching .json sidecars</code></td><td>Provenance for resampling/normalization products.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>EDNiX selects the Step-1 skull-stripped subjects specified by which_on.</li><li>A reference image is zero-padded and the other subject images are resampled to a compatible grid.</li><li>anat_to_common_EMB iteratively aligns the selected anatomies and creates a cohort mean.</li><li>The group mean is written into the sty_template temporary workspace for skull stripping.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>This stage only runs when creat_study_template=True. A poor Step-1 mask can influence the group template, which is why itk_1 occurs beforehand.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 4 estimates the study-template brain mask and creates its skull-stripped version.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/studytemplate/_3_make_template.py</code></div>
+        <div><span>Entry point</span><code>make_template(...)</code></div>
+        <div><span>Main toolchain</span><code>AFNI resampling/zero padding + anat_to_common_EMB</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="step4" data-search="4 skull-strip the study template modalities/anat/studytemplate/_4_skullstrip_template.py the group template needs a brain mask and skull-stripped reference before individual subjects can use it as a registration target.">
+  <div class="stage-head">
+    <div class="step-number">4</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Study-template only</div>
+      <h2>Skull-strip the study template</h2>
+      <div class="script-line"><code>modalities/anat/studytemplate/_4_skullstrip_template.py</code></div>
+    </div>
+    <span class="status status-conditional">Study-template only</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>The group template needs a brain mask and skull-stripped reference before individual subjects can use it as a registration target.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/sty_template/derivatives/tmp/warped_3_adjusted_mean.nii.gz</code></td><td>Group template mean from Step 3.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>template_skullstrip</code></td><td>Skull-stripping method for the study template.</td></tr><tr><td><span class="io-kind ">FILE</span><code>BASE_SS / BASE_mask</code></td><td>May be used by the selected skull-strip strategy.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/sty_template/derivatives/tmp/studyTemplate_&lt;type_norm&gt;.nii.gz</code></td><td>Study template anatomy.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/sty_template/derivatives/tmp/studyTemplate_mask.nii.gz</code></td><td>Study-template brain mask.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/sty_template/derivatives/tmp/studyTemplate_SS_&lt;type_norm&gt;.nii.gz</code></td><td>Skull-stripped study template.</td></tr><tr><td><span class="io-kind ">FILE</span><code>matching .json sidecars</code></td><td>Sources and skull-strip provenance.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>The same shared Skullstrip_method dispatcher used for subjects is used for the group template.</li><li>The selected mask is multiplied with the template mean to produce studyTemplate_SS.</li><li>Both original-template and skull-stripped-template JSON sidecars record provenance.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>The template mask now affects every subject that registers to the study template. It deserves the same visual scrutiny as an individual mask.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Loop 2 starts. When a study template exists, Step 5 uses studyTemplate_&lt;type_norm&gt; and studyTemplate_mask as its reference resources.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/studytemplate/_4_skullstrip_template.py</code></div>
+        <div><span>Entry point</span><code>skullstrip_T(...)</code></div>
+        <div><span>Main toolchain</span><code>Skullstrip_method + AFNI 3dcalc</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="step5" data-search="5 refine the subject mask and perform masked n4 correction modalities/anat/loop2/_5_create_template_brain.py step 1 made a coarse mask. step 5 estimates a second, cleaner mask in acpc space, fills holes, redoes bias correction inside that mask and creates the step-2 skull-stripped anatomy used for registration.">
+  <div class="stage-head">
+    <div class="step-number">5</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Core stage</div>
+      <h2>Refine the subject mask and perform masked N4 correction</h2>
+      <div class="script-line"><code>modalities/anat/loop2/_5_create_template_brain.py</code></div>
+    </div>
+    <span class="status status-core">Core stage</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Step 1 made a coarse mask. Step 5 estimates a second, cleaner mask in ACPC space, fills holes, redoes bias correction inside that mask and creates the Step-2 skull-stripped anatomy used for registration.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/&lt;ID&gt;_space-acpc_desc-SS-step1_&lt;masking_img&gt;.nii.gz</code></td><td>Step-1 brain image used for the second skull-strip estimate.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/&lt;ID&gt;_space-acpc_desc-template_&lt;Timage&gt;.nii.gz</code></td><td>Unmasked ACPC anatomy for each contrast.</td></tr><tr><td><span class="io-kind ">FILE</span><code>chosen target brain + target mask</code></td><td>Study template, longitudinal reference session, or EDNiX reference according to the routing rules.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>brain_skullstrip_2</code></td><td>Second-pass skull-stripping method.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/masks/&lt;ID&gt;_desc-step2_mask.nii.gz</code></td><td>Second-pass mask after hole filling.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/preprocessing/&lt;ID&gt;_space-acpc_desc-Bias_&lt;Timage&gt;.nii.gz</code></td><td>Masked adaptive N4-corrected anatomy.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/&lt;ID&gt;_space-acpc_desc-SS-step2_&lt;Timage&gt;.nii.gz</code></td><td>N4-corrected anatomy multiplied by the Step-2 mask.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/QC/skullstrip_step2/&lt;ID&gt;_&lt;Session&gt;_&lt;Timage&gt;_brain.png</code></td><td>Step-2 skull-strip QC mosaic.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/masks/&lt;ID&gt;_final_mask_2.nii.gz</code></td><td>Optional manual override if supplied/saved with this exact name.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>The second skull-strip method writes &lt;ID&gt;_desc-step2_mask.nii.gz. If &lt;ID&gt;_final_mask_2.nii.gz already exists, the dispatcher can use it instead of an automatic mask.</li><li>AFNI 3dmask_tool fills holes in the second mask.</li><li>For each anatomical contrast, the current code runs the adaptive N4 helper with the Step-2 mask.</li><li>The N4 image is multiplied by the Step-2 mask to create desc-SS-step2.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Compare Step-1 and Step-2 masks rather than assuming the later mask is automatically better.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> itk_2 lets the user correct this second mask. Step 5 is rerun if it changes.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/loop2/_5_create_template_brain.py</code></div>
+        <div><span>Entry point</span><code>create_indiv_template_brain(...)</code></div>
+        <div><span>Main toolchain</span><code>Skullstrip_method, AFNI 3dmask_tool, ANTsPy adaptive N4</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="itk2" data-search="itk_2 manual qc gate for the second mask modalities/anat/loop2/_mask2_data_qc.py this is the final manual opportunity to correct the second-pass skull strip before subject-to-template registration.">
+  <div class="stage-head">
+    <div class="step-number">itk_2</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Manual QC</div>
+      <h2>Manual QC gate for the second mask</h2>
+      <div class="script-line"><code>modalities/anat/loop2/_mask2_Data_QC.py</code></div>
+    </div>
+    <span class="status status-manual">Manual QC</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>This is the final manual opportunity to correct the second-pass skull strip before subject-to-template registration.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/&lt;ID&gt;_space-acpc_desc-SS-step1_&lt;masking_img&gt;.nii.gz</code></td><td>Greyscale image displayed in ITK-SNAP.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/masks/&lt;ID&gt;_desc-step2_mask.nii.gz</code></td><td>Current Step-2 segmentation.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/masks/&lt;ID&gt;_final_mask_2.nii.gz</code></td><td>Canonical manual Step-2 override.</td></tr><tr><td><span class="io-kind ">FILE</span><code>temporary *_pre_itk2_backup.nii.gz</code></td><td>Used for Dice comparison when a prior manual mask already exists.</td></tr><tr><td><span class="io-kind warn">SIDE EFFECT</span><code>Step 5 rerun when edited</code></td><td>Regenerates masked N4 and desc-SS-step2 products.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>ITK-SNAP opens the Step-1 anatomy with the Step-2 mask.</li><li>The checkpoint detects whether &lt;ID&gt;_final_mask_2.nii.gz was created or modified.</li><li>When possible it computes Dice similarity between pre- and post-edit masks to quantify the manual change.</li><li>Loop 2 reruns Step 5 after an edit so all Step-2 derivatives match the corrected mask.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>This is a processing gate, not a passive screenshot step. Editing the mask changes later registration inputs.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 6 registers the corrected Step-2 anatomy to the route-specific target.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/loop2/_mask2_Data_QC.py</code></div>
+        <div><span>Entry point</span><code>_itk_check_masks(...)</code></div>
+        <div><span>Main toolchain</span><code>ITK-SNAP + Dice comparison</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="step6" data-search="6 register the subject to the selected reference modalities/anat/loop2/_6_stdytmax.py ednix now connects the subject’s acpc anatomy to the spatial reference used for labels and group comparisons. the target is route-dependent.">
+  <div class="stage-head">
+    <div class="step-number">6</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Core stage</div>
+      <h2>Register the subject to the selected reference</h2>
+      <div class="script-line"><code>modalities/anat/loop2/_6_stdyTmax.py</code></div>
+    </div>
+    <span class="status status-core">Core stage</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>EDNiX now connects the subject’s ACPC anatomy to the spatial reference used for labels and group comparisons. The target is route-dependent.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/&lt;ID&gt;_space-acpc_desc-SS-step2_&lt;type_norm&gt;.nii.gz</code></td><td>Moving subject anatomy.</td></tr><tr><td><span class="io-kind warn">ROUTE</span><code>studyTemplate_&lt;type_norm&gt;.nii.gz</code></td><td>Target when creat_study_template=True and the current session is not routed to a longitudinal refSession.</td></tr><tr><td><span class="io-kind warn">ROUTE</span><code>max/latest session desc-SS-step2 anatomy</code></td><td>Target for earlier sessions when coregistration_longitudinal=True.</td></tr><tr><td><span class="io-kind warn">ROUTE</span><code>BASE_SS</code></td><td>Target when using the EDNiX/reference route.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/matrices/native_to_&lt;source&gt;_Final_0GenericAffine.mat</code></td><td>Core affine transform.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/matrices/native_to_&lt;source&gt;_Final_1Warp.nii.gz</code></td><td>Optional nonlinear forward warp when the configured transform generates one.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/matrices/native_to_&lt;source&gt;_Final_1InverseWarp.nii.gz</code></td><td>Optional inverse warp.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/templates/&lt;source&gt;/volumes/native_space-&lt;source&gt;_desc-SS_&lt;Timage&gt;.nii.gz</code></td><td>Subject anatomy transformed into the selected reference space.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/templates/&lt;source&gt;/volumes/&lt;source&gt;_space-native_desc-SS_&lt;Timage&gt;.nii.gz</code></td><td>Reference anatomy transformed back toward subject/native space for checking.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/QC/native_to_&lt;source&gt;_&lt;Timage&gt;/...png</code></td><td>Forward and reverse registration QC mosaics.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>norm2template.norm estimates the configured coregistration transform between subject and target.</li><li>If a nonlinear warp exists, EDNiX builds affine+warp forward/inverse lists; otherwise it uses the affine alone.</li><li>norm2template.apply sends every anatomical contrast forward to the reference and backward to native/ACPC space.</li><li>QC mosaics are generated in both directions.</li><li>Optional <code>SyNadaptive</code> (coreg block, experimental): the standard <code>SyNCC</code> is run and checked inside the template brain (Dice of brain masks, Dice of a 3-class k-means tissue split, fraction of folded voxels). Only if a check fails is a more compliant, brain-masked SyN tried from the same affine; it replaces <code>SyNCC</code> only if tissue overlap improves by &gt; 0.01 without folding. The decision is written to <code>&lt;prefix&gt;_adaptive_QC.json</code> next to the transforms. On the BIDS_Park calibration (n = 5, recon-all aseg as independent labels) the refinement lowered label Dice, so <code>SyNCC</code> remains the default.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>The target name matters when reading filenames: &lt;source&gt; may be studyTemplate, refSession or EDNiX/reference.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> If a study template exists, Step 7 connects it to the atlas. Otherwise the pipeline proceeds to Loop 3 / Step 8.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/loop2/_6_stdyTmax.py</code></div>
+        <div><span>Entry point</span><code>nativetoTemplate(...)</code></div>
+        <div><span>Main toolchain</span><code>norm2template / registration_adaptive (SyNadaptive) / ANTs transforms + QC_plot</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="step7" data-search="7 connect the study template to the atlas/reference modalities/anat/studytemplate/_7_stdyt_to_atlast.py a study template is useful only if atlas labels can be mapped through it. step 7 estimates the study-template ↔ reference relationship and brings atlas resources into study-template space.">
+  <div class="stage-head">
+    <div class="step-number">7</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Study-template only</div>
+      <h2>Connect the study template to the atlas/reference</h2>
+      <div class="script-line"><code>modalities/anat/studytemplate/_7_stdyT_to_AtlasT.py</code></div>
+    </div>
+    <span class="status status-conditional">Study-template only</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>A study template is useful only if atlas labels can be mapped through it. Step 7 estimates the study-template ↔ reference relationship and brings atlas resources into study-template space.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/sty_template/derivatives/tmp/studyTemplate_SS_&lt;type_norm&gt;.nii.gz</code></td><td>Skull-stripped study template.</td></tr><tr><td><span class="io-kind ">FILE</span><code>BASE_SS</code></td><td>EDNiX/reference skull-stripped target.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;BASE_atlas_folder&gt;/&lt;species&gt;_seg-&lt;atlas&gt;_dseg.nii.gz</code></td><td>Configured atlas segmentations.</td></tr><tr><td><span class="io-kind ">FILE</span><code>reference seg-4FS dseg</code></td><td>FreeSurfer-oriented reference segmentation when available.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/sty_template/derivatives/acpc/matrices/studyTemplate_to_EDNiX_Final_*</code></td><td>Study-template/reference transforms.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/sty_template/.../labels/*_dseg.nii.gz</code></td><td>Atlas labels propagated into study-template space.</td></tr><tr><td><span class="io-kind ">FILE</span><code>study-template 4FS segmentation/resources</code></td><td>Used later by back-to-native propagation.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>The final study template is registered to BASE_SS with the configured study-template transform.</li><li>Inverse transforms are used to move each available reference atlas into study-template space using label-safe interpolation.</li><li>The reference 4FS segmentation is also propagated when present.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>This stage is skipped entirely when creat_study_template=False.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 8 can now traverse the transform chain from reference or study-template resources back to each subject.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/studytemplate/_7_stdyT_to_AtlasT.py</code></div>
+        <div><span>Entry point</span><code>stdyT_to_AtlasT(...)</code></div>
+        <div><span>Main toolchain</span><code>norm2template + Workbench interpolation</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="step8" data-search="8 bring masks and atlases back to the subject and create the final skull-stripped anatomy modalities/anat/loop3/backtonative.py registration created a link to the reference; this stage uses the inverse chain to bring useful masks and labels into the subject’s acpc/native derivative tree. it also creates the canonical final skull-stripped anatomy.">
+  <div class="stage-head">
+    <div class="step-number">8</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Core stage</div>
+      <h2>Bring masks and atlases back to the subject and create the final skull-stripped anatomy</h2>
+      <div class="script-line"><code>modalities/anat/loop3/backtonative.py</code></div>
+    </div>
+    <span class="status status-core">Core stage</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Registration created a link to the reference; this stage uses the inverse chain to bring useful masks and labels into the subject’s ACPC/native derivative tree. It also creates the canonical final skull-stripped anatomy.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>Step-6 transform chain</code></td><td>Affine and optional warp files assembled by backtonative.get().</td></tr><tr><td><span class="io-kind ">FILE</span><code>reference/study-template brain mask</code></td><td>Mask propagated back into subject ACPC space.</td></tr><tr><td><span class="io-kind ">FILE</span><code>reference/study-template atlas dseg files</code></td><td>Labels to propagate into the subject.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/&lt;ID&gt;_space-acpc_desc-template_&lt;Timage&gt;.nii.gz</code></td><td>Unmasked subject anatomy used for the final skull strip.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/&lt;ID&gt;_space-acpc_desc-SS-step2_&lt;Timage&gt;.nii.gz</code></td><td>Registration-era subject anatomy.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/masks/&lt;ID&gt;_space-acpc_mask.nii.gz</code></td><td>Automatic final ACPC brain mask when no manual backtonative mask overrides it.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/&lt;ID&gt;_space-acpc_desc-SS_&lt;Timage&gt;.nii.gz</code></td><td>Canonical final skull-stripped anatomy. Note that “step2” is no longer in this filename.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/labels/&lt;ID&gt;_seg-4FS_dseg.nii.gz</code></td><td>Canonical subject 4FS segmentation after final renaming/resampling.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/labels/&lt;ID&gt;_seg-&lt;atlas&gt;_dseg.nii.gz</code></td><td>Configured atlas segmentation(s) in subject ACPC space.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/masks/&lt;ID&gt;_desc-&lt;tissue&gt;_mask.nii.gz</code></td><td>Reference tissue masks propagated to the subject when available.</td></tr><tr><td><span class="io-kind ">FILE</span><code>back-to-native QC mosaics under &lt;bids_dir&gt;/QC</code></td><td>Visual checks of forward/backward normalization.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/labels/tissue_relabel/&lt;ID&gt;_seg-4FS_desc-registration_dseg.nii.gz + JSON report</code></td><td>Only with <code>tissue_relabel</code>: the registration-only seg-4FS kept for comparison, and the separation, thickness and volume-change report.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/QC/tissue_relabel/&lt;ID&gt;_tissue_relabel.png</code></td><td>Only with <code>tissue_relabel</code>: before/after QC figure.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>backtonative.get builds the correct transform package for EDNiX, study-template and/or longitudinal refSession routing.</li><li>Template/reference masks and labels are inverse-transformed into the subject ACPC grid.</li><li>For the normalization contrast, the final mask is applied to the desc-template image with 3dcalc to create &lt;ID&gt;_space-acpc_desc-SS_&lt;Timage&gt;.nii.gz.</li><li>If a manually edited backtonative mask already exists, it takes priority over the automatic ACPC mask.</li><li>Atlas/4FS outputs are resampled with label-aware handling and the temporary space-acpc token is removed from canonical label/mask filenames at the end.</li><li>Optional <code>tissue_relabel</code> (<code>'tissue_relabel': True</code> in the coreg block; on in the Human and Macaque example launchers, off by default): the cortex, cerebral white matter and sulcal CSF of the warped seg-4FS are re-decided by a 3-class Gaussian mixture of the subject’s own T1w/T2w intensities, with the warped labels as spatial prior (unified segmentation, Ashburner &amp; Friston 2005; Atropos with priors, Avants et al. 2011). Hemisphere and subcortical labels are kept; if GM and WM are not separable (Fisher distance &lt; 1) the registration labels are kept. Calibration on BIDS_Park (n = 5, recon-all aseg as reference): mean label Dice +0.025 in 5/5 subjects; not yet validated in non-human species, and it degraded Rat and Marmoset in tests (low GM/WM contrast).</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>This is the point where “final” subject anatomy begins. Do not confuse desc-SS-step2 with the canonical desc-SS product generated here.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> itk_3 lets the user inspect the final ACPC mask. An edit triggers a deliberate rerun cascade.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/loop3/backtonative.py</code></div>
+        <div><span>Entry point</span><code>get(...) + apply(...)</code></div>
+        <div><span>Main toolchain</span><code>norm2template, AFNI 3dcalc, EDNiX resampling/QC, tissue_relabel (optional GMM relabelling)</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="itk3" data-search="itk_3 final manual mask qc and rerun cascade modalities/anat/loop3/_200_data_qc.py a final mask error would contaminate the definitive skull-stripped anatomy, registration and surface generation. this checkpoint therefore sits immediately before the surface-oriented part of the pipeline.">
+  <div class="stage-head">
+    <div class="step-number">itk_3</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Manual QC</div>
+      <h2>Final manual mask QC and rerun cascade</h2>
+      <div class="script-line"><code>modalities/anat/loop3/_200_Data_QC.py</code></div>
+    </div>
+    <span class="status status-manual">Manual QC</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>A final mask error would contaminate the definitive skull-stripped anatomy, registration and surface generation. This checkpoint therefore sits immediately before the surface-oriented part of the pipeline.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/masks/&lt;ID&gt;_space-acpc_mask.nii.gz</code></td><td>Current automatic final ACPC brain mask.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/&lt;ID&gt;_space-acpc_desc-template_&lt;type_norm&gt;.nii.gz</code></td><td>Greyscale reference displayed in ITK-SNAP.</td></tr><tr><td><span class="io-kind ">FILE</span><code>template/reference overlay from the transform package</code></td><td>Lets the user visually assess registration and masking together.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/masks/&lt;ID&gt;_backtonative_mask.nii.gz</code></td><td>Canonical manually edited final mask.</td></tr><tr><td><span class="io-kind warn">SIDE EFFECT</span><code>regenerated &lt;ID&gt;_space-acpc_desc-SS_&lt;type_norm&gt;.nii.gz</code></td><td>Manual mask is applied to the unmasked desc-template image.</td></tr><tr><td><span class="io-kind warn">SIDE EFFECT</span><code>Step 6 rerun</code></td><td>Registration is recomputed because the moving skull-stripped image changed.</td></tr><tr><td><span class="io-kind warn">SIDE EFFECT</span><code>Step 8 rerun</code></td><td>Masks, labels and final anatomy are regenerated from the fresh transforms.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>ITK-SNAP opens the subject anatomy, template/reference overlay and current ACPC mask.</li><li>If &lt;ID&gt;_backtonative_mask.nii.gz is created or updated, the checkpoint returns True.</li><li>Loop 3 first regenerates the final skull-stripped anatomy from that mask.</li><li>It then reruns Step 6, reloads the new transform files, and reruns Step 8. This keeps the transform chain and final derivatives internally consistent.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>This is not merely “final QC.” It can change the processing history. The rerun cascade is intentional.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> EDNiX checks whether final anatomy/mask/segmentation are isotropic, resamples if required, then enters optional fMRI-mask and surface preparation.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/loop3/_200_Data_QC.py</code></div>
+        <div><span>Entry point</span><code>_itk_check_masks(...)</code></div>
+        <div><span>Main toolchain</span><code>ITK-SNAP + Dice comparison</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="isotropic" data-search="prep isotropic-grid check before surfaces modalities/anat/_loop3.py + tools/make_iso_img.py freesurfer/surface processing is easier to keep consistent when the final anatomy, mask and segmentation share an isotropic grid.">
+  <div class="stage-head">
+    <div class="step-number">prep</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Automatic prep</div>
+      <h2>Isotropic-grid check before surfaces</h2>
+      <div class="script-line"><code>modalities/anat/_loop3.py + Tools/make_iso_img.py</code></div>
+    </div>
+    <span class="status status-automatic">Automatic prep</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>FreeSurfer/surface processing is easier to keep consistent when the final anatomy, mask and segmentation share an isotropic grid.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>&lt;ID&gt;_space-acpc_desc-SS_&lt;type_norm&gt;.nii.gz</code></td><td>Final anatomy.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;ID&gt;_space-acpc_mask.nii.gz</code></td><td>Final automatic mask or corresponding final mask state.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;ID&gt;_seg-4FS_dseg.nii.gz</code></td><td>4FS segmentation.</td></tr><tr><td><span class="io-kind ">FILE</span><code>final T2w anatomy when present</code></td><td>Optional second contrast.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>..._res-iso_... variants</code></td><td>Created only when voxel sizes differ across x/y/z.</td></tr><tr><td><span class="io-kind ">STATE</span><code>iso = 0/1</code></td><td>Downstream code switches to res-iso files when resampling occurred.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>Nibabel reads voxel sizes from each relevant NIfTI header.</li><li>If the three spatial voxel sizes are unequal, make_iso generates an isotropic copy using anatomy- or label-appropriate interpolation.</li><li>Downstream variables are redirected to the isotropic variants.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>This is a preparatory operation and has no numbered Skip_step stage of its own.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 9 optionally derives masks for functional denoising; Step 10 prepares FreeSurfer inputs.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/_loop3.py + Tools/make_iso_img.py</code></div>
+        <div><span>Entry point</span><code>voxel-size check + make_iso(...)</code></div>
+        <div><span>Main toolchain</span><code>Nibabel + AFNI/EDNiX resampling</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="step9" data-search="9 create tissue/nuisance masks for fmri modalities/anat/freesurfer/prefs.py anatomical segmentation can provide white-matter, ventricular and gray-matter masks needed later for functional denoising and qc.">
+  <div class="stage-head">
+    <div class="step-number">9</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Optional</div>
+      <h2>Create tissue/nuisance masks for fMRI</h2>
+      <div class="script-line"><code>modalities/anat/freesurfer/preFS.py</code></div>
+    </div>
+    <span class="status status-optional">Optional (do_fMRImasks)</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Anatomical segmentation can provide white-matter, ventricular and gray-matter masks needed later for functional denoising and QC.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>final brain mask (or res-iso variant)</code></td><td>Used to create a dilated whole-brain mask.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;ID&gt;_seg-4FS_dseg.nii.gz (or res-iso)</code></td><td>Used when fMRImasks=&quot;aseg&quot; to derive tissue classes.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>fMRImasks = aseg or custom</code></td><td>Controls whether EDNiX creates tissue masks from aseg or only erodes pre-existing custom masks.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/masks/&lt;ID&gt;_desc-dilat_mask.nii.gz</code></td><td>Brain mask dilated by radius 2.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;ID&gt;_desc-White_mask.nii.gz + &lt;ID&gt;_desc-erod-White_mask.nii.gz</code></td><td>White-matter mask and one-voxel erosion.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;ID&gt;_desc-Vent_mask.nii.gz + eroded variant</code></td><td>Ventricle mask.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;ID&gt;_desc-Cerebral_Gray_mask.nii.gz + eroded variant</code></td><td>Cerebral gray-matter mask.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;ID&gt;_desc-Whole_Brain_Gray_mask.nii.gz + eroded variant</code></td><td>Whole-brain gray-matter mask.</td></tr><tr><td><span class="io-kind ">FILE</span><code>matching .json sidecars</code></td><td>Mask provenance.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>ANTsPy dilates the final brain mask.</li><li>When fMRImasks=&quot;aseg&quot;, configured label IDs are extracted from the 4FS segmentation and binarized.</li><li>Each tissue mask is eroded once to provide more conservative nuisance regions.</li><li>When fMRImasks=&quot;custom&quot;, EDNiX expects the non-eroded custom masks to already exist and only creates eroded derivatives.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Runs only when do_fMRImasks=True. These are downstream functional masks, not replacements for the anatomical brain mask.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 10 converts final anatomical/segmentation products into the form expected by FreeSurfer.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/freesurfer/preFS.py</code></div>
+        <div><span>Entry point</span><code>msk_RS(...)</code></div>
+        <div><span>Main toolchain</span><code>ANTsPy morphology / segmentation masking</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="step10" data-search="10 prepare freesurfer mri inputs modalities/anat/freesurfer/prefs.py + smallbrain.py ednix uses its own anatomical segmentation and must translate it into the intensity volumes and mgz files expected by the freesurfer surface tools. small non-human brains can also require header/rescaling accommodation.">
+  <div class="stage-head">
+    <div class="step-number">10</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Surface branch</div>
+      <h2>Prepare FreeSurfer MRI inputs</h2>
+      <div class="script-line"><code>modalities/anat/freesurfer/preFS.py + smallbrain.py</code></div>
+    </div>
+    <span class="status status-surface">Surface branch</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>EDNiX uses its own anatomical segmentation and must translate it into the intensity volumes and MGZ files expected by the FreeSurfer surface tools. Small non-human brains can also require header/rescaling accommodation.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>&lt;ID&gt;_space-acpc_desc-SS_&lt;T1w/T2w&gt;.nii.gz</code></td><td>Final skull-stripped anatomy.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;ID&gt;_seg-4FS_dseg.nii.gz</code></td><td>4FS segmentation used to identify tissue classes and hemispheres.</td></tr><tr><td><span class="io-kind ">FILE</span><code>brain mask</code></td><td>Used by the small-brain volume check.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/preprocessing/&lt;ID&gt;_desc-norm_T1w.nii.gz</code></td><td>Intensity-remapped T1-like image used as FreeSurfer brain input. For T2-based routes, a T1-like contrast can be created first.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/labels/&lt;ID&gt;_seg-wm_dseg.nii.gz</code></td><td>FreeSurfer-oriented white-matter segmentation.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/labels/&lt;ID&gt;_seg-filled_dseg.nii.gz</code></td><td>Left/right filled hemisphere volume (127/255 convention in current code).</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/preprocessing/&lt;ID&gt;_rescale.json + &lt;ID&gt;_rescale.dat</code></td><td>Only for small-brain rescaling; records modified header/spacing information.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/freesurfer/&lt;ID&gt;/mri/orig.mgz</code></td><td>FreeSurfer anatomical input.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/freesurfer/&lt;ID&gt;/mri/brain.mgz</code></td><td>FreeSurfer brain/intensity input.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/freesurfer/&lt;ID&gt;/mri/wm.mgz</code></td><td>White-matter volume.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/freesurfer/&lt;ID&gt;/mri/aseg.mgz</code></td><td>Segmentation volume.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/freesurfer/&lt;ID&gt;/mri/filled.mgz</code></td><td>Hemisphere-filled volume.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>prepa_img builds the FreeSurfer inputs from the subject’s seg-4FS, not from FreeSurfer’s own segmentation. The default surface method is <code>V2h</code> (<code>preFS.SURFACE_METHOD</code>, chosen in November 2026 from tests on 5 library templates and 10 BIDS subjects): <code>brain.mgz</code> is synthetic with non-overlapping class intensities (CSF 10–35, GM 55–85, each keeping the within-class texture of the image; WM 110; 0.5-voxel Gaussian smoothing), <code>wm.mgz</code> is WM 110 + subcortical nuclei 250, and hippocampus/amygdala stay in the GM class, out of <code>wm.mgz</code>/<code>filled.mgz</code> (putting them in WM produced one-sided temporal pial loops). <code>SURFACE_METHOD = 'legacy'</code> restores the v1 behaviour (overlapping class ranges).</li><li>If T2 is the normalization contrast and no true T1 exists, the pipeline can create a T1-like image before this stage.</li><li>smallbrain.get estimates brain volume; brains below about 10 cm³ (rodents, bats, mouse lemur, marmoset) are enlarged in the header before FreeSurfer, and surfaces, thickness, sulcal depth and curvature are brought back to real size later with the same scale factor (<code>&lt;ID&gt;_rescale.json</code>).</li><li>preFS.toFS uses mri_convert to create the FreeSurfer mri directory and its five core MGZ inputs.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>The FreeSurfer folder is now an execution workspace derived from EDNiX outputs. It should not be mistaken for the original BIDS anatomy.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 11 creates the white-matter cortical surfaces.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/freesurfer/preFS.py + smallbrain.py</code></div>
+        <div><span>Entry point</span><code>prepa_img(...) → smallbrain.get(...) → toFS(...)</code></div>
+        <div><span>Main toolchain</span><code>preFS (V2h / legacy) + smallbrain + FreeSurfer mri_convert</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="step11" data-search="11 create and configure white surfaces modalities/anat/freesurfer/fs_surf.py the white surface approximates the gray/white boundary and becomes the geometric foundation for pial surfaces, cortical thickness, parcellations and workbench export.">
+  <div class="stage-head">
+    <div class="step-number">11</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Surface branch</div>
+      <h2>Create and configure white surfaces</h2>
+      <div class="script-line"><code>modalities/anat/freesurfer/FS_surf.py</code></div>
+    </div>
+    <span class="status status-surface">Surface branch</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>The white surface approximates the gray/white boundary and becomes the geometric foundation for pial surfaces, cortical thickness, parcellations and Workbench export.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/freesurfer/&lt;ID&gt;/mri/filled.mgz</code></td><td>Hemisphere-separated volume.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/freesurfer/&lt;ID&gt;/mri/aseg.mgz</code></td><td>Segmentation used during surface refinement.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/freesurfer/&lt;ID&gt;/mri/brain.mgz / wm.mgz</code></td><td>Intensity and white-matter information.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/freesurfer/&lt;ID&gt;/surf/lh.white + rh.white</code></td><td>Final white surfaces.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../surf/lh.orig + rh.orig</code></td><td>Topology-corrected original surfaces.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../surf/lh.smoothwm + rh.smoothwm</code></td><td>Smoothed white surfaces.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../surf/lh.inflated + rh.inflated</code></td><td>Inflated surfaces.</td></tr><tr><td><span class="io-kind ">FILE</span><code>curvature products + ?h.curv.stats</code></td><td>Surface geometry descriptors (mris_curvature, mris_curvature_stats).</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>FreeSurfer tessellates a coarse surface from the filled volume and removes disconnected components.</li><li>Topology correction and surface-making refine the white boundary.</li><li>Wconfig (<code>sphere=False</code>) smooths and inflates the white surface and computes curvature. The spherical registration is no longer part of this step: it is the separate key <code>sphere</code>.</li><li>When check_visualy_each_img=True, Freeview can be opened after the white-surface stage.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Surface topology and white-boundary placement are more informative than whether a command simply finished successfully.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> The optional <code>sphere</code> step, then Step 12 (pial surfaces).</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/freesurfer/FS_surf.py</code></div>
+        <div><span>Entry point</span><code>Wcreate(...) → optional Freeview → Wconfig(...)</code></div>
+        <div><span>Main toolchain</span><code>FreeSurfer mri_pretess, mri_tessellate, mris_extract_main_component, mris_fix_topology, mris_make_surfaces -whiteonly, mris_smooth, mris_inflate, mris_curvature</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+<section class="stage" id="sphere" data-search="sphere spherical registration modalities/anat/freesurfer/fs_surf.py the spherical registration (mris_sphere + mris_register) is the slowest part of the surface reconstruction (about one hour per hemisphere for a human brain) and none of the ednix native-space outputs need it. it was therefore split out of step 11 into its own skip_step key.">
+  <div class="stage-head">
+    <div class="step-number">sphere</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Optional · slow</div>
+      <h2>Spherical registration</h2>
+      <div class="script-line"><code>modalities/anat/freesurfer/FS_surf.py</code></div>
+    </div>
+    <span class="status status-optional">Optional</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>The spherical registration (<code>mris_sphere</code> + <code>mris_register</code>) is the slowest part of the surface reconstruction (about one hour per hemisphere for a human brain) and none of the EDNiX native-space outputs need it. It was therefore split out of Step 11 into its own <code>Skip_step</code> key.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/freesurfer/&lt;ID&gt;/surf/?h.white + ?h.inflated</code></td><td>From Step 11; the step stops with an error if <code>?h.inflated</code> is missing.</td></tr><tr><td><span class="io-kind ">FILE</span><code>FreeSurfer reference curvature atlas (FS_refs)</code></td><td>Target of <code>mris_register</code>.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>.../surf/?h.sphere</code></td><td>Inflated surface mapped to a sphere.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../surf/?h.sphere.reg</code></td><td>Registration of the sphere to the reference curvature atlas.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../surf/?h.jacobian_white</code></td><td>Areal distortion of the registration.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../label/?h.aparc.annot</code></td><td>Default FreeSurfer parcellation, registered through the sphere.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li><code>mris_sphere</code> maps the inflated surface to a sphere.</li><li><code>mris_register -curv -dist 5 -max_degrees 68</code> aligns its folding pattern to the reference curvature atlas.</li><li><code>mris_jacobian</code> stores the deformation; <code>mris_ca_label</code> writes <code>aparc.annot</code>.</li><li>Who needs it: <code>doBALSAspace</code> (fs_LR / BALSA resampling in Step 15), the human <code>fs_extras</code> parcellations (Destrieux, DKT, Step 14) and the <code>aparc</code> used by the T2w pial refinement. The example launchers skip it; it can be run later on its own (<code>Skip_step</code> without <code>sphere</code>).</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>If you skip it, Steps 14–15 skip the fs_LR resampling and the human fs_extras parcellations with a warning; native-space surfaces, thickness and atlas labels are unaffected.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 12 (pial surfaces).</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/freesurfer/FS_surf.py · modalities/anat/_loop3.py</code></div>
+        <div><span>Entry point</span><code>Wsphere(...) · sphere_done(...)</code></div>
+        <div><span>Main toolchain</span><code>FreeSurfer mris_sphere, mris_register, mris_jacobian, mris_ca_label</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="step12" data-search="12 create pial surfaces modalities/anat/freesurfer/fs_surf.py the pial surface follows the outer cortical boundary. together, white and pial surfaces define cortical thickness and ribbon geometry.">
+  <div class="stage-head">
+    <div class="step-number">12</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Surface branch</div>
+      <h2>Create pial surfaces</h2>
+      <div class="script-line"><code>modalities/anat/freesurfer/FS_surf.py</code></div>
+    </div>
+    <span class="status status-surface">Surface branch</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>The pial surface follows the outer cortical boundary. Together, white and pial surfaces define cortical thickness and ribbon geometry.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>lh.white / rh.white and related configured surfaces</code></td><td>White-surface branch from Step 11.</td></tr><tr><td><span class="io-kind ">FILE</span><code>final T2w anatomy when available</code></td><td>Optional additional contrast for T2-guided pial refinement.</td></tr><tr><td><span class="io-kind ">FILE</span><code>aseg.mgz / subject segmentation</code></td><td>Supports surface refinement.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/freesurfer/&lt;ID&gt;/surf/lh.pial + rh.pial</code></td><td>Final pial surfaces.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../surf/lh.pial.nosmooth + rh.pial.nosmooth</code></td><td>Intermediate unsmoothed pial surface in the tessellation path.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../surf/lh.pial.T1 + rh.pial.T1</code></td><td>Backup when a T2-guided pial update is performed.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>Pcreate runs <code>mris_make_surfaces</code> from the white surface. The pial search distance is capped at 3 real mm (<code>preFS.MAX_REAL_THICKNESS</code>; <code>-max</code> = max(5, ⌈3 / real mm per FreeSurfer mm⌉)): with FreeSurfer’s default 5 FreeSurfer mm, the cap after the small-brain rescaling was 0.9–1.4 real mm in rodents and truncated their cortex.</li><li>When a usable T2 image exists and is not itself a synthetic T2→T1 transform product, PcreateT2 can refine the pial boundary using T2 information.</li><li>Optional Freeview inspection can run after pial generation.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Inspect regions where pial surfaces can leak into dura/vessels or cut into cortex.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> An optional flat-map checkpoint may run, then the dispatcher jumps to Step 14. There is no active Step 13.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/freesurfer/FS_surf.py</code></div>
+        <div><span>Entry point</span><code>Pcreate(...) / PcreateT2(...)</code></div>
+        <div><span>Main toolchain</span><code>FreeSurfer mris_make_surfaces (+ -T2dura with a T2w)</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="flatmap" data-search="flat_map optional cortical flat maps modalities/anat/freesurfer/fs_flat.py flat maps are useful for cortical visualization and some surface analyses, but they are not required for the core volumetric anatomy pipeline.">
+  <div class="stage-head">
+    <div class="step-number">flat_map</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Optional</div>
+      <h2>Optional cortical flat maps</h2>
+      <div class="script-line"><code>modalities/anat/freesurfer/FS_flat.py</code></div>
+    </div>
+    <span class="status status-optional">Optional</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Flat maps are useful for cortical visualization and some surface analyses, but they are not required for the core volumetric anatomy pipeline.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>FreeSurfer cortical surfaces</code></td><td>Current subject surface reconstruction.</td></tr><tr><td><span class="io-kind ">TOOL</span><code>configured tksurfer/flatten commands</code></td><td>Interactive/FreeSurfer flattening support.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>left/right FreeSurfer flat-map products</code></td><td>Flattened cortical representations; exact auxiliary files depend on the FreeSurfer flatten workflow.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>The dispatcher calls the flat-map utility separately for left and right hemispheres.</li><li>This checkpoint is controlled by the string key &quot;flat_map&quot; in Skip_step.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Optional. Skip it when flat representations are not needed.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 14 finalizes ribbon, atlas annotations and statistics. Step 13 is intentionally absent in the active dispatcher.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/freesurfer/FS_flat.py</code></div>
+        <div><span>Entry point</span><code>map(... left) + map(... right)</code></div>
+        <div><span>Main toolchain</span><code>tksurfer / flatten tooling</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="step13" data-search="13 no active step 13 — the current loop-3 dispatcher checks step 12, then flat_map, then step 14. the documentation preserves that numbering gap instead of inventing a stage.">
+  <div class="stage-head">
+    <div class="step-number">13</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Numbering gap</div>
+      <h2>No active Step 13</h2>
+      <div class="script-line"><code>—</code></div>
+    </div>
+    <span class="status status-gap">Numbering gap</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>The Loop-3 dispatcher checks Step 11, <code>sphere</code>, Step 12, <code>flat_map</code>, then Step 14. The documentation preserves that numbering gap instead of inventing a stage.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">—</span><code>—</code></td><td>No active input.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">—</span><code>—</code></td><td>No active output.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>There is no `if 13 in Skip_step` branch in the active Loop-3 code snapshot.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>If a future code revision adds Step 13, this section should be updated from the source code rather than inferred from numbering.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 14.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>—</code></div>
+        <div><span>Entry point</span><code>—</code></div>
+        <div><span>Main toolchain</span><code>—</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="step14" data-search="14 finalize freesurfer ribbons, labels and atlas statistics modalities/anat/freesurfer/fs_finalise.py the raw white and pial surfaces must be converted into ribbon, midthickness, annotation and parcellation products before workbench export.">
+  <div class="stage-head">
+    <div class="step-number">14</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Surface branch</div>
+      <h2>Finalize FreeSurfer ribbons, labels and atlas statistics</h2>
+      <div class="script-line"><code>modalities/anat/freesurfer/FS_finalise.py</code></div>
+    </div>
+    <span class="status status-surface">Surface branch</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>The raw white and pial surfaces must be converted into ribbon, midthickness, annotation and parcellation products before Workbench export.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>white + pial + sphere.reg surfaces</code></td><td>Surface reconstruction from Steps 11–12.</td></tr><tr><td><span class="io-kind ">FILE</span><code>subject atlas dseg files from Step 8</code></td><td>Configured volume atlases in subject space.</td></tr><tr><td><span class="io-kind ">FILE</span><code>atlas color tables / LUT resources</code></td><td>Needed to build annotations and statistics.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/freesurfer/&lt;ID&gt;/mri/ribbon.mgz</code></td><td>Cortical ribbon volume generated by mris_volmask.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../surf/lh.mid + rh.mid</code></td><td>Midthickness surfaces, halfway between white and pial.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../label/lh.*.annot + rh.*.annot</code></td><td>Cortical annotations, including configured FreeSurfer/atlas parcellations.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../stats/lh.*.stats + rh.*.stats</code></td><td>Hemisphere parcellation statistics.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../mri/aparc+aseg / wmparc / related MGZ products</code></td><td>Finalized volumetric parcellation products where the configured branch creates them.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../stats/aseg.stats / wmparc.stats</code></td><td>Segmentation statistics.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>mris_volmask creates the cortical ribbon from white/pial geometry.</li><li><code>FS_surf.midthickness</code> builds ?h.mid as the vertex-wise average of white and pial (Glasser et al. 2013); it replaces <code>mris_expand -thickness 0.5</code>, which in FreeSurfer 7.4 needs <code>?h.sphere</code>.</li><li>FreeSurfer annotation/statistics commands project standard or configured atlases onto the surface.</li><li>Volumetric parcellation and segmentation statistics are finalized for later export.</li><li>Human only: FreeSurfer’s own parcellations (Destrieux, DKT) and their statistics are “fs_extras”. They need the <code>sphere</code> step and can be turned off with <code>'fs_extras'</code> in <code>Skip_step</code>; EDNiX itself does not use them.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Additional atlases are merged into list_atlas immediately before this stage, so Step 14 output depends on the selected atlas configuration.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 15 converts the finalized FreeSurfer subject to Workbench/GIFTI/CIFTI products.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/freesurfer/FS_finalise.py</code></div>
+        <div><span>Entry point</span><code>FS_finalise(...)</code></div>
+        <div><span>Main toolchain</span><code>FreeSurfer mris_volmask / FS_surf.midthickness / mris_ca_label / mri_aparc2aseg / mri_segstats + Workbench label helper</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="step15" data-search="15 export surfaces and metrics to connectome workbench modalities/anat/freesurfer/fs_2_wb.py + modalities/anat/connectomewb/* freesurfer’s native formats are converted into interoperable gifti/cifti/workbench products and, when requested, standardized surface spaces such as balsa/fsaverage_lr.">
+  <div class="stage-head">
+    <div class="step-number">15</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Surface branch</div>
+      <h2>Export surfaces and metrics to Connectome Workbench</h2>
+      <div class="script-line"><code>modalities/anat/freesurfer/FS_2_WB.py + modalities/anat/connectomeWB/*</code></div>
+    </div>
+    <span class="status status-surface">Surface branch</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>FreeSurfer’s native formats are converted into interoperable GIFTI/CIFTI/Workbench products and, when requested, standardized surface spaces such as BALSA/fsaverage_LR.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>FreeSurfer white/pial/midthickness/inflated/sphere surfaces</code></td><td>Finalized subject surfaces.</td></tr><tr><td><span class="io-kind ">FILE</span><code>surface annotations + volume atlas labels</code></td><td>Parcellation information.</td></tr><tr><td><span class="io-kind ">FILE</span><code>small-brain rescale metadata when present</code></td><td>Allows geometry to be restored/handled consistently.</td></tr><tr><td><span class="io-kind ">FILE</span><code>BALSA/reference resources when doBALSAspace=True</code></td><td>Optional standard-surface target.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/native/surfaces/Native_resol/&lt;ID&gt;.&lt;l/r&gt;.&lt;surface&gt;.surf.gii</code></td><td>Native-resolution GIFTI surfaces, including white/pial/midthickness/inflated variants.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../&lt;ID&gt;.&lt;l/r&gt;.&lt;metric&gt;.shape.gii</code></td><td>Thickness, curvature, sulc and ROI metric files.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../&lt;ID&gt;.&lt;l/r&gt;.*.label.gii</code></td><td>Surface label files.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../&lt;ID&gt;_native_LR.wb.spec</code></td><td>Workbench spec file collecting native surface products.</td></tr><tr><td><span class="io-kind ">FILE</span><code>.../&lt;ID&gt;.sulc.dscalar.nii + other *.dscalar.nii</code></td><td>CIFTI dense scalar products.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/surfaces/fsaverage_LR_32k/...</code></td><td>32k standard-mesh derivatives when the configured BALSA/standard route is active.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/templates/&lt;BALSA&gt;/surfaces/...</code></td><td>Template-space surface derivatives when requested.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>mris_convert converts FreeSurfer geometry to GIFTI.</li><li>wb_command assigns cortical structures, builds spec files, creates midthickness/inflated/very-inflated products and converts scalar measures.</li><li>With <code>doBALSAspace=True</code> and a completed <code>sphere</code> step, surfaces and labels are resampled to fs_LR (<code>fsaverage_LR_32k</code>, BALSA). Without the sphere, this resampling is skipped with a warning.</li><li>CIFTI dense scalar and label products are assembled from left/right surface data.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>This stage has many derivative files by design. For a beginner, the most useful anchors are the .wb.spec file, midthickness surfaces, ROI/label files and thickness/sulc dscalars.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 16 performs automated anatomical QC on the final volumetric anatomy and registration.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/freesurfer/FS_2_WB.py + modalities/anat/connectomeWB/*</code></div>
+        <div><span>Entry point</span><code>WB_prep(...)</code></div>
+        <div><span>Main toolchain</span><code>FreeSurfer mris_convert + wb_command</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="step16" data-search="16 automated anatomical qc modalities/anat/loop3/_16_anat_qc_snr.py the final stage quantifies whether the processed anatomy and its reference-space relationship look plausible, and writes both machine-readable values and a visual summary.">
+  <div class="stage-head">
+    <div class="step-number">16</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Automated QC</div>
+      <h2>Automated anatomical QC</h2>
+      <div class="script-line"><code>modalities/anat/loop3/_16_anat_QC_SNR.py</code></div>
+    </div>
+    <span class="status status-qc">Automated QC</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>The final stage quantifies whether the processed anatomy and its reference-space relationship look plausible, and writes both machine-readable values and a visual summary.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/&lt;ID&gt;_space-acpc_desc-SS_&lt;Timage&gt;.nii.gz</code></td><td>Final skull-stripped anatomy.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/masks/&lt;ID&gt;_space-acpc_mask.nii.gz</code></td><td>Final ACPC brain mask.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/labels/&lt;ID&gt;_seg-EDNIxCSCLR_dseg.nii.gz</code></td><td>Atlas used for regional SNR metrics when available.</td></tr><tr><td><span class="io-kind ">FILE</span><code>reference/template image transformed into ACPC space</code></td><td>Used for normalized mutual information / registration QC.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/QC_anat/&lt;Timage&gt;_QC_summary.png</code></td><td>Comprehensive QC figure.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/QC_anat/&lt;Timage&gt;_QC_values.json</code></td><td>Machine-readable QC metrics.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/QC_anat/&lt;Timage&gt;_QC_values_simple.json</code></td><td>Fallback simplified metrics file if required by serialization handling.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/QC_anat/&lt;Timage&gt;_QC_result.txt</code></td><td>Text QC summary written by create_qc_figure.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/QC_anat/&lt;Timage&gt;QC_result.txt</code></td><td>A second current-code text naming variant may also be written by anat_QC itself.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/QC_anat/&lt;ID&gt;_surface_QC.png + .json</code></td><td>Surface QC: white/pial/midthickness contours on three planes, thickness distribution in real mm, distance of white/pial to the aseg boundaries. Copied to <code>&lt;bids_dir&gt;/QC/surfaces/</code>.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>Regional and whole-brain SNR are calculated from the final anatomy and atlas/mask.</li><li>The code also calculates contrast/CNR-related measures, spatial smoothness (FWHM) and normalized mutual information against the transformed reference when shapes are compatible.</li><li>Metrics are assembled into JSON and text outputs and visualized in a multi-panel QC summary.</li><li><code>Tools/QC_report.surface_qc_subject</code> then draws the surface QC (small brains: FreeSurfer mm divided by the header scale factor). It never stops the pipeline: a failure is a WARNING in the diary.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>If the configured EDNIxCSCLR atlas is absent, some region-based QC analyses are skipped with a warning.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> After the outputs are accepted, optional cleanup can remove reproducible intermediates.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/loop3/_16_anat_QC_SNR.py</code></div>
+        <div><span>Entry point</span><code>anat_QC(...)</code></div>
+        <div><span>Main toolchain</span><code>Nibabel, ANTsPy, AFNI 3dFWHMx, scikit-image metrics, Matplotlib, Tools/QC_report</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="stage" id="cleanup" data-search="clean optional cleanup of intermediates modalities/anat/loop3/_100_data_clean.py anatomical preprocessing produces large intermediate files. cleanup can remove reproducible working products while preserving final derivatives and irreplaceable manual masks.">
+  <div class="stage-head">
+    <div class="step-number">Clean</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Destructive optional</div>
+      <h2>Optional cleanup of intermediates</h2>
+      <div class="script-line"><code>modalities/anat/loop3/_100_Data_Clean.py</code></div>
+    </div>
+    <span class="status status-destructive">Destructive optional</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Anatomical preprocessing produces large intermediate files. Cleanup can remove reproducible working products while preserving final derivatives and irreplaceable manual masks.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>anat/preprocessing/</code></td><td>Working intermediates.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anat/native/volumes/ + masks/</code></td><td>Step-1/Step-2 intermediates plus final derivatives.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind warn">SIDE EFFECT</span><code>deletes desc-SS-step1 / desc-SS-step2 intermediates</code></td><td>These are superseded by the canonical final desc-SS image.</td></tr><tr><td><span class="io-kind warn">SIDE EFFECT</span><code>deletes cropped / desc-64 / brain4AlignCenter / zero-padding intermediates</code></td><td>Reproducible alignment workspace.</td></tr><tr><td><span class="io-kind warn">SIDE EFFECT</span><code>deletes desc-step1_mask / desc-step2_mask intermediates</code></td><td>Superseded by final mask products.</td></tr><tr><td><span class="io-kind keep">PRESERVE</span><code>preserves &lt;ID&gt;_final_mask.nii.gz</code></td><td>Manual Step-1 correction is explicitly protected.</td></tr><tr><td><span class="io-kind keep">PRESERVE</span><code>preserves &lt;ID&gt;_space-acpc_desc-template_*</code></td><td>Needed as canonical unmasked ACPC anatomy / regeneration source.</td></tr><tr><td><span class="io-kind keep">PRESERVE</span><code>preserves &lt;ID&gt;_space-acpc_desc-Bias_* and &lt;ID&gt;_space-acpc_desc-SS_*</code></td><td>Final/canonical derivatives used downstream.</td></tr><tr><td><span class="io-kind keep">PRESERVE</span><code>preserves &lt;ID&gt;_space-acpc_mask.nii.gz and FreeSurfer prep products</code></td><td>Final masks/surface inputs remain.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>The cleanup code constructs an explicit removal list rather than deleting entire directories.</li><li>It prints the files and total size scheduled for deletion and requires an exact interactive confirmation before permanent removal.</li><li>Final/manual mask paths are explicitly excluded from deletion.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Treat cleanup as destructive. Run it only after QC is accepted and you are confident you will not need Step-1/Step-2 intermediates for debugging.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> ANAT processing is complete.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/anat/loop3/_100_Data_Clean.py</code></div>
+        <div><span>Entry point</span><code>clean(...)</code></div>
+        <div><span>Main toolchain</span><code>Python filesystem operations</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+<section class="doc-section" id="batch">
+<h2>Batch runs, resets and QC reports</h2>
+<p class="intro">Three tools sit around the step dispatcher. None of them changes how a stage works; they decide what runs, what is deleted before a rerun, and how QC is gathered.</p>
+<div class="method-grid">
+<div class="mini-card"><h3>Reset before a rerun</h3><p>Every example launcher has <code>RESET_BEFORE_RUN</code> / <code>RESET_DRY_RUN</code>. The anatomical cleaner removes everything EDNiX wrote under <code>anat/</code> (or only <code>freesurfer/</code> + <code>native/surfaces/</code> with <code>RESET_SCOPE='surfaces'</code>, to rerun Steps 10–15) and keeps the raw BIDS files and every manual file: <code>*_final_mask*</code> (itk_1/itk_2), <code>*_backtonative_mask*</code> (itk_3), <code>*_desc-manual*</code>, <code>segmentation.mgz</code>, <code>*.scene</code>. A dry run lists the files first; deletion needs one <code>YES</code>.</p><code>modalities/anat/_000_Data_Reset.py</code></div>
+<div class="mini-card"><h3>All launchers as a dependency graph</h3><p>Per BIDS folder: anat before CT, CT before PET, anat before func; then the QC reports of every dataset and a study-level Excel summary. Launchers run with their own <code>Skip_step</code>; a launcher is split by subject into workers within the machine’s cores; a job whose prerequisite failed is not started. <code>--plan</code> shows the jobs without running anything.</p><code>Exemples/Study_EDNiX/run_all_ednix.py</code></div>
+<div class="mini-card"><h3>Full rebuild</h3><p>Builds the V2 atlas library, checks it against its manifest, swaps the libraries, resets the BIDS folders (manual masks and crops kept), then runs <code>run_all_ednix.py</code> detached, after one confirmation.</p><code>Exemples/Study_EDNiX/rebuild_all_ednix.py</code></div>
+<div class="mini-card"><h3>QC reports at three levels</h3><p>Gathers existing QC (nothing is recomputed): one HTML page per subject/session, <code>QC/QC_all_subjects.html</code> (values beyond 3.5 robust SD from the median highlighted), <code>QC/QC_dataset.html</code> and <code>QC/EDNiX_BIDS_summary.xlsx</code>. Run by <code>run_all_ednix.py</code> or <code>python -m Tools.QC_report &lt;BIDS&gt;</code>.</p><code>Tools/QC_report.py</code></div>
+</div>
+<div class="callout"><strong>Strict mode:</strong> without <code>EDNIX_STRICT=1</code> a failing external command is logged in red and the pipeline continues. Use strict mode for a new species, a new dataset and every validation run. Details: <a href="https://github.com/garincle/EDNiX/blob/master/docs/launchers.md">launchers.md</a>, <a href="https://github.com/garincle/EDNiX/blob/master/docs/quality_control.md">quality_control.md</a>.</div>
+</section>
+</div>
+
+<section class="doc-section" id="skullstrip">
+<h2>How skull stripping is selected</h2>
+<p class="intro">Steps 2, 4 and 5 all call the shared <code>Skullstrip_method.py</code> dispatcher. The method name is configuration, not a separate numbered pipeline stage.</p>
+<div class="method-grid">
+<div class="mini-card"><h3>AFNI family</h3><p>Multiple 3dSkullStrip variants, including species/customized routes.</p><code>3dSkullStrip…</code></div>
+<div class="mini-card"><h3>ANTs / threshold / Nilearn family</h3><p>ANTs-based and custom intensity/mask methods.</p><code>bet2_ANTS · Custom_ANTS_* · CustomNilearn_*</code></div>
+<div class="mini-card"><h3>Cross-species / ML routes</h3><p>SAMBA, SynthStrip, U-Net and muSkullStrip-style options are dispatched from the same interface.</p><code>synthstrip · muSkullStrip_* · Vol_sammba_* · U-Net</code></div>
+<div class="mini-card"><h3>Manual override rule</h3><p>If the correctly named manual final mask already exists, the dispatcher prioritizes it and can bypass automatic skull stripping.</p><code>&lt;ID&gt;_final_mask.nii.gz / &lt;ID&gt;_final_mask_2.nii.gz</code></div>
+</div>
+<div class="callout warning"><strong>Developer implication:</strong> the same stage can produce a mask through very different algorithms depending on configuration. Documentation should describe the stage contract (input mask image → output mask) separately from the selected implementation.</div>
+</section>
+
+<section class="doc-section" id="glossary">
+<h2>Major file glossary</h2>
+<p class="intro">If a beginner remembers only a handful of filenames, these are the useful anchors.</p>
+<div class="glossary-grid">
+<div class="mini-card"><h3>Stable raw-space anatomy</h3><p>One per contrast after raw-scan selection/averaging.</p><code>&lt;ID&gt;_space-raw_desc-template_&lt;Timage&gt;.nii.gz</code></div><div class="mini-card"><h3>Bias-corrected raw-space anatomy</h3><p>Step 1 intensity-bias-corrected input to first skull stripping.</p><code>&lt;ID&gt;_space-raw_desc-Bias_&lt;Timage&gt;.nii.gz</code></div><div class="mini-card"><h3>First mask</h3><p>Coarse mask from Step 2.</p><code>&lt;ID&gt;_desc-step1_mask.nii.gz</code></div><div class="mini-card"><h3>First ACPC brain</h3><p>Intermediate brain used for optional study-template building and Step 5.</p><code>&lt;ID&gt;_space-acpc_desc-SS-step1_&lt;Timage&gt;.nii.gz</code></div><div class="mini-card"><h3>Second mask</h3><p>Refined mask from Step 5.</p><code>&lt;ID&gt;_desc-step2_mask.nii.gz</code></div><div class="mini-card"><h3>Second ACPC brain</h3><p>Registration-era skull-stripped anatomy used by Step 6.</p><code>&lt;ID&gt;_space-acpc_desc-SS-step2_&lt;Timage&gt;.nii.gz</code></div><div class="mini-card"><h3>Canonical unmasked ACPC anatomy</h3><p>Unmasked image retained so final masks can be reapplied without reconstructing earlier stages.</p><code>&lt;ID&gt;_space-acpc_desc-template_&lt;Timage&gt;.nii.gz</code></div><div class="mini-card"><h3>Final ACPC brain mask</h3><p>Automatically propagated final mask before/without itk_3 manual override.</p><code>&lt;ID&gt;_space-acpc_mask.nii.gz</code></div><div class="mini-card"><h3>Manual final ACPC mask</h3><p>itk_3 manual override; takes priority for final skull stripping.</p><code>&lt;ID&gt;_backtonative_mask.nii.gz</code></div><div class="mini-card"><h3>Canonical final skull-stripped anatomy</h3><p>Step 8 final subject anatomy consumed by surface/QC stages.</p><code>&lt;ID&gt;_space-acpc_desc-SS_&lt;Timage&gt;.nii.gz</code></div><div class="mini-card"><h3>4FS segmentation</h3><p>FreeSurfer-oriented segmentation propagated into subject space.</p><code>&lt;ID&gt;_seg-4FS_dseg.nii.gz</code></div><div class="mini-card"><h3>Atlas segmentation</h3><p>Atlas labels in subject ACPC space.</p><code>&lt;ID&gt;_seg-&lt;atlas&gt;_dseg.nii.gz</code></div><div class="mini-card"><h3>FreeSurfer subject</h3><p>Surface-reconstruction workspace derived from EDNiX volumes.</p><code>anat/freesurfer/&lt;ID&gt;/</code></div><div class="mini-card"><h3>Workbench spec</h3><p>Convenient entry point for opening the subject’s native Workbench surfaces.</p><code>&lt;ID&gt;_native_LR.wb.spec</code></div><div class="mini-card"><h3>Final QC summary</h3><p>Multi-panel automated anatomical QC figure.</p><code>anat/QC_anat/&lt;Timage&gt;_QC_summary.png</code></div>
+</div>
+</section>
+
+<section class="doc-section" id="developer-map">
+<h2>Developer map: orchestration vs processing vs libraries</h2>
+<p class="intro">The folder contains many Python files, but they are not all sequential stages. Keeping these roles separate makes the codebase much easier to navigate.</p>
+<div class="devmap-grid">
+<div class="mini-card"><h3>Orchestration</h3><p>Decides order and routing; should not be described as if it directly creates every image.</p><code>_0_Pipeline_launcher.py · _loop1.py · _loop2.py · _loop3.py</code></div>
+<div class="mini-card"><h3>Numbered processing modules</h3><p>Implement the stage contracts documented above.</p><code>_1_correct_orient.py · _2_clean_anat.py · _3_make_template.py …</code></div>
+<div class="mini-card"><h3>Manual QC gates</h3><p>Interactive checkpoints whose edits deliberately trigger regeneration.</p><code>_itk1_QC.py · _mask2_Data_QC.py · _200_Data_QC.py</code></div>
+<div class="mini-card"><h3>Shared method libraries</h3><p>Algorithms selected by configuration rather than independent pipeline stages.</p><code>skullstrip/* · norm2template.py · freesurfer/* · connectomeWB/*</code></div>
+<div class="mini-card"><h3>Path contract</h3><p>The directory tree is centralized here. Read this before inventing or documenting a path.</p><code>Tools/getpath.py</code></div>
+<div class="mini-card"><h3>Provenance contract</h3><p>Many NIfTI derivatives receive adjacent JSON sidecars recording sources and descriptions. The sidecars are part of understanding how a file was made.</p><code>*.nii.gz ↔ *.json</code></div>
+</div>
+<div class="callout"><strong>Recommended maintenance rule:</strong> when the code changes, update the stage’s input/output table first, then its algorithm description. That keeps the documentation useful even when an implementation method is replaced.</div>
+</section>
+<footer>EDNiX ANAT guide · checked against the repository code (master, 13 November 2026) · companion pages: <a href="fmri.html">fMRI</a>, <a href="pet.html">PET</a>, <a href="ct.html">CT</a>.</footer>
+</div>
+</main>
+</div>
+<script>
+const links=[...document.querySelectorAll('.nav-group a')];
+const sections=[...document.querySelectorAll('[id]')].filter(x=>links.some(a=>a.dataset.target===x.id));
+const where=document.getElementById('whereText');
+const observer=new IntersectionObserver(entries=>{
+  const visible=entries.filter(e=>e.isIntersecting).sort((a,b)=>a.boundingClientRect.top-b.boundingClientRect.top)[0];
+  if(!visible)return;
+  links.forEach(a=>a.classList.toggle('active',a.dataset.target===visible.target.id));
+  const active=links.find(a=>a.dataset.target===visible.target.id);
+  if(active)where.textContent=active.textContent.trim();
+},{rootMargin:'-15% 0px -75% 0px',threshold:0});
+sections.forEach(s=>observer.observe(s));
+const search=document.getElementById('search');
+search.addEventListener('input',()=>{
+ const q=search.value.trim().toLowerCase();
+ document.querySelectorAll('.stage').forEach(s=>{
+   const text=(s.dataset.search+' '+s.textContent).toLowerCase();
+   s.classList.toggle('filtered',q && !text.includes(q));
+ });
+});
+</script>
+</body></html>

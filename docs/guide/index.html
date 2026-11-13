@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EDNiX Guides</title>
+<style>
+:root{--ink:#20262d;--muted:#66717b;--soft:#f5f7f8;--panel:#ffffff;--line:#dce2e6;--green:#285a42;--green2:#edf5f0;--orange:#a95310;--orange2:#fff6ec;--blue:#345b78;--blue2:#eef4f8;--red:#9c3c35;--red2:#fbefee;--code:#f3f5f6;--sidebar:#f7f8f8;--max:1120px}
+*{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;color:var(--ink);background:#fff;font:15.5px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif} a{color:var(--green)} code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border:1px solid #e3e7e9;border-radius:4px;padding:.08rem .3rem;font-size:.91em;overflow-wrap:anywhere} .layout{display:grid;grid-template-columns:290px minmax(0,1fr);min-height:100vh}
+.sidebar{position:sticky;top:0;height:100vh;overflow:auto;background:var(--sidebar);border-right:1px solid var(--line);padding:22px 18px 30px} .brand{border-top:5px solid var(--green);padding-top:13px;margin-bottom:18px} .brand .small{font:700 11px/1.2 ui-monospace,monospace;color:var(--orange);letter-spacing:.08em;text-transform:uppercase} .brand h1{font-size:23px;line-height:1.1;margin:5px 0 6px;color:#1c3529} .brand p{font-size:12.5px;color:var(--muted);margin:0}
+.search{width:100%;padding:9px 10px;border:1px solid #ccd4d8;border-radius:5px;background:#fff;margin:4px 0 14px;font:inherit;font-size:13px} .where{font-size:11.5px;color:var(--muted);padding:9px 10px;background:#fff;border:1px solid var(--line);border-radius:5px;margin-bottom:16px} .where b{display:block;color:var(--green);margin-bottom:2px}
+.nav-group{margin:15px 0} .nav-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:#8a949c;font-weight:800;margin:0 8px 5px} .nav-group a{display:block;text-decoration:none;color:#4f5a63;padding:5px 8px;border-left:3px solid transparent;border-radius:0 4px 4px 0;font-size:13px} .nav-group a:hover{background:#eef1f2;color:#25333c} .nav-group a.active{border-left-color:var(--green);background:#eaf1ed;color:#163d2b;font-weight:700}
+main{min-width:0} .topbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.94);backdrop-filter:blur(7px);border-bottom:1px solid var(--line)} .topbar-inner{max-width:var(--max);margin:auto;padding:9px 28px;font-size:12.5px;color:var(--muted)} .topbar code{background:transparent;border:0;padding:0;color:var(--green)} .content{max-width:var(--max);margin:auto;padding:42px 28px 90px}
+.hero{padding-bottom:30px;border-bottom:1px solid var(--line)} .kicker{font:800 11px ui-monospace,monospace;color:var(--orange);letter-spacing:.08em;text-transform:uppercase} .hero h1{font-size:42px;line-height:1.12;letter-spacing:-.035em;margin:8px 0 14px} .hero .lead{font-size:19px;max-width:900px;color:#4d5962;margin:0} .source-note{margin-top:22px;padding:12px 15px;border-left:4px solid var(--green);background:var(--green2);font-size:13px;color:#44514a}
+.doc-section{padding-top:42px;scroll-margin-top:60px} .doc-section>h2{font-size:28px;letter-spacing:-.02em;margin:0 0 8px} .doc-section>.intro{color:var(--muted);max-width:900px;margin:0 0 20px} .callout{padding:16px 18px;border:1px solid var(--line);border-left:4px solid var(--blue);background:var(--blue2);border-radius:4px;margin:18px 0} .callout strong{color:#244b67} .callout.warning{border-left-color:var(--orange);background:var(--orange2)} .callout.danger{border-left-color:var(--red);background:var(--red2)}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0} .legend span,.status{display:inline-flex;align-items:center;border:1px solid var(--line);padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#fff} .status-manual{border-color:#e9c498;background:#fff7ec;color:#8a470d} .status-conditional,.status-optional{border-color:#b9d0de;background:#f2f8fb;color:#315b78} .status-core{border-color:#b8d1c2;background:#f0f7f3;color:#285a42} .status-surface{border-color:#c5c8e1;background:#f4f4fb;color:#4c4f82} .status-qc{border-color:#bdd0bb;background:#f3f8f1;color:#3d6838} .status-destructive{border-color:#e2b4b0;background:#fcf2f1;color:#8e342f} .status-gap{color:#788087;background:#fafafa} .status-orchestration,.status-automatic{color:#51616c;background:#f2f5f6}
+.tree{background:#1f2924;color:#e7efe9;border-radius:6px;padding:18px 20px;overflow:auto;font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre} .tree .d{color:#8dc4a6} .tree .f{color:#f2c58b}
+.roadmap{display:grid;gap:7px;margin-top:18px} .road-row{display:grid;grid-template-columns:66px 1fr auto;align-items:center;border:1px solid var(--line);border-radius:5px;background:#fff;padding:9px 11px;text-decoration:none;color:inherit} .road-row:hover{border-color:#aab8b1;background:#fbfcfb} .road-num{font:800 12px ui-monospace,monospace;color:var(--green)} .road-title{font-weight:700} .road-note{font-size:12px;color:var(--muted)}
+.route-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px} .route-card{border:1px solid var(--line);border-radius:6px;padding:15px;background:#fff} .route-card h3{font-size:15px;margin:0 0 5px} .route-card p{font-size:13px;color:var(--muted);margin:0} .route-card code{display:block;margin-top:8px}
+.stage{border:1px solid #d8dfe2;border-radius:7px;margin:28px 0;scroll-margin-top:64px;box-shadow:0 1px 2px rgba(31,43,50,.04);background:#fff} .stage.filtered{display:none} .stage-head{display:grid;grid-template-columns:66px minmax(0,1fr) auto;gap:14px;align-items:start;padding:18px 20px;border-bottom:1px solid var(--line);background:#fbfcfc;border-radius:7px 7px 0 0} .step-number{width:54px;min-height:40px;display:grid;place-items:center;background:#263c31;color:#fff;border-radius:4px;font:800 12px ui-monospace,monospace;padding:6px;text-align:center} .stage-title-wrap h2{font-size:23px;line-height:1.2;margin:2px 0 5px;letter-spacing:-.015em} .eyebrow{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--orange);font-weight:800} .script-line code{font-size:11.5px;color:#4d5962} .stage-body{padding:20px} .why{border-left:4px solid var(--green);padding:1px 0 1px 14px;margin-bottom:19px} .why strong{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--green)} .why p{margin:4px 0 0;color:#45515a}
+.io-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px} .io-block{min-width:0} .io-title{font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px;color:#4e5962} .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:5px} table{width:100%;border-collapse:collapse} td{padding:9px 10px;border-bottom:1px solid #e9edef;vertical-align:top;font-size:12.5px} tr:last-child td{border-bottom:0} td:first-child{width:53%} .io-kind{display:inline-block;font:800 9px ui-monospace,monospace;letter-spacing:.04em;color:var(--green);margin-right:6px;vertical-align:1px} .io-kind.warn{color:var(--orange)} .io-kind.keep{color:var(--blue)} table code{font-size:11.2px}
+.how-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(250px,.65fr);gap:18px;margin-top:20px} .how-grid h3,.inspect h3{font-size:14px;margin:0 0 8px} .how-grid ol{margin:0;padding-left:22px} .how-grid li{margin:5px 0} .inspect{background:#f7f9f9;border:1px solid var(--line);border-radius:5px;padding:14px} .inspect p{font-size:13px;color:#59656e;margin:0} .next{margin-top:18px;padding:10px 12px;background:#f2f7f4;border-radius:4px;color:#365044;font-size:13px} .dev{margin-top:16px;border-top:1px solid var(--line);padding-top:11px} .dev summary{cursor:pointer;font-weight:700;font-size:12.5px;color:#53616a} .dev-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:10px} .dev-grid>div{padding:10px;background:#f7f8f8;border-radius:4px;min-width:0} .dev-grid span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#818b92;margin-bottom:4px} .dev-grid code{font-size:10.5px}
+.method-grid,.glossary-grid,.devmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px} .mini-card{border:1px solid var(--line);border-radius:5px;padding:14px;background:#fff} .mini-card h3{font-size:14px;margin:0 0 5px} .mini-card p{font-size:13px;color:var(--muted);margin:0} .mini-card code{display:block;margin-top:7px;font-size:11px}
+footer{margin-top:50px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:#7a858d}
+@media(max-width:1050px){.layout{grid-template-columns:245px 1fr}.sidebar{padding-left:12px;padding-right:12px}.io-grid,.route-grid{grid-template-columns:1fr}}
+@media(max-width:780px){.layout{display:block}.sidebar{position:relative;height:auto;border-right:0;border-bottom:1px solid var(--line)}.nav-group{display:none}.where{display:none}.topbar{position:relative}.content{padding:28px 16px 70px}.hero h1{font-size:34px}.stage-head{grid-template-columns:54px 1fr}.stage-head .status{grid-column:2;justify-self:start}.io-grid,.how-grid,.dev-grid,.method-grid,.glossary-grid,.devmap-grid{grid-template-columns:1fr}.road-row{grid-template-columns:52px 1fr}.road-note{display:none}}
+@media print{.sidebar,.topbar,.search{display:none!important}.layout{display:block}.content{max-width:none;padding:0 20px}.stage{break-inside:avoid;box-shadow:none}details.dev{display:none}}
+.nav-group.guides a.active{border-left-color:var(--orange);background:var(--orange2);color:#6d3a0c;font-weight:700}.data-table th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#4e5962;background:#f7f9f9;padding:8px 10px;border-bottom:1px solid var(--line)}.data-table td{font-size:13.5px}.status-analysis{border-color:#cec4e0;background:#f7f4fb;color:#66538b}.note-list{margin:12px 0 0;padding-left:22px}.note-list li{margin:7px 0}.refs{font-size:13px;color:#4d5962;padding-left:20px}.refs li{margin:4px 0}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <div class="brand"><div class="small">EDNiX documentation</div><h1>EDNiX guides</h1><p>Beginner path + developer map, per modality.</p></div>
+  <input class="search" id="search" type="search" placeholder="Filter stages…" aria-label="Filter stages">
+  <div class="where"><b>You are here</b><span id="whereText">Overview</span></div>
+  <nav><div class="nav-group guides"><div class="nav-label">EDNiX guides</div><a href="index.html" class="active">Overview</a><a href="anat.html">ANAT pipeline</a><a href="fmri.html">fMRI pipeline</a><a href="pet.html">PET pipeline</a><a href="ct.html">CT pipeline</a></div><div class="nav-group"><div class="nav-label">Start here</div><a href="#overview" data-target="overview">Overview</a><a href="#guides" data-target="guides">The four guides</a><a href="#order" data-target="order">Run order</a><a href="#more" data-target="more">More documentation</a></div></nav>
+</aside>
+<main>
+<div class="topbar"><div class="topbar-inner">Repository: <a href="https://github.com/garincle/EDNiX">garincle/EDNiX</a> · checked against master, 13 November 2026</div></div>
+<div class="content">
+<section class="hero" id="overview">
+  <div class="kicker">EDNiX · DOCUMENTATION</div>
+  <h1>Multi-species MRI and PET processing, explained stage by stage</h1>
+  <p class="lead">EDNiX takes BIDS datasets of rodents, bats, dogs, non-human primates and humans through anatomical, functional, PET and CT processing and brings every subject into a common cross-species atlas framework. These guides explain what each stage does to your data and which code does it.</p>
+  <div class="source-note"><b>Source-of-truth rule:</b> the guides were checked against the repository code (master, 13 November 2026). When the code changes, update the stage’s input/output table first, then its method text.</div>
+</section>
+
+<section class="doc-section" id="guides">
+<h2>Four guides, one per modality</h2>
+<p class="intro">Each guide follows the processing in execution order. Every stage has the same card: why it exists, what it reads, what it creates, how, what to inspect, what comes next, and a developer view with the module and entry point.</p>
+<div class="route-grid">
+<a class="route-card" href="anat.html" style="text-decoration:none;color:inherit"><h3>ANAT · anatomical MRI</h3><p>Orientation, bias correction, skull-stripping with manual QC gates, study/longitudinal templates, registration to the atlas, atlases back to native space, FreeSurfer and Workbench surfaces, QC.</p><code>modalities/anat · preprocess_anat</code></a>
+<a class="route-card" href="fmri.html" style="text-decoration:none;color:inherit"><h3>fMRI · functional MRI</h3><p>Slice timing, motion and brain-size-scaled censoring, field-map distortion correction, one-shot resampling, denoising (AFNI / Grandjean / fMRIPrep-style), template space, connectivity and QC.</p><code>modalities/fMRI · preprocess_fmri</code></a>
+<a class="route-card" href="pet.html" style="text-decoration:none;color:inherit"><h3>PET · static and dynamic</h3><p>Seven registration scenarios (PET-MR, PET/CT, templates), motion correction, SUV and ratios, regional TACs, SRTM/Logan, partial-volume correction, export to template spaces.</p><code>modalities/pet · preprocess_pet</code></a>
+<a class="route-card" href="ct.html" style="text-decoration:none;color:inherit"><h3>CT · for the PET</h3><p>Reorientation, CT study template, multi-start CT → anatomy / template registration, and the record that the PET pipeline follows.</p><code>modalities/ct · preprocess_ct</code></a>
+</div>
+</section>
+
+<section class="doc-section" id="order">
+<h2>In which order do the pipelines run?</h2>
+<div class="table-wrap"><table class="data-table"><thead><tr><th>Order</th><th>Pipeline</th><th>Needs</th><th>Feeds</th></tr></thead><tbody><tr><td>1</td><td><a href="anat.html">ANAT</a></td><td>BIDS T1w/T2w, atlas library</td><td>transforms, masks, atlases, surfaces for fMRI / CT / PET</td></tr><tr><td>2</td><td><a href="fmri.html">fMRI</a></td><td>ANAT of the same subject</td><td>denoised BOLD, matrices, seed maps</td></tr><tr><td>2</td><td><a href="ct.html">CT</a></td><td>ANAT (or a CT template, or several CTs)</td><td>CT registration record</td></tr><tr><td>3</td><td><a href="pet.html">PET</a></td><td>ANAT and/or CT record, or a PET template</td><td>SUV, ratios, kinetic images in PET, AC-PC and template spaces</td></tr></tbody></table></div>
+<div class="callout"><code>Exemples/Study_EDNiX/run_all_ednix.py</code> runs every example launcher in this order (per BIDS folder: anat → CT → PET, anat → func), splits launchers by subject over the available cores, skips jobs whose prerequisite failed, then builds the QC reports. Start with <code>--plan</code>.</div>
+<div class="callout warning"><strong>For a new species or dataset:</strong> run with <code>EDNIX_STRICT=1</code> (stop at the first failing command), keep the ITK-SNAP/freeview checks on for the first subjects, and look at every skull-strip and registration image before running group statistics.</div>
+</section>
+
+<section class="doc-section" id="more">
+<h2>More documentation</h2>
+<div class="method-grid">
+<div class="mini-card"><h3>Installation</h3><p>Python environment, containers, atlas library.</p><code><a href="https://github.com/garincle/EDNiX/blob/master/docs/installation.md">installation.md</a></code></div>
+<div class="mini-card"><h3>BIDS and launchers</h3><p>Dataset layout, subject selection, editing a launcher, resets, batch runs.</p><code><a href="https://github.com/garincle/EDNiX/blob/master/docs/bids.md">bids.md</a> · <a href="https://github.com/garincle/EDNiX/blob/master/docs/launchers.md">launchers.md</a></code></div>
+<div class="mini-card"><h3>Parameter references</h3><p>Generated from the code: every parameter with its default.</p><code><a href="https://github.com/garincle/EDNiX/blob/master/docs/reference/anat_parameters.md">anat</a> · <a href="https://github.com/garincle/EDNiX/blob/master/docs/reference/fmri_parameters.md">fMRI</a> · <a href="https://github.com/garincle/EDNiX/blob/master/docs/reference/pet_parameters.md">PET</a> · <a href="https://github.com/garincle/EDNiX/blob/master/docs/reference/ct_parameters.md">CT</a></code></div>
+<div class="mini-card"><h3>Atlases, skull-stripping, QC, statistics</h3><p>Multi-level atlases, mask methods, QC reports, group analyses.</p><code><a href="https://github.com/garincle/EDNiX/blob/master/docs/atlases.md">atlases</a> · <a href="https://github.com/garincle/EDNiX/blob/master/docs/skullstripping.md">skullstripping</a> · <a href="https://github.com/garincle/EDNiX/blob/master/docs/quality_control.md">QC</a> · <a href="https://github.com/garincle/EDNiX/blob/master/docs/group_analysis.md">group analysis</a></code></div>
+</div>
+</section>
+
+<footer>EDNiX guides · Institut des Sciences Cognitives Marc Jeannerod (CNRS, Lyon) · <a href="https://github.com/garincle/EDNiX">source code</a>.</footer>
+</div>
+</main>
+</div>
+<script>
+const links=[...document.querySelectorAll('.nav-group a')];
+const sections=[...document.querySelectorAll('[id]')].filter(x=>links.some(a=>a.dataset.target===x.id));
+const where=document.getElementById('whereText');
+const observer=new IntersectionObserver(entries=>{
+  const visible=entries.filter(e=>e.isIntersecting).sort((a,b)=>a.boundingClientRect.top-b.boundingClientRect.top)[0];
+  if(!visible)return;
+  links.forEach(a=>a.classList.toggle('active',a.dataset.target===visible.target.id));
+  const active=links.find(a=>a.dataset.target===visible.target.id);
+  if(active)where.textContent=active.textContent.trim();
+},{rootMargin:'-15% 0px -75% 0px',threshold:0});
+sections.forEach(s=>observer.observe(s));
+const search=document.getElementById('search');
+search.addEventListener('input',()=>{
+ const q=search.value.trim().toLowerCase();
+ document.querySelectorAll('.stage').forEach(s=>{
+   const text=(s.dataset.search+' '+s.textContent).toLowerCase();
+   s.classList.toggle('filtered',q && !text.includes(q));
+ });
+});
+</script>
+</body>
+</html>

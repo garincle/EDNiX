@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EDNiX CT Guide</title>
+<style>
+:root{--ink:#20262d;--muted:#66717b;--soft:#f5f7f8;--panel:#ffffff;--line:#dce2e6;--green:#285a42;--green2:#edf5f0;--orange:#a95310;--orange2:#fff6ec;--blue:#345b78;--blue2:#eef4f8;--red:#9c3c35;--red2:#fbefee;--code:#f3f5f6;--sidebar:#f7f8f8;--max:1120px}
+*{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;color:var(--ink);background:#fff;font:15.5px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif} a{color:var(--green)} code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border:1px solid #e3e7e9;border-radius:4px;padding:.08rem .3rem;font-size:.91em;overflow-wrap:anywhere} .layout{display:grid;grid-template-columns:290px minmax(0,1fr);min-height:100vh}
+.sidebar{position:sticky;top:0;height:100vh;overflow:auto;background:var(--sidebar);border-right:1px solid var(--line);padding:22px 18px 30px} .brand{border-top:5px solid var(--green);padding-top:13px;margin-bottom:18px} .brand .small{font:700 11px/1.2 ui-monospace,monospace;color:var(--orange);letter-spacing:.08em;text-transform:uppercase} .brand h1{font-size:23px;line-height:1.1;margin:5px 0 6px;color:#1c3529} .brand p{font-size:12.5px;color:var(--muted);margin:0}
+.search{width:100%;padding:9px 10px;border:1px solid #ccd4d8;border-radius:5px;background:#fff;margin:4px 0 14px;font:inherit;font-size:13px} .where{font-size:11.5px;color:var(--muted);padding:9px 10px;background:#fff;border:1px solid var(--line);border-radius:5px;margin-bottom:16px} .where b{display:block;color:var(--green);margin-bottom:2px}
+.nav-group{margin:15px 0} .nav-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:#8a949c;font-weight:800;margin:0 8px 5px} .nav-group a{display:block;text-decoration:none;color:#4f5a63;padding:5px 8px;border-left:3px solid transparent;border-radius:0 4px 4px 0;font-size:13px} .nav-group a:hover{background:#eef1f2;color:#25333c} .nav-group a.active{border-left-color:var(--green);background:#eaf1ed;color:#163d2b;font-weight:700}
+main{min-width:0} .topbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.94);backdrop-filter:blur(7px);border-bottom:1px solid var(--line)} .topbar-inner{max-width:var(--max);margin:auto;padding:9px 28px;font-size:12.5px;color:var(--muted)} .topbar code{background:transparent;border:0;padding:0;color:var(--green)} .content{max-width:var(--max);margin:auto;padding:42px 28px 90px}
+.hero{padding-bottom:30px;border-bottom:1px solid var(--line)} .kicker{font:800 11px ui-monospace,monospace;color:var(--orange);letter-spacing:.08em;text-transform:uppercase} .hero h1{font-size:42px;line-height:1.12;letter-spacing:-.035em;margin:8px 0 14px} .hero .lead{font-size:19px;max-width:900px;color:#4d5962;margin:0} .source-note{margin-top:22px;padding:12px 15px;border-left:4px solid var(--green);background:var(--green2);font-size:13px;color:#44514a}
+.doc-section{padding-top:42px;scroll-margin-top:60px} .doc-section>h2{font-size:28px;letter-spacing:-.02em;margin:0 0 8px} .doc-section>.intro{color:var(--muted);max-width:900px;margin:0 0 20px} .callout{padding:16px 18px;border:1px solid var(--line);border-left:4px solid var(--blue);background:var(--blue2);border-radius:4px;margin:18px 0} .callout strong{color:#244b67} .callout.warning{border-left-color:var(--orange);background:var(--orange2)} .callout.danger{border-left-color:var(--red);background:var(--red2)}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0} .legend span,.status{display:inline-flex;align-items:center;border:1px solid var(--line);padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#fff} .status-manual{border-color:#e9c498;background:#fff7ec;color:#8a470d} .status-conditional,.status-optional{border-color:#b9d0de;background:#f2f8fb;color:#315b78} .status-core{border-color:#b8d1c2;background:#f0f7f3;color:#285a42} .status-surface{border-color:#c5c8e1;background:#f4f4fb;color:#4c4f82} .status-qc{border-color:#bdd0bb;background:#f3f8f1;color:#3d6838} .status-destructive{border-color:#e2b4b0;background:#fcf2f1;color:#8e342f} .status-gap{color:#788087;background:#fafafa} .status-orchestration,.status-automatic{color:#51616c;background:#f2f5f6}
+.tree{background:#1f2924;color:#e7efe9;border-radius:6px;padding:18px 20px;overflow:auto;font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre} .tree .d{color:#8dc4a6} .tree .f{color:#f2c58b}
+.roadmap{display:grid;gap:7px;margin-top:18px} .road-row{display:grid;grid-template-columns:66px 1fr auto;align-items:center;border:1px solid var(--line);border-radius:5px;background:#fff;padding:9px 11px;text-decoration:none;color:inherit} .road-row:hover{border-color:#aab8b1;background:#fbfcfb} .road-num{font:800 12px ui-monospace,monospace;color:var(--green)} .road-title{font-weight:700} .road-note{font-size:12px;color:var(--muted)}
+.route-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px} .route-card{border:1px solid var(--line);border-radius:6px;padding:15px;background:#fff} .route-card h3{font-size:15px;margin:0 0 5px} .route-card p{font-size:13px;color:var(--muted);margin:0} .route-card code{display:block;margin-top:8px}
+.stage{border:1px solid #d8dfe2;border-radius:7px;margin:28px 0;scroll-margin-top:64px;box-shadow:0 1px 2px rgba(31,43,50,.04);background:#fff} .stage.filtered{display:none} .stage-head{display:grid;grid-template-columns:66px minmax(0,1fr) auto;gap:14px;align-items:start;padding:18px 20px;border-bottom:1px solid var(--line);background:#fbfcfc;border-radius:7px 7px 0 0} .step-number{width:54px;min-height:40px;display:grid;place-items:center;background:#263c31;color:#fff;border-radius:4px;font:800 12px ui-monospace,monospace;padding:6px;text-align:center} .stage-title-wrap h2{font-size:23px;line-height:1.2;margin:2px 0 5px;letter-spacing:-.015em} .eyebrow{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--orange);font-weight:800} .script-line code{font-size:11.5px;color:#4d5962} .stage-body{padding:20px} .why{border-left:4px solid var(--green);padding:1px 0 1px 14px;margin-bottom:19px} .why strong{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--green)} .why p{margin:4px 0 0;color:#45515a}
+.io-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px} .io-block{min-width:0} .io-title{font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px;color:#4e5962} .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:5px} table{width:100%;border-collapse:collapse} td{padding:9px 10px;border-bottom:1px solid #e9edef;vertical-align:top;font-size:12.5px} tr:last-child td{border-bottom:0} td:first-child{width:53%} .io-kind{display:inline-block;font:800 9px ui-monospace,monospace;letter-spacing:.04em;color:var(--green);margin-right:6px;vertical-align:1px} .io-kind.warn{color:var(--orange)} .io-kind.keep{color:var(--blue)} table code{font-size:11.2px}
+.how-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(250px,.65fr);gap:18px;margin-top:20px} .how-grid h3,.inspect h3{font-size:14px;margin:0 0 8px} .how-grid ol{margin:0;padding-left:22px} .how-grid li{margin:5px 0} .inspect{background:#f7f9f9;border:1px solid var(--line);border-radius:5px;padding:14px} .inspect p{font-size:13px;color:#59656e;margin:0} .next{margin-top:18px;padding:10px 12px;background:#f2f7f4;border-radius:4px;color:#365044;font-size:13px} .dev{margin-top:16px;border-top:1px solid var(--line);padding-top:11px} .dev summary{cursor:pointer;font-weight:700;font-size:12.5px;color:#53616a} .dev-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:10px} .dev-grid>div{padding:10px;background:#f7f8f8;border-radius:4px;min-width:0} .dev-grid span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#818b92;margin-bottom:4px} .dev-grid code{font-size:10.5px}
+.method-grid,.glossary-grid,.devmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px} .mini-card{border:1px solid var(--line);border-radius:5px;padding:14px;background:#fff} .mini-card h3{font-size:14px;margin:0 0 5px} .mini-card p{font-size:13px;color:var(--muted);margin:0} .mini-card code{display:block;margin-top:7px;font-size:11px}
+footer{margin-top:50px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:#7a858d}
+@media(max-width:1050px){.layout{grid-template-columns:245px 1fr}.sidebar{padding-left:12px;padding-right:12px}.io-grid,.route-grid{grid-template-columns:1fr}}
+@media(max-width:780px){.layout{display:block}.sidebar{position:relative;height:auto;border-right:0;border-bottom:1px solid var(--line)}.nav-group{display:none}.where{display:none}.topbar{position:relative}.content{padding:28px 16px 70px}.hero h1{font-size:34px}.stage-head{grid-template-columns:54px 1fr}.stage-head .status{grid-column:2;justify-self:start}.io-grid,.how-grid,.dev-grid,.method-grid,.glossary-grid,.devmap-grid{grid-template-columns:1fr}.road-row{grid-template-columns:52px 1fr}.road-note{display:none}}
+@media print{.sidebar,.topbar,.search{display:none!important}.layout{display:block}.content{max-width:none;padding:0 20px}.stage{break-inside:avoid;box-shadow:none}details.dev{display:none}}
+.nav-group.guides a.active{border-left-color:var(--orange);background:var(--orange2);color:#6d3a0c;font-weight:700}.data-table th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#4e5962;background:#f7f9f9;padding:8px 10px;border-bottom:1px solid var(--line)}.data-table td{font-size:13.5px}.status-analysis{border-color:#cec4e0;background:#f7f4fb;color:#66538b}.note-list{margin:12px 0 0;padding-left:22px}.note-list li{margin:7px 0}.refs{font-size:13px;color:#4d5962;padding-left:20px}.refs li{margin:4px 0}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <div class="brand"><div class="small">EDNiX documentation</div><h1>CT pipeline</h1><p>The CT step that links a PET/CT to the anatomy or a template.</p></div>
+  <input class="search" id="search" type="search" placeholder="Filter stages…" aria-label="Filter stages">
+  <div class="where"><b>You are here</b><span id="whereText">Overview</span></div>
+  <nav><div class="nav-group guides"><div class="nav-label">EDNiX guides</div><a href="index.html">Overview</a><a href="anat.html">ANAT pipeline</a><a href="fmri.html">fMRI pipeline</a><a href="pet.html">PET pipeline</a><a href="ct.html" class="active">CT pipeline</a></div><div class="nav-group"><div class="nav-label">Start here</div><a href="#overview" data-target="overview">Overview</a><a href="#mental-model" data-target="mental-model">What the CT is for</a><a href="#scenarios" data-target="scenarios">Scenarios</a><a href="#directory-map" data-target="directory-map">Output directory map</a><a href="#roadmap" data-target="roadmap">Processing roadmap</a></div><div class="nav-group"><div class="nav-label">Stages</div><a href="#step0" data-target="step0">0 · Launcher</a><a href="#step1" data-target="step1">1 · Reorientation</a><a href="#step2" data-target="step2">2 · CT study template</a><a href="#step3" data-target="step3">3 · Registration + export</a></div><div class="nav-group"><div class="nav-label">Reference</div><a href="#parameters" data-target="parameters">Key parameters</a><a href="#qc" data-target="qc">QC + resets</a><a href="#developer-map" data-target="developer-map">Developer map</a><a href="#references" data-target="references">References</a></div></nav>
+</aside>
+<main>
+<div class="topbar"><div class="topbar-inner">Source tree: <code>modalities/ct</code> · path contract: <code>Tools/getpath.ct</code> · code: <a href="https://github.com/garincle/EDNiX/tree/master/modalities/ct">GitHub</a></div></div>
+<div class="content">
+<section class="hero" id="overview">
+  <div class="kicker">EDNiX · CT</div>
+  <h1>Registering a CT so that the PET can follow it to the anatomy and the templates</h1>
+  <p class="lead">Three steps, one goal: a reliable CT → anatomy (or CT → template) registration record for the PET pipeline.</p>
+  <div class="source-note"><b>Source-of-truth rule:</b> checked against the EDNiX repository (<code>modalities/ct</code>, <code>modalities/pet</code>, <code>Tools/getpath.py</code>, master, 13 November 2026).</div>
+</section>
+
+<section class="doc-section" id="mental-model">
+<h2>What the CT pipeline is for</h2>
+<p class="intro">The CT pipeline exists to serve the <a href="pet.html">PET pipeline</a>. It registers a CT (in Hounsfield units) to the subject’s anatomy, to a CT template or to a CT study template, and writes a registration record that the PET pipeline then follows (PET → CT → anatomy or template).</p>
+<div class="legend"><span>FILE = concrete on-disk file/pattern</span><span>SETTING = launcher parameter</span><span>RECORD = JSON registration record</span></div>
+<div class="callout warning"><strong>Run order:</strong> ANAT pipeline (if the subjects have an MRI) → CT pipeline → PET pipeline with <code>IhaveaCT=True</code>. Use the same <code>animalPosition</code>/<code>humanPosition</code> as the PET of the same PET/CT acquisition, and the same <code>type_norm</code>, <code>creat_study_template</code>, <code>coregistration_longitudinal</code> as the anatomical launcher.</div>
+<div class="callout"><strong>Before registering a CT:</strong> a CT acquired with a gantry tilt must be resampled at DICOM conversion (dcm2niix does it, Li et al. 2016; <code>GantryDetectorTilt</code> in the sidecar), otherwise the image is sheared and no rigid transform will fix it. Overlay the reoriented CT and the T1w (<code>Need_check_orient=True</code>): a flipped axis comes from the headers, not from the metric.</div>
+</section>
+
+<section class="doc-section" id="scenarios">
+<h2>Which target does the CT use?</h2>
+<p class="intro">Chosen in the launcher; one CT per session (the first one if several, with a warning).</p>
+<div class="route-grid">
+<div class="route-card"><h3>Same scanner space as the anatomy</h3><p>No registration: the CT receives the world transform of the anatomy’s reorientation and follows its AC-PC matrix.</p><code>IhaveanANAT=True, anat_ct_same_space=True</code></div>
+<div class="route-card"><h3>1v2b · MRI, other space</h3><p>Rigid CT → anatomy (AC-PC head image), multi-start, then the anatomy → template chains of the ANAT pipeline.</p><code>IhaveanANAT=True</code></div>
+<div class="route-card"><h3>2v1 · CT template, no MRI</h3><p>CT → CT template already in the reference space (<code>type_of_transform_template</code>, <code>SyNRA</code> by default).</p><code>IhaveanANAT=False, template_CT='…'</code></div>
+<div class="route-card"><h3>2v2 · no MRI, no CT template</h3><p>CTs restricted to the head build a CT study template (Step 2); each CT is registered to it. The PET pipeline’s <code>bridge</code> step then links it to the reference template through an FDG study template.</p><code>IhaveanANAT=False, creat_study_template_ct=True</code></div>
+</div>
+<div class="callout warning">With no anatomy, no CT template and no CT study template, the launcher stops: there is nothing to register the CT to.</div>
+</section>
+
+<section class="doc-section" id="directory-map">
+<h2>Where EDNiX writes CT files</h2>
+<p class="intro">Same layout as the PET (<code>Tools/getpath.ct</code> → <code>_emission_tree</code>).</p>
+<div class="tree"><span class="d">&lt;data_path&gt;/ct/</span>                     BIDS raw CT (input, endct) + diary + launcher parameters
+├── <span class="d">orig/</span>
+│   ├── <span class="d">preprocessing/</span>           &lt;base&gt;_desc-reorient_ct.nii.gz, &lt;base&gt;_space-orig_&lt;T_CT&gt;.nii.gz (anatomy in CT space)
+│   │   └── <span class="d">forMC/</span>               &lt;base&gt;_desc-head_ct (2v2), *_desc-intracranial_mask, ct2&lt;T_CT&gt; (do_manual)
+│   └── <span class="d">matrices/</span>                <span class="f">&lt;base&gt;_desc-registration_ct.json</span> (record), ANTs matrices, *candidates.json
+├── <span class="d">acpc/</span>                        &lt;base&gt;_space-acpc_ct.nii.gz
+├── <span class="d">templates/&lt;name&gt;/</span>            &lt;base&gt;_space-&lt;name&gt;_ct.nii.gz
+└── <span class="d">QC/</span>                          &lt;base&gt;_space-&lt;target&gt;_ct.png
+<span class="d">&lt;bids_dir&gt;/sty_template/ct/</span>      CT study template (2v2)
+<span class="d">&lt;bids_dir&gt;/QC/</span>                   ct_in_acpc/, ct_in_template/</div>
+</section>
+
+<section class="doc-section" id="roadmap">
+<h2>The whole CT route on one page</h2>
+<div class="roadmap"><a class="road-row" href="#step0"><span class="road-num">0</span><span class="road-title">Launcher and scenario</span><span class="road-note">plan only</span></a><a class="road-row" href="#step1"><span class="road-num">1</span><span class="road-title">Reorientation of the header</span><span class="road-note">per session</span></a><a class="road-row" href="#step2"><span class="road-num">2</span><span class="road-title">CT study template</span><span class="road-note">2v2 only, group</span></a><a class="road-row" href="#step3"><span class="road-num">3</span><span class="road-title">Registration, record, export, QC</span><span class="road-note">per session</span></a></div></section>
+
+<section class="stage" id="step0" data-search="0 launcher and scenario modalities/ct/_0_pipeline_launcher.py resolves the sessions, the anatomy of each one (or the template route) and the scenario before any image is touched.">
+  <div class="stage-head">
+    <div class="step-number">0</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Orchestration</div>
+      <h2>Launcher and scenario</h2>
+      <div class="script-line"><code>modalities/ct/_0_Pipeline_launcher.py</code></div>
+    </div>
+    <span class="status status-orchestration">Orchestration</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Resolves the sessions, the anatomy of each one (or the template route) and the scenario before any image is touched.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">SETTING</span><code>bids_dir, species, endct</code></td><td>Dataset, species, glob of the raw CT (<code>*_ct.nii.gz</code>).</td></tr><tr><td><span class="io-kind ">SETTING</span><code>T_CT, type_norm, creat_study_template, coregistration_longitudinal</code></td><td>Values of the anatomical launcher; <code>T_CT</code> is the anatomical image the CT is registered to.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>IhaveanANAT, anat_ct_same_space, template_CT, creat_study_template_ct</code></td><td>Scenario.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">STATE</span><code>scenario</code></td><td><code>anat_same_space</code>, <code>1v2b</code>, <code>2v1</code> or <code>2v2</code>.</td></tr><tr><td><span class="io-kind ">FILE</span><code>ct/&lt;ID&gt; session &lt;S&gt;….txt + launcher_parameters</code></td><td>Diary and effective parameters.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li><code>set_launcher.get</code> (shared with ANAT) resolves the reference template and atlases.</li><li>The anatomy of the session (or of another session of the subject) is found with the same helper as the PET pipeline.</li><li>Unknown keyword arguments are printed as a WARNING and ignored.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Check the scenario line in the diary for the first subject.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 1.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/ct/_0_Pipeline_launcher.py</code></div>
+        <div><span>Entry point</span><code>preprocess_ct(...)</code></div>
+        <div><span>Main toolchain</span><code>PyBIDS table + EDNiX Tools</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="step1" data-search="1 reorientation of the header modalities/ct/reorient.py (→ modalities/pet/reorient.py) the ct must be in the same anatomical convention as the anatomy and the pet before any registration.">
+  <div class="stage-head">
+    <div class="step-number">1</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Core stage</div>
+      <h2>Reorientation of the header</h2>
+      <div class="script-line"><code>modalities/ct/reorient.py (→ modalities/pet/reorient.py)</code></div>
+    </div>
+    <span class="status status-core">Core stage</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>The CT must be in the same anatomical convention as the anatomy and the PET before any registration.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>sub-&lt;ID&gt;/ses-&lt;S&gt;/ct/*_ct.nii.gz + .json</code></td><td>Raw CT in HU.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>humanPosition, animalPosition, orientation, deoblique</code></td><td>As the PET of the same PET/CT.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>CT_header_wrong</code></td><td>Copy the orientation code of the raw anatomy of the same scanner space first (with <code>anat_ct_same_space</code>).</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>ct/orig/preprocessing/&lt;base&gt;_desc-reorient_ct.nii.gz</code></td><td>Reoriented CT; moving image of Step 3 and reference of the record.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>Positions come from the launcher, else <code>PatientPosition</code> of the sidecar.</li><li><code>deoblique='WARP'</code> resamples an oblique CT on a cardinal grid (3dWarp, as the anatomy); <code>'header'</code> drops the obliquity.</li><li>In the scanner space of the anatomy, the CT receives the world transform of the anatomy’s reorientation (<code>reference_world_map</code>), recorded in its sidecar so that the PET of the PET/CT can follow it.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p><code>Need_check_orient=True</code> opens freeview over the anatomy.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 2 (2v2) or Step 3.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/ct/reorient.py · modalities/pet/reorient.py</code></div>
+        <div><span>Entry point</span><code>reorient.doit(...)</code></div>
+        <div><span>Main toolchain</span><code>AFNI 3dWarp / 3drefit</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="step2" data-search="2 ct study template modalities/pet/studyt.py + modalities/ct/coreg2anat.head_image without anatomy or ct template, cts of the cohort are brought to a common ct space so that one bridge to the reference template serves every subject.">
+  <div class="stage-head">
+    <div class="step-number">2</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Group · 2v2 only</div>
+      <h2>CT study template</h2>
+      <div class="script-line"><code>modalities/pet/studyT.py + modalities/ct/coreg2anat.head_image</code></div>
+    </div>
+    <span class="status status-conditional">creat_study_template_ct</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Without anatomy or CT template, CTs of the cohort are brought to a common CT space so that one bridge to the reference template serves every subject.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>reoriented CT of every session</code></td><td>From Step 1.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>studyT_transform</code></td><td><code>'SyNRA'</code>.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>ct/orig/preprocessing/forMC/&lt;base&gt;_desc-head_ct.nii.gz</code></td><td>CT restricted to the head.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/sty_template/ct/…</code></td><td>CT study template and its diary.</td></tr><tr><td><span class="io-kind ">FILE</span><code>ct/orig/matrices/&lt;base&gt;_to_studyTemplate_*</code></td><td>Session → study template transforms.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>Head image: head mask = voxels &gt; −500 HU, largest connected component (removes the bed and head holder), holes filled, dilated 5 mm; outside set to −1000 HU; image cropped to the box of the mask (world coordinates kept, so transforms apply to the full CT).</li><li>Head images are averaged and iteratively registered (<code>SyNRA</code>: rigid + affine + SyN).</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>A CT template has no brain contrast; it is linked to atlases only by the PET <code>bridge</code> step.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 3.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/pet/studyT.py · modalities/ct/coreg2anat.py</code></div>
+        <div><span>Entry point</span><code>studyT.make_template(...)</code></div>
+        <div><span>Main toolchain</span><code>ANTsPy</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="step3" data-search="3 registration, record, export and qc modalities/ct/coreg2anat.py (uses modalities/pet/coreg2anat.rigid_to) links the ct to every target space and writes the record that the pet pipeline composes with its own pet → ct step.">
+  <div class="stage-head">
+    <div class="step-number">3</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Core stage</div>
+      <h2>Registration, record, export and QC</h2>
+      <div class="script-line"><code>modalities/ct/coreg2anat.py (uses modalities/pet/coreg2anat.rigid_to)</code></div>
+    </div>
+    <span class="status status-core">Core stage</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Links the CT to every target space and writes the record that the PET pipeline composes with its own PET → CT step.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>reoriented CT</code></td><td>Moving image.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anatomy (AC-PC head image, brain, mask) + backtonative packages</code></td><td>1v2b / same space.</td></tr><tr><td><span class="io-kind ">FILE</span><code>template_CT or CT study template</code></td><td>2v1 / 2v2.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>coreg_init, coreg_transform, coreg_metric, ct_brain_refine, do_manual</code></td><td><code>'auto'</code>, <code>'Rigid'</code>, <code>'mattes'</code>, <code>False</code>, <code>False</code>.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">RECORD</span><code>ct/orig/matrices/&lt;base&gt;_desc-registration_ct.json</code></td><td>Scenario, targets, chains to/from the CT; read by the PET pipeline.</td></tr><tr><td><span class="io-kind ">FILE</span><code>ct/orig/matrices/*candidates.json</code></td><td>Score of every start.</td></tr><tr><td><span class="io-kind ">FILE</span><code>ct/orig/preprocessing/forMC/*_desc-intracranial_mask.nii.gz</code></td><td>Intracranial cavity of the CT.</td></tr><tr><td><span class="io-kind ">FILE</span><code>ct/acpc/…_space-acpc_ct, ct/templates/&lt;name&gt;/…_space-&lt;name&gt;_ct</code></td><td>CT in each target space (linear).</td></tr><tr><td><span class="io-kind ">FILE</span><code>ct/orig/preprocessing/&lt;base&gt;_space-orig_&lt;T_CT&gt;.nii.gz</code></td><td>Anatomy in CT space (for viewing).</td></tr><tr><td><span class="io-kind ">FILE</span><code>ct/QC/&lt;base&gt;_space-&lt;target&gt;_ct.png</code></td><td>CT with the target’s brain mask as contour; copies in <code>&lt;bids_dir&gt;/QC/ct_in_acpc</code>, <code>ct_in_template</code>.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>The CT is shifted to ≥ 0 and restricted to its head (&gt; −500 HU, largest component). Mutual information is the reference metric for CT–MRI (West et al. 1997).</li><li><b>Multi-start</b> (<code>coreg_init='auto'</code>): centres of mass of the masked images, centres of the fields of view, the anatomy’s AC-PC matrix, identity, a rotation search (15° steps within ±90°, recovers an 80° pitch within 0.5 mm on the phantom) and, for a CT, the centroids of the upper brain of the intracranial cavity (bone &gt; 300 HU, closed 2 mm, filled slice by slice) and of the anatomy’s brain. With neck and shoulders in the field of view, centres of mass are pulled to the body; the <code>brain</code> start gives 0.7 mm on that phantom. The start with the highest Mattes MI covering 90 % of the brain is kept.</li><li><code>coreg_init='acpc'</code> alone works only when CT and anatomy share scanner coordinates.</li><li><b>Optional brain window</b> (<code>ct_brain_refine=True</code>): on [−1000, 2000] HU the parenchyma (CSF ≈ 5, WM ≈ 30, GM ≈ 40 HU) falls in one or two of the 32 histogram bins, so skull and scalp drive the metric. The second pass registers the CT in a 0–80 HU window (1-mm smoothing, bone &gt; 200 HU set to 0) inside the anatomy’s brain dilated 3 mm (Muschelli et al. 2015). Neutral on phantoms; try it when the QC shows the brain shifted inside a well-aligned skull.</li><li>With an anatomy, the CT → AC-PC transform is composed with the anatomy → template chains (<code>backtonative.get</code>) for every template target. 2v1: CT → CT template with <code>type_of_transform_template</code>; 2v2: reuses Step 2.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Look at <code>ct_in_acpc</code> first. Rigid CT–MRI registration by MI is accurate to about 1–2 mm in the human head (West et al. 1997; Studholme et al. 1999); a larger error usually comes from the headers or a wrong start, not from the metric.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> The PET pipeline, with <code>IhaveaCT=True</code>.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/ct/coreg2anat.py · modalities/pet/coreg2anat.py</code></div>
+        <div><span>Entry point</span><code>coreg2anat.register(...) · rigid_to(...) · ct_intracranial_mask(...) · brain_window(...)</code></div>
+        <div><span>Main toolchain</span><code>ANTsPy (Mattes MI), antsAffineInitializer, freeview (do_manual)</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="doc-section" id="parameters">
+<h2>Parameters that matter most</h2>
+<div class="table-wrap"><table class="data-table"><thead><tr><th>Parameter</th><th>Default</th><th>Effect</th></tr></thead><tbody><tr><td><code>T_CT</code></td><td>required</td><td>Anatomical image the CT is registered to (<code>T1w</code>/<code>T2w</code>).</td></tr><tr><td><code>IhaveanANAT</code></td><td><code>True</code></td><td>Subjects have an MRI processed by the ANAT pipeline (1v2b).</td></tr><tr><td><code>anat_ct_same_space</code></td><td><code>False</code></td><td>CT and anatomy in the same scanner space: AC-PC matrix of the anatomy, no registration.</td></tr><tr><td><code>template_CT</code></td><td><code>''</code></td><td>CT template in the reference space (2v1).</td></tr><tr><td><code>creat_study_template_ct</code></td><td><code>False</code></td><td>Build a CT study template (2v2).</td></tr><tr><td><code>coreg_init</code></td><td><code>'auto'</code></td><td>Multi-start; or one of <code>com</code>, <code>fov</code>, <code>acpc</code>, <code>identity</code>, <code>search</code>, <code>brain</code>.</td></tr><tr><td><code>coreg_transform</code></td><td><code>'Rigid'</code></td><td>A CT and an MRI of one subject differ by a rigid motion.</td></tr><tr><td><code>ct_brain_refine</code></td><td><code>False</code></td><td>Second pass in the brain window.</td></tr><tr><td><code>deoblique</code></td><td><code>'WARP'</code></td><td>Resample an oblique CT (<code>'header'</code> drops obliquity).</td></tr><tr><td><code>do_manual</code>, <code>Need_check_orient</code>, <code>Need_check_coreg</code></td><td><code>False</code></td><td>freeview correction / checks.</td></tr></tbody></table></div>
+<div class="callout">All parameters: <a href="https://github.com/garincle/EDNiX/blob/master/docs/reference/ct_parameters.md">ct_parameters.md</a>. Method details shared with the PET: <a href="https://github.com/garincle/EDNiX/blob/master/docs/pet_pipeline.md">pet_pipeline.md</a>.</div>
+</section>
+
+<section class="doc-section" id="qc">
+<h2>QC and resets</h2>
+<ul class="note-list">
+<li><code>ct/QC/&lt;base&gt;_space-&lt;target&gt;_ct.png</code> and <code>&lt;bids_dir&gt;/QC/ct_in_acpc</code>, <code>ct_in_template</code>; the QC tab of the interface shows them.</li>
+<li><code>ct/orig/matrices/*candidates.json</code>: if the kept start is not the one you expect (for example <code>com</code> with the body in the field of view), rerun with <code>coreg_init='brain'</code> or <code>'search'</code>.</li>
+<li><code>modalities/ct/_000_Data_Reset</code> removes EDNiX outputs under <code>ct/</code>, keeps raw BIDS files and manual crops; <code>RESET_KEEP_REGISTRATION=True</code> keeps <code>orig/matrices</code>.</li>
+<li><code>run_all_ednix.py</code> runs CT after anat and before PET for each BIDS folder.</li>
+</ul>
+</section>
+
+<section class="doc-section" id="developer-map">
+<h2>Developer map</h2>
+<div class="devmap-grid">
+<div class="mini-card"><h3>Orchestration</h3><p>Scenario, sessions, Steps 1–3.</p><code>modalities/ct/_0_Pipeline_launcher.py</code></div>
+<div class="mini-card"><h3>Reorientation</h3><p>Thin wrapper on the PET reorientation (positions, obliquity, world transforms).</p><code>modalities/ct/reorient.py → modalities/pet/reorient.py</code></div>
+<div class="mini-card"><h3>Registration</h3><p>Head image, intracranial mask, brain window, record, export, QC.</p><code>modalities/ct/coreg2anat.py</code></div>
+<div class="mini-card"><h3>Shared with PET</h3><p>Multi-start rigid, transform chains and records, study template, naming.</p><code>modalities/pet/coreg2anat.py · transfo.py · studyT.py · petutils.py</code></div>
+</div>
+</section>
+
+<section class="doc-section" id="references">
+<h2>References</h2>
+<ul class="refs">
+<li>Li X, Morgan PS, Ashburner J, Smith J, Rorden C (2016) The first step for neuroimaging data analysis: DICOM to NIfTI conversion. J Neurosci Methods 264:47–56.</li>
+<li>Muschelli J et al. (2015) Validated automatic brain extraction of head CT images. NeuroImage 114:379–385.</li>
+<li>Studholme C, Hill DLG, Hawkes DJ (1999) An overlap invariant entropy measure of 3D medical image alignment. Pattern Recognit 32:71–86.</li>
+<li>West J et al. (1997) Comparison and evaluation of retrospective intermodality brain image registration techniques. J Comput Assist Tomogr 21:554–566.</li>
+</ul>
+</section>
+<footer>EDNiX CT guide · checked against the repository code (master, 13 November 2026) · companion pages: <a href="anat.html">ANAT</a>, <a href="fmri.html">fMRI</a>, <a href="pet.html">PET</a>.</footer>
+</div>
+</main>
+</div>
+<script>
+const links=[...document.querySelectorAll('.nav-group a')];
+const sections=[...document.querySelectorAll('[id]')].filter(x=>links.some(a=>a.dataset.target===x.id));
+const where=document.getElementById('whereText');
+const observer=new IntersectionObserver(entries=>{
+  const visible=entries.filter(e=>e.isIntersecting).sort((a,b)=>a.boundingClientRect.top-b.boundingClientRect.top)[0];
+  if(!visible)return;
+  links.forEach(a=>a.classList.toggle('active',a.dataset.target===visible.target.id));
+  const active=links.find(a=>a.dataset.target===visible.target.id);
+  if(active)where.textContent=active.textContent.trim();
+},{rootMargin:'-15% 0px -75% 0px',threshold:0});
+sections.forEach(s=>observer.observe(s));
+const search=document.getElementById('search');
+search.addEventListener('input',()=>{
+ const q=search.value.trim().toLowerCase();
+ document.querySelectorAll('.stage').forEach(s=>{
+   const text=(s.dataset.search+' '+s.textContent).toLowerCase();
+   s.classList.toggle('filtered',q && !text.includes(q));
+ });
+});
+</script>
+</body>
+</html>
