@@ -1,5 +1,11 @@
 # Changelog
 
+## PET manual brain masks, November 2026
+
+- Brain mask drawn by hand on the raw PET of a session, stored like the functional masks (`func/raw/masks/`): `<BIDS>/sub-*/ses-*/pet/raw/masks/<session>_desc-manual_mask.nii.gz` (`<session>` = `sub-X_ses-Y_trc-FDG`). New module `modalities/pet/manualmask.py`: the mask is brought into the reoriented space after step 1 (`pet/orig/masks/<session>_space-orig_desc-manual_mask.nii.gz`; voxel array kept when step 1 only rewrote the header, world transform + nearest neighbour when it resampled the image).
+- `preprocess_pet(use_manual_mask=True)`: the manual mask becomes the brain mask of the PET space (bratio, skull-stripped dynamic image) and replaces the brain of the atlas. Before, scenario 3v2 (PET study template, no anatomy, no atlas) had no brain mask at all: `bratio=True` only wrote a WARNING.
+- `crop_for_MoCo='mask'`: head box of steps 4-6 = bounding box of the manual mask + 10 mm (no freeview, step 3 skipped); `'auto'` uses it when there is no crop of the study template. `pet_coreg_mask='manual'`: dilated manual mask as moving mask of the PET -> anatomy / CT registration.
+- Tests `tests/unit/test_pet_manualmask.py`.
 ## Faster relaunches, cleaners, QC reports, adaptive human registration, library V2, November 2026
 
 - Anat: the spherical registration (`mris_sphere`, `mris_register`, `mris_jacobian`, `mris_ca_label`) is a separate step `sphere` (`FS_surf.Wsphere`); step 11 keeps white, inflation and curvature. `sphere` is added to `Skip_step` of the example anat launchers. Without it, steps 14–15 skip the fs_LR / BALSA resampling and `fs_extras` (warning) and the T2w pial runs with `-noaparc`. `atlases/template.modif` (library) still runs it.

@@ -155,7 +155,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
                    nb_void=0, crop_for_MoCo='auto', redo_crop=False, MoCo_transform='Rigid',
                    coreg_metric='mattes', type_of_transform_template='SyNRA', do_manual=False, same_space_window=None,
                    coreg_transform='Rigid', coreg_init='auto', pet_coreg_mask='none', pet_mask_percentile=30.0,
-                   pet_mask_dilate_mm=3.0, coreg_target='anat', synthetic_fwhm=None,
+                   pet_mask_dilate_mm=3.0, coreg_target='anat', synthetic_fwhm=None, use_manual_mask=True,
                    ct_template_bridge=True, bridge_transform='Affine',
                    SUV=True, bratio=True, SUV_window=None, Do_cut=False, duration=10,
                    srtm=False, reference_signal='unknown', DV_time=0, DV_k2ref=None, kinetic_end=None,
@@ -271,8 +271,10 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         registered frame).
     crop_for_MoCo : str, optional
         Head box used by the motion correction and the registration: 'auto' (crop of the PET study template brought
-        to every session when creat_study_template_pet=True, else drawn on the session), 'manual' (drawn on every
-        session, freeview), 'none' (whole field of view). A session crop that no longer matches the reoriented image
+        to every session when creat_study_template_pet=True, else the box of the manual brain mask of the session
+        when there is one, else drawn on the session), 'manual' (drawn on every session, freeview), 'mask' (bounding
+        box of the manual brain mask of every session + 10 mm, no freeview, step 3 skipped; see use_manual_mask),
+        'none' (whole field of view). A session crop that no longer matches the reoriented image
         of its session (step 1 run again with another orientation) is drawn again. The box is shown in
         pet/QC/<session>_desc-cropbox_pet.png (and <BIDS>/QC/pet_crop), with a warning when it misses the activity.
     redo_crop : bool, optional
@@ -300,7 +302,8 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         'threshold' (voxels above pet_mask_percentile of the positive voxels, largest connected component, holes
         filled, dilated pet_mask_dilate_mm), 'anat' (second pass: brain of the anatomy brought into the PET by a
         first registration, dilated pet_mask_dilate_mm, then registration of the PET brain only; removes the
-        extracerebral uptake from the metric), or a mask file in the PET space.
+        extracerebral uptake from the metric), 'manual' (manual brain mask of the session, dilated
+        pet_mask_dilate_mm; see use_manual_mask), or a mask file in the PET space.
     pet_mask_percentile : float, optional
         Percentile of the positive PET voxels for pet_coreg_mask='threshold' (30).
     pet_mask_dilate_mm : float, optional
@@ -331,6 +334,14 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         injection) of the anatomy / CT acquisition. The motion-corrected PET (average head position) is brought back to
         the mean head position of the frames of that window; None = the first 10 min of the first run from its first
         registered frame (CT acquired before the PET).
+    use_manual_mask : bool, optional
+        Use the brain mask drawn by hand on the raw PET of a session when it exists
+        (<BIDS>/sub-*/ses-*/pet/raw/masks/<session>_desc-manual_mask.nii.gz, same convention as func/raw/masks;
+        modalities/pet/manualmask.py), True by default. It is brought into the reoriented space after step 1
+        (pet/orig/masks/<session>_space-orig_desc-manual_mask.nii.gz) and becomes the brain mask of the PET space
+        (bratio, skull-stripped dynamic image), in place of the brain of the atlas: without anatomy and atlas
+        (scenario 3v2) it is the only brain mask, otherwise bratio is not computed. It also gives the head box of
+        crop_for_MoCo='mask' / 'auto' and the moving mask of pet_coreg_mask='manual'.
     SUV : bool, optional
         Compute the SUV (body weight and injected radioactivity from the sidecar / sessions.tsv /
         participants.tsv) and, with the blood glucose, the glucose-corrected SUV.
@@ -422,8 +433,8 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
     os.environ["AFNI_NIFTI_TYPE_WARN"] = "NO"
     type_norm = check_nii.normalize_anat_type(type_norm)
     T_PET = check_nii.normalize_anat_type(T_PET)
-    if crop_for_MoCo not in ('auto', 'manual', 'none'):
-        raise ValueError(f"crop_for_MoCo={crop_for_MoCo!r}: expected 'auto', 'manual' or 'none'")
+    if crop_for_MoCo not in ('auto', 'manual', 'mask', 'none'):
+        raise ValueError(f"crop_for_MoCo={crop_for_MoCo!r}: expected 'auto', 'manual', 'mask' or 'none'")
     if export_resolution not in ('pet', 'target'):
         raise ValueError(f"export_resolution={export_resolution!r}: expected 'pet' or 'target'")
     if isinstance(pvc_fwhm, str) and pvc_fwhm != 'auto':
@@ -471,7 +482,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
                 coreg_metric=coreg_metric, coreg_transform=coreg_transform, type_of_transform_template=type_of_transform_template,
                 coreg_init=coreg_init, pet_coreg_mask=pet_coreg_mask, pet_mask_percentile=float(pet_mask_percentile),
                 pet_mask_dilate_mm=float(pet_mask_dilate_mm), coreg_target=coreg_target, synthetic_fwhm=synthetic_fwhm,
-                same_space_window=same_space_window,
+                same_space_window=same_space_window, use_manual_mask=bool(use_manual_mask),
                 studyT_transform=studyT_transform, do_manual=do_manual, Need_check_MC=Need_check_MC,
                 Need_check_coreg=Need_check_coreg, SUV=SUV, bratio=bratio, SUV_window=SUV_window, Do_cut=Do_cut,
                 duration=duration, srtm=srtm, reference_signal=reference_signal, DV_time=DV_time, DV_k2ref=DV_k2ref,
@@ -598,7 +609,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
                 mean = first.replace('_desc-reorient_', '_desc-reorient-mean_') if pu.is_dynamic(first) else first
                 items.append((mean, s['paths']['orig_matrices'], s['session']))
             studyT.make_template(study_dir, items, tracer, studyT_transform, study_diary)
-        if 3 in Skip_step or crop_for_MoCo == 'none':
+        if 3 in Skip_step or crop_for_MoCo in ('none', 'mask'):
             run_cmd.msg('INFO: skip step 3', study_diary, 'OKGREEN')
         else:
             run_cmd.msg(pu.step_header(3), study_diary, 'HEADER')

@@ -19,6 +19,7 @@ from Tools import run_cmd, QC_plot
 from modalities.pet import petutils as pu
 from modalities.pet import studyT, MoCo, coreg2anat, preproPET, norm2template, roi_signal, transfo
 from modalities.pet import cut_func, pvc as pvcmod
+from modalities.pet import manualmask
 from modalities.pet import loop1
 from atlases import getlabels
 
@@ -119,20 +120,29 @@ def pvc_resolution(pvc_fwhm, rec_file, infos, diary_file):
     return fw
 
 
-def crop_for_session(crop_for_MoCo, study_crop, session, paths, first_mean, diary_file, sing_fs, redo_crop):
+def crop_for_session(crop_for_MoCo, study_crop, session, paths, first_mean, diary_file, sing_fs, redo_crop,
+                     manual=''):
     """
     Crop box (file) in the space of the first run of the session, or None. 'auto': crop of the PET study template
     brought through the session -> template registration when both exist; otherwise (and with 'manual') the crop
     drawn on the mean image of the session, drawn again when it no longer matches that image (step 1 run again with
-    another orientation: other world coordinates). The box is shown in pet/QC (warning when it misses the activity).
+    another orientation: other world coordinates). 'mask' (and 'auto' without crop of the study template): bounding
+    box of the manual brain mask of the session (`manual`, modalities/pet/manualmask.py) enlarged by 10 mm, no
+    freeview. The box is shown in pet/QC (warning when it misses the activity).
     """
     if crop_for_MoCo == 'none':
         return None
     prefix = opj(paths['orig_matrices'], session + '_to_studyTemplate_')
     out = opj(paths['orig_formc'], session + '_desc-cropbox_mask.nii.gz')
     os.makedirs(paths['orig_formc'], exist_ok=True)
+    if crop_for_MoCo == 'mask' and not manual:
+        raise FileNotFoundError(run_cmd.error(f"ERROR: crop_for_MoCo='mask' but no manual brain mask for {session} "
+                                              f"(pet/raw/masks/{session}_desc-manual_mask.nii.gz)", diary_file))
     if crop_for_MoCo == 'auto' and study_crop and opi(study_crop) and opi(prefix + transfo.ANTS_AFF):
         box = studyT.crop_mask(study_crop, first_mean, out, transfo.registration(prefix))
+    elif crop_for_MoCo in ('mask', 'auto') and manual:
+        box = manualmask.box(manual, first_mean, out)
+        run_cmd.msg(f'INFO: {session}: crop box = bounding box of the manual brain mask + 10 mm', diary_file, 'OKGREEN')
     else:
         crop = opj(paths['orig_formc'], session + '_desc-crop_pet.nii.gz')
         redo = bool(redo_crop)
@@ -161,6 +171,9 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
         if not opi(img):
             raise FileNotFoundError(f'{img} not found: run step 1 first')
     first_mean = _mean_of(reoriented[0], 'reorient-mean')
+    # brain mask drawn by hand on the raw PET (pet/raw/masks), brought into the reoriented space
+    manual = manualmask.prepare(paths, session, raw_list[0], reoriented[0], diary_file) \
+        if opts.get('use_manual_mask', True) else ''
 
     # ---------------------------------------------------------------------------------------- 4 within-run MoCo
     within = []
@@ -184,7 +197,7 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
         within.append(out)
         if crop is None:
             crop = crop_for_session(opts['crop_for_MoCo'], reg.get('study_crop'), session, paths, first_mean,
-                                    diary_file, sing_fs, opts['redo_crop']) or ''
+                                    diary_file, sing_fs, opts['redo_crop'], manual) or ''
         # the box of the session (first run) is resampled on the grid of each run by MoCo (world coordinates)
         MoCo.dynamic(img, paths['orig_process'], paths['orig_formc'], timing, opts['nb_void'], crop or None,
                      opts['Need_check_MC'], diary_file, sing_fs, opts['MoCo_transform'], opts['coreg_metric'],
@@ -203,7 +216,7 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
                  for i in within]
         if crop is None and len(within) > 1:
             crop = crop_for_session(opts['crop_for_MoCo'], reg.get('study_crop'), session, paths, first_mean,
-                                    diary_file, sing_fs, opts['redo_crop']) or ''
+                                    diary_file, sing_fs, opts['redo_crop'], manual) or ''
         between, session_mean = MoCo.static(within, means, timings,
                                             [i.replace('.nii.gz', '.sif') if opi(i.replace('.nii.gz', '.sif')) else ''
                                              for i in within],
@@ -233,7 +246,7 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
             # reuses the manual crop / study-template crop already on disk (no freeview if they exist) and
             # is idempotent for the cropbox mask.
             crop = crop_for_session(opts['crop_for_MoCo'], reg.get('study_crop'), session, paths, first_mean,
-                                    diary_file, sing_fs, opts['redo_crop']) or ''
+                                    diary_file, sing_fs, opts['redo_crop'], manual) or ''
             if crop and opi(crop):
                 run_cmd.msg('INFO: crop computed for step 6 alone (steps 4-5 not run): ' + opb(crop),
                             diary_file, 'OKGREEN')
@@ -253,6 +266,18 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
             transfo.register(study_template, session_mean_for_reg, coreg2anat.study_prefix(paths, session),
                              opts['studyT_transform'])
 
+        coreg_mask = opts.get('pet_coreg_mask', 'none')
+        if coreg_mask == 'manual':
+            if not manual:
+                raise FileNotFoundError(run_cmd.error(f"ERROR: pet_coreg_mask='manual' but no manual brain mask for "
+                                                      f"{session} (pet/raw/masks/{session}_desc-manual_mask.nii.gz)",
+                                                      diary_file))
+            coreg_mask = manualmask.dilated(
+                manualmask.on_grid(manual, session_mean, opj(paths['orig_masks'], session +
+                                                             '_space-orig_desc-manualMean_mask.nii.gz')),
+                opts.get('pet_mask_dilate_mm', 3.0),
+                opj(paths['orig_formc'], session + '_desc-manualcoreg_mask.nii.gz'))
+
         anchor = None
         if reg['scenario'] == '1v1' or (reg['ct_record'] is not None and opts['ct_pet_same_space']):
             # same scanner space as the anatomy / CT: the motion-corrected session is brought back to the head
@@ -269,7 +294,7 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
                             template_mask=(reg.get('template_files') or {}).get('brain', ''), anchor=anchor,
                             moving_for_estimate=session_mean_for_reg, coreg_transform=opts.get('coreg_transform', 'Rigid'),
                             coreg_init=opts.get('coreg_init', 'auto'),
-                            pet_coreg_mask=opts.get('pet_coreg_mask', 'none'),
+                            pet_coreg_mask=coreg_mask,
                             pet_mask_percentile=opts.get('pet_mask_percentile', 30.0),
                             pet_mask_dilate_mm=opts.get('pet_mask_dilate_mm', 3.0),
                             coreg_target=opts.get('coreg_target', 'anat'),
@@ -286,7 +311,14 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
                     'again, the registration and the atlases in the PET space belong to the previous correction',
                     diary_file, 'WARNING')
     pet_space = (record or {}).get('pet_space', dict(atlases={}, masks={}, anat=''))
-    atlases, masks = pet_space['atlases'], pet_space['masks']
+    atlases, masks = pet_space['atlases'], dict(pet_space['masks'])
+    if manual and opi(session_mean):
+        # brain drawn by hand on this PET: preferred to the brain of the atlas / anatomy brought into the PET space
+        masks['brain'] = manualmask.on_grid(manual, session_mean, opj(paths['orig_masks'], session +
+                                                                       '_space-orig_desc-manualMean_mask.nii.gz'))
+        run_cmd.msg('INFO: brain mask of the PET space = manual mask ' + opb(masks['brain']) +
+                    (' (replaces the brain mask of the atlas)' if pet_space['masks'].get('brain') else ''),
+                    diary_file, 'OKGREEN')
 
     # ---------------------------------------------------------------------------------------- 7 parametric images
     missing = [b for b in between if not opi(b)]
