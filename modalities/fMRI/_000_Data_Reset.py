@@ -258,6 +258,10 @@ def reset_all(allinfo_study_c, bids_dir, list_to_keep=None, list_to_remove=None,
         'YES' confirmation covering the whole batch (not one prompt per
         subject).
     """
+    if os.environ.get('EDNIX_SKIP_RESET'):
+        # set by the run_all_ednix launcher for its workers (no terminal to answer 'YES')
+        print(bcolors.OKBLUE + 'INFO: EDNIX_SKIP_RESET is set: reset skipped.' + bcolors.ENDC)
+        return
     list_to_keep = list_to_keep or []
     list_to_remove = list_to_remove or []
 

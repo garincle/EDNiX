@@ -56,7 +56,7 @@ def create(input_for_msk,process_dir,masking_img,
 
     elif Tversion == 'nonlinear':
         mTx = ants.registration(fixed=refIMG, moving=REF_BET, outprefix=nameT,
-                          type_of_transform=type_of_transform,
+                          type_of_transform='SyNCC' if type_of_transform == 'SyNadaptive' else type_of_transform,
                           initial_transform=nameT + 'shift_0GenericAffine.mat',
                           aff_metric=aff_metric_ants,
                           grad_step=0.1,

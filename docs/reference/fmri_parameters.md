@@ -107,5 +107,6 @@ Identifiers accepted by `Skip_step`: the listed steps are skipped.
 | `n_cut` | `10` | Number of voxels to exclude at edges. |
 | `threshold_val` | `10` | Intensity threshold for masking. |
 | `doBALSAspace` | `False` | Human, chimpanzee and macaque: also bring the subject to the BALSA template space (S1200, CY29, MY19), resample its surfaces to fs_LR, and for the macaque build the BALSA atlas in native space. |
+| `process_nopostpro` | `False` | If True, steps 8 and 9 also warp the non-post-processed 4D series (``*_desc-fMRI_run_inRef``) to anat and template space, in addition to the residuals. Default False (residuals only; saves time and disk). |
 
 `preprocess_fmri` also accepts other keyword arguments, which it ignores: a misspelled parameter name is therefore reported as a warning, not an error. The interface and the unit tests check the example launchers for this.

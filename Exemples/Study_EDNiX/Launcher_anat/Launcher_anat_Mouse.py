@@ -104,7 +104,18 @@ list_transfo = build_transfos(
 
 ########################################################################################################################
 
-Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean']
+### Reset before relaunch (modalities/anat/_000_Data_Reset.py): deletes the EDNiX outputs of the selected subjects and
+### keeps the raw BIDS files and the manual masks (final_mask, final_mask_2, backtonative_mask, desc-manual...).
+### RESET_BEFORE_RUN = True with RESET_DRY_RUN = True previews; RESET_DRY_RUN = False deletes after ONE 'YES'.
+RESET_BEFORE_RUN = False
+RESET_DRY_RUN = True
+RESET_SCOPE = 'all'               # 'all', or 'surfaces' (only freesurfer/ and native/surfaces/: rebuild the surfaces)
+if RESET_BEFORE_RUN:
+    from modalities.anat import _000_Data_Reset
+    _000_Data_Reset.reset_all(allinfo_study_c, bids_dir, list_to_keep=list_to_keep, list_to_remove=list_to_remove,
+                              dry_run=RESET_DRY_RUN, scope=RESET_SCOPE)
+
+Skip_step = ['itk_1','itk_2','itk_3','flat_map', 'Clean', 'sphere']
 ########################################################################################################################
 #                                       Run the preprocessing steps                                                    #
 ########################################################################################################################
@@ -122,6 +133,5 @@ _0_Pipeline_launcher.preprocess_anat(Skip_step,
                                      fMRImasks, reference='EDNiX', do_fMRImasks=True, atlas_followers=[['EDNIxCSCLR', 'EDNIxCSC'], ['ctab', 'txt'], [4, 4], [1, 1]], addatlas='',
                                      transfo_message='do_as_I_said', force_myelin_same_space=False,
                                      check_visualy_final_mask=False, check_visualy_each_img=False, overwrite_option=True, preftool='ITK')
-
 
 

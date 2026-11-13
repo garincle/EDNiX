@@ -53,7 +53,15 @@ def norm(targetname,target_anatfile,masktarget,target_vol,
         outfile.write(json_object)
 
 
-    if type_of_transform == 'SyNCC':
+    if type_of_transform == 'SyNadaptive':
+        # SyNCC, refined with a compliant masked SyN only when the overlap checks fail (see registration_adaptive.py)
+        from modalities.anat import registration_adaptive
+        mTx2 = registration_adaptive.register(SOURCE, TARGET, mtx1['fwdtransforms'],
+                                              opj(target_transfo, transfonameS + '_'),
+                                              fixed_mask=MASKSOURCE, moving_mask=MASKTARGET,
+                                              log=lambda m: run_cmd.msg(m, diary_name, 'OKGREEN'))
+
+    elif type_of_transform == 'SyNCC':
         mTx2 = ants.registration(fixed=SOURCE, moving=TARGET,
                                  type_of_transform=type_of_transform,
                                  initial_transform=mtx1['fwdtransforms'],

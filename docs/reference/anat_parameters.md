@@ -18,7 +18,8 @@ Identifiers accepted by `Skip_step`: the listed steps are skipped.
 | `itk_3` | Manual check of the native-space atlases in ITK-SNAP |
 | `9` | FreeSurfer preparation (masks, T2w to T1w) |
 | `10` | FreeSurfer input images (rescaling of small brains) |
-| `11` | FreeSurfer white surface |
+| `11` | FreeSurfer white surface, inflated surface and curvature |
+| `sphere` | Spherical registration (slow; only for doBALSAspace / fs_LR, fs_extras and the aparc of the T2w pial: can be run later alone) |
 | `12` | FreeSurfer pial surface |
 | `flat_map` | Flat maps |
 | `fs_extras` | FreeSurfer parcellations Destrieux / DKT and FreeSurfer statistics (humans only; not used by EDNiX) |
