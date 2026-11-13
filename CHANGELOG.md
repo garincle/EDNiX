@@ -1,5 +1,10 @@
 # Changelog
 
+## Beginner / developer guides, November 2026
+
+- `docs/guide/`: one HTML guide per modality (`anat.html`, `fmri.html`, `pet.html`, `ct.html`) and an index. Each stage: why, inputs, outputs, method, what to inspect, next stage, module and entry point. Checked against master of 13 November 2026 (sphere step, V2h surfaces, pial cap, `tissue_relabel`, `SyNadaptive`, surface QC, one-shot SDC in fMRI step 5, fMRIPrep_style without DCT regressors, MELODIC 1-based selection, PET manual masks, resets, `run_all_ednix.py`, `QC_report`).
+- `docs/index.md`: landing page for GitHub Pages (source: `master`, folder `/docs`).
+
 ## PET manual brain masks, November 2026
 
 - Brain mask drawn by hand on the raw PET of a session, stored like the functional masks (`func/raw/masks/`): `<BIDS>/sub-*/ses-*/pet/raw/masks/<session>_desc-manual_mask.nii.gz` (`<session>` = `sub-X_ses-Y_trc-FDG`). New module `modalities/pet/manualmask.py`: the mask is brought into the reoriented space after step 1 (`pet/orig/masks/<session>_space-orig_desc-manual_mask.nii.gz`; voxel array kept when step 1 only rewrote the header, world transform + nearest neighbour when it resampled the image).

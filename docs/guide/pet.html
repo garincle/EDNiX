@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EDNiX PET Guide</title>
+<style>
+:root{--ink:#20262d;--muted:#66717b;--soft:#f5f7f8;--panel:#ffffff;--line:#dce2e6;--green:#285a42;--green2:#edf5f0;--orange:#a95310;--orange2:#fff6ec;--blue:#345b78;--blue2:#eef4f8;--red:#9c3c35;--red2:#fbefee;--code:#f3f5f6;--sidebar:#f7f8f8;--max:1120px}
+*{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;color:var(--ink);background:#fff;font:15.5px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif} a{color:var(--green)} code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;background:var(--code);border:1px solid #e3e7e9;border-radius:4px;padding:.08rem .3rem;font-size:.91em;overflow-wrap:anywhere} .layout{display:grid;grid-template-columns:290px minmax(0,1fr);min-height:100vh}
+.sidebar{position:sticky;top:0;height:100vh;overflow:auto;background:var(--sidebar);border-right:1px solid var(--line);padding:22px 18px 30px} .brand{border-top:5px solid var(--green);padding-top:13px;margin-bottom:18px} .brand .small{font:700 11px/1.2 ui-monospace,monospace;color:var(--orange);letter-spacing:.08em;text-transform:uppercase} .brand h1{font-size:23px;line-height:1.1;margin:5px 0 6px;color:#1c3529} .brand p{font-size:12.5px;color:var(--muted);margin:0}
+.search{width:100%;padding:9px 10px;border:1px solid #ccd4d8;border-radius:5px;background:#fff;margin:4px 0 14px;font:inherit;font-size:13px} .where{font-size:11.5px;color:var(--muted);padding:9px 10px;background:#fff;border:1px solid var(--line);border-radius:5px;margin-bottom:16px} .where b{display:block;color:var(--green);margin-bottom:2px}
+.nav-group{margin:15px 0} .nav-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:#8a949c;font-weight:800;margin:0 8px 5px} .nav-group a{display:block;text-decoration:none;color:#4f5a63;padding:5px 8px;border-left:3px solid transparent;border-radius:0 4px 4px 0;font-size:13px} .nav-group a:hover{background:#eef1f2;color:#25333c} .nav-group a.active{border-left-color:var(--green);background:#eaf1ed;color:#163d2b;font-weight:700}
+main{min-width:0} .topbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.94);backdrop-filter:blur(7px);border-bottom:1px solid var(--line)} .topbar-inner{max-width:var(--max);margin:auto;padding:9px 28px;font-size:12.5px;color:var(--muted)} .topbar code{background:transparent;border:0;padding:0;color:var(--green)} .content{max-width:var(--max);margin:auto;padding:42px 28px 90px}
+.hero{padding-bottom:30px;border-bottom:1px solid var(--line)} .kicker{font:800 11px ui-monospace,monospace;color:var(--orange);letter-spacing:.08em;text-transform:uppercase} .hero h1{font-size:42px;line-height:1.12;letter-spacing:-.035em;margin:8px 0 14px} .hero .lead{font-size:19px;max-width:900px;color:#4d5962;margin:0} .source-note{margin-top:22px;padding:12px 15px;border-left:4px solid var(--green);background:var(--green2);font-size:13px;color:#44514a}
+.doc-section{padding-top:42px;scroll-margin-top:60px} .doc-section>h2{font-size:28px;letter-spacing:-.02em;margin:0 0 8px} .doc-section>.intro{color:var(--muted);max-width:900px;margin:0 0 20px} .callout{padding:16px 18px;border:1px solid var(--line);border-left:4px solid var(--blue);background:var(--blue2);border-radius:4px;margin:18px 0} .callout strong{color:#244b67} .callout.warning{border-left-color:var(--orange);background:var(--orange2)} .callout.danger{border-left-color:var(--red);background:var(--red2)}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0} .legend span,.status{display:inline-flex;align-items:center;border:1px solid var(--line);padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#fff} .status-manual{border-color:#e9c498;background:#fff7ec;color:#8a470d} .status-conditional,.status-optional{border-color:#b9d0de;background:#f2f8fb;color:#315b78} .status-core{border-color:#b8d1c2;background:#f0f7f3;color:#285a42} .status-surface{border-color:#c5c8e1;background:#f4f4fb;color:#4c4f82} .status-qc{border-color:#bdd0bb;background:#f3f8f1;color:#3d6838} .status-destructive{border-color:#e2b4b0;background:#fcf2f1;color:#8e342f} .status-gap{color:#788087;background:#fafafa} .status-orchestration,.status-automatic{color:#51616c;background:#f2f5f6}
+.tree{background:#1f2924;color:#e7efe9;border-radius:6px;padding:18px 20px;overflow:auto;font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre} .tree .d{color:#8dc4a6} .tree .f{color:#f2c58b}
+.roadmap{display:grid;gap:7px;margin-top:18px} .road-row{display:grid;grid-template-columns:66px 1fr auto;align-items:center;border:1px solid var(--line);border-radius:5px;background:#fff;padding:9px 11px;text-decoration:none;color:inherit} .road-row:hover{border-color:#aab8b1;background:#fbfcfb} .road-num{font:800 12px ui-monospace,monospace;color:var(--green)} .road-title{font-weight:700} .road-note{font-size:12px;color:var(--muted)}
+.route-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px} .route-card{border:1px solid var(--line);border-radius:6px;padding:15px;background:#fff} .route-card h3{font-size:15px;margin:0 0 5px} .route-card p{font-size:13px;color:var(--muted);margin:0} .route-card code{display:block;margin-top:8px}
+.stage{border:1px solid #d8dfe2;border-radius:7px;margin:28px 0;scroll-margin-top:64px;box-shadow:0 1px 2px rgba(31,43,50,.04);background:#fff} .stage.filtered{display:none} .stage-head{display:grid;grid-template-columns:66px minmax(0,1fr) auto;gap:14px;align-items:start;padding:18px 20px;border-bottom:1px solid var(--line);background:#fbfcfc;border-radius:7px 7px 0 0} .step-number{width:54px;min-height:40px;display:grid;place-items:center;background:#263c31;color:#fff;border-radius:4px;font:800 12px ui-monospace,monospace;padding:6px;text-align:center} .stage-title-wrap h2{font-size:23px;line-height:1.2;margin:2px 0 5px;letter-spacing:-.015em} .eyebrow{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--orange);font-weight:800} .script-line code{font-size:11.5px;color:#4d5962} .stage-body{padding:20px} .why{border-left:4px solid var(--green);padding:1px 0 1px 14px;margin-bottom:19px} .why strong{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--green)} .why p{margin:4px 0 0;color:#45515a}
+.io-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px} .io-block{min-width:0} .io-title{font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px;color:#4e5962} .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:5px} table{width:100%;border-collapse:collapse} td{padding:9px 10px;border-bottom:1px solid #e9edef;vertical-align:top;font-size:12.5px} tr:last-child td{border-bottom:0} td:first-child{width:53%} .io-kind{display:inline-block;font:800 9px ui-monospace,monospace;letter-spacing:.04em;color:var(--green);margin-right:6px;vertical-align:1px} .io-kind.warn{color:var(--orange)} .io-kind.keep{color:var(--blue)} table code{font-size:11.2px}
+.how-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(250px,.65fr);gap:18px;margin-top:20px} .how-grid h3,.inspect h3{font-size:14px;margin:0 0 8px} .how-grid ol{margin:0;padding-left:22px} .how-grid li{margin:5px 0} .inspect{background:#f7f9f9;border:1px solid var(--line);border-radius:5px;padding:14px} .inspect p{font-size:13px;color:#59656e;margin:0} .next{margin-top:18px;padding:10px 12px;background:#f2f7f4;border-radius:4px;color:#365044;font-size:13px} .dev{margin-top:16px;border-top:1px solid var(--line);padding-top:11px} .dev summary{cursor:pointer;font-weight:700;font-size:12.5px;color:#53616a} .dev-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:10px} .dev-grid>div{padding:10px;background:#f7f8f8;border-radius:4px;min-width:0} .dev-grid span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#818b92;margin-bottom:4px} .dev-grid code{font-size:10.5px}
+.method-grid,.glossary-grid,.devmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px} .mini-card{border:1px solid var(--line);border-radius:5px;padding:14px;background:#fff} .mini-card h3{font-size:14px;margin:0 0 5px} .mini-card p{font-size:13px;color:var(--muted);margin:0} .mini-card code{display:block;margin-top:7px;font-size:11px}
+footer{margin-top:50px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:#7a858d}
+@media(max-width:1050px){.layout{grid-template-columns:245px 1fr}.sidebar{padding-left:12px;padding-right:12px}.io-grid,.route-grid{grid-template-columns:1fr}}
+@media(max-width:780px){.layout{display:block}.sidebar{position:relative;height:auto;border-right:0;border-bottom:1px solid var(--line)}.nav-group{display:none}.where{display:none}.topbar{position:relative}.content{padding:28px 16px 70px}.hero h1{font-size:34px}.stage-head{grid-template-columns:54px 1fr}.stage-head .status{grid-column:2;justify-self:start}.io-grid,.how-grid,.dev-grid,.method-grid,.glossary-grid,.devmap-grid{grid-template-columns:1fr}.road-row{grid-template-columns:52px 1fr}.road-note{display:none}}
+@media print{.sidebar,.topbar,.search{display:none!important}.layout{display:block}.content{max-width:none;padding:0 20px}.stage{break-inside:avoid;box-shadow:none}details.dev{display:none}}
+.nav-group.guides a.active{border-left-color:var(--orange);background:var(--orange2);color:#6d3a0c;font-weight:700}.data-table th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#4e5962;background:#f7f9f9;padding:8px 10px;border-bottom:1px solid var(--line)}.data-table td{font-size:13.5px}.status-analysis{border-color:#cec4e0;background:#f7f4fb;color:#66538b}.note-list{margin:12px 0 0;padding-left:22px}.note-list li{margin:7px 0}.refs{font-size:13px;color:#4d5962;padding-left:20px}.refs li{margin:4px 0}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <div class="brand"><div class="small">EDNiX documentation</div><h1>PET pipeline</h1><p>Beginner path + developer map for static and dynamic PET.</p></div>
+  <input class="search" id="search" type="search" placeholder="Filter stages…" aria-label="Filter stages">
+  <div class="where"><b>You are here</b><span id="whereText">Overview</span></div>
+  <nav><div class="nav-group guides"><div class="nav-label">EDNiX guides</div><a href="index.html">Overview</a><a href="anat.html">ANAT pipeline</a><a href="fmri.html">fMRI pipeline</a><a href="pet.html" class="active">PET pipeline</a><a href="ct.html">CT pipeline</a></div><div class="nav-group"><div class="nav-label">Start here</div><a href="#overview" data-target="overview">Overview</a><a href="#mental-model" data-target="mental-model">How to read the pipeline</a><a href="#scenarios" data-target="scenarios">Scenarios</a><a href="#directory-map" data-target="directory-map">Output directory map</a><a href="#roadmap" data-target="roadmap">Processing roadmap</a></div><div class="nav-group"><div class="nav-label">Preparation</div><a href="#step0" data-target="step0">0 · Launcher</a><a href="#step1" data-target="step1">1 · Timing + reorient</a><a href="#manualmask" data-target="manualmask">mask · Manual mask</a><a href="#step2" data-target="step2">2 · Study template</a><a href="#step3" data-target="step3">3 · Crop</a></div><div class="nav-group"><div class="nav-label">Motion + registration</div><a href="#step4" data-target="step4">4 · MoCo within</a><a href="#step5" data-target="step5">5 · MoCo between</a><a href="#step6" data-target="step6">6 · Registration + atlases</a><a href="#bridge" data-target="bridge">bridge · 2v2</a></div><div class="nav-group"><div class="nav-label">Quantification</div><a href="#step7" data-target="step7">7 · Parametric + ROI</a><a href="#step8" data-target="step8">8 · Kinetic models</a><a href="#pvc" data-target="pvc">pvc · PVC</a><a href="#step9" data-target="step9">9 · PET during fMRI</a><a href="#step10" data-target="step10">10 · Export</a></div><div class="nav-group"><div class="nav-label">Reference</div><a href="#inputs" data-target="inputs">BIDS inputs</a><a href="#templates-sessions" data-target="templates-sessions">Similar parameters</a><a href="#interactive" data-target="interactive">Interactive steps</a><a href="#qc" data-target="qc">QC + resets</a><a href="#limits" data-target="limits">Limitations</a><a href="#developer-map" data-target="developer-map">Developer map</a><a href="#references" data-target="references">References</a></div></nav>
+</aside>
+<main>
+<div class="topbar"><div class="topbar-inner">Source tree: <code>modalities/pet</code> · path contract: <code>Tools/getpath.pet</code> · code: <a href="https://github.com/garincle/EDNiX/tree/master/modalities/pet">GitHub</a></div></div>
+<div class="content">
+<section class="hero" id="overview">
+  <div class="kicker">EDNiX · PET</div>
+  <h1>From raw PET frames to SUV, ratios, kinetic parameters and template-space images</h1>
+  <p class="lead">This page follows a PET session from the BIDS file to the exported parametric images, for a beginner who needs to know what happens to their data and for a developer who needs to know which module writes which file.</p>
+  <div class="source-note"><b>Source-of-truth rule:</b> stage order, filenames and routing were checked against the EDNiX repository (<code>modalities/pet</code>, <code>Tools/getpath.py</code>, master, 13 November 2026). Every parameter is listed in the <a href="https://github.com/garincle/EDNiX/blob/master/docs/reference/pet_parameters.md">PET parameter reference</a>.</div>
+</section>
+
+<section class="doc-section" id="mental-model">
+<h2>How to read this pipeline</h2>
+<p class="intro">Each stage uses the same structure as the ANAT and fMRI guides: why it exists, what it reads, what it creates, how, what to inspect, and what comes next.</p>
+<div class="legend"><span>FILE = concrete on-disk file/pattern</span><span>SETTING = launcher parameter</span><span>STATE = in-memory routing</span><span>RECORD = JSON registration record</span></div>
+<div class="callout"><strong>One principle explains most design choices:</strong> every computation (motion correction, parametric images, regional time-activity curves, kinetic models) is done in the PET’s own space, <code>orig</code>. Atlases and masks are brought <em>into</em> the PET (one resampling of a label image), and only the final parametric images are resampled to the anatomy’s AC-PC space and to the template spaces. Dynamic data are therefore never resampled more than once after motion correction, and regional curves are computed on measured voxels.</div>
+<div class="callout"><strong>Names used on this page:</strong> <code>&lt;run&gt;</code> is one PET file without extension (<code>sub-01_ses-1_trc-FDG_run-1_pet</code>); <code>&lt;session&gt;</code> is the run name without run/desc entities (<code>sub-01_ses-1_trc-FDG</code>); <code>&lt;target&gt;</code> is a destination space (<code>acpc</code> or a template name).</div>
+<div class="callout warning"><strong>Run order:</strong> ANAT pipeline of the dataset first (except scenarios 2 and 3), then the <a href="ct.html">CT pipeline</a> if a CT is used, then the PET pipeline. <code>run_all_ednix.py</code> enforces this order.</div>
+</section>
+
+<section class="doc-section" id="scenarios">
+<h2>Which route does the PET take to the template?</h2>
+<p class="intro">The scenario is chosen from <code>IhaveanANAT</code>, <code>anat_pet_same_space</code>, <code>IhaveaCT</code> (and the record of the CT pipeline), <code>template_PET</code> and <code>creat_study_template_pet</code>. It is written in the diary and in the registration record (<code>coreg2anat.scenario</code>; diagram: <code>Illustration/pet4.svg</code>).</p>
+<div class="route-grid">
+<div class="route-card"><h3>1v1 · MRI, same scanner space (hybrid PET-MR)</h3><p>No registration: the PET receives the world transform of the anatomy’s reorientation, is brought back to the head position of the frames acquired with the anatomy, then follows the anatomy’s AC-PC matrix and anatomy→template chain. Atlases in PET space: yes (subject atlases).</p><code>IhaveanANAT=True, anat_pet_same_space=True</code></div>
+<div class="route-card"><h3>1v2a · MRI, other session</h3><p>Rigid PET→anatomy (mutual information, multi-start, dilated brain mask), then anatomy→template. Atlases: yes.</p><code>IhaveanANAT=True, anat_pet_same_space=False</code></div>
+<div class="route-card"><h3>1v2b · MRI + CT (PET/CT scanner)</h3><p>PET→CT (same space: CT world transform + CT head position; otherwise rigid with head mask) → anatomy (CT pipeline) → template. Atlases: yes.</p><code>IhaveanANAT=True, IhaveaCT=True</code></div>
+<div class="route-card"><h3>2v1 · CT + CT template, no MRI</h3><p>PET→CT→CT template (<code>SyNRA</code>). Atlases: template atlases.</p><code>IhaveanANAT=False, IhaveaCT=True, template_CT in the CT launcher</code></div>
+<div class="route-card"><h3>2v2 · CT, no CT template</h3><p>PET→CT→CT study template; the group step <code>bridge</code> links CT study template → PET study template → reference template. Atlases: yes, through the bridge (<code>ct_template_bridge=True</code>).</p><code>creat_study_template_ct=True in the CT launcher</code></div>
+<div class="route-card"><h3>3v1 · PET template in reference space</h3><p>PET→PET template (<code>SyNRA</code>). Atlases: template atlases.</p><code>template_PET='…'</code></div>
+<div class="route-card"><h3>3v2 · nothing else</h3><p>PET→PET study template only. No link to the reference template, no atlas: only SUV images in PET and study-template space (plus <code>bratio</code> if a manual brain mask exists).</p><code>creat_study_template_pet=True</code></div>
+<div class="route-card"><h3>Same scanner space: two conditions</h3><p>(1) Header: <code>3drefit -orient</code> sets each origin’s sign from the orientation code, so two images of one scanner space with different fields of view can be shifted differently; the PET therefore receives the reference’s world transform W = A_after·A_before⁻¹ instead of being relabelled on its own. (2) Head position: motion correction moves the session to the mean head position; the record brings it back to the mean position of the frames in <code>same_space_window</code>. When in doubt, use 1v2a.</p><code>reorient.reference_world_map · MoCo.scanner_anchor</code></div>
+</div>
+</section>
+
+<section class="doc-section" id="directory-map">
+<h2>Where EDNiX writes PET files</h2>
+<p class="intro"><code>Tools/getpath.pet()</code> (shared with CT through <code>_emission_tree</code>) defines the tree below each session’s <code>pet</code> folder (diagram: <code>Illustration/pet2b.svg</code>).</p>
+<div class="tree"><span class="d">&lt;data_path&gt;/pet/</span>                    BIDS raw images (input) + diary + Prepro_Settings.json
+├── <span class="d">raw/</span>                         &lt;run&gt;_desc-frametiming_pet.json, &lt;run&gt;_desc-mean_pet.nii.gz, &lt;run&gt;_pet.sif
+│   └── <span class="d">masks/</span>                   <span class="f">&lt;session&gt;_desc-manual_mask.nii.gz</span>  (optional, drawn by hand, never deleted)
+├── <span class="d">orig/</span>                        native PET space after reorientation
+│   ├── <span class="d">preprocessing/</span>           desc-reorient, desc-MoCo-within, desc-MoCo-between (+ -mean), anatomy in PET space
+│   │   └── <span class="d">forMC/</span>               crop box, per-frame matrices (_mcNNN_0GenericAffine.mat), motion .tsv/.png
+│   ├── <span class="d">matrices/</span>                <span class="f">&lt;session&gt;_desc-registration_pet.json</span> (record), ANTs matrices, *candidates.json, boundary check
+│   ├── <span class="d">labels/</span>                  &lt;session&gt;_space-orig_seg-&lt;atlas&gt;_dseg.nii.gz
+│   ├── <span class="d">masks/</span>                   brain / tissue masks, tissue fractions (_label-GM|WM|brain_probseg)
+│   └── <span class="d">postprocessing/</span>          desc-activity, -SUV, -SUVglu, -bratio, -period…, -BP, -SRTM, -DVR, -PVC (+ -SS)
+│       └── <span class="d">ROI_analysis/</span>         regional tables (.tsv), TACs (.dft), kinetic results (.res)
+│           └── <span class="d">pictures/</span>         time-activity curves and fits
+├── <span class="d">acpc/</span>                        parametric images in the anatomy’s AC-PC space
+├── <span class="d">templates/&lt;name&gt;/</span>            parametric images in each template space, labels/, masks/
+└── <span class="d">QC/</span>                          PET over the brain mask of each target space, crop box, motion plots, boundary check
+<span class="d">&lt;bids_dir&gt;/sty_template/pet/</span>     PET study template, its crop, reference region choice, bridge record
+<span class="d">&lt;bids_dir&gt;/QC/</span>                   pet_in_acpc/, pet_in_template/, pet_crop/, pet_boundary/ (all subjects)</div>
+<div class="callout"><strong>The registration record is the contract.</strong> <code>orig/matrices/&lt;session&gt;_desc-registration_pet.json</code> lists, for every target space, its reference image, its mask and the two transform chains (to and from the PET). Steps 7–10, the CT→PET link and the group analyses all read it.</div>
+</section>
+
+<section class="doc-section" id="roadmap">
+<h2>The whole PET route on one page</h2>
+<p class="intro">Steps 1–3 run for every session first (Step 2–3 at group level); Steps 4–10 then run per session. In scenario 2v2, the group step <code>bridge</code> runs after Step 6 of every session and before Steps 7–10.</p>
+<div class="roadmap"><a class="road-row" href="#step0"><span class="road-num">0</span><span class="road-title">Launcher, scenario and subject values</span><span class="road-note">plan only</span></a><a class="road-row" href="#step1"><span class="road-num">1</span><span class="road-title">Frame timing, SIF, reorientation</span><span class="road-note">per run</span></a><a class="road-row" href="#manualmask"><span class="road-num">mask</span><span class="road-title">Manual PET brain mask (if drawn)</span><span class="road-note">automatic, optional</span></a><a class="road-row" href="#step2"><span class="road-num">2</span><span class="road-title">PET study template</span><span class="road-note">group, optional</span></a><a class="road-row" href="#step3"><span class="road-num">3</span><span class="road-title">Crop drawn on the study template</span><span class="road-note">group, manual</span></a><a class="road-row" href="#step4"><span class="road-num">4</span><span class="road-title">Motion correction within each dynamic run</span><span class="road-note">per run</span></a><a class="road-row" href="#step5"><span class="road-num">5</span><span class="road-title">Motion correction between runs + session mean</span><span class="road-note">per session</span></a><a class="road-row" href="#step6"><span class="road-num">6</span><span class="road-title">Registration, boundary check, atlases/masks in PET space</span><span class="road-note">per session</span></a><a class="road-row" href="#bridge"><span class="road-num">bridge</span><span class="road-title">CT study template → reference template</span><span class="road-note">2v2 only, group</span></a><a class="road-row" href="#step7"><span class="road-num">7</span><span class="road-title">Parametric images + regional values</span><span class="road-note">per session</span></a><a class="road-row" href="#step8"><span class="road-num">8</span><span class="road-title">Reference-region kinetic models</span><span class="road-note">optional (srtm)</span></a><a class="road-row" href="#pvc"><span class="road-num">pvc</span><span class="road-title">Partial-volume correction</span><span class="road-note">optional (pvc_fwhm)</span></a><a class="road-row" href="#step9"><span class="road-num">9</span><span class="road-title">PET during the fMRI runs</span><span class="road-note">optional, PET-MR</span></a><a class="road-row" href="#step10"><span class="road-num">10</span><span class="road-title">Export to AC-PC and template spaces</span><span class="road-note">per session</span></a></div></section>
+
+<section class="stage" id="step0" data-search="0 launcher, scenario and subject values modalities/pet/_0_pipeline_launcher.py before any image is changed, ednix resolves the sessions to process, the anatomy (or ct, or template) each one will use, the scenario, the isotope and the subject values needed for suv.">
+  <div class="stage-head">
+    <div class="step-number">0</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Orchestration</div>
+      <h2>Launcher, scenario and subject values</h2>
+      <div class="script-line"><code>modalities/pet/_0_Pipeline_launcher.py</code></div>
+    </div>
+    <span class="status status-orchestration">Orchestration</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Before any image is changed, EDNiX resolves the sessions to process, the anatomy (or CT, or template) each one will use, the scenario, the isotope and the subject values needed for SUV.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">SETTING</span><code>bids_dir, species, endpet, tracer</code></td><td>Dataset, species folder of the atlas library, glob of the raw PET (<code>*_trc-FDG_*pet.nii.gz</code>), tracer name.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>T_PET, type_norm, creat_study_template, coregistration_longitudinal</code></td><td>Must be the values of the anatomical launcher: they <em>declare</em> where the anatomy→template transforms are, they build nothing.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>IhaveanANAT, anat_pet_same_space, IhaveaCT, ct_pet_same_space, template_PET, creat_study_template_pet</code></td><td>Scenario selection.</td></tr><tr><td><span class="io-kind ">FILE</span><code>sub-&lt;ID&gt;/ses-&lt;S&gt;/pet/*_pet.nii.gz + .json</code></td><td>BIDS-PET images and sidecars.</td></tr><tr><td><span class="io-kind ">FILE</span><code>sub-&lt;ID&gt;_sessions.tsv, participants.tsv</code></td><td>Body weight, blood glucose, injected radioactivity when not in the sidecar.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">STATE</span><code>scenario per session</code></td><td>1v1 … 3v2, written in the diary and the record.</td></tr><tr><td><span class="io-kind ">FILE</span><code>pet/Prepro_Settings.json</code></td><td>Subject values used for SUV and where each came from.</td></tr><tr><td><span class="io-kind ">FILE</span><code>pet/&lt;ID&gt; session &lt;S&gt;….txt</code></td><td>Diary: every command, its output and return code.</td></tr><tr><td><span class="io-kind ">FILE</span><code>pet/&lt;ID&gt;launcher_parameters session &lt;S&gt;….txt</code></td><td>Effective parameters at runtime.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li><code>set_launcher.get</code> (shared with ANAT) resolves the reference template, atlases and the subject/session list.</li><li><code>_anat_files</code> finds the processed anatomy of the session (or of another session of the subject); <code>_ct_record</code> finds the CT pipeline record.</li><li>Unknown keyword arguments are printed as a WARNING and ignored: check spelling.</li><li>Invalid <code>coreg_init</code>, <code>coreg_target</code>, <code>pet_coreg_mask</code> or <code>bridge_transform</code> stop the run before any processing.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Read the scenario line of the diary for the first subject. A wrong scenario (for example 1v2a when the PET was acquired on a PET-MR) changes the whole registration route.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 1 for every session.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/pet/_0_Pipeline_launcher.py</code></div>
+        <div><span>Entry point</span><code>preprocess_pet(...)</code></div>
+        <div><span>Main toolchain</span><code>PyBIDS table + EDNiX Tools</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="step1" data-search="1 frame timing, sif and reorientation modalities/pet/loop1.py + reorient.py + siffile.py raw pet headers can be oblique, mislabelled or in an animal position the scanner does not describe, and frame times in bids are relative to timezero. step 1 fixes geometry and expresses all times after injection.">
+  <div class="stage-head">
+    <div class="step-number">1</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Core stage</div>
+      <h2>Frame timing, SIF and reorientation</h2>
+      <div class="script-line"><code>modalities/pet/loop1.py + reorient.py + sifFile.py</code></div>
+    </div>
+    <span class="status status-core">Core stage</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Raw PET headers can be oblique, mislabelled or in an animal position the scanner does not describe, and frame times in BIDS are relative to <code>TimeZero</code>. Step 1 fixes geometry and expresses all times after injection.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>&lt;run&gt;.nii.gz + .json</code></td><td>FrameTimesStart, FrameDuration, InjectionStart, Units, TracerRadionuclide, PatientPosition…</td></tr><tr><td><span class="io-kind ">SETTING</span><code>humanPosition, animalPosition, orientation, deoblique</code></td><td>Same meaning as in the ANAT pipeline; one value or one per run.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>PET_header_wrong</code></td><td>Copy the orientation code of the raw anatomy/CT of the same scanner space first.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>dcmfolder, endfiledcm</code></td><td>Optional DICOM, to read the isotope and scan start for the SIF.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>raw/&lt;run&gt;_desc-frametiming_pet.json</code></td><td>Frame start/end/mid times after injection.</td></tr><tr><td><span class="io-kind ">FILE</span><code>raw/&lt;run&gt;_desc-mean_pet.nii.gz</code></td><td>Duration-weighted mean of the raw frames.</td></tr><tr><td><span class="io-kind ">FILE</span><code>raw/&lt;run&gt;_pet.sif</code></td><td>Scan information file for the Turku tools (date 01/01/1970 without DICOM; tpcclib only displays it).</td></tr><tr><td><span class="io-kind ">FILE</span><code>orig/preprocessing/&lt;run&gt;_desc-reorient_pet.nii.gz</code></td><td>Reoriented PET (3D if a static image was stored as 4D with one frame).</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>Frame timing is read from the sidecar; overlapping frames are refused; <code>FrameReferenceTime</code> is used for mid-frame times when it lies inside its frame. All times become post-injection (<code>InjectionStart</code>).</li><li>An oblique image is resampled on a cardinal grid with linear interpolation (<code>deoblique='WARP'</code>, no overshoot of activity concentrations), then axes are relabelled from <code>orientation</code> or the positions.</li><li>In the scanner space of the anatomy (1v1) or of the CT, the PET receives their world transform instead of its own relabelling (<code>reorient.reference_world_map</code>).</li><li>The isotope comes from <code>isotope</code>, else <code>TracerRadionuclide</code>, else the tracer name; an unrecognised value stops the run.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Overlay the reoriented PET on the anatomy (<code>Need_check_orient=True</code> opens freeview). A flipped axis here cannot be fixed by any later registration.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> If a manual brain mask was drawn on the raw PET it is brought to this space; then the optional PET study template (Step 2).</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/pet/loop1.py · reorient.py · sifFile.py · petutils.py</code></div>
+        <div><span>Entry point</span><code>loop1.run(...) · reorient.doit(...)</code></div>
+        <div><span>Main toolchain</span><code>AFNI 3dWarp / 3drefit, nibabel, Turku SIF</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="manualmask" data-search="mask manual pet brain mask modalities/pet/manualmask.py without an anatomy and an atlas (scenario 3v2) there is no brain mask in pet space, and the head box of the motion correction otherwise has to be drawn in freeview. a mask drawn once by hand on the raw pet solves both, with the same convention as func/raw/masks.">
+  <div class="stage-head">
+    <div class="step-number">mask</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Automatic, optional</div>
+      <h2>Manual PET brain mask</h2>
+      <div class="script-line"><code>modalities/pet/manualmask.py</code></div>
+    </div>
+    <span class="status status-optional">Optional</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Without an anatomy and an atlas (scenario 3v2) there is no brain mask in PET space, and the head box of the motion correction otherwise has to be drawn in freeview. A mask drawn once by hand on the raw PET solves both, with the same convention as <code>func/raw/masks</code>.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>pet/raw/masks/&lt;session&gt;_desc-manual_mask.nii.gz</code></td><td>Drawn on the raw (BIDS) PET grid, before reorientation. A single <code>*_desc-manual_mask</code> of another name is accepted.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>use_manual_mask</code></td><td>True by default.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>orig/masks/&lt;session&gt;_space-orig_desc-manual_mask.nii.gz</code></td><td>The mask in the reoriented PET space.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>If Step 1 only rewrote the header, the voxel array of the mask is kept and receives the reoriented PET header (exact).</li><li>If Step 1 resampled the PET (oblique image), the recorded world transform is applied to the mask header, then the mask is resampled on the reoriented grid (nearest neighbour).</li><li>Uses: brain mask of the PET space (bratio, skull-stripped dynamic image), replacing the atlas brain; head box of <code>crop_for_MoCo='mask'</code> (or <code>'auto'</code> without study-template crop); moving mask of <code>pet_coreg_mask='manual'</code>.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>The reset of the PET outputs never deletes <code>raw/masks/</code>: the mask survives reruns.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 2 (group) or Step 4.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/pet/manualmask.py</code></div>
+        <div><span>Entry point</span><code>prepare(...) · box(...) · dilated(...) · on_grid(...)</code></div>
+        <div><span>Main toolchain</span><code>nibabel + scipy.ndimage</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="step2" data-search="2 pet study template modalities/pet/studyt.py a pet study template gives one place to draw the head crop for every session, and is the only common space in scenario 3v2. it is not registered to the anatomy: with an anatomy, every session still goes pet → its own anatomy.">
+  <div class="stage-head">
+    <div class="step-number">2</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Group · optional</div>
+      <h2>PET study template</h2>
+      <div class="script-line"><code>modalities/pet/studyT.py</code></div>
+    </div>
+    <span class="status status-conditional">creat_study_template_pet</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>A PET study template gives one place to draw the head crop for every session, and is the only common space in scenario 3v2. It is <b>not</b> registered to the anatomy: with an anatomy, every session still goes PET → its own anatomy.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>orig/preprocessing/&lt;run&gt;_desc-reorient[-mean]_pet.nii.gz</code></td><td>First reoriented run of every session (its mean if dynamic).</td></tr><tr><td><span class="io-kind ">SETTING</span><code>studyT_transform</code></td><td><code>'SyNRA'</code> by default.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/sty_template/pet/…trc-&lt;tracer&gt;… study template</code></td><td>Group template.</td></tr><tr><td><span class="io-kind ">FILE</span><code>orig/matrices/… session→study template</code></td><td>Transforms used later to bring its crop to each session.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>The first reoriented run of every session (its mean if dynamic) is intensity-normalised and iteratively registered to the evolving mean (4 iterations).</li><li><code>SyNRA</code> = rigid + affine + SyN stages. ANTsPy’s <code>SyN</code> and <code>Affine</code> start with a single affine stage, which missed a 12° rotation by about 7 mm on the test phantom (&lt; 1 mm with <code>SyNRA</code> or linear <code>TRSAA</code>).</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>With <code>creat_study_template_pet=False</code>, a crop of a template left on disk by an earlier run is not used.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 3 (crop on the study template).</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/pet/studyT.py</code></div>
+        <div><span>Entry point</span><code>make_template(...)</code></div>
+        <div><span>Main toolchain</span><code>ANTsPy</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="step3" data-search="3 crop drawn on the study template modalities/pet/studyt.py motion correction and registration work much better on the head than on the whole field of view (torso, bed, heart). the crop is drawn once on the study template and propagated to every session.">
+  <div class="stage-head">
+    <div class="step-number">3</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Group · manual</div>
+      <h2>Crop drawn on the study template</h2>
+      <div class="script-line"><code>modalities/pet/studyT.py</code></div>
+    </div>
+    <span class="status status-manual">Manual</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Motion correction and registration work much better on the head than on the whole field of view (torso, bed, heart). The crop is drawn once on the study template and propagated to every session.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>PET study template</code></td><td>From Step 2.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>crop_for_MoCo, redo_crop</code></td><td><code>'auto'</code> (default), <code>'manual'</code>, <code>'mask'</code>, <code>'none'</code>; <code>redo_crop=True</code> redraws.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/sty_template/pet/…_desc-crop… </code></td><td>Crop of the study template (kept between runs).</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>freeview opens the template; the user saves the crop.</li><li>Skipped when <code>crop_for_MoCo</code> is <code>'none'</code> or <code>'mask'</code>.</li><li>Without study template, the session crop is drawn on the session mean at the first of Steps 4, 5, 6 that runs (<code>orig/preprocessing/forMC/&lt;session&gt;_desc-crop_pet.nii.gz</code>).</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>For unattended runs use <code>crop_for_MoCo='none'</code> or <code>'mask'</code>. A session crop that no longer matches the reoriented image (Step 1 rerun with another orientation) is drawn again.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Steps 4–10 per session.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/pet/studyT.py · loop2.crop_for_session</code></div>
+        <div><span>Entry point</span><code>manual_crop(...) · crop_mask(...)</code></div>
+        <div><span>Main toolchain</span><code>freeview</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="step4" data-search="4 motion correction within each dynamic run modalities/pet/moco.py head motion during a dynamic acquisition blurs the image and corrupts time-activity curves. frames are realigned rigidly before anything else is computed.">
+  <div class="stage-head">
+    <div class="step-number">4</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Core stage · dynamic runs</div>
+      <h2>Motion correction within each dynamic run</h2>
+      <div class="script-line"><code>modalities/pet/MoCo.py</code></div>
+    </div>
+    <span class="status status-core">Core stage</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Head motion during a dynamic acquisition blurs the image and corrupts time-activity curves. Frames are realigned rigidly before anything else is computed.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>orig/preprocessing/&lt;run&gt;_desc-reorient_pet.nii.gz</code></td><td>Reoriented dynamic run.</td></tr><tr><td><span class="io-kind ">FILE</span><code>session crop box</code></td><td>From Step 3, the manual mask, or drawn now.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>nb_void, MoCo_transform, coreg_metric</code></td><td>Early frames not registered; rigid transform only (<code>Rigid</code>, <code>QuickRigid</code>, <code>DenseRigid</code>, <code>BOLDRigid</code>, <code>Translation</code>); Mattes MI.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>orig/preprocessing/&lt;run&gt;_desc-MoCo-within_pet.nii.gz (+ -mean)</code></td><td>Motion-corrected run.</td></tr><tr><td><span class="io-kind ">FILE</span><code>orig/preprocessing/forMC/*_mcNNN_0GenericAffine.mat</code></td><td>One rigid matrix per frame.</td></tr><tr><td><span class="io-kind ">FILE</span><code>forMC/*_motion.tsv + .png (copied to pet/QC)</code></td><td>Translations, rotations and mean displacement of a sphere of the head radius.</td></tr><tr><td><span class="io-kind ">FILE</span><code>pet/QC/&lt;session&gt;_desc-cropbox_pet.png</code></td><td>Crop box over the image; warning if it misses the activity.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>Every frame is registered (ANTs, mutual information) to the duration-weighted mean of the frames from <code>nb_void</code> on, in two passes: the second uses the mean of the frames corrected by the first, because a mean of misaligned frames is a blurred reference (as SPM Realign or AFNI 3dvolreg with a mean base).</li><li>The metric is computed in a head mask of the reference (voxels above 10 % of its 99th percentile, dilated 2 voxels), at three levels ending at full resolution with every voxel sampled. Without that mask the background dominates the MI histogram: on a still phantom, frames received 0.4–2 mm of spurious motion (0.2–0.4 mm with it; <code>tests/unit/test_pet.py</code>).</li><li>Registration uses the cropped frames; the transform is applied to the full frame with linear interpolation.</li><li>The first <code>nb_void</code> frames (low counts, different tracer distribution) receive the transform of the first registered frame.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Read the motion plot: motion before the first registered frame is not corrected. Static runs skip this step.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 5 brings all runs of the session together.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/pet/MoCo.py · loop2.py</code></div>
+        <div><span>Entry point</span><code>MoCo.dynamic(...)</code></div>
+        <div><span>Main toolchain</span><code>ANTsPy (Mattes MI)</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="step5" data-search="5 motion correction between runs and session mean modalities/pet/moco.py a session can contain several runs (or several static images). they are put in one geometry so that one registration per session is enough.">
+  <div class="stage-head">
+    <div class="step-number">5</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Core stage</div>
+      <h2>Motion correction between runs and session mean</h2>
+      <div class="script-line"><code>modalities/pet/MoCo.py</code></div>
+    </div>
+    <span class="status status-core">Core stage</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>A session can contain several runs (or several static images). They are put in one geometry so that one registration per session is enough.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>Step-4 outputs (or reoriented static runs)</code></td><td>If Step 4 was skipped and never run, frames are used uncorrected (warning).</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>orig/preprocessing/&lt;run&gt;_desc-MoCo-between[-mean]_pet.nii.gz</code></td><td>Each run on the grid of the first run.</td></tr><tr><td><span class="io-kind ">FILE</span><code>orig/preprocessing/&lt;session&gt;_desc-MoCo-between-mean_pet.nii.gz</code></td><td>Session mean: the image that is registered in Step 6.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>Each run mean is registered rigidly to the mean of the runs (two passes, same settings).</li><li>For a dynamic run, the per-frame and between-runs transforms are composed, so the reoriented frames are resampled only once.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>If Steps 4–5 are rerun without Step 6, the diary warns that the session mean is newer than the registration record.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 6.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/pet/MoCo.py</code></div>
+        <div><span>Entry point</span><code>MoCo.static(...)</code></div>
+        <div><span>Main toolchain</span><code>ANTsPy</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="step6" data-search="6 registration, boundary check, atlases and masks in pet space modalities/pet/coreg2anat.py + boundary.py this stage links the pet to its target spaces according to the scenario, checks the result, and brings atlases, masks, tissue fractions and the anatomy into the pet space.">
+  <div class="stage-head">
+    <div class="step-number">6</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Core stage</div>
+      <h2>Registration, boundary check, atlases and masks in PET space</h2>
+      <div class="script-line"><code>modalities/pet/coreg2anat.py + boundary.py</code></div>
+    </div>
+    <span class="status status-core">Core stage</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>This stage links the PET to its target spaces according to the scenario, checks the result, and brings atlases, masks, tissue fractions and the anatomy into the PET space.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>session mean (Step 5)</code></td><td>Moving image.</td></tr><tr><td><span class="io-kind ">FILE</span><code>anatomy (AC-PC head image, brain, masks, atlases) or CT record or template</code></td><td>Target, by scenario.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>coreg_init</code></td><td><code>'auto'</code> (multi-start) or one of <code>com</code>, <code>fov</code>, <code>acpc</code>, <code>identity</code>, <code>search</code>.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>pet_coreg_mask, coreg_target, coreg_transform</code></td><td>Moving mask (<code>none</code>, <code>threshold</code>, <code>anat</code>, <code>manual</code>, file); fixed image (<code>anat</code>, <code>brain</code>, <code>synthetic</code>); <code>Rigid</code> by default.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>do_manual, Need_check_coreg</code></td><td>Manual correction / check in freeview.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">RECORD</span><code>orig/matrices/&lt;session&gt;_desc-registration_pet.json</code></td><td>Scenario, targets, transform chains to/from PET.</td></tr><tr><td><span class="io-kind ">FILE</span><code>orig/matrices/&lt;session&gt;_from-pet-to-T1w_0GenericAffine.mat …</code></td><td>ANTs matrices.</td></tr><tr><td><span class="io-kind ">FILE</span><code>orig/matrices/*candidates.json</code></td><td>MI score and brain coverage of every start.</td></tr><tr><td><span class="io-kind ">FILE</span><code>orig/matrices/&lt;session&gt;_desc-registration_boundary.json/.png</code></td><td>Boundary check; copies in <code>pet/QC</code> and <code>&lt;bids_dir&gt;/QC/pet_boundary</code>.</td></tr><tr><td><span class="io-kind ">FILE</span><code>orig/labels/&lt;session&gt;_space-orig_seg-&lt;atlas&gt;_dseg.nii.gz</code></td><td>Atlases in PET space (every level).</td></tr><tr><td><span class="io-kind ">FILE</span><code>orig/masks/&lt;session&gt;_space-orig[_desc-gray|white|csf]_mask.nii.gz</code></td><td>Masks in PET space.</td></tr><tr><td><span class="io-kind ">FILE</span><code>orig/masks/&lt;session&gt;_space-orig_label-GM|WM|brain_probseg.nii.gz</code></td><td>Tissue fractions for PVC.</td></tr><tr><td><span class="io-kind ">FILE</span><code>orig/preprocessing/&lt;session&gt;_space-orig_T1w.nii.gz</code></td><td>Anatomy in PET space.</td></tr><tr><td><span class="io-kind ">FILE</span><code>pet/QC/&lt;session&gt;_space-&lt;target&gt;_pet.png</code></td><td>PET in each target space with that space’s brain mask as contour (also <code>&lt;bids_dir&gt;/QC/pet_in_acpc</code>, <code>pet_in_template</code>).</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li><b>Multi-start initialisation.</b> ANTs starts from the centres of mass of the two images; with the torso in the PET field of view that start can be centimetres away and MI converges to a wrong optimum (85 mm error on the phantom). EDNiX tries the masked centres of mass (Alpert et al. 1990), the centres of the fields of view, the anatomy’s AC-PC matrix, identity and a rotation search (<code>antsAffineInitializer</code>, 15° steps within ±90°); each is followed by translation then rigid registration, and the start with the highest Mattes MI (Wells et al. 1996; Maes et al. 1997) among those covering 90 % of the brain is kept (multi-start against MI local optima: Jenkinson &amp; Smith 2001).</li><li><b>Masks and targets.</b> <code>pet_coreg_mask='anat'</code> re-estimates the registration on the PET brain only, removing extracerebral uptake (temporal muscles, Harderian/lacrimal glands: strong in FDG, large in macaques and rodents). <code>coreg_target='synthetic'</code> registers to an FDG-like image of the anatomy (GM 1, WM 0.35, CSF 0.05; GM/WM ≈ 3, Phelps et al. 1979) smoothed to the PET resolution (Ashburner &amp; Friston 1997); FDG only. <code>Similarity</code>/<code>Affine</code> can absorb a misregistration with a scale and non-linear transforms are not physiological within a subject (warnings).</li><li><b>Boundary check.</b> The PET in AC-PC space is averaged in 0.5-mm shells of signed distance to the brain boundary, in six sectors, and compared with the expected profile of the FDG-like anatomy. Sectors with uptake 3–5 mm outside the brain that the brain does not explain are left out; from the clean sectors, the median half-maximum shift is a dilation (scale error) and half the difference of opposite sectors a translation. Below the tolerance (largest PET voxel, ≥ 1 mm; retrospective PET-MRI accuracy is about 2 mm, West et al. 1997) the registration is accepted and a dim outer cortex is partial volume (Hoffman et al. 1979; Rousset et al. 1998).</li><li><b>Resolution estimate.</b> The FDG-like image is smoothed at 1–10 mm and the FWHM that best correlates with the registered PET is kept (<code>fwhm_estimated_mm</code>; idea from Joshi et al. 2009). Approximate on real data; used by <code>pvc_fwhm='auto'</code>.</li><li><b>Into PET space.</b> Atlases: generic-label interpolation (every level of a 4D atlas); masks: linear interpolation thresholded at 0.5; tissue fractions: averaged over the extent of a PET voxel before linear resampling. With an anatomy, the subject’s atlases (including manual corrections) are used; without, the template’s.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Look at every <code>space-&lt;target&gt;_pet.png</code> and at the boundary verdict. A cortex whose FDG spreads symmetrically into CSF and WM is partial volume, not misregistration; a misregistration shifts the signal into CSF on one side and WM on the other. On phantoms all starts, masks and the synthetic target reach &lt; 0.4 mm; real data will do worse.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> In 2v2, the group <code>bridge</code>; otherwise Step 7.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/pet/coreg2anat.py · boundary.py · transfo.py · loop2.py</code></div>
+        <div><span>Entry point</span><code>coreg2anat.register(...) · rigid_to(...) · to_pet_space(...) · boundary.check(...)</code></div>
+        <div><span>Main toolchain</span><code>ANTsPy (Mattes MI), antsAffineInitializer, freeview (do_manual)</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="bridge" data-search="bridge link a ct study template to the reference template modalities/pet/bridge.py a ct has almost no contrast inside the brain, so a ct study template cannot be registered to a t1 template. an fdg group mean has grey/white contrast and can.">
+  <div class="stage-head">
+    <div class="step-number">bridge</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Group · 2v2 only</div>
+      <h2>Link a CT study template to the reference template</h2>
+      <div class="script-line"><code>modalities/pet/bridge.py</code></div>
+    </div>
+    <span class="status status-conditional">ct_template_bridge</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>A CT has almost no contrast inside the brain, so a CT study template cannot be registered to a T1 template. An FDG group mean has grey/white contrast and can.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">RECORD</span><code>every 2v2 session record (Steps 1–6 done)</code></td><td>PET → CT → CT study template chains.</td></tr><tr><td><span class="io-kind ">FILE</span><code>skull-stripped reference template + brain mask</code></td><td>Moving image of the bridge.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>bridge_transform</code></td><td><code>'Affine'</code> (default) or <code>'SyNRA'</code>.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">RECORD</span><code>&lt;bids_dir&gt;/sty_template/pet/matrices/studyTemplate_to_&lt;reference&gt;_desc-bridge_pet.json</code></td><td>Bridge record; <code>Skip_step=['bridge']</code> reuses it.</td></tr><tr><td><span class="io-kind ">FILE</span><code>PET study template in CT study-template space + &lt;study template&gt;_space-&lt;reference&gt;_pet.png</code></td><td>Template and its QC image.</td></tr><tr><td><span class="io-kind ">SIDE EFFECT</span><code>each session record extended</code></td><td>Reference target and template atlases/masks added in PET space.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>PET study template = mean of the session means brought to the CT study template through their own chains, each scaled by its 99th percentile (dose). A mean, not <code>ants.build_template</code>, whose extra warps would not be part of the session chains.</li><li>Reference template → PET study template: multi-start similarity, then affine (the Translation / Rigid / Similarity / Affine cascade of ANTs <code>TRSAA</code>); <code>SyNRA</code> adds SyN (Avants et al. 2008) in the dilated FDG mask.</li><li>Every 2v2 session then receives the reference target and atlases; Steps 7–10 run as in 2v1.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>This is a between-subject registration of templates of different modalities: check the QC image before using the atlases. Phantom: chain within 2 mm, Dice &gt; 0.7 of a template region.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 7 for every session.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/pet/bridge.py</code></div>
+        <div><span>Entry point</span><code>bridge.run(...) · extend_session(...)</code></div>
+        <div><span>Main toolchain</span><code>ANTsPy</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="step7" data-search="7 parametric images and regional values modalities/pet/prepropet.py + paramimg.py + roi_signal.py turns the motion-corrected pet into quantitative images and regional tables, in pet space.">
+  <div class="stage-head">
+    <div class="step-number">7</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Core stage</div>
+      <h2>Parametric images and regional values</h2>
+      <div class="script-line"><code>modalities/pet/preproPET.py + paramImg.py + roi_signal.py</code></div>
+    </div>
+    <span class="status status-core">Core stage</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Turns the motion-corrected PET into quantitative images and regional tables, in PET space.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>Step-5 motion-corrected run / session mean</code></td><td>Activity data.</td></tr><tr><td><span class="io-kind ">FILE</span><code>PET-space atlases, brain mask, manual mask</code></td><td>From Step 6.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>SUV, bratio, SUV_window, Do_cut, duration, selected_atlases</code></td><td>Which images and tables.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>orig/postprocessing/…_desc-activity[-mean]_pet</code></td><td>Activity (static: <code>desc-activity</code>; dynamic: mean of the frames whose middle is in <code>SUV_window</code>).</td></tr><tr><td><span class="io-kind ">FILE</span><code>…_desc-SUV[-mean], -SUVglu</code></td><td>Body-weight SUV and glucose-normalised SUV.</td></tr><tr><td><span class="io-kind ">FILE</span><code>…_desc-bratio[-mean], -bratio-period…</code></td><td>Ratio to the brain mean; time blocks of <code>Do_cut</code>.</td></tr><tr><td><span class="io-kind ">FILE</span><code>… -SS versions</code></td><td>Skull-stripped.</td></tr><tr><td><span class="io-kind ">FILE</span><code>ROI_analysis/*_seg-&lt;atlas&gt;-lvl&lt;k&gt;_vol_ROIs.tsv, *_desc-&lt;desc&gt;_ROIs.tsv</code></td><td>Regional mean, SD, median, voxels, volume per atlas and level.</td></tr><tr><td><span class="io-kind ">FILE</span><code>ROI_analysis/pictures/</code></td><td>Regional time-activity curves of dynamic runs.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>SUV (g/mL) = C (Bq/mL) × body weight (g) / injected radioactivity (Bq), density 1 g/mL (Boellaard 2009; Boellaard et al. 2015; Kinahan &amp; Fletcher 2010). Injected activity is decayed to <code>ImageDecayCorrectionTime</code> when it differs from <code>InjectionStart</code>; non-decay-corrected data are decay-corrected frame by frame (exact frame-averaged factor).</li><li>SUVglu = SUV × glucose / 5.0 mmol/L (<code>GLUCOSE_REF_MMOL_L</code>; other protocols use 5.55); optional in clinical guidelines.</li><li>bratio = image / its mean over the brain mask (the manual mask when present).</li><li>Units are converted to Bq/mL from the sidecar (<code>Bq/mL</code>, <code>kBq/cc</code>, <code>nCi/mL</code>, DICOM <code>BQML</code>…); an image already in SUV is kept.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Regional values include partial-volume effects: interpret small regions (and small brains) with caution, or use the <code>pvc</code> step. Check <code>Prepro_Settings.json</code> for the source of weight and dose.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Optional Step 8 (kinetics), <code>pvc</code>, Step 9, then Step 10.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/pet/loop2.py · preproPET.py · paramImg.py · roi_signal.py · cut_func.py</code></div>
+        <div><span>Entry point</span><code>preproPET.suv(...)</code></div>
+        <div><span>Main toolchain</span><code>nibabel / numpy</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="step8" data-search="8 reference-region kinetic models modalities/pet/prepropet.py + turkutools/* for receptor tracers, binding potential and distribution volume ratio are estimated without blood sampling, from a reference region.">
+  <div class="stage-head">
+    <div class="step-number">8</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Optional analysis</div>
+      <h2>Reference-region kinetic models</h2>
+      <div class="script-line"><code>modalities/pet/preproPET.py + turkutools/*</code></div>
+    </div>
+    <span class="status status-analysis">srtm=True</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>For receptor tracers, binding potential and distribution volume ratio are estimated without blood sampling, from a reference region.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>motion-corrected dynamic run (+ decay-corrected version)</code></td><td>TACs and voxel data.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>reference_signal</code></td><td>Atlas labels, a tissue mask (<code>white</code>, <code>csf</code>, <code>white+csf</code>, <code>gray</code>, <code>brain</code>) or <code>'unknown'</code> (interactive, saved for the next subjects).</td></tr><tr><td><span class="io-kind ">SETTING</span><code>DV_time, DV_k2ref, kinetic_end</code></td><td>Logan t*, population k2′, end of fits.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>ROI_analysis/*_desc-Kinetic_ROIs.tsv/.dft, reference .dft, BPnd .res</code></td><td>Regional results.</td></tr><tr><td><span class="io-kind ">FILE</span><code>postprocessing/…_desc-BP, -BP-err, -SRTM, -DVR (+ -SS)</code></td><td>Voxel-wise images.</td></tr><tr><td><span class="io-kind ">FILE</span><code>&lt;bids_dir&gt;/sty_template/pet/reference_region_trc-&lt;tracer&gt;.json</code></td><td>Saved reference choice.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>Regional BPnd: SRTM (Lammertsma &amp; Hume 1996) fitted with basis functions (<code>bfmsrtm</code>, Gunn et al. 1997), frame weights from <code>imgweigh</code>/<code>dftweigh</code> (Mazoyer et al. 1986).</li><li>Voxel-wise BPnd: <code>imgbfbp</code> and <code>imgsrtm</code>. Voxel-wise DVR: Logan plot with reference (<code>imgdv</code>, Logan et al. 1996) from <code>DV_time</code>, with <code>-k2=</code> when <code>DV_k2ref</code> is given, otherwise the simplified form.</li><li>Regional and reference TACs are computed on the motion-corrected (not skull-stripped) image, to avoid diluting TACs with zeros; voxel-wise models on the skull-stripped version. Frame times given to the tools are post-injection.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>The validity of a reference region (no specific binding, same non-displaceable uptake) depends on tracer and species: check the literature for each tracer. Prefer label numbers to a name pattern (<code>'Cerebell'</code> can also match cerebellar WM).</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> <code>pvc</code> or Step 10.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/pet/preproPET.py · roi_signal.py · dftFile.py · turkutools/</code></div>
+        <div><span>Entry point</span><code>preproPET.srtm(...)</code></div>
+        <div><span>Main toolchain</span><code>Turku PET Centre tpcclib (tpcclib.sif): bfmsrtm, imgbfbp, imgsrtm, imgdv</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="pvc" data-search="pvc partial-volume correction modalities/pet/pvc.py a cortex thinner than the pet resolution loses signal to csf and white matter. pvc restores tissue concentrations given the scanner resolution.">
+  <div class="stage-head">
+    <div class="step-number">pvc</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Optional analysis</div>
+      <h2>Partial-volume correction</h2>
+      <div class="script-line"><code>modalities/pet/pvc.py</code></div>
+    </div>
+    <span class="status status-analysis">pvc_fwhm</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>A cortex thinner than the PET resolution loses signal to CSF and white matter. PVC restores tissue concentrations given the scanner resolution.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>first static result (SUV-mean, SUV, activity-mean or activity)</code></td><td>Image to correct.</td></tr><tr><td><span class="io-kind ">FILE</span><code>tissue fractions (Step 6)</code></td><td>Four classes summing to one: GM, WM outside it, CSF = rest of the brain mask, rest.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>pvc_fwhm, pvc_method, pvc_engine</code></td><td>PSF FWHM in mm (not the voxel size; <code>'auto'</code> = Step-6 estimate, never below <code>ReconFilterSize</code>); <code>RBV</code> default; <code>'auto'</code> engine.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>postprocessing/…_desc-&lt;desc&gt;-PVC_pet.nii.gz + JSON</code></td><td>Corrected image; the JSON records engine and GTM class means.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li><code>pvc_engine='auto'</code>: PETPVC (Thomas et al. 2016) through nipype when <code>petpvc</code> is on the PATH, otherwise the Python implementation (RBV and MG only).</li><li>Python definitions: GTM (Rousset et al. 1998) with tissue fractions as weights; RBV (Thomas et al. 2011) = PET × S / (PSF ⊗ S); MG (Müller-Gärtner et al. 1992).</li><li>GTM itself writes a table, not an image, and is refused.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>On the folded-cortex phantom RBV brings pure GM from 0.70–0.82 back to 0.97–0.99 of its true value (noise-free, exact PSF). On real data a wrong <code>pvc_fwhm</code> and noise limit it: prefer the scanner’s value when known.</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 9 or Step 10.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/pet/pvc.py · loop2.py</code></div>
+        <div><span>Entry point</span><code>pvc.correct(...)</code></div>
+        <div><span>Main toolchain</span><code>PETPVC / numpy + scipy</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="step9" data-search="9 pet during the fmri runs modalities/pet/run_cut.py + cut_func.py on a simultaneous pet-mr session, each fmri run can be paired with the pet acquired during it.">
+  <div class="stage-head">
+    <div class="step-number">9</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Optional analysis</div>
+      <h2>PET during the fMRI runs</h2>
+      <div class="script-line"><code>modalities/pet/run_cut.py + cut_func.py</code></div>
+    </div>
+    <span class="status status-analysis">do_pet_to_func</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>On a simultaneous PET-MR session, each fMRI run can be paired with the PET acquired during it.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>func/*_bold.nii.gz + .json (endfmri)</code></td><td>AcquisitionTime of each run.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>T1_eq</code></td><td>Volumes removed by the fMRI pipeline.</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>postprocessing/… per-run PET mean / brain mean</code></td><td>One image per fMRI run.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>Frames are weighted by their overlap with the run, from the clock times <code>TimeZero</code> (PET) and <code>AcquisitionTime</code> (BOLD) minus the <code>T1_eq</code> first volumes; a run after midnight is handled.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Clock times must come from the same clock (scanner).</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Step 10.</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/pet/run_cut.py · cut_func.py</code></div>
+        <div><span>Entry point</span><code>run_cut.getframes(...) · cut_func.cut(...)</code></div>
+        <div><span>Main toolchain</span><code>nibabel</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="stage" id="step10" data-search="10 export to the ac-pc and template spaces modalities/pet/norm2template.py group analyses need every subject in a common space. this is the only time parametric images leave the pet space.">
+  <div class="stage-head">
+    <div class="step-number">10</div>
+    <div class="stage-title-wrap">
+      <div class="eyebrow">Core stage</div>
+      <h2>Export to the AC-PC and template spaces</h2>
+      <div class="script-line"><code>modalities/pet/norm2template.py</code></div>
+    </div>
+    <span class="status status-core">Core stage</span>
+  </div>
+  <div class="stage-body">
+    <div class="why"><strong>Why this stage exists</strong><p>Group analyses need every subject in a common space. This is the only time parametric images leave the PET space.</p></div>
+    <div class="io-grid">
+      <div class="io-block"><div class="io-title">Reads / prerequisites</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>every 3D image of orig/postprocessing</code></td><td>Parametric images.</td></tr><tr><td><span class="io-kind ">RECORD</span><code>registration record</code></td><td>Chains to each target space.</td></tr><tr><td><span class="io-kind ">SETTING</span><code>export_resolution, export_dynamic</code></td><td><code>'pet'</code> (target space at PET voxel size, default) or <code>'target'</code>; also export dynamic images (large).</td></tr></tbody></table></div></div>
+      <div class="io-block"><div class="io-title">Creates / changes</div><div class="table-wrap"><table><tbody><tr><td><span class="io-kind ">FILE</span><code>pet/acpc/…</code></td><td>Parametric images in the anatomy’s AC-PC space (+ -SS).</td></tr><tr><td><span class="io-kind ">FILE</span><code>pet/templates/&lt;name&gt;/…, labels/, masks/</code></td><td>Parametric images, atlases and masks in each template space on the same grid.</td></tr></tbody></table></div></div>
+    </div>
+    <div class="how-grid">
+      <div><h3>How EDNiX creates those outputs</h3><ol><li>Each image is resampled once along the chain of the record.</li><li>Atlases and masks of the template spaces are written on the same grid.</li></ol></div>
+      <aside class="inspect"><h3>What should I inspect?</h3><p>Open one exported image over the template: this is what the group analyses will use (<a href="https://github.com/garincle/EDNiX/blob/master/docs/group_analysis.md#pet-group-analyses">group_analysis.md</a>).</p></aside>
+    </div>
+    <div class="next"><b>What happens next?</b> Group analyses (voxel-wise, regional, surfaces).</div>
+    <details class="dev"><summary>Developer view</summary>
+      <div class="dev-grid">
+        <div><span>Source</span><code>modalities/pet/norm2template.py</code></div>
+        <div><span>Entry point</span><code>norm2template.export(...)</code></div>
+        <div><span>Main toolchain</span><code>ANTsPy + Workbench palette</code></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<section class="doc-section" id="inputs">
+<h2>What the PET pipeline reads from BIDS</h2>
+<p class="intro">Layout: <code>sub-&lt;ID&gt;/ses-&lt;S&gt;/pet/sub-&lt;ID&gt;_ses-&lt;S&gt;_trc-&lt;tracer&gt;[_run-&lt;n&gt;]_pet.nii.gz</code> + sidecar (Norgaard et al. 2022). Selected by <code>endpet</code>.</p>
+<div class="table-wrap"><table class="data-table"><thead><tr><th>Field</th><th>Use</th></tr></thead><tbody><tr><td><code>FrameTimesStart</code>, <code>FrameDuration</code> (s)</td><td>Frame timing (required for dynamic; overlapping frames refused).</td></tr><tr><td><code>InjectionStart</code> (s, relative to <code>TimeZero</code>)</td><td>Origin of every time in the pipeline: <code>SUV_window</code>, <code>duration</code>, <code>DV_time</code>, <code>kinetic_end</code>, <code>same_space_window</code> are post-injection.</td></tr><tr><td><code>Units</code></td><td>Conversion to Bq/mL for SUV.</td></tr><tr><td><code>InjectedRadioactivity</code>, <code>InjectedRadioactivityUnits</code></td><td>SUV.</td></tr><tr><td><code>ImageDecayCorrected</code>, <code>ImageDecayCorrectionTime</code></td><td>Decay reference; non-corrected data are corrected at Step 7.</td></tr><tr><td><code>TracerRadionuclide</code></td><td>Isotope (<code>F18</code>, <code>18F</code>, <code>[18F]</code>, <code>Fluorine-18</code> recognised).</td></tr><tr><td><code>TimeZero</code></td><td>SIF title line; PET-fMRI timing.</td></tr><tr><td><code>PatientPosition</code>, <code>PatientWeight</code></td><td><code>humanPosition</code> when empty; body weight when not in the TSV files.</td></tr><tr><td><code>ReconFilterType</code>, <code>ReconFilterSize</code></td><td>Reported with PVC; lower bound of <code>pvc_fwhm='auto'</code>.</td></tr></tbody></table></div>
+<div class="callout">Body weight and blood glucose are read from <code>sub-&lt;ID&gt;_sessions.tsv</code>, then <code>participants.tsv</code> (<code>body_weight</code>/<code>weight</code>/<code>weight_kg</code> in kg; <code>blood_glucose</code> in mmol/L or <code>blood_concentration</code> in g/L; injected dose also as <code>injected_radioactivity</code> or <code>tracor_qte_MBq</code> in MBq).</div>
+</section>
+
+<section class="doc-section" id="templates-sessions">
+<h2>Three parameters with similar names</h2>
+<div class="table-wrap"><table class="data-table"><thead><tr><th>Parameter</th><th>Kind</th><th>Effect</th></tr></thead><tbody><tr><td><code>creat_study_template</code></td><td>declares (ANAT value)</td><td>The ANAT pipeline used an anatomical study template: where anatomy→template transforms are read.</td></tr><tr><td><code>coregistration_longitudinal</code></td><td>declares (ANAT value)</td><td>The ANAT pipeline registered sessions to a reference session: idem.</td></tr><tr><td><code>creat_study_template_pet</code></td><td>triggers Step 2</td><td>PET study template from session means: crop of <code>crop_for_MoCo='auto'</code> and common space of 3v2 only; not registered to the anatomy.</td></tr><tr><td>(PET longitudinal)</td><td>not implemented</td><td>Each PET session is registered to the anatomy of its session (or of another session of the subject); sessions meet in AC-PC/template spaces through the anatomical chain.</td></tr></tbody></table></div>
+</section>
+
+<section class="doc-section" id="interactive">
+<h2>Interactive steps and unattended runs</h2>
+<ul class="note-list">
+<li><code>Need_check_orient</code>, <code>Need_check_MC</code>, <code>Need_check_coreg</code>: freeview after reorientation, motion correction, registration.</li>
+<li><code>do_manual=True</code>: move the PET in freeview (<em>Tools &gt; Transform Volume</em>), save under the same name; the registration is estimated again from it.</li>
+<li><code>crop_for_MoCo</code>: crops are saved and reused; <code>redo_crop=True</code> redraws them.</li>
+<li><code>reference_signal='unknown'</code>: a window to choose the reference region, saved for the next subjects.</li>
+<li>For unattended runs (server, interface in the background): <code>crop_for_MoCo='none'</code> or <code>'mask'</code>, an explicit <code>reference_signal</code>, checks off, and <code>EDNIX_STRICT=1</code>.</li>
+</ul>
+</section>
+
+<section class="doc-section" id="qc">
+<h2>Quality control and resets</h2>
+<div class="method-grid">
+<div class="mini-card"><h3>Registration</h3><p><code>pet/QC/&lt;session&gt;_space-&lt;target&gt;_pet.png</code> and <code>&lt;bids_dir&gt;/QC/pet_in_acpc</code>, <code>pet_in_template</code>; boundary check in <code>pet_boundary</code>. Dataset-level boundary statistics: <code>Exemples/Study_EDNiX/Launcher_pet/Check_pet_boundary.py</code>.</p><code>coreg2anat.qc_contour · boundary.check_record</code></div>
+<div class="mini-card"><h3>Motion and crop</h3><p><code>pet/QC/*_motion.png</code> (per frame), <code>*_desc-cropbox_pet.png</code> and <code>&lt;bids_dir&gt;/QC/pet_crop</code>.</p><code>MoCo.motion_report</code></div>
+<div class="mini-card"><h3>Diary</h3><p>Scenario, isotope, subject values and their source, assumed decay correction, unit conversions, and a warning when the session mean is newer than the registration record.</p><code>pet/&lt;ID&gt; session &lt;S&gt;….txt</code></div>
+<div class="mini-card"><h3>Reset before a rerun</h3><p><code>_000_Data_Reset</code> removes EDNiX outputs under <code>pet/</code> and keeps raw BIDS files, <code>raw/masks/</code>, every <code>*_desc-manual_*</code> and <code>*_desc-crop_*</code>; <code>RESET_KEEP_REGISTRATION=True</code> also keeps <code>orig/matrices</code> (valid only if Step 1 is not rerun). The study template in <code>sty_template/pet</code> is not touched.</p><code>modalities/pet/_000_Data_Reset.py</code></div>
+</div>
+<div class="callout"><code>Tools/QC_report.build(bids_dir)</code> gathers PET motion metrics with the ANAT and fMRI QC in per-subject and dataset HTML pages and an Excel summary (<a href="https://github.com/garincle/EDNiX/blob/master/docs/quality_control.md">quality_control.md</a>).</div>
+</section>
+
+<section class="doc-section" id="limits">
+<h2>Limitations to check on the first datasets</h2>
+<ul class="note-list">
+<li>Same scanner space: the anatomy/CT must not have been moved by hand after reorientation, and <code>same_space_window</code> must match its acquisition.</li>
+<li>Turku tools write outputs back with the input geometry: check one parametric image against the anatomy.</li>
+<li>Scenario 3v2: no link to the reference template, no atlas. Scenario 2v2: check <code>&lt;study template&gt;_space-&lt;reference&gt;_pet.png</code> before using atlases.</li>
+<li>Very early frames inherit the transform of the first registered frame.</li>
+<li>Registration accuracies quoted here come from noise-free or Gaussian-noise phantoms with 2-mm voxels; real data (lower counts, changing contrast between frames) will do worse.</li>
+</ul>
+</section>
+
+<section class="doc-section" id="developer-map">
+<h2>Developer map</h2>
+<div class="devmap-grid">
+<div class="mini-card"><h3>Orchestration</h3><p>Scenario, sessions, Steps 1–3, then per-session loop and group bridge.</p><code>_0_Pipeline_launcher.py · loop1.py · loop2.py</code></div>
+<div class="mini-card"><h3>Geometry</h3><p>Reorientation, world transforms, motion correction, crops.</p><code>reorient.py · MoCo.py · studyT.py · manualmask.py</code></div>
+<div class="mini-card"><h3>Registration</h3><p>Multi-start rigid, masks, synthetic target, records, chains, boundary check, bridge.</p><code>coreg2anat.py · transfo.py · boundary.py · bridge.py</code></div>
+<div class="mini-card"><h3>Quantification</h3><p>SUV, ratios, blocks, ROI tables, kinetic models, PVC, PET-fMRI.</p><code>preproPET.py · paramImg.py · roi_signal.py · pvc.py · run_cut.py · cut_func.py</code></div>
+<div class="mini-card"><h3>Turku interface</h3><p>SIF, DFT, weights, SRTM, Logan wrappers.</p><code>sifFile.py · dftFile.py · dcmFile.py · turkutools/*</code></div>
+<div class="mini-card"><h3>Shared helpers</h3><p>Units, isotopes, decay, timing, naming, sidecars.</p><code>petutils.py · Tools/getpath.pet</code></div>
+</div>
+<div class="callout">Full method text, parameter defaults and references: <a href="https://github.com/garincle/EDNiX/blob/master/docs/pet_pipeline.md">pet_pipeline.md</a> and <a href="https://github.com/garincle/EDNiX/blob/master/docs/reference/pet_parameters.md">pet_parameters.md</a>. Unit tests with phantoms: <code>tests/unit/test_pet.py</code>.</div>
+</section>
+
+<section class="doc-section" id="references">
+<h2>References</h2>
+<ul class="refs">
+<li>Alpert NM et al. (1990) The principal axes transformation. J Nucl Med 31:1717–1722.</li>
+<li>Ashburner J, Friston KJ (1997) Multimodal image coregistration and partitioning. NeuroImage 6:209–217.</li>
+<li>Avants BB et al. (2008) Symmetric diffeomorphic image registration with cross-correlation. Med Image Anal 12:26–41.</li>
+<li>Boellaard R (2009) Standards for PET image acquisition and quantitative data analysis. J Nucl Med 50 Suppl 1:11S–20S.</li>
+<li>Boellaard R et al. (2015) FDG PET/CT: EANM procedure guidelines for tumour imaging v2.0. Eur J Nucl Med Mol Imaging 42:328–354.</li>
+<li>Gunn RN et al. (1997) Parametric imaging of ligand-receptor binding in PET using a simplified reference region model. NeuroImage 6:279–287.</li>
+<li>Hoffman EJ, Huang SC, Phelps ME (1979) Quantitation in positron emission computed tomography: 1. Effect of object size. J Comput Assist Tomogr 3:299–308.</li>
+<li>Jenkinson M, Smith S (2001) A global optimisation method for robust affine registration of brain images. Med Image Anal 5:143–156.</li>
+<li>Joshi A, Koeppe RA, Fessler JA (2009) Reducing between scanner differences in multi-center PET studies. NeuroImage 46:154–159.</li>
+<li>Kinahan PE, Fletcher JW (2010) PET-CT standardized uptake values in clinical practice. Semin Ultrasound CT MR 31:496–505.</li>
+<li>Lammertsma AA, Hume SP (1996) Simplified reference tissue model for PET receptor studies. NeuroImage 4:153–158.</li>
+<li>Logan J et al. (1996) Distribution volume ratios without blood sampling from graphical analysis of PET data. J Cereb Blood Flow Metab 16:834–840.</li>
+<li>Maes F et al. (1997) Multimodality image registration by maximization of mutual information. IEEE Trans Med Imaging 16:187–198.</li>
+<li>Mazoyer BM et al. (1986) Dynamic PET data analysis. J Comput Assist Tomogr 10:645–653.</li>
+<li>Müller-Gärtner HW et al. (1992) Measurement of radiotracer concentration in brain gray matter using PET: MRI-based correction for partial volume effects. J Cereb Blood Flow Metab 12:571–583.</li>
+<li>Norgaard M et al. (2022) PET-BIDS, an extension to the brain imaging data structure for positron emission tomography. Sci Data 9:65.</li>
+<li>Phelps ME et al. (1979) Tomographic measurement of local cerebral glucose metabolic rate in humans with (F-18)2-fluoro-2-deoxy-D-glucose. Ann Neurol 6:371–388.</li>
+<li>Rousset OG, Ma Y, Evans AC (1998) Correction for partial volume effects in PET: principle and validation. J Nucl Med 39:904–911.</li>
+<li>Thomas BA et al. (2011) The importance of appropriate partial volume correction for PET quantification in Alzheimer’s disease. Eur J Nucl Med Mol Imaging 38:1104–1119.</li>
+<li>Thomas BA et al. (2016) PETPVC: a toolbox for performing partial volume correction techniques in PET. Phys Med Biol 61:7975–7993.</li>
+<li>Wells WM et al. (1996) Multi-modal volume registration by maximization of mutual information. Med Image Anal 1:35–51.</li>
+<li>West J et al. (1997) Comparison and evaluation of retrospective intermodality brain image registration techniques. J Comput Assist Tomogr 21:554–566.</li>
+</ul>
+</section>
+<footer>EDNiX PET guide · checked against the repository code (master, 13 November 2026) · companion pages: <a href="anat.html">ANAT</a>, <a href="fmri.html">fMRI</a>, <a href="ct.html">CT</a>.</footer>
+</div>
+</main>
+</div>
+<script>
+const links=[...document.querySelectorAll('.nav-group a')];
+const sections=[...document.querySelectorAll('[id]')].filter(x=>links.some(a=>a.dataset.target===x.id));
+const where=document.getElementById('whereText');
+const observer=new IntersectionObserver(entries=>{
+  const visible=entries.filter(e=>e.isIntersecting).sort((a,b)=>a.boundingClientRect.top-b.boundingClientRect.top)[0];
+  if(!visible)return;
+  links.forEach(a=>a.classList.toggle('active',a.dataset.target===visible.target.id));
+  const active=links.find(a=>a.dataset.target===visible.target.id);
+  if(active)where.textContent=active.textContent.trim();
+},{rootMargin:'-15% 0px -75% 0px',threshold:0});
+sections.forEach(s=>observer.observe(s));
+const search=document.getElementById('search');
+search.addEventListener('input',()=>{
+ const q=search.value.trim().toLowerCase();
+ document.querySelectorAll('.stage').forEach(s=>{
+   const text=(s.dataset.search+' '+s.textContent).toLowerCase();
+   s.classList.toggle('filtered',q && !text.includes(q));
+ });
+});
+</script>
+</body>
+</html>
