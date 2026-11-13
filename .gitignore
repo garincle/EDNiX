@@ -44,3 +44,5 @@ __pycache__/
 .ipynb_checkpoints/
 .ednix_review/
 GUI/**/__pycache__/
+# run_all_ednix / rebuild_all_ednix logs
+run_reports/
