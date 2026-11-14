@@ -190,34 +190,50 @@ def _split(L, pairs, subs, n, work_dir, tag, env, stage, cost_w):
     return out
 
 
+def _template_stage_jobs(L, pairs, subs, nsplit, work_dir, anat_from):
+    names = [k for k, _, _ in ANAT_TEMPLATE_STAGES]
+    jobs = []
+    for key, stages, split in ANAT_TEMPLATE_STAGES[names.index(anat_from):]:
+        tag = f'__{key}_' + stages.replace(',', '+')
+        jobs += _split(L, pairs, subs, nsplit if split else 1, work_dir, tag,
+                       {'EDNIX_ANAT_STAGES': stages}, key, WEIGHT['anat'] / 2)
+    return jobs
+
+
 def make_jobs(launchers, work_dir, anat_from=ANAT_TEMPLATE_STAGES[0][0]):
     """One job per launcher, or subject workers. An anat launcher that builds a study template is cut into chained
     stages (SPLIT_ANAT_TEMPLATE): A loop1 + template creation (all subjects), B loop2 (subject workers),
     C study template finalisation + atlases (all subjects), D loop3 (subject workers). anat_from='B' skips A
     (loop1 and the template already done), 'C' skips A and B, 'D' runs loop3 only."""
     jobs = []
-    names = [k for k, _, _ in ANAT_TEMPLATE_STAGES]
     for L in launchers:
         pairs = selected_pairs(L)
         subs = sorted({s for s, _ in pairs})
         nsplit = max(1, min(MAX_SPLIT, len(subs)))
-        w = WEIGHT[L['kind']]
-        if L['kind'] == 'anat' and L['template'] and SPLIT_ANAT_TEMPLATE and L['insert_line'] is not None:
-            for key, stages, split in ANAT_TEMPLATE_STAGES[names.index(anat_from):]:
-                tag = f'__{key}_' + stages.replace(',', '+')
-                jobs += _split(L, pairs, subs, nsplit if split else 1, work_dir, tag,
-                               {'EDNIX_ANAT_STAGES': stages}, key, w / 2)
+        staged = L['kind'] == 'anat' and L['template'] and SPLIT_ANAT_TEMPLATE and L['insert_line'] is not None
+        if staged:
+            jobs += _template_stage_jobs(L, pairs, subs, nsplit, work_dir, anat_from)
             continue
         n = 1 if (L['template'] or L['insert_line'] is None) else nsplit
-        jobs += _split(L, pairs, subs, n, work_dir, '', {}, None, w)
+        jobs += _split(L, pairs, subs, n, work_dir, '', {}, None, WEIGHT[L['kind']])
     return jobs
+
+
+def _previous_stage(jobs, j):
+    """indices of the jobs of the closest earlier stage of the same staged launcher"""
+    order = [k for k, _, _ in ANAT_TEMPLATE_STAGES]
+    path = j['launcher']['path']
+    present = {o.get('stage') for o in jobs if o['launcher']['path'] == path}
+    earlier = [s for s in order[:order.index(j['stage'])] if s in present]
+    if not earlier:
+        return set()
+    return {k for k, o in enumerate(jobs) if o['launcher']['path'] == path and o.get('stage') == earlier[-1]}
 
 
 def dependencies(jobs):
     """job index -> set of job indices that must finish first: same BIDS folder anat -> ct -> pet, anat -> func;
     inside a staged anat template launcher, every stage waits for all the jobs of the previous stage."""
     before = {'anat': (), 'ct': ('anat',), 'pet': ('anat', 'ct'), 'func': ('anat',)}
-    order = [k for k, _, _ in ANAT_TEMPLATE_STAGES]
     norm = os.path.normpath
     deps = {}
     for i, j in enumerate(jobs):
@@ -225,11 +241,7 @@ def dependencies(jobs):
         deps[i] = {k for k, o in enumerate(jobs) if norm(o['launcher']['bids']) == norm(L['bids'])
                    and o['launcher']['kind'] in before[L['kind']]}
         if j.get('stage'):
-            prev = [o.get('stage') for o in jobs if o['launcher']['path'] == L['path'] and o.get('stage')]
-            earlier = [s for s in order[:order.index(j['stage'])] if s in prev]
-            if earlier:
-                deps[i] |= {k for k, o in enumerate(jobs) if o['launcher']['path'] == L['path']
-                            and o.get('stage') == earlier[-1]}
+            deps[i] |= _previous_stage(jobs, j)
     return deps
 
 
