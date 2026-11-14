@@ -18,7 +18,9 @@ What it does
      rat is done, even if the human anat is still running).
   4. Splits a launcher into subject workers (each worker = a copy of the launcher with list_to_keep set to its
      subjects; all the sessions of a subject stay together) unless it builds a study template (anat / PET / CT),
-     which needs all the subjects in the same process.
+     which needs all the subjects in the same process. An anat study-template launcher is cut into chained stages
+     (EDNIX_ANAT_STAGES): A loop1 + template (1 job) -> B loop2 (subject workers) -> C template finalisation +
+     atlases (1 job) -> D loop3 (subject workers); --anat-from B skips A when loop1 and the template exist.
   5. Keeps the sum of the threads of the running workers <= CORE_BUDGET (threads per worker set through
      OMP / ITK / OpenBLAS / MKL variables), starting the longest jobs first (fewer idle cores at the end).
   6. QC: Tools/QC_report.build on every BIDS folder (subject recaps, all-subject page, dataset page + Excel) and one
@@ -56,6 +58,11 @@ RESET_ANAT_SCOPE = 'all'                          # 'all' or 'surfaces' (rebuild
 THREADS_PER_WORKER = 4                            # ANTs / AFNI / numpy threads of one worker
 CORE_MARGIN = 4                                   # cores left free for the machine
 MAX_SPLIT = 6                                     # max subject workers per launcher
+SPLIT_ANAT_TEMPLATE = True                        # cut anat study-template launchers into chained stages A-D
+ANAT_TEMPLATE_STAGES = [('A', 'loop1,create', False),  # (key, EDNIX_ANAT_STAGES, split by subject)
+                        ('B', 'loop2', True),
+                        ('C', 'use', False),
+                        ('D', 'loop3', True)]
 WEIGHT = {'anat': 3.0, 'func': 2.0, 'pet': 1.0, 'ct': 0.5}   # relative cost per subject (scheduling order only)
 
 
@@ -159,32 +166,73 @@ if not list_to_keep:
 '''
 
 
-def make_jobs(launchers, work_dir):
+def _write_worker(L, wp, wpath):
+    """copy of the launcher restricted to the (subject, session) pairs wp"""
+    lines = L['src'].split('\n')
+    src = '\n'.join(lines[:L['insert_line']]) + '\nimport sys\n' + HELPER.format(pairs=wp) + \
+          '\n'.join(lines[L['insert_line']:])
+    ast.parse(src)                                           # never launch an invalid worker
+    wpath.write_text(f'import sys; sys.path.insert(0, {str(MAIN_PATH)!r})\n' + src)
+    return str(wpath)
+
+
+def _split(L, pairs, subs, n, work_dir, tag, env, stage, cost_w):
+    if n == 1:
+        return [dict(launcher=L, script=L['path'], pairs=pairs, cost=cost_w * max(1, len(pairs)),
+                     label=L['name'] + tag, env=env, stage=stage)]
+    out = []
+    for i in range(n):
+        mine = set(subs[i::n])
+        wp = [p for p in pairs if p[0] in mine]
+        wpath = Path(work_dir) / f"{L['name']}{tag}__w{i + 1:02d}of{n:02d}.py"
+        out.append(dict(launcher=L, script=_write_worker(L, wp, wpath), pairs=wp, cost=cost_w * len(wp),
+                        label=wpath.stem, env=env, stage=stage))
+    return out
+
+
+def _template_stage_jobs(L, pairs, subs, nsplit, work_dir, anat_from):
+    names = [k for k, _, _ in ANAT_TEMPLATE_STAGES]
+    jobs = []
+    for key, stages, split in ANAT_TEMPLATE_STAGES[names.index(anat_from):]:
+        tag = f'__{key}_' + stages.replace(',', '+')
+        jobs += _split(L, pairs, subs, nsplit if split else 1, work_dir, tag,
+                       {'EDNIX_ANAT_STAGES': stages}, key, WEIGHT['anat'] / 2)
+    return jobs
+
+
+def make_jobs(launchers, work_dir, anat_from=ANAT_TEMPLATE_STAGES[0][0]):
+    """One job per launcher, or subject workers. An anat launcher that builds a study template is cut into chained
+    stages (SPLIT_ANAT_TEMPLATE): A loop1 + template creation (all subjects), B loop2 (subject workers),
+    C study template finalisation + atlases (all subjects), D loop3 (subject workers). anat_from='B' skips A
+    (loop1 and the template already done), 'C' skips A and B, 'D' runs loop3 only."""
     jobs = []
     for L in launchers:
         pairs = selected_pairs(L)
         subs = sorted({s for s, _ in pairs})
-        n = 1 if (L['template'] or L['insert_line'] is None) else max(1, min(MAX_SPLIT, len(subs)))
-        cost = WEIGHT[L['kind']] * max(1, len(pairs))
-        if n == 1:
-            jobs.append(dict(launcher=L, script=L['path'], pairs=pairs, cost=cost, label=L['name']))
+        nsplit = max(1, min(MAX_SPLIT, len(subs)))
+        staged = L['kind'] == 'anat' and L['template'] and SPLIT_ANAT_TEMPLATE and L['insert_line'] is not None
+        if staged:
+            jobs += _template_stage_jobs(L, pairs, subs, nsplit, work_dir, anat_from)
             continue
-        lines = L['src'].split('\n')
-        for i in range(n):
-            mine = set(subs[i::n])
-            wp = [p for p in pairs if p[0] in mine]
-            src = '\n'.join(lines[:L['insert_line']]) + '\nimport sys\n' + HELPER.format(pairs=wp) + \
-                  '\n'.join(lines[L['insert_line']:])
-            ast.parse(src)                                   # never launch an invalid worker
-            wpath = Path(work_dir) / f"{L['name']}__w{i + 1:02d}of{n:02d}.py"
-            wpath.write_text(f'import sys; sys.path.insert(0, {str(MAIN_PATH)!r})\n' + src)
-            jobs.append(dict(launcher=L, script=str(wpath), pairs=wp, cost=WEIGHT[L['kind']] * len(wp),
-                             label=wpath.stem))
+        n = 1 if (L['template'] or L['insert_line'] is None) else nsplit
+        jobs += _split(L, pairs, subs, n, work_dir, '', {}, None, WEIGHT[L['kind']])
     return jobs
 
 
+def _previous_stage(jobs, j):
+    """indices of the jobs of the closest earlier stage of the same staged launcher"""
+    order = [k for k, _, _ in ANAT_TEMPLATE_STAGES]
+    path = j['launcher']['path']
+    present = {o.get('stage') for o in jobs if o['launcher']['path'] == path}
+    earlier = [s for s in order[:order.index(j['stage'])] if s in present]
+    if not earlier:
+        return set()
+    return {k for k, o in enumerate(jobs) if o['launcher']['path'] == path and o.get('stage') == earlier[-1]}
+
+
 def dependencies(jobs):
-    """job index -> set of job indices that must finish first (same BIDS folder: anat -> ct -> pet, anat -> func)."""
+    """job index -> set of job indices that must finish first: same BIDS folder anat -> ct -> pet, anat -> func;
+    inside a staged anat template launcher, every stage waits for all the jobs of the previous stage."""
     before = {'anat': (), 'ct': ('anat',), 'pet': ('anat', 'ct'), 'func': ('anat',)}
     norm = os.path.normpath
     deps = {}
@@ -192,6 +240,8 @@ def dependencies(jobs):
         L = j['launcher']
         deps[i] = {k for k, o in enumerate(jobs) if norm(o['launcher']['bids']) == norm(L['bids'])
                    and o['launcher']['kind'] in before[L['kind']]}
+        if j.get('stage'):
+            deps[i] |= _previous_stage(jobs, j)
     return deps
 
 
@@ -199,9 +249,11 @@ def plan_text(jobs, deps):
     lines = [f'{len(jobs)} job(s), core budget {core_budget()} ({THREADS_PER_WORKER} threads / worker)']
     for i, j in enumerate(jobs):
         L = j['launcher']
-        after = ', '.join(sorted({jobs[k]['launcher']['name'] for k in deps[i]})) or '-'
+        after = ', '.join(sorted({jobs[k]['launcher']['name'] + (f"[{jobs[k]['stage']}]" if jobs[k].get('stage') else '')
+                                  for k in deps[i]})) or '-'
         lines.append(f"  [{i:02d}] {j['label']:<52} {L['kind']:<4} {len(j['pairs']):>4} session(s)  "
-                     f"{'(study template: not split) ' if L['template'] else ''}after: {after}")
+                     f"{'(study template: not split) ' if L['template'] and not j.get('stage') else ''}"
+                     f"{'[' + j['env']['EDNIX_ANAT_STAGES'] + '] ' if j.get('stage') else ''}after: {after}")
     return '\n'.join(lines)
 
 
@@ -233,6 +285,7 @@ def run_graph(jobs, deps, log_dir):
             for v in ('OMP_NUM_THREADS', 'ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS', 'OPENBLAS_NUM_THREADS',
                       'MKL_NUM_THREADS', 'NUMEXPR_NUM_THREADS'):
                 env[v] = str(THREADS_PER_WORKER)
+            env.update(jobs[i].get('env') or {})
             log = Path(log_dir) / f"{jobs[i]['label']}.log"
             fh = open(log, 'w')
             proc = subprocess.Popen([PYTHON, jobs[i]['script']], stdout=fh, stderr=subprocess.STDOUT,
@@ -334,6 +387,8 @@ def main():
     ap.add_argument('--only', default=','.join(ONLY), help='launcher name fragments, comma-separated')
     ap.add_argument('--phases', default=','.join(PHASES), help='anat,ct,pet,func,qc')
     ap.add_argument('--plan', action='store_true', help='show the jobs and their order, launch nothing')
+    ap.add_argument('--anat-from', default='A', choices=[k for k, _, _ in ANAT_TEMPLATE_STAGES],
+                    help='first stage of the anat study-template launchers (B = loop1 and template already done)')
     ap.add_argument('--reset', action='store_true', default=RESET, help='reset (with ONE confirmation) first')
     a = ap.parse_args()
     only = [x for x in a.only.split(',') if x]
@@ -343,7 +398,7 @@ def main():
     out_dir = REPORT_DIR / run_id
     work = out_dir / 'workers'
     work.mkdir(parents=True, exist_ok=True)
-    jobs = make_jobs(launchers, work)
+    jobs = make_jobs(launchers, work, a.anat_from)
     deps = dependencies(jobs)
     print(plan_text(jobs, deps))
     if a.plan:
