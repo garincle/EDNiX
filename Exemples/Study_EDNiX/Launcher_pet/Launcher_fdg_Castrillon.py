@@ -53,7 +53,7 @@ ct_pet_same_space = False
 ### motion correction (dynamic run)
 nb_void = 10                      # first frames not registered (low counts, blood pool): the 10 x 12 s frames = 2 min.
                                   # CHECK against FrameTimesStart of the sidecar if the frames were rebinned
-crop_for_MoCo = 'auto'            # head box drawn in freeview on the session mean the first time; 'none' to run without
+crop_for_MoCo = 'none'            # head box: 'auto' (freeview) / 'mask' / 'none'
                                   # display
 
 ### parametric images
