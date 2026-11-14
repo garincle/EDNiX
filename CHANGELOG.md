@@ -1,5 +1,12 @@
 # Changelog
 
+## PET brain study template and 3v2 bridge, November 2026
+
+- Step 2: when every session has a manual brain mask (`use_manual_mask=True`), the PET study template is built from the brain of the session means (`manualmask.masked_image`: mean x manual mask dilated by `pet_mask_dilate_mm`, cropped to its bounding box + 5 mm, same world coordinates; `<session>_desc-reorient-mean-brain_pet.nii.gz`), sidecar `BrainMasked: true` (`studyT.is_brain_masked`). Before, the template was built on the whole field of view (bed, body, extracerebral uptake) even with `crop_for_MoCo='mask'`, whose box only restricted the MoCo metric. Masks for some sessions only: whole-FOV template, warning.
+- Step 6, scenario 3v2: with a brain template, the brain of each motion-corrected session mean (`<session>_desc-MoCo-mean-brain_pet.nii.gz`) is registered to it.
+- `preprocess_pet(pet_template_bridge=True)`: group step `bridge` for scenario 3v2 (no CT, no anatomy). The skull-stripped reference template is registered to the PET study template (`bridge.run(pet_template=...)`, no CT step), every session receives the reference target and the atlases / brain mask of the reference template in its PET space, and steps 9-10 also export to `templates/<reference>`, as for the anatomy. `False` keeps the previous behaviour (study template only, no atlas). 2v2 and 3v2 sessions in the same run are refused (one bridge per study template).
+- Tests: `test_pet_study_template_bridged_to_the_reference_3v2`, `test_masked_image_keeps_the_world_coordinates`, 3v2 manual-mask test extended.
+
 ## Beginner / developer guides, November 2026
 
 - `docs/guide/`: one HTML guide per modality (`anat.html`, `fmri.html`, `pet.html`, `ct.html`) and an index. Each stage: why, inputs, outputs, method, what to inspect, next stage, module and entry point. Checked against master of 13 November 2026 (sphere step, V2h surfaces, pial cap, `tissue_relabel`, `SyNadaptive`, surface QC, one-shot SDC in fMRI step 5, fMRIPrep_style without DCT regressors, MELODIC 1-based selection, PET manual masks, resets, `run_all_ednix.py`, `QC_report`).

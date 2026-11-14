@@ -80,10 +80,28 @@ def test_box_and_dilation(tmp_path):
     assert d.sum() > m.sum() and d[m].all()
 
 
+def test_masked_image_keeps_the_world_coordinates(tmp_path):
+    A = P.grid(30, 2.0)
+    d = np.random.rand(30, 30, 30).astype(np.float32) + 1.0
+    img = P.save(d, A, str(tmp_path / 'img.nii.gz'))
+    m = np.zeros((30, 30, 30), bool)
+    m[10:15, 12:18, 14:16] = True
+    mask = _save_mask(m, A, str(tmp_path / 'm.nii.gz'))
+    o = nib.load(manualmask.masked_image(mask, img, str(tmp_path / 'brain.nii.gz'), dilate_mm=0.0, margin_mm=4.0))
+    od = np.asarray(o.dataobj)
+    assert od.shape == (9, 10, 6)                                   # box of the mask + 2 voxels on each side
+    # voxel (i, j, k) of the crop is voxel (i, j, k) + (8, 10, 12) of the image, at the same world position
+    assert np.allclose(o.affine @ np.r_[0, 0, 0, 1.0], A @ np.r_[8, 10, 12, 1.0])
+    assert np.allclose(od[2:7, 2:8, 2:4], d[10:15, 12:18, 14:16]) and od.sum() == pytest.approx(d[m].sum(), rel=1e-5)
+    assert pu.read_json(pu.sidecar(str(tmp_path / 'brain.nii.gz')))['BrainMasked'] is True
+
+
 @pytest.mark.slow
 def test_manual_masks_give_the_brain_and_the_crop_in_3v2(tmp_path, monkeypatch):
-    """Scenario 3v2 (no anatomy, no atlas): without manual mask there is no brain mask (no bratio); with the masks in
-    pet/raw/masks the bratio is computed over the manual brain and crop_for_MoCo='mask' replaces the freeview crop."""
+    """Scenario 3v2 (no anatomy): with the masks in pet/raw/masks the study template is built on the brain of the
+    session means, crop_for_MoCo='mask' replaces the freeview crop, the bratio is computed over the manual brain (it
+    replaces the brain of the reference template brought by the bridge), and the brain template is bridged to the
+    reference template."""
     from test_pet import _study
     from modalities.pet import _0_Pipeline_launcher as L
     from Tools import getpath
@@ -98,11 +116,15 @@ def test_manual_masks_give_the_brain_and_the_crop_in_3v2(tmp_path, monkeypatch):
                      selected_atlases=[['TEST', 'all']], atlas_followers=[['TEST'], ['txt'], [2], [1]])
     st = studyT.template_name(opj(bids, 'sty_template', 'pet'), 'FDG')
     assert os.path.isfile(st) and not os.path.isfile(studyT.crop_name(st))      # step 3 (freeview crop) skipped
+    assert studyT.is_brain_masked(st)                                          # template built on the brain
     for sub in ('01', '02'):
         paths = getpath.pet(s[sub]['dp'], 'EDNiX')
         session = f'sub-{sub}_ses-1_trc-FDG'
         rec = transfo.read_record(coreg2anat.record_path(paths, session))
-        assert rec['scenario'] == '3v2' and not rec['pet_space']['masks']        # no brain from an atlas
+        assert rec['scenario'] == '3v2' and sorted(rec['targets']) == ['EDNiX', 'studyTemplate']
+        assert rec['pet_space']['atlases']                                      # atlases through the bridge
+        assert os.path.isfile(opj(paths['orig_formc'], session + '_desc-reorient-mean-brain_pet.nii.gz'))
+        assert os.path.isfile(opj(paths['orig_formc'], session + '_desc-MoCo-mean-brain_pet.nii.gz'))
         orig = manualmask.orig_file(paths, session)
         assert os.path.isfile(orig)
         assert os.path.isfile(opj(paths['orig_formc'], session + '_desc-cropbox_mask.nii.gz'))

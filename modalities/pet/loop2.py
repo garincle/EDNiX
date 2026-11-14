@@ -263,7 +263,20 @@ def run(ID, Session, data_path, bids_dir, paths, session, reoriented, raw_list, 
         if reg['scenario'] == '3v2':
             # registration of the motion-corrected session mean to the study template. Done here (not in
             # coreg2anat.register, which just reads the prefix) so it can also use the cropped mean.
-            transfo.register(study_template, session_mean_for_reg, coreg2anat.study_prefix(paths, session),
+            moving = session_mean_for_reg
+            if studyT.is_brain_masked(study_template):
+                # template built on the brain of the session means (manual masks): brain of this session too
+                if manual:
+                    moving = manualmask.masked_image(manual, session_mean,
+                                                     opj(paths['orig_formc'], session + '_desc-MoCo-mean-brain_pet.nii.gz'),
+                                                     opts.get('pet_mask_dilate_mm', 3.0))
+                    run_cmd.msg('INFO: brain of the session mean registered to the brain study template: ' +
+                                opb(moving), diary_file, 'OKGREEN')
+                else:
+                    run_cmd.msg('WARNING: the study template is a brain template (manual masks) but ' + session +
+                                ' has no manual mask: its cropped head image is registered to it', diary_file,
+                                'WARNING')
+            transfo.register(study_template, moving, coreg2anat.study_prefix(paths, session),
                              opts['studyT_transform'])
 
         coreg_mask = opts.get('pet_coreg_mask', 'none')

@@ -19,6 +19,12 @@ The FDG images have it (grey / white matter):
 4. Every 2v2 session: its record receives the reference target (session -> CT study template -> reference) and the
    atlases / masks of the reference template are brought into the PET space (coreg2anat.to_pet_space).
 
+Scenario 3v2 (PET study template, no CT, no anatomy, pet_template_bridge=True): the same bridge without step 1. The
+PET study template of step 2 (ants.build_template, brain only when every session has a manual mask) is already the
+space the sessions are registered to: the reference template is registered to it (step 2), and every 3v2 session
+receives the reference target (session -> PET study template -> reference) and the atlases in its PET space (step 4).
+The outputs of steps 9-10 are then also written in templates/<reference>, as for the anatomy.
+
 Same chain as the dog notebook of the PET engineer (CT study template, PET through the CT warps, PET study template,
 T1 template affinely on the PET template, brain mask brought back).
 """
@@ -95,16 +101,26 @@ def register_reference(pet_template, ref_brain, ref_mask, study_dir, reference, 
     return {'to': chain['from'], 'from': chain['to']}
 
 
-def run(records, study_dir, tracer, reference, ref_brain, ref_mask, metric, bridge_transform, diary_file):
-    """Steps 1-3 of the module docstring; writes and returns the bridge record."""
-    nl = 'Bridge of the CT study template to the ' + reference + ' template (PET study template)'
-    run_cmd.msg(nl, diary_file, 'HEADER')
+def run(records, study_dir, tracer, reference, ref_brain, ref_mask, metric, bridge_transform, diary_file,
+        pet_template=None):
+    """
+    Steps 1-3 of the module docstring; writes and returns the bridge record.
+    pet_template: PET study template the sessions are registered to (scenario 3v2): step 1 is skipped.
+    """
+    what = 'PET' if pet_template else 'CT'
+    run_cmd.msg('Bridge of the ' + what + ' study template to the ' + reference + ' template (PET study template)',
+                diary_file, 'HEADER')
     for f in (ref_brain, ref_mask):
         if not opi(f):
             raise FileNotFoundError(f'bridge: reference template file not found: {f}')
     tag = ('trc-' + tracer + '_') if tracer else ''
-    pet_tpl = template_in_ct_space(records, opj(study_dir, 'studyTemplate_' + tag + 'space-CTstudyTemplate_pet.nii.gz'),
-                                   diary_file)
+    if pet_template:
+        if not opi(pet_template):
+            raise FileNotFoundError(f'bridge: PET study template not found: {pet_template} (run step 2)')
+        pet_tpl = pet_template
+    else:
+        pet_tpl = template_in_ct_space(records, opj(study_dir, 'studyTemplate_' + tag +
+                                                    'space-CTstudyTemplate_pet.nii.gz'), diary_file)
     chain = register_reference(pet_tpl, ref_brain, ref_mask, study_dir, reference, metric, bridge_transform,
                                diary_file)
     mask = pet_tpl.replace('_pet.nii.gz', '_mask.nii.gz')
@@ -125,6 +141,7 @@ def run(records, study_dir, tracer, reference, ref_brain, ref_mask, metric, brid
     png = opj(study_dir, 'studyTemplate_' + tag + 'space-' + reference + '_pet.png')
     QC_plot.mosaic(in_ref, ref_mask, png)
     rec = dict(modality='pet', kind='bridge', reference=reference, image=pet_tpl, mask=mask,
+               study_template='PET' if pet_template else 'CT',
                target=dict(image=ref_brain, brain=ref_brain, mask=ref_mask, **chain),
                bridge_transform=bridge_transform, sessions=[r['session'] for r in records], created=pu.now())
     rf = record_path(study_dir, reference)
@@ -134,12 +151,13 @@ def run(records, study_dir, tracer, reference, ref_brain, ref_mask, metric, brid
 
 
 def extend_session(rec_file, bridge_file, paths, template_files, list_atlas, bids_dir, diary_file):
-    """Step 4: reference target and atlases / masks in the PET space for one 2v2 session; returns the record."""
+    """Step 4: reference target and atlases / masks in the PET space for one 2v2 / 3v2 session; returns the record."""
     rec = transfo.read_record(rec_file)
     br = transfo.read_record(bridge_file)
     name = br['reference']
     if 'studyTemplate' not in rec['targets']:
-        raise ValueError(f'{rec_file}: no studyTemplate target (scenario {rec.get("scenario")}): not a 2v2 session')
+        raise ValueError(f'{rec_file}: no studyTemplate target (scenario {rec.get("scenario")}): not a 2v2 / 3v2 '
+                         f'session')
     st = rec['targets']['studyTemplate']
     chain = transfo.compose({'to': st['to'], 'from': st['from']}, {'to': br['target']['to'], 'from': br['target']['from']})
     rec['targets'][name] = dict(image=br['target']['image'], brain=br['target']['brain'], mask=br['target']['mask'],
