@@ -173,7 +173,15 @@ def preprocess_anat(Skip_step,
 
     # first loop : (contains the first two steps : reorientation and skull stripping)
 
+    # EDNIX_ANAT_STAGES (set by run_all_ednix to split study-template launchers):
+    # comma list among loop1,create,loop2,use,loop3 ; unset = all stages
+    _stages = os.environ.get('EDNIX_ANAT_STAGES', '').strip()
+    anat_stages = ({x.strip() for x in _stages.split(',') if x.strip()} if _stages
+                   else {'loop1', 'create', 'loop2', 'use', 'loop3'})
+    print('[EDNiX] anat stages: ' + ','.join(sorted(anat_stages)))
+
     for ID, Session, data_path, in zip(all_ID, all_Session, all_data_path):
+        if 'loop1' not in anat_stages: break
         ### warning change data_path
         _loop1.run(ID, Session, data_path, data_path,BIDStype, listTimage,otheranat, listTimage_orig, type_norm, orientation,IgotbothT1T2, force_myelin_same_space,
                    Align_img_to_template, list_transfo,masking_img,brain_skullstrip_1, anat_ref_path,
@@ -181,7 +189,7 @@ def preprocess_anat(Skip_step,
                    bids_dir,Skip_step,MNIBcorrect_indiv, animalPosition, humanPosition,sing_afni, sing_fsl, sing_fs, sing_itk, sing_wb,sing_synstrip, Unetpath,preftool)
 
     ####will creat problems???
-    if creat_study_template == True:
+    if creat_study_template == True and 'create' in anat_stages:
         # break (contains steps 3 and 4: make study template and skull stripping of that template)
 
         studytemplate.create(study_template_atlas_folder,Skip_step,which_on, all_ID_max, all_Session_max,
@@ -199,13 +207,14 @@ def preprocess_anat(Skip_step,
     stdy_template_mask = opj(studyprepro_dir, 'studyTemplate_mask.nii.gz')
 
     for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, all_Session_max):
+        if 'loop2' not in anat_stages: break
 
         _loop2.run(ID, Session, data_path, max_ses,type_norm,ref_suffix,coregistration_longitudinal,bids_dir, mask_suffix,
         creat_study_template,stdy_template,stdy_template_mask,BASE_SS,BASE_mask,Skip_step,listTimage,list_transfo,
         brain_skullstrip_2,check_visualy_final_mask,MNIBcorrect_indiv, sing_afni, sing_fsl, sing_fs, sing_itk, sing_synstrip,preftool,sing_wb,reference,masking_img,Unetpath)
 
 
-    if creat_study_template==True:
+    if creat_study_template==True and 'use' in anat_stages:
         # second break : adapt the atlases
          stdy_template_SS = opj(studyprepro_dir, 'studyTemplate_SS_' + type_norm + '.nii.gz')
          _, _, _ = studytemplate.use(study_template_atlas_folder, Skip_step,
@@ -221,6 +230,7 @@ def preprocess_anat(Skip_step,
 
     ###### LOOP AGAIN ######
     for ID, Session, data_path, max_ses in zip(all_ID, all_Session, all_data_path, all_Session_max):
+        if 'loop3' not in anat_stages: break
         refnb = 0
         for i, j in enumerate(list_transfo):
             if list_transfo[i]["name"] == 'coreg':
