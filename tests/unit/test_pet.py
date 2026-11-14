@@ -610,6 +610,7 @@ def test_pet_study_template_without_anatomy_3v2(tmp_path, monkeypatch):
     L.preprocess_pet([], main, bids, 'Testmonkey', P.bids_table([('01', '1'), ('02', '1')]), '*_trc-FDG_*pet.nii.gz',
                      'FDG', [''], [''], '', 'T1w', 'T1w', False, False, IhaveanANAT=False,
                      creat_study_template_pet=True, studyT_transform='TRSAA', crop_for_MoCo='auto',
+                     pet_template_bridge=False,
                      selected_atlases=[['TEST', 'all']], atlas_followers=[['TEST'], ['txt'], [2], [1]])
     st = studyT.template_name(opj(bids, 'sty_template', 'pet'), 'FDG')
     assert os.path.isfile(st) and os.path.isfile(studyT.crop_name(st))
@@ -621,6 +622,37 @@ def test_pet_study_template_without_anatomy_3v2(tmp_path, monkeypatch):
         assert os.path.isfile(pu.out_name(paths['orig_post'], f'sub-{sub}_ses-1_trc-FDG', desc='SUV-mean'))
         assert os.path.isfile(pu.out_name(opj(paths['templates'], 'studyTemplate'), f'sub-{sub}_ses-1_trc-FDG',
                                           desc='SUV-mean', space='studyTemplate'))
+
+
+@pytest.mark.slow
+def test_pet_study_template_bridged_to_the_reference_3v2(tmp_path, monkeypatch):
+    """3v2 with pet_template_bridge (default): the reference template is registered to the PET study template, every
+    session receives the reference target and the atlases in its PET space, steps 9-10 write templates/<reference>."""
+    from modalities.pet import _0_Pipeline_launcher as L
+    from modalities.pet import bridge
+    from Tools import getpath
+    main, bids, tdir, s = _study(tmp_path, monkeypatch, subjects=('01', '02'), anat=False)
+    L.preprocess_pet([], main, bids, 'Testmonkey', P.bids_table([('01', '1'), ('02', '1')]), '*_trc-FDG_*pet.nii.gz',
+                     'FDG', [''], [''], '', 'T1w', 'T1w', False, False, IhaveanANAT=False,
+                     creat_study_template_pet=True, studyT_transform='TRSAA', crop_for_MoCo='none',
+                     selected_atlases=[['TEST', 'all']], atlas_followers=[['TEST'], ['txt'], [2], [1]])
+    study_dir = opj(bids, 'sty_template', 'pet')
+    br = transfo.read_record(bridge.record_path(study_dir, 'EDNiX'))
+    assert br['study_template'] == 'PET' and br['image'] == studyT.template_name(study_dir, 'FDG')
+    for sub in ('01', '02'):
+        paths = getpath.pet(s[sub]['dp'], 'EDNiX')
+        session = f'sub-{sub}_ses-1_trc-FDG'
+        rec = transfo.read_record(coreg2anat.record_path(paths, session))
+        assert rec['scenario'] == '3v2' and sorted(rec['targets']) == ['EDNiX', 'studyTemplate']
+        err = _chain_error(rec['targets']['EDNiX']['to'], _template_truth(s[sub]['R'], s[sub]['t']))
+        assert err < 2.5, err
+        atlas = nib.load(rec['pet_space']['atlases']['TEST']).get_fdata()[..., 0]
+        A = nib.load(rec['reference']).affine
+        truth = P.tissues(P.world_points(atlas.shape, A) @ s[sub]['R'].T + s[sub]['t']).reshape(atlas.shape)
+        dice = 2 * ((atlas == 7) & (truth == 6)).sum() / ((atlas == 7).sum() + (truth == 6).sum())
+        assert dice > 0.7, dice
+        assert 'brain' in rec['pet_space']['masks']
+        assert os.path.isfile(pu.out_name(opj(paths['templates'], 'EDNiX'), session, desc='SUV-mean', space='EDNiX'))
 
 
 @pytest.mark.slow

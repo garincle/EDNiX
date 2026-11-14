@@ -15,7 +15,7 @@ from modalities.anat import set_launcher
 from modalities.anat.loop3 import backtonative
 from modalities.fMRI import chooseanat
 from modalities.pet import petutils as pu
-from modalities.pet import loop1, loop2, studyT, coreg2anat, transfo, reorient, bridge
+from modalities.pet import loop1, loop2, studyT, coreg2anat, transfo, reorient, bridge, manualmask
 from modalities.pet import pvc as pvcmod
 from atlases import getlabels
 from modalities.pet.coreg2anat import ANTS_TRANSFORMS
@@ -156,7 +156,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
                    coreg_metric='mattes', type_of_transform_template='SyNRA', do_manual=False, same_space_window=None,
                    coreg_transform='Rigid', coreg_init='auto', pet_coreg_mask='none', pet_mask_percentile=30.0,
                    pet_mask_dilate_mm=3.0, coreg_target='anat', synthetic_fwhm=None, use_manual_mask=True,
-                   ct_template_bridge=True, bridge_transform='Affine',
+                   ct_template_bridge=True, pet_template_bridge=True, bridge_transform='Affine',
                    SUV=True, bratio=True, SUV_window=None, Do_cut=False, duration=10,
                    srtm=False, reference_signal='unknown', DV_time=0, DV_k2ref=None, kinetic_end=None,
                    pvc_fwhm=None, pvc_method='RBV', pvc_engine='auto',
@@ -320,6 +320,13 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         session means in the CT study template, skull-stripped reference template registered to it (multi-start
         similarity then affine, mutual information), brain mask and atlases brought back to every session, then
         steps 7-10 with the atlases. True by default; False keeps 2v2 without atlas. FDG-like tracers (brain contrast).
+    pet_template_bridge : bool, optional
+        Scenario 3v2 (PET study template, no CT, no anatomy): same step 'bridge' without the CT: the skull-stripped
+        reference template is registered to the PET study template of step 2 (built on the brain of the session means
+        when every session has a manual mask, see use_manual_mask), then the atlases and the brain mask of the
+        reference template are brought back to every session and steps 9-10 also write the images in
+        templates/<reference>, as for the anatomy. True by default; False keeps 3v2 in the study template only (no
+        atlas). FDG-like tracers (brain contrast).
     bridge_transform : str, optional
         Reference template -> PET study template: 'Affine' (default) or 'SyNRA' (affine then SyN).
     type_of_transform_template : str, optional
@@ -603,12 +610,28 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
             run_cmd.msg('INFO: skip step 2', study_diary, 'OKGREEN')
         else:
             run_cmd.msg(pu.step_header(2), study_diary, 'HEADER')
-            items = []
+            items, manuals = [], []
             for s in sessions:
                 first = s['reoriented'][0]
                 mean = first.replace('_desc-reorient_', '_desc-reorient-mean_') if pu.is_dynamic(first) else first
                 items.append((mean, s['paths']['orig_matrices'], s['session']))
-            studyT.make_template(study_dir, items, tracer, studyT_transform, study_diary)
+                manuals.append(manualmask.prepare(s['paths'], s['session'], s['raw'][0], first, s['diary'])
+                               if use_manual_mask else '')
+            masked = bool(manuals) and all(manuals)
+            if masked:
+                # brain of every session mean (manual mask dilated, cropped to its box): the template is built on
+                # the brain only, not on the whole field of view (bed, body, extracerebral uptake)
+                items = [(manualmask.masked_image(m, mean, opj(s['paths']['orig_formc'], base +
+                                                               '_desc-reorient-mean-brain_pet.nii.gz'),
+                                                  pet_mask_dilate_mm), mat, base)
+                         for m, (mean, mat, base), s in zip(manuals, items, sessions)]
+                run_cmd.msg('INFO: study template built from the brain of the session means (manual masks dilated by '
+                            f'{pet_mask_dilate_mm} mm)', study_diary, 'OKGREEN')
+            elif any(manuals):
+                run_cmd.msg('WARNING: manual brain mask for ' + str(sum(bool(m) for m in manuals)) + ' of ' +
+                            str(len(manuals)) + ' sessions only: study template built from the whole field of view '
+                            '(draw the missing masks in pet/raw/masks for a brain template)', study_diary, 'WARNING')
+            studyT.make_template(study_dir, items, tracer, studyT_transform, study_diary, masked=masked)
         if 3 in Skip_step or crop_for_MoCo in ('none', 'mask'):
             run_cmd.msg('INFO: skip step 3', study_diary, 'OKGREEN')
         else:
@@ -626,6 +649,12 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
 
     # ======================================================================================== block 2 (steps 4-10)
     study_template_atlas_folder = opj(bids_dir, 'sty_template')
+    bridge_3v2 = bool(pet_template_bridge)
+    if bridge_3v2 and not (opi(BASE_SS) and opi(BASE_mask)):
+        run_cmd.msg('WARNING: pet_template_bridge=True but the skull-stripped reference template or its brain mask is '
+                    'missing (' + str(BASE_SS) + ', ' + str(BASE_mask) + '): scenario 3v2 stays in the study template',
+                    study_diary, 'WARNING')
+        bridge_3v2 = False
     jobs = []
     for s in sessions:
         ID, Session, data_path, paths, diary_file = s['ID'], s['Session'], s['data_path'], s['paths'], s['diary']
@@ -672,7 +701,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
         target_files = {}
         for pkg in packages or []:
             target_files[pkg[0]] = dict(label_base=pkg[3], list_atlas=atlas_names, masks=[pkg[2]])
-        if sc in ('2v1', '3v1') or (sc == '2v2' and ct_template_bridge):
+        if sc in ('2v1', '3v1') or (sc == '2v2' and ct_template_bridge) or (sc == '3v2' and bridge_3v2):
             target_files[reference] = dict(label_base=template_files['label_base'], list_atlas=atlas_names,
                                            masks=[BASE_mask])
         reg = dict(scenario=sc, anat=anat, packages=packages, ct_record=ct_record, template_PET=template_PET,
@@ -681,9 +710,15 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
                    label_tables=label_tables, levels=levels, ref_atlas=ref_atlas, reference_json=reference_json)
         jobs.append((s, reg))
 
-    # 2v2 with ct_template_bridge: steps 4-6 for every session, group step 'bridge' (CT study template -> reference
-    # template through the PET study template, modalities/pet/bridge.py), then steps 7-10 with the atlases
-    bridged = [j for j in jobs if j[1]['scenario'] == '2v2'] if ct_template_bridge else []
+    # 2v2 with ct_template_bridge / 3v2 with pet_template_bridge: steps 4-6 for every session, group step 'bridge'
+    # (CT or PET study template -> reference template through the PET study template, modalities/pet/bridge.py),
+    # then steps 7-10 with the atlases
+    bridged = [j for j in jobs if (j[1]['scenario'] == '2v2' and ct_template_bridge) or
+               (j[1]['scenario'] == '3v2' and bridge_3v2)]
+    kinds = sorted({j[1]['scenario'] for j in bridged})
+    if len(kinds) > 1:
+        raise ValueError('sessions of scenarios 2v2 (CT study template) and 3v2 (PET study template) in the same run: '
+                         'one bridge per study template; process them separately (list_to_keep)')
 
     def run_block2(job, skip):
         s, reg = job
@@ -709,7 +744,7 @@ def preprocess_pet(Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, end
     else:
         run_cmd.msg(pu.step_header('bridge'), study_diary, 'HEADER')
         bridge.run(records, study_dir, tracer, reference, BASE_SS, BASE_mask, coreg_metric, bridge_transform,
-                   study_diary)
+                   study_diary, pet_template=study_template if kinds == ['3v2'] else None)
     for s, reg in bridged:
         bridge.extend_session(coreg2anat.record_path(s['paths'], s['session']), bridge_file, s['paths'],
                               reg['template_files'], reg['list_atlas'], bids_dir, s['diary'])

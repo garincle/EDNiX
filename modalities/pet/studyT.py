@@ -44,9 +44,17 @@ def _normalised(path):
     return img / float(p if p > 0 else 1.0)
 
 
-def make_template(study_dir, sessions, tracer, transform, diary_file, suffix='pet', iterations=4):
+def is_brain_masked(template):
+    """True when the study template was built from the brain of the session means (manual masks)."""
+    side = pu.sidecar(template)
+    return bool(opi(side) and pu.read_json(side).get('BrainMasked', False))
+
+
+def make_template(study_dir, sessions, tracer, transform, diary_file, suffix='pet', iterations=4, masked=False):
     """
     sessions: list of (session mean image, orig/matrices folder, session base name).
+    masked: the images are the brain of the session means (manualmask.masked_image); written in the sidecar
+    (BrainMasked), read by step 6 of scenario 3v2 to register the brain of each motion-corrected mean.
     Writes the template and, for every session, <matrices>/<base>_to_studyTemplate_* (fixed = template).
     """
     nl = 'Run make_template (study template of the ' + suffix.upper() + ' images)'
@@ -62,7 +70,9 @@ def make_template(study_dir, sessions, tracer, transform, diary_file, suffix='pe
     ants.image_write(tpl, fname, ri=False)
     pu.write_json(fname, [s[0] for s in sessions],
                   f'Study template ({len(sessions)} sessions, ants.build_template, {transform}, '
-                  f'{iterations} iterations; images scaled by their 99th percentile).')
+                  f'{iterations} iterations; images scaled by their 99th percentile' +
+                  ('; brain of the session means (manual masks dilated, cropped)' if masked else '') + ').',
+                  BrainMasked=bool(masked))
 
     for (img, matdir, base), im in zip(sessions, images):
         os.makedirs(matdir, exist_ok=True)

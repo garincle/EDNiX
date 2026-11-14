@@ -18,7 +18,11 @@ Uses (modalities/pet/loop2.py):
     replaces the brain of the atlas when both exist (scenario 3v2 has no atlas, hence no brain mask otherwise);
   - crop_for_MoCo='mask' (or 'auto' without crop of the study template): head box of steps 4-6 = bounding box of
     the dilated mask, instead of a box drawn in freeview;
-  - pet_coreg_mask='manual': dilated mask as moving mask of the PET -> anatomy / CT registration.
+  - pet_coreg_mask='manual': dilated mask as moving mask of the PET -> anatomy / CT registration;
+  - PET study template (step 2) and scenario 3v2 (step 6): when every session has a manual mask, the template is built
+    from the brain of the session means (masked_image: mean x dilated mask, cropped to its bounding box) and each
+    motion-corrected session mean is registered to it the same way (the extracerebral uptake, the bed and the FOV
+    edges do not drive the registrations).
 """
 import glob
 import os
@@ -152,12 +156,7 @@ def dilated(mask, dilate_mm, out):
     """Mask dilated by dilate_mm (ball, voxel size of the mask)."""
     img = nib.load(mask)
     m = _binary(img)
-    zooms = np.asarray(img.header.get_zooms()[:3], dtype=float)
-    if dilate_mm > 0:
-        r = np.ceil(dilate_mm / zooms).astype(int)
-        g = np.mgrid[-r[0]:r[0] + 1, -r[1]:r[1] + 1, -r[2]:r[2] + 1].astype(float)
-        ball = ((g[0] * zooms[0]) ** 2 + (g[1] * zooms[1]) ** 2 + (g[2] * zooms[2]) ** 2) <= dilate_mm ** 2
-        m = ndimage.binary_dilation(m, structure=ball)
+    m = _ball_dilation(m, np.asarray(img.header.get_zooms()[:3], dtype=float), dilate_mm)
     return _write(m, img.affine, out, [mask], f'Manual brain mask dilated by {dilate_mm} mm.')
 
 
@@ -181,3 +180,45 @@ def box(mask, image, out, margin_mm=10.0):
     b[lo[0]:hi[0], lo[1]:hi[1], lo[2]:hi[2]] = True
     return _write(b, r3.affine, out, [mask, image], f'Head box of the motion correction: bounding box of the manual '
                                                     f'brain mask enlarged by {margin_mm} mm.')
+
+
+def _ball_dilation(m, zooms, dilate_mm):
+    if dilate_mm <= 0:
+        return m
+    r = np.ceil(dilate_mm / zooms).astype(int)
+    g = np.mgrid[-r[0]:r[0] + 1, -r[1]:r[1] + 1, -r[2]:r[2] + 1].astype(float)
+    ball = ((g[0] * zooms[0]) ** 2 + (g[1] * zooms[1]) ** 2 + (g[2] * zooms[2]) ** 2) <= dilate_mm ** 2
+    return ndimage.binary_dilation(m, structure=ball)
+
+
+def masked_image(mask, image, out, dilate_mm=3.0, margin_mm=5.0):
+    """
+    Brain of `image` (3D, or first volume of a 4D image): image x (manual mask on its grid, dilated by dilate_mm),
+    cropped to the bounding box of the dilated mask enlarged by margin_mm. Same world coordinates as `image` (the
+    affine of the crop is shifted accordingly), so a registration estimated on it is valid for `image`.
+    """
+    img = _first3d(nib.load(image))
+    d = np.asarray(img.dataobj, dtype=np.float32)
+    m_img = nib.load(mask)
+    m = _binary(m_img) if _same_grid(m_img, img) else _nearest(_binary(m_img), m_img.affine, img)
+    if not m.any():
+        raise ValueError(f'manual mask {mask} does not overlap {image}')
+    zooms = np.asarray(img.header.get_zooms()[:3], dtype=float)
+    m = _ball_dilation(m, zooms, dilate_mm)
+    idx = np.argwhere(m)
+    pad = np.ceil(margin_mm / zooms).astype(int)
+    lo = np.maximum(idx.min(0) - pad, 0)
+    hi = np.minimum(idx.max(0) + pad + 1, np.asarray(m.shape))
+    sl = tuple(slice(a, b) for a, b in zip(lo, hi))
+    data = np.where(m, d, 0.0)[sl].astype(np.float32)
+    aff = img.affine.copy()
+    aff[:3, 3] = (img.affine @ np.r_[lo, 1.0])[:3]
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    o = nib.Nifti1Image(data, aff)
+    o.set_sform(aff, code=1)
+    o.set_qform(aff, code=1)
+    nib.save(o, out)
+    pu.write_json(out, [image, mask], f'Brain of the image: manual brain mask dilated by {dilate_mm} mm, cropped to its '
+                                      f'bounding box + {margin_mm} mm (same world coordinates).',
+                  BrainMasked=True)
+    return out
