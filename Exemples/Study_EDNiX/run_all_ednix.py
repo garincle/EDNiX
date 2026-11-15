@@ -211,6 +211,21 @@ def _template_stage_jobs(L, pairs, subs, nsplit, work_dir, anat_from):
     return jobs
 
 
+def _shared_ref_jobs(L, pairs, subs, n, work_dir):
+    """Split anat launcher: loop1 resamples the reference template to the resolution / orientation of ONE reference
+    session (bids_dir/BASE_SS_anat_res.nii.gz, shared). A reference job runs loop1 on that session first; then
+    every worker uses the same reference and leaves its loop1 out (no worker rewrites the files the others read)."""
+    ref = '|'.join(pairs[0])
+    wref = Path(work_dir) / f"{L['name']}__R_ref.py"
+    rjob = dict(launcher=L, script=_write_worker(L, [pairs[0]], wref), pairs=[pairs[0]], cost=WEIGHT['anat'] * 99,
+                label=wref.stem, env={'EDNIX_ANAT_STAGES': 'loop1', 'EDNIX_ANAT_REF': ref}, stage=None, ref_job=True)
+    workers = _split(L, pairs, subs, n, work_dir, '', {'EDNIX_ANAT_REF': ref, 'EDNIX_ANAT_LOOP1_SKIP': ref},
+                     None, WEIGHT['anat'])
+    for w in workers:
+        w['needs_ref'] = True
+    return [rjob] + workers
+
+
 def make_jobs(launchers, work_dir, anat_from=ANAT_TEMPLATE_STAGES[0][0]):
     """One job per launcher, or subject workers. An anat launcher that builds a study template is cut into chained
     stages (SPLIT_ANAT_TEMPLATE): A loop1 + template creation (all subjects), B loop2 (subject workers),
@@ -226,6 +241,9 @@ def make_jobs(launchers, work_dir, anat_from=ANAT_TEMPLATE_STAGES[0][0]):
             jobs += _template_stage_jobs(L, pairs, subs, nsplit, work_dir, anat_from)
             continue
         n = 1 if (L['template'] or L['insert_line'] is None) else nsplit
+        if L['kind'] == 'anat' and n > 1:
+            jobs += _shared_ref_jobs(L, pairs, subs, n, work_dir)
+            continue
         jobs += _split(L, pairs, subs, n, work_dir, '', {}, None, WEIGHT[L['kind']])
     return jobs
 
@@ -253,6 +271,8 @@ def dependencies(jobs):
                    and o['launcher']['kind'] in before[L['kind']]}
         if j.get('stage'):
             deps[i] |= _previous_stage(jobs, j)
+        if j.get('needs_ref'):
+            deps[i] |= {k for k, o in enumerate(jobs) if o.get('ref_job') and o['launcher']['path'] == L['path']}
     return deps
 
 
