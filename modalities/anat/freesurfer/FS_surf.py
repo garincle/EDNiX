@@ -21,6 +21,12 @@ TIF     = 'h.average.curvature.filled.buckner40.tif'
 GCS     = 'h.curvature.buckner40.filled.desikan_killiany.2010-03-25.gcs'
 
 
+def _require(path, why, diary_name):
+    """stop at the step that failed instead of at the next one reading its output"""
+    if not opi(path):
+        raise RuntimeError(run_cmd.error('ERROR: ' + opb(path) + ' not written: ' + why, diary_name))
+
+
 def Wcreate(FS_dir, animal,LR,diary_name,sing_fs,export_fs):
 
     nl = 'Create the white surface'
@@ -72,7 +78,10 @@ def Wcreate(FS_dir, animal,LR,diary_name,sing_fs,export_fs):
         # 3) Fine white surface;  The coarse white surface is modified according to the 3 images: "wm", "aseg" and "brain".
         cmd = export_fs + 'mris_make_surfaces -aseg aseg -whiteonly -noaparc -mgz -T1 brain ' + animal + ' ' + Hmin[H] + 'h'
         run_cmd.do(cmd,diary_name)
-        
+        _require(opj(FS_dir, animal, 'surf', Hmin[H] + 'h.white'),
+                 'mris_fix_topology / mris_make_surfaces failed for the ' + surface[H] + ' hemisphere of ' + animal +
+                 ' (see the FreeSurfer output above)', diary_name)
+
         os.remove(opj(FS_dir,animal,'surf', Hmin[H] + 'h.inflated'))
         os.remove(opj(FS_dir,animal,'mri', 'filled' + str(value[H]) + '.mgz'))
         
