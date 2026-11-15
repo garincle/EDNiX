@@ -27,6 +27,36 @@ def _require(path, why, diary_name):
         raise RuntimeError(run_cmd.error('ERROR: ' + opb(path) + ' not written: ' + why, diary_name))
 
 
+TOPOLOGY_SEEDS = (None, 1234, 42, 7)   # None = FreeSurfer default seed; the next ones only if the mesh is not manifold
+
+
+def _is_manifold(surf, diary_name, sing_fs):
+    """mris_euler_number prints '2E=3F: a = b (0)' for a closed manifold mesh, 'a != b (n)' otherwise"""
+    out = run_cmd.do(sing_fs + 'mris_euler_number ' + surf, diary_name)
+    lines = [l for l in out.splitlines() if '2E=3F' in l]
+    return bool(lines) and '!=' not in lines[-1]
+
+
+def _fix_topology(FS_dir, animal, H, diary_name, sing_fs, export_fs):
+    """mris_fix_topology is stochastic: on some hemispheres its default run leaves a non-manifold ?h.orig
+    (2E != 3F) on which mris_make_surfaces / mris_place_surface crash (SIGSEGV). Retry with other seeds."""
+    orig = opj(FS_dir, animal, 'surf', Hmin[H] + 'h.orig')
+    for seed in TOPOLOGY_SEEDS:
+        shutil.copyfile(opj(FS_dir, animal, 'surf', Hmin[H] + 'h.orig.nofix'), orig)
+        cmd = export_fs + 'mris_fix_topology -mgz -sphere qsphere.nofix -ga ' + \
+              ('' if seed is None else '-seed ' + str(seed) + ' ') + animal + ' ' + Hmin[H] + 'h'
+        run_cmd.do(cmd, diary_name)
+        run_cmd.run(sing_fs + 'mris_remove_intersection ' + orig + ' ' + orig, diary_name)
+        if _is_manifold(orig, diary_name, sing_fs):
+            if seed is not None:
+                run_cmd.msg('INFO: ' + surface[H] + ' hemisphere of ' + animal + ': topology fixed with seed ' + str(seed) +
+                            ' (default seed left a non-manifold surface)', diary_name, 'WARNING')
+            return
+    raise RuntimeError(run_cmd.error('ERROR: ' + opb(orig) + ' of ' + animal + ' is still not manifold after mris_fix_topology '
+                                     'with seeds ' + str(TOPOLOGY_SEEDS) + ': check the ' + surface[H] +
+                                     ' hemisphere of filled.mgz / aseg.mgz', diary_name))
+
+
 def Wcreate(FS_dir, animal,LR,diary_name,sing_fs,export_fs):
 
     nl = 'Create the white surface'
@@ -68,13 +98,8 @@ def Wcreate(FS_dir, animal,LR,diary_name,sing_fs,export_fs):
         shutil.copyfile(opj(FS_dir,animal,'surf', Hmin[H] + 'h.orig.nofix'),    opj(FS_dir,animal,'surf', Hmin[H] + 'h.orig'))
         shutil.copyfile(opj(FS_dir,animal,'surf', Hmin[H] + 'h.inflated.nofix'),opj(FS_dir,animal,'surf', Hmin[H] + 'h.inflated'))
     
-        cmd = export_fs + 'mris_fix_topology -mgz -sphere qsphere.nofix -ga ' + animal + ' ' + Hmin[H] + 'h'
-        run_cmd.do(cmd,diary_name)
-        cmd = sing_fs + 'mris_euler_number ' + opj(FS_dir,animal,'surf',Hmin[H] + 'h.orig')
-        run_cmd.run(cmd,diary_name)
-        cmd = sing_fs + 'mris_remove_intersection ' + opj(FS_dir,animal,'surf', Hmin[H] + 'h.orig') + ' ' + opj(FS_dir,animal,'surf', Hmin[H] + 'h.orig')
-        run_cmd.run(cmd,diary_name)
-        
+        _fix_topology(FS_dir, animal, H, diary_name, sing_fs, export_fs)
+
         # 3) Fine white surface;  The coarse white surface is modified according to the 3 images: "wm", "aseg" and "brain".
         cmd = export_fs + 'mris_make_surfaces -aseg aseg -whiteonly -noaparc -mgz -T1 brain ' + animal + ' ' + Hmin[H] + 'h'
         run_cmd.do(cmd,diary_name)
