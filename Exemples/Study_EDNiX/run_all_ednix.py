@@ -403,6 +403,7 @@ def write_report(jobs, results, out_dir, t0):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[1])
     ap.add_argument('--only', default=','.join(ONLY), help='launcher name fragments, comma-separated')
+    ap.add_argument('--exclude', default='', help='extra launcher name fragments to leave out, e.g. nolong')
     ap.add_argument('--phases', default=','.join(PHASES), help='anat,ct,pet,func,qc')
     ap.add_argument('--plan', action='store_true', help='show the jobs and their order, launch nothing')
     ap.add_argument('--anat-from', default='A', choices=[k for k, _, _ in ANAT_TEMPLATE_STAGES],
@@ -411,7 +412,8 @@ def main():
     a = ap.parse_args()
     only = [x for x in a.only.split(',') if x]
     phases = [x for x in a.phases.split(',') if x]
-    launchers = [L for L in discover(only) if L['kind'] in phases]
+    exclude = EXCLUDE + [x for x in a.exclude.split(',') if x]
+    launchers = [L for L in discover(only, exclude) if L['kind'] in phases]
     run_id = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     out_dir = REPORT_DIR / run_id
     work = out_dir / 'workers'
@@ -428,7 +430,7 @@ def main():
     results = run_graph(jobs, deps, out_dir) if jobs else {}
     write_report(jobs, results, out_dir, t0)
     if 'qc' in phases:
-        build_qc(discover(only), out_dir)
+        build_qc(discover(only, exclude), out_dir)
 
 
 if __name__ == '__main__':
