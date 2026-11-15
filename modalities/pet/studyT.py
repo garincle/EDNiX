@@ -50,6 +50,39 @@ def is_brain_masked(template):
     return bool(opi(side) and pu.read_json(side).get('BrainMasked', False))
 
 
+def initial_template(images, pad_mm=15.0):
+    """
+    Domain and starting image of ants.build_template. Without them ANTsPy starts from the sum of the images resampled
+    in world coordinates on the grid of the first one: sessions whose head sits elsewhere in the scanner add shifted
+    copies of the brain (ghost), the template drifts towards the middle of them and leaves the grid of the first image
+    (brain cut at the edges of the template, 12 mm on 3 faces on a macaque FDG study of 9 sessions; reproduced on the
+    phantom with 15 mm offsets). Same order as sammba-mri anats_to_common (Celestine et al. 2020): centring, rigid,
+    then the affine / non-linear iterations.
+    - grid: spacing and axes of the first image, size = largest extent of the images on each axis + 2 x pad_mm,
+      centred on the centre of mass of the first image;
+    - start: mean of every image registered rigidly to the first one (centre-of-mass start of ants.registration).
+    """
+    from modalities.pet import coreg2anat
+    # CT (air < 0 after scaling): shifted to >= 0 so that the centres of mass and the zero padding mean air
+    low = min(float(im.min()) for im in images)
+    shift = -low if low < 0 else 0.0
+    images = [im + shift for im in images] if shift else images
+    ref = images[0]
+    sp = np.asarray(ref.spacing[:3], float)
+    D = np.asarray(ref.direction)[:3, :3]
+    ext = np.max([np.asarray(im.shape[:3], float) * np.asarray(im.spacing[:3], float) for im in images], axis=0)
+    size = np.ceil((ext + 2.0 * pad_mm) / sp).astype(int)
+    com = np.asarray(ants.get_center_of_mass(ref), float)
+    origin = com - D @ ((size - 1) / 2.0 * sp)
+    dom = ants.make_image(tuple(int(x) for x in size), 0.0, spacing=tuple(sp), origin=tuple(origin), direction=D)
+    fixed = ants.resample_image_to_target(ref, dom, interp_type='linear')
+    acc = fixed.clone()
+    for im in images[1:]:
+        reg = ants.registration(fixed, im, type_of_transform='Rigid', **coreg2anat._adaptive_reg_params(fixed, im))
+        acc = acc + reg['warpedmovout']
+    return acc / float(len(images)) - shift
+
+
 def make_template(study_dir, sessions, tracer, transform, diary_file, suffix='pet', iterations=4, masked=False):
     """
     sessions: list of (session mean image, orig/matrices folder, session base name).
@@ -64,12 +97,13 @@ def make_template(study_dir, sessions, tracer, transform, diary_file, suffix='pe
         raise ValueError(f'a study template needs at least 2 sessions with a mean image; found {len(sessions)}')
     os.makedirs(opj(study_dir, 'matrices'), exist_ok=True)
     images = [_normalised(s[0]) for s in sessions]
-    tpl = ants.build_template(image_list=images, iterations=iterations, gradient_step=0.2,
-                              blending_weight=0.75, type_of_transform=transform)
+    tpl = ants.build_template(initial_template=initial_template(images), image_list=images, iterations=iterations,
+                              gradient_step=0.2, blending_weight=0.75, type_of_transform=transform)
     fname = template_name(study_dir, tracer, suffix)
     ants.image_write(tpl, fname, ri=False)
     pu.write_json(fname, [s[0] for s in sessions],
-                  f'Study template ({len(sessions)} sessions, ants.build_template, {transform}, '
+                  f'Study template ({len(sessions)} sessions, ants.build_template started from the rigid mean on a '
+                  f'padded grid centred on the first session, {transform}, '
                   f'{iterations} iterations; images scaled by their 99th percentile' +
                   ('; brain of the session means (manual masks dilated, cropped)' if masked else '') + ').',
                   BrainMasked=bool(masked))
