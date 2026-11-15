@@ -404,6 +404,18 @@ def build_qc(launchers, out_dir):
         print('Study summary:', QC_report.study_summary(bids, os.path.join(out_dir, 'EDNiX_study_summary.xlsx')))
 
 
+def surface_failures(jobs):
+    """<BIDS>/sub-*/ses-*/anat/QC_anat/*_SURFACE_FAILED.txt written by anat loop3 when FreeSurfer cannot build
+    the surfaces of a session (the session itself goes on)"""
+    bids = sorted({os.path.normpath(j['launcher']['bids']) for j in jobs if os.path.isdir(j['launcher']['bids'])})
+    out = []
+    for b in bids:
+        for f in sorted(Path(b).glob('sub-*/ses-*/anat/QC_anat/*_SURFACE_FAILED.txt')):
+            why = f.read_text(errors='replace').strip().splitlines()
+            out.append(f'{f}: {why[0] if why else ""}')
+    return out
+
+
 def write_report(jobs, results, out_dir, t0):
     lines = [f'EDNiX run {datetime.datetime.now():%Y-%m-%d %H:%M}, {(time.time() - t0) / 3600:.2f} h', '']
     for i, j in enumerate(jobs):
@@ -413,6 +425,10 @@ def write_report(jobs, results, out_dir, t0):
         if r['status'] == 'failed':
             tail = Path(r['log']).read_text(errors='replace').splitlines()[-25:]
             lines += ['', f"=== {jobs[i]['label']} (exit {r.get('code')})"] + ['    ' + l for l in tail]
+    failed_surf = surface_failures(jobs)
+    if failed_surf:
+        lines += ['', f'=== surfaces abandoned ({len(failed_surf)} sessions; volumes, func and pet not affected)']
+        lines += ['    ' + f for f in failed_surf]
     p = Path(out_dir) / 'report.txt'
     p.write_text('\n'.join(lines))
     print('\n'.join(lines[:len(jobs) + 2]))

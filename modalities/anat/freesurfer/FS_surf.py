@@ -21,10 +21,14 @@ TIF     = 'h.average.curvature.filled.buckner40.tif'
 GCS     = 'h.curvature.buckner40.filled.desikan_killiany.2010-03-25.gcs'
 
 
+class SurfaceError(RuntimeError):
+    """a surface of this session cannot be built: _loop3 abandons the surfaces of this session only"""
+
+
 def _require(path, why, diary_name):
     """stop at the step that failed instead of at the next one reading its output"""
     if not opi(path):
-        raise RuntimeError(run_cmd.error('ERROR: ' + opb(path) + ' not written: ' + why, diary_name))
+        raise SurfaceError(run_cmd.error('ERROR: ' + opb(path) + ' not written: ' + why, diary_name))
 
 
 TOPOLOGY_SEEDS = (None, 1234, 42, 7)   # None = FreeSurfer default seed; the next ones only if the mesh is not manifold
@@ -52,7 +56,7 @@ def _fix_topology(FS_dir, animal, H, diary_name, sing_fs, export_fs):
                 run_cmd.msg('INFO: ' + surface[H] + ' hemisphere of ' + animal + ': topology fixed with seed ' + str(seed) +
                             ' (default seed left a non-manifold surface)', diary_name, 'WARNING')
             return
-    raise RuntimeError(run_cmd.error('ERROR: ' + opb(orig) + ' of ' + animal + ' is still not manifold after mris_fix_topology '
+    raise SurfaceError(run_cmd.error('ERROR: ' + opb(orig) + ' of ' + animal + ' is still not manifold after mris_fix_topology '
                                      'with seeds ' + str(TOPOLOGY_SEEDS) + ': check the ' + surface[H] +
                                      ' hemisphere of filled.mgz / aseg.mgz', diary_name))
 
