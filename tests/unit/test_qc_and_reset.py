@@ -206,9 +206,35 @@ def test_run_all_ednix_splits_launchers_by_subject(tmp_path):
     P = dict(L, kind='pet', name='Launcher_pet_X')
     jobs = [dict(launcher=L), dict(launcher=F), dict(launcher=P)]
     assert R.dependencies(jobs) == {0: set(), 1: {0}, 2: {0}}
-    # a study template keeps the launcher in one process
-    T = dict(L, template=True)
+    # a PET / CT study template keeps the launcher in one process
+    T = dict(L, template=True, kind='pet')
     assert len(R.make_jobs([T], tmp_path)) == 1
+    # an anat study template is cut into chained stages A (1 job) -> B (3 workers) -> C (1 job) -> D (3 workers)
+    A = dict(L, template=True)
+    jobs = R.make_jobs([A], tmp_path)
+    assert [j['stage'] for j in jobs] == ['A', 'B', 'B', 'B', 'C', 'D', 'D', 'D']
+    assert [j['env']['EDNIX_ANAT_STAGES'] for j in jobs] == ['loop1,create'] + ['loop2'] * 3 + ['use'] + ['loop3'] * 3
+    assert jobs[0]['script'] == jobs[4]['script'] == L['path']           # A and C see all the subjects
+    assert sorted(p for j in jobs[1:4] for p in j['pairs']) == sorted(jobs[0]['pairs'])
+    d = R.dependencies(jobs + [dict(launcher=F)])
+    assert d[0] == set() and d[1] == d[2] == d[3] == {0} and d[4] == {1, 2, 3} and d[5] == {4}
+    assert d[8] == set(range(8))                                         # the func waits for every anat stage
+    # --anat-from B: loop1 / template already done
+    jobs = R.make_jobs([A], tmp_path, 'B')
+    assert [j['stage'] for j in jobs] == ['B', 'B', 'B', 'C', 'D', 'D', 'D']
+    d = R.dependencies(jobs)
+    assert d[0] == set() and d[3] == {0, 1, 2}
+    # the stage variable reaches the worker
+    out.unlink()
+    stamp = tmp_path / 'stage.txt'
+    launcher.write_text(launcher.read_text() + f"import os; open({str(stamp)!r}, 'a').write(os.environ.get('EDNIX_ANAT_STAGES', '') + '\\n')\n")
+    A2 = dict(R.parse_launcher(launcher, 'anat'), template=True)
+    jobs = R.make_jobs([A2], tmp_path)
+    R.PYTHON = sys.executable
+    res = R.run_graph(jobs, R.dependencies(jobs), tmp_path)
+    assert all(r['status'] == 'done' for r in res.values())
+    got = stamp.read_text().split()
+    assert got[0] == 'loop1,create' and got[1:4] == ['loop2'] * 3 and got[4] == 'use' and got[5:] == ['loop3'] * 3
 
 
 def test_build_library_V2_discovery_and_manifest(tmp_path, monkeypatch):
