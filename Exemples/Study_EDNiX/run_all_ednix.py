@@ -63,6 +63,7 @@ ANAT_TEMPLATE_STAGES = [('A', 'loop1,create', False),  # (key, EDNIX_ANAT_STAGES
                         ('B', 'loop2', True),
                         ('C', 'use', False),
                         ('D', 'loop3', True)]
+TMP_ROOT = os.environ.get('EDNIX_TMPDIR', '')    # temporary files of the workers (ANTsPy, AFNI, nibabel); '' = <run>/tmp
 WEIGHT = {'anat': 3.0, 'func': 2.0, 'pet': 1.0, 'ct': 0.5}   # relative cost per subject (scheduling order only)
 
 
@@ -296,6 +297,12 @@ def run_graph(jobs, deps, log_dir):
                       'MKL_NUM_THREADS', 'NUMEXPR_NUM_THREADS'):
                 env[v] = str(THREADS_PER_WORKER)
             env.update(jobs[i].get('env') or {})
+            # own TMPDIR per job, removed when it ends: ANTsPy never deletes its temporary images and a full /tmp
+            # makes ANTs / FreeSurfer crash (short writes, segmentation faults)
+            tmp = Path(TMP_ROOT or Path(log_dir) / 'tmp') / jobs[i]['label']
+            tmp.mkdir(parents=True, exist_ok=True)
+            env.update(TMPDIR=str(tmp), TMP=str(tmp), TEMP=str(tmp), SINGULARITYENV_TMPDIR=str(tmp))
+            jobs[i]['tmp'] = str(tmp)
             log = Path(log_dir) / f"{jobs[i]['label']}.log"
             fh = open(log, 'w')
             proc = subprocess.Popen([PYTHON, jobs[i]['script']], stdout=fh, stderr=subprocess.STDOUT,
@@ -314,6 +321,7 @@ def run_graph(jobs, deps, log_dir):
             results[i] = dict(status=state[i], minutes=minutes, log=str(log), code=ret)
             print(f"  {'✓ DONE ' if ret == 0 else '✗ FAIL '} {jobs[i]['label']} ({minutes:.0f} min)", flush=True)
             del running[i]
+            shutil.rmtree(jobs[i]['tmp'], ignore_errors=True)
         if running or any(s == 'waiting' for s in state.values()):
             time.sleep(5)
     return results
