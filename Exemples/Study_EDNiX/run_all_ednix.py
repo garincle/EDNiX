@@ -98,6 +98,13 @@ def _literal(tree, name, default=None):
         return strs[0] if len(strs) == 1 else default
 
 
+def _lists_ignored(tree):
+    """True if a call passes list_to_keep / list_to_remove as something else than these variables: subject workers
+    would then all process every subject, in parallel, on the same files."""
+    return any(isinstance(n, ast.keyword) and n.arg in ('list_to_keep', 'list_to_remove')
+               and not (isinstance(n.value, ast.Name) and n.value.id == n.arg) for n in ast.walk(tree))
+
+
 def parse_launcher(path, kind):
     src = Path(path).read_text(encoding='utf-8')
     tree = ast.parse(src)
@@ -107,6 +114,9 @@ def parse_launcher(path, kind):
     template = any(_literal(tree, v, False) is True for v in ('creat_study_template_pet', 'creat_study_template_ct')) \
         or (kind == 'anat' and _literal(tree, 'creat_study_template', False) is True)
     anchors = [n for n in (_top_assign(tree, 'list_to_keep'), _top_assign(tree, 'list_to_remove')) if n is not None]
+    if _lists_ignored(tree):
+        print(f'WARNING: {Path(path).name} does not pass list_to_keep / list_to_remove to the pipeline: not split')
+        anchors = []
     return dict(path=str(path), name=Path(path).stem, kind=kind, bids=bids, keep=[tuple(map(str, x)) for x in keep],
                 remove=[tuple(map(str, x)) for x in remove], template=template,
                 insert_line=max(n.end_lineno for n in anchors) if len(anchors) == 2 else None, src=src)
