@@ -48,10 +48,7 @@ anat_pet_same_space = False       # True only for a hybrid PET-MR acquisition (s
 
 ### motion correction
 nb_void = 7                       # first frames not registered (low counts)
-crop_for_MoCo = 'auto'            # head box: without PET study template, drawn in freeview on the session mean at the
-                                  # first of steps 4/5/6 that runs, saved in pet/orig/preprocessing/forMC/
-                                  # <session>_desc-crop_pet.nii.gz and reused; QC in pet/QC/*_desc-cropbox_pet.png;
-                                  # 'none' to run without display
+crop_for_MoCo = 'none'            # unattended runs: no freeview head box ('auto' = freeview, 'mask' = manual mask box)
 redo_crop = False                 # True: draw every crop again (session crops and study-template crop)
 
 ### parametric images
@@ -77,7 +74,7 @@ if RESET_BEFORE_RUN:
     _000_Data_Reset.reset_all(allinfo_study_c, bids_dir, list_to_keep=list_to_keep, list_to_remove=list_to_remove,
                               dry_run=RESET_DRY_RUN, keep_registration=RESET_KEEP_REGISTRATION)
 
-Skip_step = [1,2,3,4,'pvc', 9]
+Skip_step = ['pvc', 9]             # same as CERMEP / Castrillon: every step runs (step 1 outputs were missing)
 _0_Pipeline_launcher.preprocess_pet(
     Skip_step, MAIN_PATH, bids_dir, species, allinfo_study_c, endpet, tracer,
     animalPosition, humanPosition, orientation,
