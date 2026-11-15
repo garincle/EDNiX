@@ -1,5 +1,10 @@
 # Changelog
 
+## PET / CT study template start, November 2026
+
+- `studyT.initial_template`: `ants.build_template` now starts from the mean of the session images registered rigidly to the first one, on a grid of its spacing and axes, of the largest extent of the images + 15 mm per side, centred on the centre of mass of the first image (order of sammba-mri `anats_to_common`: centring, rigid, then affine / non-linear). ANTsPy's default start, the unaligned sum of the images on the grid of the first one, made shifted copies of the brain when the heads sat at different scanner positions; the template drifted out of that grid (macaque FDG brain template cut on 3 faces by ~12 mm; reproduced on the phantom with 15 mm offsets, with SyNRA and TRSAA). Used by the PET (step 2) and CT (step 2) study templates; CT images are shifted to >= 0 for the start only.
+- Test `test_brain_study_template_is_not_cut_when_the_heads_are_offset` (fails on the previous start).
+
 ## PET brain study template and 3v2 bridge, November 2026
 
 - Step 2: when every session has a manual brain mask (`use_manual_mask=True`), the PET study template is built from the brain of the session means (`manualmask.masked_image`: mean x manual mask dilated by `pet_mask_dilate_mm`, cropped to its bounding box + 5 mm, same world coordinates; `<session>_desc-reorient-mean-brain_pet.nii.gz`), sidecar `BrainMasked: true` (`studyT.is_brain_masked`). Before, the template was built on the whole field of view (bed, body, extracerebral uptake) even with `crop_for_MoCo='mask'`, whose box only restricted the MoCo metric. Masks for some sessions only: whole-FOV template, warning.

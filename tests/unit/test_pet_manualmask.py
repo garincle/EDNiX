@@ -135,3 +135,29 @@ def test_manual_masks_give_the_brain_and_the_crop_in_3v2(tmp_path, monkeypatch):
         bd = bd[..., -1] if bd.ndim == 4 else bd
         m = pu.mask_bool(manualmask.on_grid(orig, br[0], str(tmp_path / f'chk{sub}.nii.gz')))
         assert float(bd[m].mean()) == pytest.approx(1.0, abs=0.05)
+
+
+def test_brain_study_template_is_not_cut_when_the_heads_are_offset(tmp_path):
+    """Sessions whose heads sit ~15 mm apart in the scanner, brain images cropped to their masks: the study template
+    starts from the rigid mean on a padded grid (studyT.initial_template), so its brain stays inside the grid. ANTsPy's
+    default start (unaligned sum on the grid of the first session) drifted the brain out of that grid (cut on 3 faces,
+    with SyNRA and with TRSAA)."""
+    poses = [((0, 0, 0), (0, 0, 0)), ((10, -8, 15), (14, -12, 10)), ((-12, 6, -10), (18, -10, 14))]
+    items = []
+    A = P.grid(60, 2.0)
+    for i, (rot, t) in enumerate(poses):
+        R, t = P.pose(rot, t)
+        img = P.save(P.pet_frame((60,) * 3, A, R, t), A, str(tmp_path / f's{i}_mean.nii.gz'))
+        mask = _save_mask(_brain_mask(A, (60,) * 3, R, t), A, str(tmp_path / f's{i}_mask.nii.gz'))
+        items.append((manualmask.masked_image(mask, img, str(tmp_path / f's{i}_brain.nii.gz'), 3.0),
+                      str(tmp_path / 'mat'), f's{i}'))
+    tpl = studyT.make_template(str(tmp_path), items, 'FDG', 'TRSAA', str(tmp_path / 'diary.txt'), masked=True)
+    t = np.asarray(nib.load(tpl).dataobj, dtype=np.float32)
+    brain = t > 0.2 * np.percentile(t[t > 0], 99)
+    for ax in range(3):
+        prof = brain.sum(axis=tuple(a for a in range(3) if a != ax))
+        assert prof[0] == 0 and prof[-1] == 0, f'template brain touches the edge of axis {ax}'
+    vol = brain.sum() * float(np.prod(nib.load(tpl).header.get_zooms()[:3]))
+    true = _brain_mask(A, (60,) * 3, np.eye(3), np.zeros(3)).sum() * 8.0
+    assert 0.8 * true < vol < 1.6 * true, (vol, true)
+    assert studyT.is_brain_masked(tpl)
