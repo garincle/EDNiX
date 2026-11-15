@@ -353,3 +353,41 @@ def test_centroid_si_orientation(tmp_path):
     ldf = pd.DataFrame({'label_id': [1, 2], 'region_name': ['L_Inf', 'L_Sup']})
     v = MP.centroid_si(f, ldf, 2)
     assert v['Sup'] > 0 > v['Inf'] and abs(v['Sup'] + v['Inf']) < 1e-9 and v['Sup'] <= 1
+
+
+def test_figure6_with_two_macaque_datasets(cfg, tmp_path):
+    """Second macaque FDG dataset (Clément 2026-11-15): agreement between macaques (d), stars of e against the macaques
+    pooled, macaque - human difference with each dataset weighted once (f), figure and legend with panels a-g."""
+    from Exemples.Study_EDNiX.analysis.library import multimodal_figure as F
+    t = MP.collect_modalities(cfg)
+    F.REGIONS, F.LEVEL, F.CORTICAL_ONLY = None, 2, False
+    regions = F.select_regions(t)
+    h2 = _pet_human2(tmp_path, np.random.default_rng(3))
+    rng = np.random.default_rng(5)
+    m2 = str(tmp_path / 'Macaque2')
+    for s in range(3):
+        _pet(m2, f'N{s}', {k: x + rng.normal(0, 0.02) for k, x in zip(NAMES, [1.05, 0.97, 1.02, 1.35, 1.0, 0.55, 0.8])})
+    F.PET_DATASETS = [('Human_Merida', 'Human', cfg['SOURCES']['metabolism']['Human'][0]),
+                      ('Human_Castrillon', 'Human', h2),
+                      ('Macaque_Tremblay', 'Macaque', cfg['SOURCES']['metabolism']['Macaque'][0]),
+                      ('Macaque_Second', 'Macaque', m2)]
+    F.N_PERM = 200
+    pet = F.pet_dataset_stats(regions)
+    assert F.macaque_datasets() == ['Macaque_Tremblay', 'Macaque_Second']
+    g = pet['agree_mac'].iloc[0]
+    assert (g.dataset_a, g.dataset_b, g.n_a, g.n_b) == ('Macaque_Tremblay', 'Macaque_Second', 4, 3)
+    assert set(pet['stats']['dataset']) == {'Human_Merida', 'Human_Castrillon'}
+    means = pet['w'].groupby(level=0).mean()
+    expect = (means.loc[['Macaque_Tremblay', 'Macaque_Second']].mean()
+              - means.loc[['Human_Merida', 'Human_Castrillon']].mean())
+    pd.testing.assert_series_equal(pet['species_diff'], expect, check_names=False)
+    assert pet['species_diff']['Occipital_lobe'] > 0.2
+    assert (pet['pairs'].pair_class == 'human vs macaque').sum() == (6 + 5) * (4 + 3)
+    prof_c, regions_c = MP.multimodal_profiles(t, regions, F.SPECIES)
+    summ = MP.summary_stats(prof_c, regions_c, F.SPECIES, n=200)
+    fig = F.build_figure({}, (0.5, 1.5), pet, prof_c, regions_c, summ, None, {}, (-0.2, 0.2))
+    letters = sorted(t_.get_text() for t_ in fig.texts if len(t_.get_text()) == 1)
+    assert letters == list('abcdefg')
+    fig.savefig(tmp_path / 'fig.png')
+    leg = F.legend_text(pet, prof_c, regions_c, (0.5, 1.5), MP.cross_modal_correlations(prof_c), summ, (-0.2, 0.2))
+    assert 'd, Reproducibility across macaque datasets' in leg and 'f, Regional difference macaque - human' in leg

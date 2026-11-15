@@ -1,20 +1,21 @@
 """
 Figure 6 -- Multimodal, multi-species imaging approaches to build an intersectional brain function profile.
 
- Layout (Clément 2026-11-05):
+ Layout (Clément 2026-11-15, second macaque FDG dataset):
  a  group-mean brain ratio of FDG uptake (bratio) of the two human datasets (Merida = CERMEP-IDB-MRXFDG, static frame;
     Castrillon = simultaneous PET/MR, late frames 20-45 min) on the inflated human surface, one shared colour scale
     (Statistics/Group_PET: pet_group.run_group_mean + pet_surface.render_pet_surfaces, ribbon projection);
  b  (right of a) reproducibility of the human datasets: regional group means of one against the other (identity line;
     Pearson r, Lin's concordance, disattenuated r with the split-half reliabilities);
- c  macaque group-mean bratio (Tremblay) on the macaque surface, same scale as a; then the regional difference human -
-    macaque of each human dataset (mean bratio per homologous EDNiX region) painted on the human atlas and surface,
-    symmetric scale +/- DIFF_RANGE;
- d  regional bratio of the three datasets (bars from 0 = the values of the maps), every subject as a dot; stars =
-    difference of each human dataset with the macaque (permutation test, BH-FDR across regions within a dataset);
- e  multimodal fingerprint of each species (radar, PANEL_D = 'radar'): volume, positive coupling to the retrosplenial
-    seed and FDG, each z-scored across the regions within each subject, mean +- SEM. PANEL_D = 'summary': heatmap +
-    forest plot of the former panels c-d.
+ c  group-mean bratio of the macaque datasets on the macaque surface, same scale as a;
+ d  (right of c) the same agreement between the two macaque datasets (only when PET_DATASETS holds two macaques);
+ e  regional bratio of every dataset (bars from 0 = the values of the maps), every subject as a dot; stars = difference
+    of each human dataset with the macaque datasets pooled (permutation test, BH-FDR across regions within a dataset);
+ f  regional difference macaque - human (mean of the macaque dataset means minus mean of the human dataset means, per
+    homologous EDNiX region) painted on the human atlas and surface, symmetric scale +/- DIFF_RANGE;
+ g  (right of f) multimodal fingerprint of each species (radar): volume, positive coupling to the retrosplenial seed
+    and FDG, each z-scored across the regions within each subject, mean +- SEM. PANEL_D = 'summary': heatmap + forest
+    plot instead, full width.
  Supplementary Figure 15 (draw_supp_pairs): Pearson r between the regional profiles of pairs of subjects by class
     (same subject eyes open / closed, within a dataset, between the human datasets, human vs macaque).
 Regions grouped by lobe in the order of the atlas sunburst of Figure 1 (Atlas_nomenclature.atlas_order), radars
@@ -25,8 +26,7 @@ Data, units and level conventions: multimodal_profiles.py, pet_datasets.py. Colo
   figure6_stats()        every table and test (paper_stats.figure6, paper_stats.supp15)
   draw_figure6()         surface renders + the figure + its legend (paper_figures.figure6)
   draw_supp_pairs()      Supplementary Figure 15 (paper_figures.supp15)
-Clément 2026-11-05: Castrillon added (a, b), difference with the macaque, reproducibility of the human datasets (c),
-multimodal fingerprint (d).
+A second macaque dataset is added by one line in PET_DATASETS: c, d, e and f follow (with one macaque, d is left out).
 """
 import os
 import sys
@@ -69,8 +69,10 @@ PET_DATASETS = [
     ('Human_Castrillon', 'Human', '/scratch2/EDNiX/Human/BIDS_Castrillon'),
     ('Macaque_Tremblay', 'Macaque', '/scratch2/EDNiX/Macaque/BIDS_Tremblay'),
 ]
-REFERENCE_DATASET = 'Macaque_Tremblay'      # difference maps / stars of a-b: human dataset - this dataset
-HUMAN_DATASETS = ('Human_Merida', 'Human_Castrillon')   # the pair of panel c
+REFERENCE_SPECIES = 'Macaque'               # stars of e: each human dataset vs the datasets of this species pooled;
+                                            # f: this species - the other one
+POOLED = 'Macaque (pooled)'                 # label of the pooled reference in the tables
+HUMAN_DATASETS = ('Human_Merida', 'Human_Castrillon')   # the pair of panel b
 SESSION_PREFER = {'Human_Castrillon': 'open'}   # panel c, between-subject classes: ONE session per subject (eyes open,
                                             # as most resting PET); the other session gives the same-subject class
 
@@ -111,7 +113,7 @@ BRATIO_RANGE = None                         # (low, high) shared scale; None = 1
 DIFF_RANGE = 0.2                            # +/- colour range of the difference maps (Clément 2026-11-05: -0.2..0.2,
                                             # saturated beyond); None = max |difference| over the regions
 SURF_DIR = 'surfaces_figure6'               # sub-folder of each group-mean result
-DIFF_DIR = 'Grp_PET_regional_difference_vs_{ref}'   # in <bids>/Results/ of each human dataset
+DIFF_DIR = 'Grp_PET_regional_difference_Macaque_minus_Human'   # in <bids>/Results/ of the first human dataset
 
 # statistics of panels a-c
 TEST, N_PERM, ALPHA = 'permutation', 10000, 0.05
@@ -139,6 +141,15 @@ def ds_style(label):
     same = [l_ for l_, s, _ in PET_DATASETS if s == sp]
     return (SPECIES_COLORS.get(sp, 'black'), PS.dataset_marker(label, sp),
             '//////' if same.index(label) % 2 else None)
+
+
+def macaque_datasets():
+    """Labels of the datasets of REFERENCE_SPECIES, in the order of PET_DATASETS (c, d)."""
+    return [l_ for l_, s_, _ in PET_DATASETS if s_ == REFERENCE_SPECIES]
+
+
+def human_datasets():
+    return [l_ for l_, s_, _ in PET_DATASETS if s_ != REFERENCE_SPECIES]
 
 
 # ═════════════════════════════════════════════════════════════════════════════════════════════════ panel a
@@ -196,9 +207,9 @@ def difference_volume(mean_result, diff, sp, out_dir):
 
 def surface_pngs(diffs=None):
     """Group mean bratio of every dataset of PET_DATASETS in its template space, rendered on the surfaces of its
-    species with one shared scale, and (diffs = {human dataset: Series region -> difference with the macaque}) the
-    regional difference maps on the human surface with one symmetric scale.
-    Returns ({dataset: png}, (low, high), {dataset: png}, (-d, d))."""
+    species with one shared scale, and (diffs = {'species': Series region -> macaque - human}) the regional difference
+    painted on the atlas of the first human dataset and rendered on the human surface (symmetric scale).
+    Returns ({dataset: png}, (low, high), {'species': png}, (-d, d))."""
     means = {}
     for label, sp, bids in PET_DATASETS:
         means[label] = dict(_group_mean(label, sp, bids), bids=bids)
@@ -214,18 +225,18 @@ def surface_pngs(diffs=None):
             for label, sp, _ in PET_DATASETS}
     dpngs, drng = {}, None
     if diffs:
-        dmax = DIFF_RANGE or float(max(np.nanmax(np.abs(s.values)) for s in diffs.values()))
+        dmax = DIFF_RANGE or float(max(np.nanmax(np.abs(s_.values)) for s_ in diffs.values()))
         drng = (-dmax, dmax)
-        for label, sp, bids in PET_DATASETS:
-            if label not in diffs:
-                continue
-            out = opj(bids, 'Results', DIFF_DIR.format(ref=REFERENCE_DATASET))
+        host = human_datasets()[0]
+        sp, bids = next((s_, b_) for l_, s_, b_ in PET_DATASETS if l_ == host)
+        out = opj(bids, 'Results', DIFF_DIR)
+        for key, diff in diffs.items():
             if RUN_SURFACES:
-                path = difference_volume(means[label], diffs[label], sp, out)
+                path = difference_volume(means[host], diff, sp, out)
                 res = {'output_dir': out, 'bids': bids, 'maps': {'regional_difference': path}}
             else:
                 res = {'output_dir': out, 'bids': bids, 'maps': {}}
-            dpngs[label] = _render(res, 'regional_difference', sp, drng, opj(out, SURF_DIR))
+            dpngs[key] = _render(res, 'regional_difference', sp, drng, opj(out, SURF_DIR))
     return pngs, rng, dpngs, drng
 
 
@@ -251,14 +262,34 @@ def metabolism_stats(met, regions):
 
 
 # ═════════════════════════════════════════════════════════════════════════════════════ panels b-c (datasets)
+def pooled_reference(w):
+    """w with the datasets of REFERENCE_SPECIES merged under POOLED (subjects keep their dataset in the key)."""
+    mac = set(macaque_datasets())
+    idx = [(POOLED, f'{d}:{s_}') if d in mac else (d, s_) for d, s_ in w.index]
+    out = w.copy()
+    out.index = pd.MultiIndex.from_tuples(idx, names=w.index.names)
+    return out
+
+
+def species_difference(w):
+    """Series region -> mean of the dataset means of REFERENCE_SPECIES minus mean of the dataset means of the other
+    species (each dataset weighs once, whatever its n): f."""
+    means = w.groupby(level=0, sort=False).mean()
+    mac = [d for d in macaque_datasets() if d in means.index]
+    hum = [d for d in human_datasets() if d in means.index]
+    return means.loc[mac].mean() - means.loc[hum].mean()
+
+
 def pet_dataset_stats(regions=None):
-    """Every table of panels a-c from the ROI tables of PET_DATASETS:
-      w        subjects (sessions averaged) x regions, index (dataset, subject)
-      stats    each human dataset vs REFERENCE_DATASET, per region (difference, Hedges g, P, BH q)
-      between  Castrillon vs Merida, per region (systematic difference between the human datasets)
-      agree    agreement of the regional group means of the two human datasets
+    """Every table of panels a-f from the ROI tables of PET_DATASETS:
+      w          subjects (sessions averaged) x regions, index (dataset, subject)
+      stats      each human dataset vs the macaque datasets pooled, per region (difference, Hedges g, P, BH q): e
+      between    Castrillon vs Merida, per region (systematic difference between the human datasets)
+      agree      agreement of the regional group means of the two human datasets: b
+      agree_mac  the same for the two macaque datasets (None with one macaque): d
+      species_diff  macaque - human per region (dataset means averaged within species): f
       pairs / ptest   pairwise subject-profile similarity and the label-permutation test (one session per subject)
-      sessions the session used for every subject in the pair classes."""
+      sessions   the session used for every subject in the pair classes."""
     df = PD.dataset_table(PET_DATASETS, ATLAS, LEVEL, DESC, MIN_VOXELS, sessions=False)
     dfs = PD.dataset_table(PET_DATASETS, ATLAS, LEVEL, DESC, MIN_VOXELS, sessions=True)
     labels = [l_ for l_, _, _ in PET_DATASETS]
@@ -268,22 +299,24 @@ def pet_dataset_stats(regions=None):
     if len(regions) < 3:
         raise ValueError(f'metabolism: only {len(regions)} region(s) with a value in every session of every dataset')
     w = PD.dataset_matrix(df, regions, labels)
-    stats = PD.compare_to_reference(w, REFERENCE_DATASET, TEST, N_PERM)
+    stats = PD.compare_to_reference(pooled_reference(w), POOLED, TEST, N_PERM)
     a, b = HUMAN_DATASETS
     between = PD.compare_to_reference(w.loc[[a, b]], a, TEST, N_PERM)
     agree = PD.agreement(w, a, b)
+    mac = [d for d in macaque_datasets() if d in w.index.get_level_values(0)]
+    agree_mac = PD.agreement(w, mac[0], mac[1]) if len(mac) >= 2 else None
     ws = PD.session_matrix(dfs, regions, labels)
     one, chosen = PD.one_session(ws, SESSION_PREFER)
     multi = ws[[ds in SESSION_PREFER for ds in ws.index.get_level_values(0)]]
-    pairs, ptest = PD.pair_similarity(one, multi, humans=HUMAN_DATASETS, reference=REFERENCE_DATASET, n_perm=N_PERM)
-    return dict(w=w, stats=stats, between=between, agree=agree, pairs=pairs, ptest=ptest, sessions=chosen,
-                coverage=cov, regions=regions, labels=labels)
+    pairs, ptest = PD.pair_similarity(one, multi, humans=HUMAN_DATASETS, reference=tuple(mac), n_perm=N_PERM)
+    return dict(w=w, stats=stats, between=between, agree=agree, agree_mac=agree_mac,
+                species_diff=species_difference(w), pairs=pairs, ptest=ptest, sessions=chosen, coverage=cov,
+                regions=regions, labels=labels)
 
 
 def regional_differences(pet):
-    """{human dataset: Series region -> mean difference with the reference dataset} (difference maps of a)."""
-    s = pet['stats']
-    return {d: g.set_index('region')['difference'] for d, g in s.groupby('dataset', sort=False)}
+    """{'species': Series region -> macaque - human} (difference map of f)."""
+    return {'species': pet['species_diff']}
 
 
 PAIR_ORDER = ['same subject, other session', 'within {a}', 'within {b}', 'between human datasets', 'human vs macaque']
@@ -291,7 +324,7 @@ PAIR_ORDER = ['same subject, other session', 'within {a}', 'within {b}', 'betwee
 
 def _draw_bars(ax, w, stats, regions, fontsize=5.5):
     """Grouped bars (mean +- SEM, from 0), one per dataset of PET_DATASETS; dots = subjects (marker of the dataset);
-    stars above the bar of each human dataset = its difference with REFERENCE_DATASET (BH q)."""
+    stars above the bar of each human dataset = its difference with the datasets of REFERENCE_SPECIES pooled (BH q)."""
     labels = [l_ for l_ in (x for x, _, _ in PET_DATASETS) if l_ in w.index.get_level_values(0)]
     nd = len(labels)
     bw = 0.8 / nd
@@ -310,7 +343,7 @@ def _draw_bars(ax, w, stats, regions, fontsize=5.5):
             v = d[reg].values
             ax.scatter(xs[j] + rng.uniform(-bw * 0.22, bw * 0.22, len(v)), v, s=3.5, marker=mk, facecolor=c,
                        edgecolors='white', linewidths=0.25, zorder=3)
-            if lab != REFERENCE_DATASET and (lab, reg) in st.index:
+            if ds_species(lab) != REFERENCE_SPECIES and (lab, reg) in st.index:
                 s_ = PIRP._stars(st.loc[(lab, reg), 'q_fdr'], ALPHA)
                 if s_:                   # one star per line above the bar of that dataset (never rotated)
                     ax.text(xs[j], top * 0.995, '\n'.join(s_), ha='center', va='top', fontsize=fontsize - 0.5,
@@ -325,8 +358,9 @@ def _draw_bars(ax, w, stats, regions, fontsize=5.5):
 
 
 def _draw_agreement(ax, w, agree, regions, fontsize=5.5):
-    """Regional group means of the two human datasets (x: first, y: second), SEM bars, lobe colours, identity line."""
-    a, b = HUMAN_DATASETS
+    """Regional group means of two datasets of one species (x: first, y: second; those of `agree`), SEM bars, lobe
+    colours, identity line."""
+    a, b = agree.iloc[0].dataset_a, agree.iloc[0].dataset_b
     ma, mb = w.loc[a, regions].mean(), w.loc[b, regions].mean()
     sa, sb = w.loc[a, regions].sem(), w.loc[b, regions].sem()
     cols = [c if c is not None else (0.5, 0.5, 0.5) for c in PIRP.lobe_colors(regions)]
@@ -343,9 +377,10 @@ def _draw_agreement(ax, w, agree, regions, fontsize=5.5):
     ax.tick_params(labelsize=fontsize)
     ax.spines[['top', 'right']].set_visible(False)
     g = agree.iloc[0]
+    ceil = (f"\nr / ceiling = {g.pearson_r_disattenuated:.2f}" if np.isfinite(g.pearson_r_disattenuated) else '')
     txt = (f"r = {g.pearson_r:.2f} [{g.pearson_r_ci_low:.2f}, {g.pearson_r_ci_high:.2f}]\n"
-           f"CCC = {g.lin_ccc:.2f} [{g.lin_ccc_ci_low:.2f}, {g.lin_ccc_ci_high:.2f}]\n"
-           f"r / ceiling = {g.pearson_r_disattenuated:.2f}\n{int(g.n_regions)} regions")
+           f"CCC = {g.lin_ccc:.2f} [{g.lin_ccc_ci_low:.2f}, {g.lin_ccc_ci_high:.2f}]"
+           f"{ceil}\n{int(g.n_regions)} regions")
     ax.text(0.03, 0.97, txt, transform=ax.transAxes, ha='left', va='top', fontsize=fontsize - 0.3, linespacing=1.25)
 
 
@@ -384,19 +419,20 @@ def _draw_pairs(ax, pairs, ptest, fontsize=5.5):
                      f'(label permutation)', fontsize=fontsize, color='0.2', loc='left', pad=9)
 
 
-def _draw_radars(fig, W, top, d, lab_w, lab_h, title_h, prof_c, regions_c, summ, fs_lab):
-    """e: one multimodal radar per species (D_MODALITIES), close to each other around the centre of the figure, the
-    species name just above its region names, and right below them one legend line per modality with its
-    cross-species Spearman r [95% CI] (* Holm P < 0.05); n and units: figure legend."""
+def _draw_radars(fig, x0, x1, top, d, lab_w, lab_h, title_h, prof_c, regions_c, summ, fs_lab):
+    """g: one multimodal radar per species (D_MODALITIES), side by side and centred between x0 and x1 (mm), the species
+    name just above its region names, and right below them one legend line per modality with its cross-species
+    Spearman r [95% CI] (* Holm P < 0.05); n and units: figure legend."""
     mods_present = [m for m in D_MODALITIES if all(m in prof_c[sp] for sp in SPECIES[:2])]
     rmax = max(np.nanmax(np.abs(prof_c[sp][m].reindex(columns=regions_c).mean().values))
                for sp in SPECIES[:2] for m in mods_present)
     rmax = float(np.ceil(rmax * 1.2 * 2) / 2)
-    gap = 4.0                                                   # mm between the region names of the two radars
-    xs = (W / 2 - gap / 2 - lab_w - d, W / 2 + gap / 2 + lab_w)
+    gap = 3.0                                                   # mm between the region names of the two radars
+    mid = (x0 + x1) / 2
+    xs = (mid - gap / 2 - lab_w - d, mid + gap / 2 + lab_w)
     top_lines = MP.radar_name(regions_c[0], 13).count('\n') + 1
-    for x0, sp in zip(xs, SPECIES[:2]):
-        ax = _axes_mm(fig, x0, top + title_h + lab_h, d, d, projection='polar')
+    for xr, sp in zip(xs, SPECIES[:2]):
+        ax = _axes_mm(fig, xr, top + title_h + lab_h, d, d, projection='polar')
         MP.draw_radar(ax, {m: prof_c[sp][m] for m in mods_present}, regions_c, sp,
                       SPECIES_COLORS.get(sp, 'black'), fontsize=fs_lab, rlim=(-rmax, rmax), width=13)
         ax.set_title(sp, fontsize=fs_lab + 2, color=SPECIES_COLORS.get(sp, 'black'), fontweight='bold',
@@ -418,7 +454,7 @@ def _draw_radars(fig, W, top, d, lab_w, lab_h, title_h, prof_c, regions_c, summ,
             s_ += (f'   {SPECIES[0]}-{SPECIES[1]} r = {r.r:+.2f} [{r.ci_low:+.2f}, {r.ci_high:+.2f}]'
                    + (' *' if r.p_holm < 0.05 else ''))
         labels_.append(s_)
-    axl = _axes_mm(fig, 0, top + title_h + 2 * lab_h + d - 1, W, 9)
+    axl = _axes_mm(fig, x0, top + title_h + 2 * lab_h + d - 1, x1 - x0, 9)
     axl.axis('off')
     handles = [plt.Line2D([], [], color=MP.MODALITY_COLORS[m], lw=1.4, ls=MP.MODALITY_LINESTYLE[m])
                for m in mods_present]
@@ -524,17 +560,31 @@ def _surface_axes(fig, x, top, w, h, img, title, colour, fontsize=7, bold=True):
     return ax
 
 
+def _colorbar(fig, x, top, w, rng, label, cmap, fontsize=5.5):
+    """Horizontal colour bar (w mm wide, 1.6 mm high) at x mm, `top` mm from the top."""
+    from matplotlib.colors import Normalize
+    from matplotlib.cm import ScalarMappable
+    ax = _axes_mm(fig, x, top, w, 1.6)
+    cb = fig.colorbar(ScalarMappable(Normalize(*rng), cmap), cax=ax, orientation='horizontal')
+    cb.set_ticks([rng[0], (rng[0] + rng[1]) / 2, rng[1]])
+    cb.ax.tick_params(labelsize=fontsize - 0.5, length=1.5, pad=1)
+    cb.outline.set_linewidth(0.4)
+    cb.set_label(label, fontsize=fontsize, labelpad=1)
+    return ax
+
+
 def build_figure(pngs, rng, pet, prof_c, regions_c, summ=None, si=None, dpngs=None, drng=None):
-    """Clément 2026-11-05 layout:
+    """Clément 2026-11-15 layout (Nature double column, FIG_W wide; positions in mm, height from the content):
       a  group-mean surfaces of the two human datasets          b  agreement of their regional means (right of a)
-      c  macaque surface, then the two differences human - macaque on the human surface
-      d  regional bratio of the three datasets (bars)
-      e  multimodal radars (PANEL_D = 'summary': the former heatmap + forest plot)
-    The pairwise subject similarity is Supplementary Figure 15 (draw_supp_pairs). Positions in mm (Nature double
-    column, FIG_W wide); the height follows the content."""
+      c  group-mean surfaces of the macaque datasets            d  agreement of the two macaque datasets (right of c)
+      e  regional bratio of every dataset (bars)
+      f  macaque - human regional difference on the human surface   g  multimodal radars (right of f)
+    With one macaque dataset, c holds one surface and d is left out. The pairwise subject similarity is Supplementary
+    Figure 15 (draw_supp_pairs). PANEL_D = 'summary': heatmap + forest plot under f instead of the radars."""
     dpngs = dpngs or {}
     w, regions = pet['w'], pet['regions']
-    humans = [l_ for l_, _, _ in PET_DATASETS if l_ != REFERENCE_DATASET]
+    humans, macs = human_datasets()[:2], macaque_datasets()[:2]
+    present = set(w.index.get_level_values(0))
     with plt.rc_context(PAPER_RC):
         imgs = {k: (MP.autocrop(plt.imread(p)) if p and os.path.isfile(p) else None)
                 for k, p in list(pngs.items()) + [(('diff', k), v) for k, v in dpngs.items()]}
@@ -544,7 +594,7 @@ def build_figure(pngs, rng, pet, prof_c, regions_c, summ=None, si=None, dpngs=No
         fs_lab = 5.0
         names_c = [MP.radar_name(r, 13) for r in regions_c]
         fig = plt.figure(figsize=(FIG_W, 1.0))
-        lab_w = _text_mm(fig, names_c, fs_lab) + 2.5
+        lab_w = _text_mm(fig, names_c, fs_lab) + 2.0
         pt = 25.4 / 72
         lab_h = max(n.count('\n') + 1 for n in names_c) * fs_lab * 1.2 * pt + 2.5
         title_h = (fs_lab + 2) * 1.25 * pt + 2
@@ -552,59 +602,83 @@ def build_figure(pngs, rng, pet, prof_c, regions_c, summ=None, si=None, dpngs=No
         b_lab = _text_mm(fig, [n.split('\n')[0] for n in names_b], 5.5) * np.sin(np.radians(40)) + 4
         plt.close(fig)
 
-        # row 1: a (two human surfaces) + b (scatter, square, with its axis labels on the left / below)
-        b_side, b_lab_w, ab_gap = 38.0, 11.0, 10.0              # ab_gap: extra space between a and b
-        cw1 = (W - L - R - b_side - b_lab_w - 2 * GAP - ab_gap) / 2
-        ha1 = cw1 / aspect
-        top_a = 5.0
-        s = min(b_side, ha1)
-        # row 2: c (macaque + two differences)
-        cw2 = (W - L - R - 2 * GAP) / 3
-        ha2 = cw2 / aspect
-        top_c = top_a + 6 + max(ha1, s + 7) + 5
-        top_d = top_c + 6 + ha2 + 8
-        hb = 40.0
-        top_e = top_d + hb + b_lab + 5
-        half = (W - L - R) / 2
-        d = float(min(40.0, half - 2 * lab_w - 2))
-        if PANEL_D == 'summary' and summ is not None:
+        # rows 1-2: two surfaces + a square scatter on the right (same geometry for humans and macaques)
+        sc_side, sc_lab_w, sc_gap = 36.0, 11.0, 9.0            # scatter side, room for its y label, gap before it
+        cw = (W - L - R - sc_side - sc_lab_w - GAP - sc_gap) / 2
+        hs = cw / aspect
+        row_h = 6 + max(hs, sc_side) + 7                        # title + content + x label of the scatter
+        top_a = 4.0
+        top_c = top_a + row_h + 3
+        two_mac = len(macs) >= 2 and pet.get('agree_mac') is not None
+        # row 3: bars
+        top_e = top_c + row_h + 6
+        hb = 34.0
+        # row 4: f (surface + colour bar) and the radars
+        top_f = top_e + hb + b_lab + 5
+        wf = 52.0
+        d = float(min(38.0, (W - R - L - wf - 4.0 - 3.0) / 2 - 2 * lab_w))
+        if d < 28.0:                                            # long region names: give the radars room from f
+            wf -= min(12.0, 2 * (28.0 - d))
+            d = float(min(38.0, (W - R - L - wf - 4.0 - 3.0) / 2 - 2 * lab_w))
+        hf = wf / aspect
+        x_rad = L + wf + 4.0
+        summary = PANEL_D == 'summary' and summ is not None
+        if summary:
             hh = 3.0 * len(regions_c) + 22.0
-            H = top_e + hh + 4
+            H = top_f + 6 + hf + 12 + hh + 4
         else:
-            H = top_e + title_h + 2 * lab_h + d + 10
+            H = top_f + max(6 + hf + 12, title_h + 2 * lab_h + d + 10)
         fig = plt.figure(figsize=(FIG_W, H * MM))
 
-        # a
-        for k, lab in enumerate(humans[:2]):
-            n = w.loc[lab].shape[0] if lab in w.index.get_level_values(0) else 0
-            _surface_axes(fig, L + k * (cw1 + GAP), top_a + 6, cw1, ha1, imgs.get(lab), f'{ds_name(lab)} (n = {n})',
-                          PS.text_color(ds_species(lab)))
-        # b
-        xb = L + 2 * cw1 + GAP + ab_gap + b_lab_w
-        axb = _axes_mm(fig, xb, top_a + 6, s, s)
-        _draw_agreement(axb, w, pet['agree'], regions)
-        # c: macaque surface, then the differences under the same heading size
-        ref = REFERENCE_DATASET
-        n = w.loc[ref].shape[0] if ref in w.index.get_level_values(0) else 0
-        _surface_axes(fig, L, top_c + 6, cw2, ha2, imgs.get(ref), f'{ds_name(ref)} (n = {n})',
-                      PS.text_color(ds_species(ref)))
-        for k, lab in enumerate(humans[:2]):
-            _surface_axes(fig, L + (k + 1) * (cw2 + GAP), top_c + 6, cw2, ha2, imgs.get(('diff', lab)),
-                          f'{ds_name(lab)} - {ds_species(ref)}', '0.15', fontsize=6.5, bold=False)
-        # d
-        axd = _axes_mm(fig, L + 6, top_d, W - L - 6 - R, hb)
-        _draw_bars(axd, w, pet['stats'], regions)
-        axd.set_ylabel('bratio (ratio to whole-brain mean)', fontsize=6)
-        axd.set_xticklabels(names_b, rotation=40, ha='right', rotation_mode='anchor', fontsize=5.5)
-        axd.legend(fontsize=6, frameon=False, ncol=len(PET_DATASETS), loc='lower right', bbox_to_anchor=(1, 1.0))
+        def n_of(lab):
+            return w.loc[lab].shape[0] if lab in present else 0
+
+        dy = max(0.0, (sc_side - hs) / 2)                        # surfaces centred on the height of the scatter
+
+        def row(labels, top, agree):
+            for k, lab in enumerate(labels):
+                _surface_axes(fig, L + k * (cw + GAP), top + 6 + dy, cw, hs, imgs.get(lab),
+                              f'{ds_name(lab)} (n = {n_of(lab)})', PS.text_color(ds_species(lab)))
+            if agree is None:
+                return None
+            xs = L + 2 * cw + GAP + sc_gap + sc_lab_w
+            ax = _axes_mm(fig, xs, top + 6, sc_side, sc_side)
+            _draw_agreement(ax, w, agree, regions)
+            return xs - sc_lab_w
+
+        xb = row(humans, top_a, pet['agree'])
+        xd = row(macs, top_c, pet['agree_mac'] if two_mac else None)
+        # colour bar of a and c: pet_surface renders mean_all with Workbench JET256 (= matplotlib 'jet')
+        _colorbar(fig, L + cw - 14, top_c + 6 + dy + hs + 2.0, 28, rng, 'FDG brain ratio (a, c)', 'jet')
         # e
-        if PANEL_D == 'summary' and summ is not None:
-            _panel_c_summary(fig, W, L, top_e + 6, hh - 6, prof_c, regions_c, summ, si)
+        axe = _axes_mm(fig, L + 6, top_e, W - L - 6 - R, hb)
+        _draw_bars(axe, w, pet['stats'], regions)
+        axe.set_ylabel('bratio (ratio to\nwhole-brain mean)', fontsize=6)
+        axe.set_xticklabels(names_b, rotation=40, ha='right', rotation_mode='anchor', fontsize=5.5)
+        axe.legend(fontsize=5.5, frameon=False, ncol=min(4, len(PET_DATASETS)), loc='lower right',
+                   bbox_to_anchor=(1, 1.0), columnspacing=1.0, handlelength=1.4)
+        # f, centred on the height of the radars
+        fy = top_f + 6 + (0.0 if summary else max(0.0, (title_h + 2 * lab_h + d - 6 - hf) / 2))
+        _surface_axes(fig, L, fy, wf, hf, imgs.get(('diff', 'species')),
+                      f'{REFERENCE_SPECIES} - {SPECIES[0]}', '0.15', fontsize=6.5, bold=True)
+        if drng is not None:                                  # Workbench ROY-BIG-BL has no matplotlib twin: range as text
+            fig.text((L + wf / 2) / W, 1 - (fy + hf + 1.5) / H,
+                     f'bratio difference, {drng[0]:+.2f} to {drng[1]:+.2f}', ha='center', va='top', fontsize=5.5,
+                     color='0.25')
+        # g
+        if summary:
+            _panel_c_summary(fig, W, L, top_f + 6 + hf + 14, hh - 6, prof_c, regions_c, summ, si)
+            top_g = top_f + 6 + hf + 12
+            xg = 1
         else:
-            _draw_radars(fig, W, top_e, d, lab_w, lab_h, title_h, prof_c, regions_c, summ, fs_lab)
-        for lab, x, top in (('a', 1, top_a), ('b', xb - b_lab_w, top_a), ('c', 1, top_c), ('d', 1, top_d - 6),
-                            ('e', 1, top_e)):
-            fig.text(x / W, 1 - top / H, lab, fontsize=8, fontweight='bold', va='top')
+            _draw_radars(fig, x_rad, W - R, top_f, d, lab_w, lab_h, title_h, prof_c, regions_c, summ, fs_lab)
+            top_g, xg = top_f, x_rad - 2
+        letters = [('a', 1, top_a), ('b', xb, top_a), ('c', 1, top_c)]
+        if xd is not None:
+            letters.append(('d', xd, top_c))
+        letters += [('e', 1, top_e - 6), ('f', 1, top_f), ('g', xg, top_g)]
+        for i, (_, x, top) in enumerate(letters):            # letters follow the panels actually drawn
+            fig.text(x / W, 1 - top / H, 'abcdefg'[i], fontsize=8, fontweight='bold', va='top')
         return fig
 
 
@@ -640,43 +714,61 @@ def supp_pairs_legend(pet):
            f'subjects, so only a label permutation gives a valid P).' if t is not None else ''))
 
 
+def _agree_sentence(g):
+    ceil = (f'; split-half reliabilities {g.reliability_a:.2f} and {g.reliability_b:.2f} (Spearman-Brown), '
+            f'disattenuated r = {g.pearson_r_disattenuated:.2f}' if np.isfinite(g.pearson_r_disattenuated) else '')
+    return (f'Pearson r = {g.pearson_r:.2f} [{g.pearson_r_ci_low:.2f}, {g.pearson_r_ci_high:.2f}], Lin concordance '
+            f'CCC = {g.lin_ccc:.2f} [{g.lin_ccc_ci_low:.2f}, {g.lin_ccc_ci_high:.2f}] (95% CI, bootstrap of the '
+            f'subjects){ceil}')
+
+
 def legend_text(pet, prof_c, regions_c, rng, cmc, summ=None, drng=None):
-    w, st, g = pet['w'], pet['stats'], pet['agree'].iloc[0]
+    w, st = pet['w'], pet['stats']
     labels = [l_ for l_ in pet['labels'] if l_ in w.index.get_level_values(0)]
     n = {l_: w.loc[l_].shape[0] for l_ in labels}
     nc = {sp: {m: len(v) for m, v in prof_c[sp].items()} for sp in SPECIES}
     a, b = HUMAN_DATASETS
-    ref = REFERENCE_DATASET
+    macs = [l_ for l_ in macaque_datasets() if l_ in labels]
+    two = pet.get('agree_mac') is not None
     nsig = {d_: int((gg.q_fdr < ALPHA).sum()) for d_, gg in st.groupby('dataset', sort=False)}
+    hatched = [l_ for l_ in labels if ds_style(l_)[2]]
+    mac_txt = ' and '.join(f'{ds_name(m)} n = {n.get(m, 0)}' for m in macs)
+    L_ = iter('abcdefg')
+    la, lb, lc = next(L_), next(L_), next(L_)
+    ld = next(L_) if two else None
+    le, lf, lg = next(L_), next(L_), next(L_)
     txt = (
         f'Figure 6 | Multimodal, multi-species imaging approaches to build an intersectional brain function profile. '
-        f'a, Group-mean [18F]FDG brain ratio (bratio: regional activity / mean activity of the brain, proportional '
+        f'{la}, Group-mean [18F]FDG brain ratio (bratio: regional activity / mean activity of the brain, proportional '
         f'scaling) of the two human datasets projected on the inflated human cortical surface (ribbon-constrained '
         f'mapping; {ds_name(a)} n = {n.get(a, 0)}, static 10-min frame; {ds_name(b)} n = {n.get(b, 0)}, simultaneous '
         f'PET/MR, mean of the 20-45 min frames, eyes-open and eyes-closed sessions averaged); colour scale '
-        f'{rng[0]:.2f}-{rng[1]:.2f}, shared by a and c. '
-        f'b, Reproducibility across human datasets: regional group means of {ds_name(a)} vs {ds_name(b)} (EDNiX level '
-        f'{LEVEL}, {len(pet["regions"])} regions; dot colour, lobe of Figure 1; bars, SEM; dashed, identity): Pearson '
-        f'r = {g.pearson_r:.2f} [{g.pearson_r_ci_low:.2f}, {g.pearson_r_ci_high:.2f}], Lin concordance CCC = '
-        f'{g.lin_ccc:.2f} [{g.lin_ccc_ci_low:.2f}, {g.lin_ccc_ci_high:.2f}] (95% CI, bootstrap of the subjects); '
-        f'split-half reliabilities {g.reliability_a:.2f} and {g.reliability_b:.2f} (Spearman-Brown), disattenuated r = '
-        f'{g.pearson_r_disattenuated:.2f}. Similarity between individual profiles: Supplementary Figure 15. '
-        f'c, Left, group-mean bratio of the macaque ({ds_name(ref)}, n = {n.get(ref, 0)}, anaesthetised) on the '
-        f'macaque surface, same scale as a. Middle and right, regional difference of each human dataset with the '
-        f'macaque (mean bratio, human - macaque, per homologous EDNiX region of level {LEVEL}) painted on the human '
-        f'atlas and surface' + (f', colour scale -{drng[1]:.2f} to +{drng[1]:.2f} (saturated beyond)' if drng else '')
-        + '. '
-        f'd, Regional bratio of the three datasets (bilateral: valid-voxel-weighted mean of the left and right labels, '
-        f'native PET space; regions with a value in every session). Bars, mean +- SEM (hatched: {ds_name(b)}); dots, '
-        f'subjects; dashed line, whole-brain mean (1). Stars above the bar of each human dataset, {TEST} test vs the '
-        f'macaque, Benjamini-Hochberg q < {ALPHA} (*), < {ALPHA / 5:g} (**), < {ALPHA / 50:g} (***) across regions '
-        f'within a dataset (' + ', '.join(f'{ds_name(d_)} {k} significant' for d_, k in nsig.items()) + '); with '
-        f'n = {n.get(ref, 0)} macaques the test is coarse and the difference descriptive. '
-        f'e, Multimodal fingerprint of each species (level {LEVEL}, {len(regions_c)} regions): volume (% of brain '
+        f'{rng[0]:.2f}-{rng[1]:.2f}, shared by {la} and {lc}. '
+        f'{lb}, Reproducibility across human datasets: regional group means of {ds_name(a)} vs {ds_name(b)} (EDNiX level '
+        f'{LEVEL}, {len(pet["regions"])} regions; dot colour, lobe of Figure 1; bars, SEM; dashed, identity): '
+        f'{_agree_sentence(pet["agree"].iloc[0])}. Similarity between individual profiles: Supplementary Figure 15. '
+        f'{lc}, Group-mean bratio of the macaque dataset{"s" if len(macs) > 1 else ""} ({mac_txt}) on the macaque '
+        f'surface, same scale as {la}. '
+        + (f'{ld}, Reproducibility across macaque datasets, as {lb}: {_agree_sentence(pet["agree_mac"].iloc[0])}'
+           + ('' if np.isfinite(pet['agree_mac'].iloc[0].pearson_r_disattenuated) else
+              ' (split-half reliability not defined: fewer than 4 animals in a dataset)') + '. '
+           if two else '')
+        + f'{le}, Regional bratio of every dataset (bilateral: valid-voxel-weighted mean of the left and right labels, '
+        f'native PET space; regions with a value in every session). Bars, mean +- SEM'
+        + (f' (hatched: {", ".join(ds_name(h) for h in hatched)})' if hatched else '')
+        + f'; dots, subjects; dashed line, whole-brain mean (1). Stars above the bar of each human dataset, {TEST} test '
+        f'vs the macaque datasets pooled, Benjamini-Hochberg q < {ALPHA} (*), < {ALPHA / 5:g} (**), < {ALPHA / 50:g} '
+        f'(***) across regions within a dataset (' + ', '.join(f'{ds_name(d_)} {k} significant'
+                                                           for d_, k in nsig.items()) + '); with '
+        f'{sum(n.get(m, 0) for m in macs)} macaques the test is coarse and the difference descriptive. '
+        f'{lf}, Regional difference {REFERENCE_SPECIES.lower()} - {SPECIES[0].lower()} (mean of the dataset means of '
+        f'each species, each dataset weighted once; homologous EDNiX regions of level {LEVEL}) painted on the human atlas '
+        f'and surface' + (f', colour scale {drng[0]:+.2f} to {drng[1]:+.2f} (saturated beyond)' if drng else '') + '. '
+        f'{lg}, Multimodal fingerprint of each species (level {LEVEL}, {len(regions_c)} regions): volume (% of brain '
         f'volume), positive coupling to the retrosplenial seed (regional 80th percentile of the seed correlation map, '
         + ('runs kept by the final round of the run selection of Figure 4' if SBA_WHICH == 'selected' else 'all runs') +
-        f') and FDG (bratio, the two human datasets pooled), each z-scored across regions within subject, mean +- SEM '
-        f'(radial axis, z); lobe colours on the rim. n: '
+        f') and FDG (bratio, the datasets of each species pooled), each z-scored across regions within subject, mean '
+        f'+- SEM (radial axis, z); lobe colours on the rim. n: '
         + '; '.join(f'{sp} ' + ', '.join(f'{m} {k}' for m, k in nc[sp].items() if m in D_MODALITIES)
                     for sp in SPECIES) + '. '
     )
@@ -752,6 +844,9 @@ def stats_tables(st):
     """{sheet: DataFrame}: every table behind the panels."""
     out = {f'{k}_subjects': v for k, v in st['tables'].items()}
     pet = st['pet']
+    if pet.get('agree_mac') is not None:
+        out['D_agreement_macaques'] = pet['agree_mac']
+    out['F_macaque_minus_human'] = pet['species_diff'].rename('difference').rename_axis('region').reset_index()
     out.update(B_bratio=pet['w'].reset_index(), B_vs_macaque=pet['stats'], B_region_coverage=pet['coverage'],
                C_human_datasets_regions=pet['between'], C_agreement=pet['agree'], C_pair_similarity=pet['pairs'],
                C_pair_test=pet['ptest'], C_sessions_used=pet['sessions'])

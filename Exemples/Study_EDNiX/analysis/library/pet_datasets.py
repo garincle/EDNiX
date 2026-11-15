@@ -126,11 +126,12 @@ def pair_similarity(subj, sess=None, humans=(), reference=None, n_perm=10000, se
     sess : wide table (dataset, subject|session) x regions of the datasets with repeated sessions (same subject, other
            session class); None skips it.
     humans: the two human datasets (classes 'within <dataset>' and 'between human datasets'); reference: the macaque
-           dataset (class 'human vs macaque').
+           dataset or a tuple of macaque datasets (class 'human vs macaque').
     Returns (pairs, test): pairs = long table class, a, b, r; test = permutation of the dataset labels of the human
     subjects (sizes kept): statistic = mean r within datasets - mean r between datasets, two-sided P. The pairs share
     subjects (not independent): only the label permutation gives a valid P (Mantel-like)."""
     rng = np.random.default_rng(seed)
+    refs = {reference} if isinstance(reference, str) else set(reference or ())
     rows = []
     if sess is not None and len(sess):
         idx = sess.index.to_frame(index=False)
@@ -152,7 +153,7 @@ def pair_similarity(subj, sess=None, humans=(), reference=None, n_perm=10000, se
                 cls = f'within {da}'
             elif da in humans and db in humans:
                 cls = 'between human datasets'
-            elif reference in (da, db) and (da in humans or db in humans):
+            elif (da in refs or db in refs) and (da in humans or db in humans):
                 cls = 'human vs macaque'
             else:
                 continue

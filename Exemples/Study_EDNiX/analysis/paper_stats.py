@@ -366,15 +366,16 @@ def figure5(inp):
 
 
 def figure6(inp):
-    """Multimodal profile: a-b bratio of the FDG datasets (two human, one macaque) and difference with the macaque,
-    c reproducibility of the human datasets, d multimodal fingerprints (library/multimodal_figure.py,
-    library/pet_datasets.py)."""
+    """Multimodal profile: a-c bratio of the FDG datasets (two human, one or two macaque), b / d reproducibility within
+    each species, e regional bratio vs the macaques pooled, f macaque - human, g multimodal fingerprints
+    (library/multimodal_figure.py, library/pet_datasets.py)."""
     from Exemples.Study_EDNiX.analysis.library import multimodal_figure as mmf
     st = inp.multimodal()
     pet = st["pet"]
     w, sb = pet["w"], pet["stats"]
     lines = [f"level {mmf.LEVEL}, {len(pet['regions'])} regions (a-c), {len(st['regions_c'])} regions (d); "
-             f"test {mmf.TEST} ({mmf.N_PERM} permutations), BH-FDR within dataset; reference {mmf.REFERENCE_DATASET}"]
+             f"test {mmf.TEST} ({mmf.N_PERM} permutations), BH-FDR within dataset; reference {mmf.POOLED} "
+             f"({', '.join(mmf.macaque_datasets())})"]
     lines.append("B  n subjects: " + ", ".join(f"{d} {w.loc[d].shape[0]}" for d in pet["labels"]
                                                if d in w.index.get_level_values(0)))
     lines += [f"  {r.dataset} | {r.region}: {r.dataset} - {r.reference} = {r.difference:+.3f} "
@@ -385,6 +386,16 @@ def figure6(inp):
                  f"Spearman = {g.spearman_r:.3f}, Lin CCC = {g.lin_ccc:.3f} [{g.lin_ccc_ci_low:.3f}, "
                  f"{g.lin_ccc_ci_high:.3f}], mean |diff| = {g.mean_abs_difference:.3f}; split-half "
                  f"{g.reliability_a:.3f} / {g.reliability_b:.3f}, disattenuated r = {g.pearson_r_disattenuated:.3f}")
+    gm = pet.get("agree_mac")
+    if gm is not None:
+        g = gm.iloc[0]
+        lines.append(f"D  agreement {g.dataset_a} vs {g.dataset_b} ({int(g.n_regions)} regions, n {int(g.n_a)} / "
+                     f"{int(g.n_b)}): Pearson r = {g.pearson_r:.3f} [{g.pearson_r_ci_low:.3f}, "
+                     f"{g.pearson_r_ci_high:.3f}], Spearman = {g.spearman_r:.3f}, Lin CCC = {g.lin_ccc:.3f} "
+                     f"[{g.lin_ccc_ci_low:.3f}, {g.lin_ccc_ci_high:.3f}], mean |diff| = {g.mean_abs_difference:.3f}")
+    sd = pet["species_diff"]
+    lines.append(f"F  {mmf.REFERENCE_SPECIES} - {mmf.SPECIES[0]} (dataset means averaged within species): "
+                 + ", ".join(f"{k} {v:+.3f}" for k, v in sd.sort_values().items()))
     bt = pet["between"]
     lines.append(f"C  {bt.dataset.iat[0]} - {bt.reference.iat[0]}: {int((bt.q_fdr < mmf.ALPHA).sum())} of {len(bt)} "
                  f"regions q < {mmf.ALPHA}")
