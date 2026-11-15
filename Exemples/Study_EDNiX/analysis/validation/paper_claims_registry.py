@@ -24,8 +24,9 @@ Entry keys
               (default: the producer file)
 
 Coverage: Fig. 2 (validation paragraph), Fig. 3 / Supp. Fig. 9 (longitudinal), Supp. Fig. 7
-(FreeSurfer), Supp. Fig. 8 (longitudinal vs cross-sectional). Figures 4-6 are not
-registered yet: their numbers appear in the 'untraced' sheet of the report.
+(FreeSurfer), Supp. Fig. 8 (longitudinal vs cross-sectional), Fig. 4 / Supp. Figs. 11-13 (run
+selection), Fig. 6 (FDG and multimodal fingerprints; prefixes of the V5 text, to update when
+the Fig. 6 paragraph is rewritten). Numbers without an entry appear in the 'untraced' sheet.
 """
 import numpy as np
 
@@ -98,6 +99,56 @@ def s14(measure, column):
 
 
 cm2 = (lambda v: v / 100.0)          # mm² -> cm²
+
+# ── Fig. 4 / Supp. 11-13 (run selection) and Fig. 6 (FDG) ───────────────────
+SEL = A + 'fmri_fingerprints/selection_validation.py'
+PSTATS = A + 'paper_stats.py'
+MMF = A + 'library/multimodal_figure.py'
+PETD = A + 'library/pet_datasets.py'
+CFG_SEL = 'Statistics/Group_fMRI/run_selection/config_ednix.py'
+F4 = 'Figure_4/Figure_4_stats.xlsx'
+S11 = 'Supp_Fig_11/Supp_Fig_11_stats.xlsx'
+S13 = 'Supp_Fig_13/Supp_Fig_13_stats.xlsx'
+F6 = 'Figure_6/Figure_6_stats.xlsx'
+
+
+def f4(sheet, column, **where):
+    return dict(file=F4, sheet=sheet, column=column, where=where)
+
+
+def pair_level(pool, cls):
+    return f4('b_pair_levels', 'median', pool=pool, pair_class=cls)
+
+
+def _random_median(file, sheet, column, **where):
+    def f(src):
+        t = src.sheet(file, sheet)
+        for k, v in where.items():
+            t = t[t[k] == v]
+        return float(np.median(t.loc[t['pool'] == 'random', column]))
+    return dict(compute=f, file=file)
+
+
+def _share_random_ge_selected(file, sheet, column, **where):
+    """One-sided P of 'selected vs random': (1 + #random >= selected) / (n random + 1), as in
+    selection_validation.species_signal."""
+    def f(src):
+        t = src.sheet(file, sheet)
+        for k, v in where.items():
+            t = t[t[k] == v]
+        sel = float(t.loc[t['pool'] == 'selected', column].iloc[0])
+        r = t.loc[t['pool'] == 'random', column].to_numpy(float)
+        return float((1 + np.sum(r >= sel - 1e-12)) / (len(r) + 1))
+    return dict(compute=f, file=file)
+
+
+def f6_n(dataset):
+    return dict(compute=lambda src: float((src.sheet(F6, 'B_bratio')['dataset'] == dataset).sum()), file=F6)
+
+
+def f6_cons(modality, column='r'):
+    return dict(file=F6, sheet='D_summary_stats', column=column,
+                where=dict(analysis='conservation', modality=modality))
 
 
 CLAIMS = [
@@ -323,6 +374,115 @@ CLAIMS = [
     dict(id='S15.delta.pmin', figure='Supp. Fig. 15h', what='slope difference long - cross, smallest bootstrap P',
          prefix='slope difference between modes, smallest P = ', source=s15_range('delta_slope_p', 'min'),
          producer=(ABL, 'compare_modes', "out[f'{name}_p'] = _boot_p")),
+] + [
+    # ═════════════ Fig. 4 -- run selection (Results "A cross-species criterion for selecting resting-state runs")
+    dict(id='F4.sib.same', figure='Fig. 4c', what='mean distance 1 - r, same-species dataset pairs',
+         prefix='mean distance 1 - r = ', source=f4('c_sibling_test', 'mean_same'),
+         producer=(PSTATS, '_sibling_tables', 'sibling_test=')),
+    dict(id='F4.sib.cross', figure='Fig. 4c', what='mean distance 1 - r, different-species dataset pairs',
+         prefix='mean distance 1 - r = ', k=1, source=f4('c_sibling_test', 'mean_cross'),
+         producer=(PSTATS, '_sibling_tables', 'sibling_test=')),
+    dict(id='F4.sib.p', figure='Fig. 4c', what='sibling test, one-sided label-permutation P',
+         prefix='permutation of the species labels across datasets, P = ', source=f4('c_sibling_test', 'p_one_sided'),
+         producer=(PSTATS, '_sibling_tables', 'sibling_test=')),
+] + [
+    dict(id=f'F4.b.{tag}.{pool}', figure='Fig. 4b', what=f'held-out run-to-run r, {cls}, {pool} (median)',
+         prefix=prefix, k=k, source=pair_level(pool, cls), producer=(SEL, 'heldout', 'levels = pd.DataFrame(rows)'))
+    for tag, cls, prefix in (('ds', 'same dataset', 'median correlation between two runs of the same dataset '),
+                             ('sp', 'same species, other dataset', 'of the same species in different datasets '),
+                             ('diff', 'different species', 'and of different species '))
+    for k, pool in ((0, 'selected'), (1, 'random'))
+] + [
+    dict(id='F4.b.pmax', figure='Fig. 4b', what='largest P of the three pair classes (selected vs random)',
+         prefix='(each P ≤ ', source=dict(compute=lambda src: float(src.sheet(F4, 'b_pair_class_p')
+                                                                   ['p_selected_vs_random'].max()), file=F4),
+         tol=0.0005, producer=(SEL, 'heldout', 'p_cls = np.array')),
+    # Supp. Fig. 11b: raw species gap
+    dict(id='S11b.gap.sel', figure='Supp. Fig. 11b', what='raw species gap, selected runs',
+         prefix='than for 10 random runs per dataset (', source=dict(file=S11, sheet='b_species_gap_raw',
+                                                                   column='gap', where=dict(pool='selected')),
+         producer=(SEL, 'raw_gap_table', 'gap=[')),
+    dict(id='S11b.gap.rand', figure='Supp. Fig. 11b', what='raw species gap, random draws (median)',
+         prefix='than for 10 random runs per dataset (', k=1,
+         source=_random_median(S11, 'b_species_gap_raw', 'gap'), producer=(SEL, 'raw_gap_table', 'gap=[')),
+    dict(id='S11b.gap.p', figure='Supp. Fig. 11b', what='raw species gap, selected vs random P',
+         prefix='than for 10 random runs per dataset (', k=2,
+         source=dict(file=S11, sheet='b_species_gap_raw', column='p_selected_vs_random', where=dict(pool='selected')),
+         producer=(SEL, 'species_signal', 'p_vs_random=float((1 + np.sum(rr')),
+    # Fig. 4d: species identity (residual profiles)
+    dict(id='F4.d.sel', figure='Fig. 4d', what='species gap after removal of the common profile, selected runs',
+         prefix='same-species minus different-species correlation ', source=f4('d_species_signal', 'gap', pool='selected'),
+         producer=(PSTATS, 'figure4', 'd_species_signal=')),
+    dict(id='F4.d.p', figure='Fig. 4d', what='species gap, selected runs, label-permutation P',
+         prefix='permutation of the species labels, P = ',
+         source=f4('d_species_signal', 'p_label_permutation', pool='selected'), producer=(PSTATS, 'figure4', 'd_species_signal=')),
+    dict(id='F4.d.rand', figure='Fig. 4d', what='species gap, random draws (median)',
+         prefix='comparable to that of random runs (median ', source=_random_median(F4, 'd_species_signal', 'gap'),
+         producer=(PSTATS, 'figure4', 'd_species_signal=')),
+    dict(id='F4.d.pvs', figure='Fig. 4d', what='species gap, selected vs random P',
+         prefix='comparable to that of random runs (median ', k=1,
+         source=_share_random_ge_selected(F4, 'd_species_signal', 'gap'), producer=(SEL, 'species_signal', 'p_vs_random=float(')),
+    # Supp. Fig. 13c: units kept per state
+    dict(id='S13c.marmoset.awake', figure='Supp. Fig. 13c', what='Marmoset_Hori: units kept awake',
+         prefix='(marmoset: ', source=dict(file=S13, sheet='c_kept_by_state', column='kept_awake',
+                                           where=dict(label='Marmoset_Hori')), producer=(PSTATS, '_kept_by_state', 'kept_awake=ka')),
+    dict(id='S13c.marmoset.anaesth', figure='Supp. Fig. 13c', what='Marmoset_Hori: units kept anaesthetised',
+         prefix='(marmoset: ', k=1, source=dict(file=S13, sheet='c_kept_by_state', column='kept_anaesthetised',
+                                                where=dict(label='Marmoset_Hori')), producer=(PSTATS, '_kept_by_state', 'kept_anaesthetised=kn')),
+    # Fig. 4e: phylogenetic gradient
+    dict(id='F4.e.all.rho', figure='Fig. 4e', what='Spearman Mantel rho, all runs (raw profiles)',
+         prefix='Spearman Mantel ρ = ', source=f4('e_phylo_mantel', 'rho', profiles='raw', pool='all runs'),
+         producer=(PSTATS, 'figure4', 'e_phylo_mantel=')),
+    dict(id='F4.e.all.p', figure='Fig. 4e', what='Mantel P, all runs', prefix='Spearman Mantel ρ = ', k=1,
+         source=f4('e_phylo_mantel', 'p', profiles='raw', pool='all runs'), producer=(PSTATS, 'figure4', 'e_phylo_mantel=')),
+    dict(id='F4.e.rand.rho', figure='Fig. 4e', what='Mantel rho, random draws (median)',
+         prefix='nor with 10 random runs per dataset (median ρ = ',
+         source=_random_median(F4, 'e_phylo_mantel', 'rho', profiles='raw'), producer=(PSTATS, 'figure4', 'e_phylo_mantel=')),
+    dict(id='F4.e.sel.rho', figure='Fig. 4e', what='Mantel rho, selected runs', prefix='With the selected runs, ρ was ',
+         source=f4('e_phylo_mantel', 'rho', profiles='raw', pool='selected'), producer=(PSTATS, 'figure4', 'e_phylo_mantel=')),
+    dict(id='F4.e.pvs', figure='Fig. 4e', what='Mantel rho, selected vs random P',
+         prefix='share of random draws at least as large, P = ',
+         source=_share_random_ge_selected(F4, 'e_phylo_mantel', 'rho', profiles='raw'),
+         producer=(SEL, 'species_signal', "p_vs_random=float((1 + np.sum(rr >= m_sel[k][0]")),
+    dict(id='F4.e.delta', figure='Fig. 4e', what='delta rho selected - all runs', prefix='Δρ = ',
+         source=f4('e_phylo_delta', 'delta', profiles='raw'), producer=(SEL, 'mantel_delta', 'delta = rho(Ds, ident)')),
+    dict(id='F4.e.delta.p', figure='Fig. 4e', what='delta rho, one-sided P (shared permutation)', prefix='Δρ = ', k=1,
+         source=f4('e_phylo_delta', 'p', profiles='raw'), producer=(SEL, 'mantel_delta', 'p=float(np.mean(null')),
+    dict(id='F4.e.ho.sel', figure='Fig. 4e', what='held-out Mantel rho, selected (mean over splits)',
+         prefix='the gain held on held-out regional values (', source=f4('e_phylo_heldout', 'rho', pool='selected'),
+         producer=(SEL, 'phylo_heldout', 'selected=')),
+    dict(id='F4.e.ho.rand', figure='Fig. 4e', what='held-out Mantel rho, random (median)',
+         prefix='the gain held on held-out regional values (', k=1,
+         source=_random_median(F4, 'e_phylo_heldout', 'rho'), producer=(SEL, 'phylo_heldout', 'random=')),
+    dict(id='F4.e.ho.p', figure='Fig. 4e', what='held-out Mantel, selected vs random P',
+         prefix='the gain held on held-out regional values (', k=2,
+         source=f4('e_phylo_heldout', 'p', pool='selected'), producer=(SEL, 'phylo_heldout', 'p=')),
+    dict(id='F4.e.sel.p', figure='Fig. 4e', what='Mantel P of the selected runs against zero', prefix='(Mantel P = ',
+         source=f4('e_phylo_mantel', 'p', profiles='raw', pool='selected'), producer=(PSTATS, 'figure4', 'e_phylo_mantel=')),
+
+    # ═════════════ Fig. 6 -- FDG (V5 text; update the prefixes with the paragraph)
+    dict(id='F6.n.merida', figure='Fig. 6', what='BIDS_Merida subjects with every region', prefix='BIDS_Merida, n = ',
+         source=f6_n('Human_Merida'), producer=(PETD, 'dataset_matrix', "pivot_table(index=['dataset', 'subject']")),
+    dict(id='F6.n.castrillon', figure='Fig. 6', what='BIDS_Castrillon subjects with every region',
+         prefix='BIDS_Castrillon, n = ', source=f6_n('Human_Castrillon'),
+         producer=(PETD, 'dataset_matrix', "pivot_table(index=['dataset', 'subject']")),
+    dict(id='F6.n.tremblay', figure='Fig. 6', what='BIDS_Tremblay macaques', prefix='BIDS_Tremblay, n = ',
+         source=f6_n('Macaque_Tremblay'), producer=(PETD, 'dataset_matrix', "pivot_table(index=['dataset', 'subject']")),
+    dict(id='F6.b.r', figure='Fig. 6b', what='human datasets agreement, Pearson r of the regional means',
+         prefix='agreed closely (Pearson r = ', source=dict(file=F6, sheet='C_agreement', column='pearson_r', where={}),
+         producer=(PETD, 'agreement', "'pearson_r'")),
+    dict(id='F6.b.ccc', figure='Fig. 6b', what="human datasets agreement, Lin's CCC",
+         prefix="Lin's concordance correlation coefficient = ",
+         source=dict(file=F6, sheet='C_agreement', column='lin_ccc', where={}), producer=(PETD, 'agreement', "'lin_ccc'")),
+    dict(id='F6.g.vol', figure='Fig. 6g', what='cross-species Spearman r, volume profile',
+         prefix='cross-species Spearman r of the mean profiles: volume ', source=f6_cons('morphometry'),
+         producer=(A + 'library/multimodal_profiles.py', 'summary_stats', 'conservation')),
+    dict(id='F6.g.fc', figure='Fig. 6g', what='cross-species Spearman r, positive coupling profile',
+         prefix='cross-species Spearman r of the mean profiles: volume ', k=1, source=f6_cons('pos'),
+         producer=(A + 'library/multimodal_profiles.py', 'summary_stats', 'conservation')),
+    dict(id='F6.g.fdg', figure='Fig. 6g', what='cross-species Spearman r, FDG profile',
+         prefix='cross-species Spearman r of the mean profiles: volume ', k=2, source=f6_cons('metabolism'),
+         producer=(A + 'library/multimodal_profiles.py', 'summary_stats', 'conservation')),
 ]
 
 
@@ -352,4 +512,31 @@ METHODS = [
          kind='contains', file=FS, func='fs_measures', snippet="f'{h}.thickness'", expected="f'{h}.thickness'",
          note='FreeSurfer thickness = ?h.thickness (Fischl & Dale 2000)'),
     dict(id='M.s15.boot', quote='2,000 resamples of subjects', kind='constant', file=ABL, name='N_BOOT', expected=2000),
+    # run selection (Fig. 4)
+    dict(id='M.sel.nselect', quote='the 10 best are kept in each dataset', kind='contains', file=CFG_SEL, func=None,
+         snippet='N_SELECT=10,', expected='N_SELECT=10,'),
+    dict(id='M.sel.rounds', quote='for ten rounds', kind='contains', file=CFG_SEL, func=None,
+         snippet='N_ITERATIVE_ROUNDS=10,', expected='N_ITERATIVE_ROUNDS=10,'),
+    dict(id='M.sel.invariance', quote='26 of 32 regional values on which species agree most', kind='contains',
+         file=CFG_SEL, func=None, snippet='INVARIANCE_VALUE=0.8,', expected='INVARIANCE_VALUE=0.8,',
+         note='26 of 32 = the 80 % most invariant values'),
+    dict(id='M.sel.scale', quote='divided by its root-mean-square, without centring', kind='contains', file=CFG_SEL,
+         func=None, snippet='ZSCORE="scale"', expected='ZSCORE="scale"'),
+    dict(id='M.sel.loso', quote='leave-one-species-out', kind='contains', file=CFG_SEL, func=None,
+         snippet='LEAVE_ONE_OUT=True,', expected='LEAVE_ONE_OUT=True,'),
+    dict(id='M.sel.splits', quote='In each of 50 random splits', kind='constant', file=SEL, name='N_SPLITS', expected=50),
+    dict(id='M.sel.draws', quote='against 200 draws of 10 runs', kind='constant', file=SEL, name='N_DRAWS', expected=200),
+    # FDG (Fig. 6)
+    dict(id='M.pet.minvox', quote='regions with fewer than 10 PET voxels', kind='constant', file=MMF, name='MIN_VOXELS',
+         expected=10),
+    dict(id='M.pet.perm', quote='10,000 permutations; Hedges', kind='contains', file=MMF, func=None,
+         snippet="TEST, N_PERM, ALPHA = 'permutation', 10000, 0.05", expected="TEST, N_PERM, ALPHA = 'permutation', 10000, 0.05"),
+    dict(id='M.pet.boot', quote='5,000 bootstrap resamples of the subjects', kind='default', file=PETD, func='agreement',
+         arg='n_boot', expected=5000),
+    dict(id='M.pet.castrillon.window', quote='mean of the frames 20–45 min after injection', kind='contains',
+         file='Exemples/Study_EDNiX/Launcher_pet/Launcher_fdg_Castrillon.py', func=None,
+         snippet='SUV_window = [20, 45]', expected='SUV_window = [20, 45]'),
+    dict(id='M.pet.tremblay.window', quote='dynamic acquisition under propofol, mean of all frames', kind='contains',
+         file='Exemples/Study_EDNiX/Launcher_pet/Launcher_fdg_Macaque_imagina.py', func=None,
+         snippet='SUV_window = None', expected='SUV_window = None'),
 ]

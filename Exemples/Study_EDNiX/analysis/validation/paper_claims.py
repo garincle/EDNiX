@@ -235,9 +235,12 @@ def _source(rel):
 
 def code_line(rel, func, key=None):
     """'file:line' of `key` inside function `func` of file `rel` (function line if key is
-    None); None if the function or the key is not found."""
+    None; anywhere in the file if func is None); None if the function or the key is not found."""
     text, tree = _source(rel)
     lines = text.splitlines()
+    if func is None:                                    # anywhere in the file (module level, config dicts)
+        hit = next((k for k, ln in enumerate(lines, 1) if key is not None and key in ln), None)
+        return f'{rel}:{hit}' if hit else None
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == func:
             if key is None:
