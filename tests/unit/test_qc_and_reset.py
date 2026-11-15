@@ -234,12 +234,13 @@ def test_run_all_ednix_splits_launchers_by_subject(tmp_path):
     # the stage variable reaches the worker
     out.unlink()
     stamp = tmp_path / 'stage.txt'
-    launcher.write_text(launcher.read_text() + f"import os; open({str(stamp)!r}, 'a').write(os.environ.get('EDNIX_ANAT_STAGES', '') + '\\n')\n")
+    launcher.write_text(launcher.read_text() + f"import os, tempfile; open({str(stamp)!r}, 'a').write(os.environ.get('EDNIX_ANAT_STAGES', '') + '\\n'); assert tempfile.gettempdir().startswith({str(tmp_path)!r})\n")
     A2 = dict(R.parse_launcher(launcher, 'anat'), template=True)
     jobs = R.make_jobs([A2], tmp_path)
     R.PYTHON = sys.executable
     res = R.run_graph(jobs, R.dependencies(jobs), tmp_path)
     assert all(r['status'] == 'done' for r in res.values())
+    assert not list((tmp_path / 'tmp').glob('*')) if (tmp_path / 'tmp').exists() else True   # per-job TMPDIR removed
     got = stamp.read_text().split()
     assert got[0] == 'loop1,create' and got[1:4] == ['loop2'] * 3 and got[4] == 'use' and got[5:] == ['loop3'] * 3
 
