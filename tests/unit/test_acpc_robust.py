@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import ants
-import pytest
 from modalities.anat import norm2template as N
 
 
