@@ -303,13 +303,31 @@ def sba_tables(c, species, which='selected', index='tails'):
 
 
 # ================================================================================================= metabolism
-def metabolism_table(sources, atlas, level, desc=('bratio', 'bratio-mean'), min_voxels=10):
+def keep_sessions(df, rule):
+    """Sessions of one dataset kept before any averaging. rule: None (all), 'first' / 'last' (earliest / latest session
+    label of each subject; BIDS sessions named by date, ses-YYYYMMDD, sort chronologically) or a list of session
+    labels. A subject without a matching session is dropped."""
+    if rule is None:
+        return df
+    ses = df['session'].astype(str)
+    if rule in ('first', 'last'):
+        pick = ses.groupby(df['subject'].astype(str)).transform('min' if rule == 'first' else 'max')
+        return df[ses == pick]
+    return df[ses.isin([str(x) for x in rule])]
+
+
+def metabolism_table(sources, atlas, level, desc=('bratio', 'bratio-mean'), min_voxels=10, session_rule=None):
     """sources: {species: bids_dir or [bids_dir, ...]}. Long table species, subject, region, value (bratio);
-    regions with < min_voxels valid voxels in one hemisphere label of a subject are set to NaN for that subject."""
+    regions with < min_voxels valid voxels in one hemisphere label of a subject are set to NaN for that subject.
+    session_rule: {BIDS folder name: rule of keep_sessions} applied before the sessions of a subject are averaged."""
     rows = []
+    session_rule = session_rule or {}
     for sp, dirs in sources.items():
         for bd in _as_list(dirs):
             df = PIRP.collect({sp: bd}, atlas, level - 1, desc)
+            if 'session' in df:
+                df['session'] = df['session'].fillna('1')
+                df = keep_sessions(df, session_rule.get(opb(os.path.normpath(bd))))
             sub = PIRP.subject_level(df, 'merge')
             sub.loc[sub['min_label_voxels'] < min_voxels, 'value'] = np.nan
             sub['region'] = sub['region_key'].map(region_key)
@@ -333,7 +351,7 @@ def collect_modalities(cfg):
                              cfg.get('FC_STRENGTH', 'positive'))
     if src.get('metabolism'):
         out['metabolism'] = metabolism_table(src['metabolism'], cfg['ATLAS'], cfg['LEVEL'], cfg['DESC'],
-                                             cfg.get('MIN_VOXELS', 10))
+                                             cfg.get('MIN_VOXELS', 10), cfg.get('SESSION_RULE_BIDS'))
     for k, v in out.items():
         v.insert(0, 'modality', k)
     return out

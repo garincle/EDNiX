@@ -34,6 +34,8 @@ import glob
 import textwrap
 
 opj = os.path.join
+opb = os.path.basename
+opd = os.path.dirname
 MAIN_PATH = '/home/cgarin/PycharmProjects/EDNiX/'
 sys.path.insert(1, MAIN_PATH)
 
@@ -68,7 +70,11 @@ PET_DATASETS = [
     ('Human_Merida', 'Human', '/scratch2/EDNiX/Human/BIDS_Merida'),
     ('Human_Castrillon', 'Human', '/scratch2/EDNiX/Human/BIDS_Castrillon'),
     ('Macaque_Tremblay', 'Macaque', '/scratch2/EDNiX/Macaque/BIDS_Tremblay'),
+    ('Macaque_Garin', 'Macaque', '/scratch2/EDNiX/Macaque/BIDS_Macaque_FDG_Garin'),
 ]
+SESSION_RULE = {'Macaque_Garin': 'first'}   # sessions kept before averaging: BIDS_Macaque_FDG_Garin = basal-forebrain
+                                            # stimulation study (Pennington et al.), the later sessions follow electrode
+                                            # implantation / stimulation -> baseline (earliest ses-YYYYMMDD) only
 REFERENCE_SPECIES = 'Macaque'               # stars of e: each human dataset vs the datasets of this species pooled;
                                             # f: this species - the other one
 POOLED = 'Macaque (pooled)'                 # label of the pooled reference in the tables
@@ -90,7 +96,7 @@ SOURCES = {
     },
     'metabolism': {                         # d: the two human FDG datasets pooled (first = map of fig6_energetic_cost)
         'Human': ['/scratch2/EDNiX/Human/BIDS_Merida', '/scratch2/EDNiX/Human/BIDS_Castrillon'],
-        'Macaque': ['/scratch2/EDNiX/Macaque/BIDS_Tremblay'],
+        'Macaque': ['/scratch2/EDNiX/Macaque/BIDS_Tremblay', '/scratch2/EDNiX/Macaque/BIDS_Macaque_FDG_Garin'],
     },
 }
 FIT_KIND = 'correlation'
@@ -153,6 +159,19 @@ def human_datasets():
 
 
 # ═════════════════════════════════════════════════════════════════════════════════════════════════ panel a
+def session_keep_list(label, bids):
+    """(subject, session) tuples of the sessions kept by SESSION_RULE[label] (None: every session), from the
+    sub-*/ses-* folders of the BIDS directory; the same rule as PD.keep_sessions for the regional tables."""
+    rule = SESSION_RULE.get(label)
+    if rule is None:
+        return None
+    ses = pd.DataFrame([dict(subject=opb(opd(d))[4:], session=opb(d)[4:])
+                        for d in sorted(glob.glob(opj(bids, 'sub-*', 'ses-*'))) if os.path.isdir(d)],
+                       columns=['subject', 'session'])
+    ses = PD.keep_sessions(ses, rule)
+    return list(ses.itertuples(index=False, name=None))
+
+
 def _group_mean(label, sp, bids):
     from Statistics.Group_PET import pet_group
     atlas_ednix = opj(ATLAS_LIB, SPECIES_FRAGMENT[sp], 'EDNiX')
@@ -160,11 +179,13 @@ def _group_mean(label, sp, bids):
         return pet_group.run_group_mean(
             bids, SURFACE_TEMPLATE, 'bratio', rel_threshold=0,
             tissue_mask=opj(atlas_ednix, 'volumes', 'masks', sp + '_desc-Whole_Brain_Gray_mask.nii.gz'),
-            background=opj(atlas_ednix, 'volumes', sp + '_space-acpc_desc-SS_T1w.nii.gz'))
-    found = sorted(glob.glob(opj(bids, 'Results', 'Grp_PET_mean_desc-bratio*', 'group-all_mean.nii.gz')))
+            background=opj(atlas_ednix, 'volumes', sp + '_space-acpc_desc-SS_T1w.nii.gz'),
+            list_to_keep=session_keep_list(label, bids),
+            output_suffix=f'ses-{SESSION_RULE[label]}' if label in SESSION_RULE else None)
+    pat = f'Grp_PET_mean_desc-bratio*ses-{SESSION_RULE[label]}*' if label in SESSION_RULE else 'Grp_PET_mean_desc-bratio*'
+    found = sorted(glob.glob(opj(bids, 'Results', pat, 'group-all_mean.nii.gz')))
     if not found:
-        raise FileNotFoundError(f'{label}: no Results/Grp_PET_mean_desc-bratio*/group-all_mean.nii.gz '
-                                f'(RUN_SURFACES = True the first time)')
+        raise FileNotFoundError(f'{label}: no Results/{pat}/group-all_mean.nii.gz (RUN_SURFACES = True the first time)')
     out = os.path.dirname(found[0])
     return {'output_dir': out, 'maps': {'mean_all': found[0]}}
 
@@ -290,8 +311,8 @@ def pet_dataset_stats(regions=None):
       species_diff  macaque - human per region (dataset means averaged within species): f
       pairs / ptest   pairwise subject-profile similarity and the label-permutation test (one session per subject)
       sessions   the session used for every subject in the pair classes."""
-    df = PD.dataset_table(PET_DATASETS, ATLAS, LEVEL, DESC, MIN_VOXELS, sessions=False)
-    dfs = PD.dataset_table(PET_DATASETS, ATLAS, LEVEL, DESC, MIN_VOXELS, sessions=True)
+    df = PD.dataset_table(PET_DATASETS, ATLAS, LEVEL, DESC, MIN_VOXELS, sessions=False, session_rule=SESSION_RULE)
+    dfs = PD.dataset_table(PET_DATASETS, ATLAS, LEVEL, DESC, MIN_VOXELS, sessions=True, session_rule=SESSION_RULE)
     labels = [l_ for l_, _, _ in PET_DATASETS]
     if regions is None:
         regions = select_regions({'metabolism': df})
@@ -817,7 +838,9 @@ def figure6_stats(fmri=None):
     and cross-species Spearman r). `fmri` = Inputs().fmri (or its result): needed for FC_SOURCE = 'sba' (the runs kept
     by the Figure 4 selection)."""
     cfg = dict(SOURCES=SOURCES, ATLAS=ATLAS, LEVEL=LEVEL, ATLAS_LIB=ATLAS_LIB, DESC=DESC, FIT_KIND=FIT_KIND,
-               FC_STRENGTH=FC_STRENGTH, MIN_VOXELS=MIN_VOXELS)
+               FC_STRENGTH=FC_STRENGTH, MIN_VOXELS=MIN_VOXELS,
+               SESSION_RULE_BIDS={os.path.basename(os.path.normpath(bd)): SESSION_RULE[lab]
+                                  for lab, _, bd in PET_DATASETS if lab in SESSION_RULE})
     tables = MP.collect_modalities(cfg)
     if FC_SOURCE == 'sba':
         if fmri is None:

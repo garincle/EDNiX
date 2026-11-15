@@ -102,3 +102,29 @@ def test_paint_regions(tmp_path):
                            mask=np.array([True, True, True, False]).reshape(4, 1, 1))
     v = np.asarray(img.dataobj).ravel()
     assert np.allclose(v, [0.2, 0.2, -0.1, 0.0])
+
+
+def test_session_rule_keeps_baseline_only(datasets):
+    """SESSION_RULE 'first': only the earliest session of each subject enters the subject mean (baseline of an
+    intervention study); 'last' and an explicit list select the others."""
+    lab = 'Human_Castrillon'                      # sessions 'closed' < 'open' in label order
+    all_ = PD.dataset_table(datasets, 'EDNIxCSCLR', 2, sessions=True)
+    first = PD.dataset_table(datasets, 'EDNIxCSCLR', 2, session_rule={lab: 'first'})
+    c = all_[(all_.dataset == lab) & (all_.region == 'Occipital_lobe')]
+    f = first[(first.dataset == lab) & (first.region == 'Occipital_lobe')].set_index('subject')['value']
+    closed = c[c.session == 'closed'].set_index('subject')['value']
+    assert np.allclose(f.sort_index(), closed.sort_index())
+    last = PD.dataset_table(datasets, 'EDNIxCSCLR', 2, sessions=True, session_rule={lab: 'last'})
+    assert set(last[last.dataset == lab].session) == {'open'}
+    lst = PD.dataset_table(datasets, 'EDNIxCSCLR', 2, sessions=True, session_rule={lab: ['open']})
+    assert set(lst[lst.dataset == lab].session) == {'open'}
+    # other datasets untouched
+    assert first[first.dataset == 'Human_Merida'].subject.nunique() == 8
+
+
+def test_keep_sessions_by_date():
+    df = pd.DataFrame(dict(subject=['Flipper', 'Flipper', 'Cal', 'Olvia', 'Olvia'],
+                           session=['20210510', '20220301', '20210601', '20220115', '20210420']))
+    out = PD.keep_sessions(df, 'first')
+    assert sorted(map(tuple, out[['subject', 'session']].values)) == [
+        ('Cal', '20210601'), ('Flipper', '20210510'), ('Olvia', '20210420')]

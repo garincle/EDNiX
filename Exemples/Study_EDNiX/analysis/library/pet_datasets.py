@@ -1,9 +1,11 @@
 """
-FDG-PET at the level of the DATASET (Figure 6 a-c): two human datasets (CERMEP / Merida, static 10-min frame; Castrillon,
-dynamic simultaneous PET/MR, late frames 20-45 min) and one macaque dataset (Tremblay), on the regions of the EDNiX atlas.
+FDG-PET at the level of the DATASET (Figure 6): two human datasets (CERMEP / Merida, static 10-min frame; Castrillon,
+dynamic simultaneous PET/MR, late frames 20-45 min) and two macaque datasets (Tremblay, propofol; Garin, Vanderbilt,
+ketamine/isoflurane, baseline session only), on the regions of the EDNiX atlas.
 
   dataset_table()          long table dataset, species, subject, session, region, value (bratio), one row per session
-                           (session=None: sessions of a subject averaged, the unit of the group maps of panel a)
+                           (session=None: sessions of a subject averaged, the unit of the group maps of panel a);
+                           session_rule keeps e.g. the first (baseline) session of a dataset (keep_sessions)
   dataset_matrix()         wide table index (dataset, subject), columns regions
   compare_to_reference()   region-wise difference of every dataset with the reference dataset (macaque), permutation
                            test, BH-FDR within each dataset (PIRP.compare_species)
@@ -34,13 +36,20 @@ opb = os.path.basename
 SEP = '|'                                       # subject|session key used to keep sessions apart in PIRP.subject_level
 
 
-def dataset_table(datasets, atlas, level, desc=('bratio', 'bratio-mean'), min_voxels=10, sessions=False):
+keep_sessions = MP.keep_sessions
+
+
+def dataset_table(datasets, atlas, level, desc=('bratio', 'bratio-mean'), min_voxels=10, sessions=False,
+                  session_rule=None):
     """datasets: [(label, species, bids_dir), ...]. Long table dataset, species, subject, session, region, value.
-    sessions=False: one row per subject (sessions averaged, as pet_group.run_group_mean); True: one row per session."""
+    sessions=False: one row per subject (sessions averaged, as pet_group.run_group_mean); True: one row per session.
+    session_rule: {label: rule of keep_sessions} applied first (e.g. baseline session only of an intervention study)."""
     rows = []
+    session_rule = session_rule or {}
     for label, sp, bd in datasets:
         df = PIRP.collect({label: bd}, atlas, level - 1, desc)
         df['session'] = df['session'].fillna('1')
+        df = keep_sessions(df, session_rule.get(label))
         if sessions:
             df['subject'] = df['subject'].astype(str) + SEP + df['session'].astype(str)
         sub = PIRP.subject_level(df, 'merge')
