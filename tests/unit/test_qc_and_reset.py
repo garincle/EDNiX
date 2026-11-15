@@ -206,6 +206,13 @@ def test_run_all_ednix_splits_launchers_by_subject(tmp_path):
     P = dict(L, kind='pet', name='Launcher_pet_X')
     jobs = [dict(launcher=L), dict(launcher=F), dict(launcher=P)]
     assert R.dependencies(jobs) == {0: set(), 1: {0}, 2: {0}}
+    # a launcher that does not pass its subject lists to the pipeline is never split
+    bad = tmp_path / 'Launcher_func_Bad.py'
+    bad.write_text(launcher.read_text() + "f(list_to_keep=[], list_to_remove=list_to_remove)\n")
+    assert R.parse_launcher(bad, 'func')['insert_line'] is None
+    good = tmp_path / 'Launcher_func_Good.py'
+    good.write_text(launcher.read_text() + "f(list_to_keep=list_to_keep, list_to_remove=list_to_remove)\n")
+    assert R.parse_launcher(good, 'func')['insert_line'] is not None
     # a PET / CT study template keeps the launcher in one process
     T = dict(L, template=True, kind='pet')
     assert len(R.make_jobs([T], tmp_path)) == 1
