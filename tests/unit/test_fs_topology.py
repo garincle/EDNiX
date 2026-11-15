@@ -36,3 +36,19 @@ def test_topology_raises_when_no_seed_works(tmp_path, monkeypatch):
         assert 'not manifold' in str(e)
     else:
         raise AssertionError('no error raised')
+
+
+def test_anat_reference_and_loop1_skip(monkeypatch):
+    from modalities.anat import _0_Pipeline_launcher as P
+    default = ['x', '1', '/b/sub-x/ses-1']
+    monkeypatch.delenv('EDNIX_ANAT_REF', raising=False)
+    assert P._anat_ref('/b', default) == default
+    monkeypatch.setenv('EDNIX_ANAT_REF', 'a|2')
+    assert P._anat_ref('/b', default) == ['a', '2', '/b/sub-a/ses-2']
+    stages = {'loop1'}
+    items = [('a', '2', 'p1'), ('a', 1, 'p2'), ('b', '2', 'p3')]
+    monkeypatch.setenv('EDNIX_ANAT_LOOP1_SKIP', 'a|2')
+    assert P._loop1_items(stages, items) == items[1:]
+    monkeypatch.delenv('EDNIX_ANAT_LOOP1_SKIP')
+    assert P._loop1_items(stages, items) == items
+    assert P._loop1_items({'loop2'}, items) == []

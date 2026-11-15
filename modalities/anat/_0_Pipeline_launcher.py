@@ -35,6 +35,24 @@ def _anat_stages():
     return got or {'loop1', 'create', 'loop2', 'use', 'loop3'}
 
 
+def _anat_ref(bids_dir, default):
+    """[ID, Session, data_path] of the session that sets the resolution / orientation of loop1 (BASE_SS_anat_res).
+    EDNIX_ANAT_REF='ID|Session' (set by run_all_ednix) gives every subject worker of a launcher the same reference;
+    unset = first session of the list, as in a single-process run."""
+    ref = os.environ.get('EDNIX_ANAT_REF', '')
+    if not ref:
+        return default
+    rid, rses = ref.split('|')
+    return [rid, rses, opj(bids_dir, 'sub-' + rid, 'ses-' + rses)]
+
+
+def _loop1_items(anat_stages, items):
+    """loop1 sessions; the reference session is left out when its loop1 was already run by the reference job
+    (EDNIX_ANAT_LOOP1_SKIP='ID|Session'), so that no worker rewrites the reference images the others read"""
+    skip = os.environ.get('EDNIX_ANAT_LOOP1_SKIP', '')
+    return [it for it in _stage_items('loop1', anat_stages, items) if '|'.join(map(str, it[:2])) != skip]
+
+
 def _stage_items(stage, anat_stages, items):
     """the items of a stage that runs, nothing for a skipped stage"""
     return list(items) if stage in anat_stages else []
@@ -168,7 +186,7 @@ def preprocess_anat(Skip_step,
 
     BASE_SS_coregistr = BASE_SS
     BASE_SS_mask      = BASE_mask
-    anat_ref_path = [all_ID[0], all_Session[0], all_data_path[0]]
+    anat_ref_path = _anat_ref(bids_dir, [all_ID[0], all_Session[0], all_data_path[0]])
     # for study template
 
     study_template_atlas_folder = opj(bids_dir, 'sty_template')
@@ -190,7 +208,7 @@ def preprocess_anat(Skip_step,
     anat_stages = _anat_stages()
     print('[EDNiX] anat stages: ' + ','.join(sorted(anat_stages)))
 
-    for ID, Session, data_path, in _stage_items('loop1', anat_stages, zip(all_ID, all_Session, all_data_path)):
+    for ID, Session, data_path, in _loop1_items(anat_stages, zip(all_ID, all_Session, all_data_path)):
         ### warning change data_path
         _loop1.run(ID, Session, data_path, data_path,BIDStype, listTimage,otheranat, listTimage_orig, type_norm, orientation,IgotbothT1T2, force_myelin_same_space,
                    Align_img_to_template, list_transfo,masking_img,brain_skullstrip_1, anat_ref_path,

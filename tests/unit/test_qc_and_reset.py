@@ -196,8 +196,12 @@ def test_run_all_ednix_splits_launchers_by_subject(tmp_path):
     L = R.parse_launcher(launcher, 'anat')
     assert L['bids'] == str(bids) and L['remove'] == [('c', '2')] and not L['template']
     jobs = R.make_jobs([L], tmp_path)
-    assert len(jobs) == 3
-    for j in jobs:
+    # split anat: one reference job (loop1 of the first session) then 3 subject workers sharing that reference
+    assert len(jobs) == 4 and jobs[0].get('ref_job') and jobs[0]['pairs'] == [('a', '1')]
+    assert jobs[0]['env'] == {'EDNIX_ANAT_STAGES': 'loop1', 'EDNIX_ANAT_REF': 'a|1'}
+    assert all(j['env'] == {'EDNIX_ANAT_REF': 'a|1', 'EDNIX_ANAT_LOOP1_SKIP': 'a|1'} for j in jobs[1:])
+    assert R.dependencies(jobs) == {0: set(), 1: {0}, 2: {0}, 3: {0}}
+    for j in jobs[1:]:
         subprocess.run([sys.executable, j['script']], check=True)
     got = sorted(out.read_text().split('\n')[:-1])
     assert got == ["[('a', '1'), ('a', '2')]", "[('b', '1'), ('b', '2')]", "[('c', '1')]"]
