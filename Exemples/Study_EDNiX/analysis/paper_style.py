@@ -59,6 +59,7 @@ DATASETS = [
     ("Macaque", "BIDS_BenHamed", "Macaque_BenHamed"),
     ("Macaque", "BIDS_Zhu_Garin", "Macaque_ZhuGarin"),
     ("Macaque", "BIDS_Tremblay", "Macaque_Tremblay"),
+    ("Macaque", "BIDS_Macaque_FDG_Garin", "Macaque_Garin"),
     ("Human", "BIDS_Castrillon", "Human_Castrillon"),
     ("Human", "BIDS_Babayan", "Human_Babayan"),
     ("Human", "BIDS_Park", "Human_Park"),
