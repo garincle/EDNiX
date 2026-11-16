@@ -65,8 +65,36 @@ if [ -e "$VENV" ]; then
   echo "$VENV exists: remove it or choose another --venv (nothing changed)."; exit 1
 fi
 echo "[EDNiX] creating $VENV with $("$PY" -V 2>&1)"
-"$PY" -m venv "$VENV"
+# 1. venv with pip (needs ensurepip: package python3.X-venv on Debian/Ubuntu)
+# 2. else virtualenv, if this Python has it
+# 3. else venv without pip, then pip installed from its PyPI wheel (no root access needed)
 VPY="$VENV/bin/python"
+if "$PY" -m venv "$VENV"; then
+  echo "[EDNiX] venv created (venv + ensurepip)"
+else
+  rm -rf "$VENV"
+  echo "[EDNiX] '$PY -m venv' failed (ensurepip missing? python3.X-venv not installed): trying fallbacks"
+  if "$PY" -m virtualenv --version >/dev/null 2>&1 && "$PY" -m virtualenv -q "$VENV"; then
+    echo "[EDNiX] venv created with virtualenv"
+  else
+    rm -rf "$VENV"
+    "$PY" -m venv --without-pip "$VENV"
+    # pip wheel from PyPI (the host the install needs anyway); a wheel runs as a zip application
+    "$VPY" - "$VENV" <<'PYEOF' || { echo "cannot download pip from PyPI (no network?). Install python3-venv or virtualenv."; exit 1; }
+import json, os, sys, urllib.request
+venv = sys.argv[1]
+info = json.load(urllib.request.urlopen('https://pypi.org/pypi/pip/json', timeout=60))
+whl = next(f for f in info['urls'] if f['packagetype'] == 'bdist_wheel')
+path = os.path.join(venv, whl['filename'])
+urllib.request.urlretrieve(whl['url'], path)
+PYEOF
+    whl="$(ls "$VENV"/pip-*.whl)"
+    "$VPY" "$whl/pip" install --quiet --no-index "$whl"
+    rm -f "$whl"
+    echo "[EDNiX] venv created without ensurepip, pip installed from its PyPI wheel"
+  fi
+fi
+"$VPY" -m pip --version >/dev/null || { echo "no pip in $VENV"; exit 1; }
 "$VPY" -m pip install --quiet --upgrade pip
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
@@ -97,11 +125,13 @@ fi
 
 # ---------------------------------------------------------------- verification
 "$VPY" -m pip check
-"$VPY" - <<'EOF'
+EDNIX_REPO="$REPO" "$VPY" - <<'EOF'
 import importlib
-mods = ['numpy', 'scipy', 'pandas', 'openpyxl', 'joblib', 'tqdm', 'nibabel', 'nilearn', 'ants', 'nipype',
-        'nitransforms', 'bids', 'pydicom', 'skimage', 'sklearn', 'statsmodels', 'patsy', 'pygam', 'nitime',
-        'torch', 'matplotlib', 'seaborn', 'lxml']
+import os, sys
+sys.path.insert(0, os.path.join(os.environ['EDNIX_REPO'], 'Tools'))
+from check_requirements import IMPORT_TO_DIST, REPO, read_requirements, _norm
+dist_to_import = {_norm(d): m for m, d in IMPORT_TO_DIST.items()}
+mods = sorted(dist_to_import.get(d, d.replace('-', '_')) for d in read_requirements(REPO / 'requirements.txt'))
 bad = []
 for m in mods:
     try:

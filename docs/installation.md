@@ -23,6 +23,8 @@ source venvEDNiX/bin/activate
 
 Options of `Tools/setup_venv.sh`: `--cpu` (PyTorch without CUDA), `--dev` (pytest), `--venv DIR`,
 `--python python3.11`, `--unlocked` (newest versions allowed by `requirements.txt`, to test an upgrade).
+Without `python3.X-venv` (no `ensurepip`, common on Debian/Ubuntu without root access), the script falls back to
+`virtualenv` if available, else to a venv created `--without-pip` with pip installed from its PyPI wheel.
 The script checks the installation (`pip check`, import of every package, `Tools/check_requirements.py`)
 and writes the installed versions to `venvEDNiX/ednix-freeze.txt`.
 
