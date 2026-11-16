@@ -16,5 +16,7 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
-      - run: pip install -r requirements.txt pytest pytest-xdist
-      - run: pytest -n auto -p no:cacheprovider
+          cache-dependency-path: requirements-lock.txt
+      # the environment users get: exact versions of requirements-lock.txt (CPU build of torch)
+      - run: bash Tools/setup_venv.sh --cpu --dev --venv "$RUNNER_TEMP/venvEDNiX" --python python
+      - run: '"$RUNNER_TEMP/venvEDNiX/bin/python" -m pytest -n auto -p no:cacheprovider'

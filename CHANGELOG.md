@@ -1,5 +1,13 @@
 # Changelog
 
+## Reproducible Python environment, November 2026
+
+- `requirements.txt` now lists every third-party import of the code: added `torch` (U-Net skull-stripping `muSkullStrip_*`, run with the venv's `python3`, used by the Bat, Lemur and Macaque imagina launchers; `Tools/UNet_Model_training.py`), `nitransforms` (`modalities/fMRI/motion.py`) and `lxml` (`paper_claims.py`); `pybids` and `tqdm` removed (no longer imported after the release cleanup); compatible lower bounds for every package.
+- `requirements-lock.txt`: exact versions of all packages (direct and transitive). `Tools/setup_venv.sh` builds `venvEDNiX` from it (`--cpu`, `--dev`, `--unlocked`, `--venv`, `--python`), checks it (`pip check`, imports; works without `ensurepip`: falls back to virtualenv or to pip from its PyPI wheel) and, with `--freeze`, rewrites the lock from a validated venv.
+- `Tools/check_requirements.py` + `tests/unit/test_requirements.py`: AST scan of every import; fails when a package is missing from either file.
+- CI (`tests.yml`) installs the lock through `setup_venv.sh` instead of the unpinned `requirements.txt`.
+- `docs/installation.md`: setup, lock update, table of the programs outside pip.
+
 ## Public release cleanup, November 2026
 
 - Development residue removed (kept on branch `dev-archive` = master `b77008e`): every `Archives/` folder, `Exemples/Study_Zhu_Garin`, `EDNiX_orchestrator.py` (replaced by `run_all_ednix.py`), the quick-test launcher, `Launcher_anat_Macaque_imagina_custom.py` (byte-identical copy saved by the interface), calibration and diagnostic scripts of `analysis/validation`, unreferenced modules (`old_orient_correct`, `FS_modif`, `WB_nuclei`, `EDNiXpath`, `check_timing`, `WB_matrices`, `Clean_BIDS`, `add_atlas_to_spec`, `fille_atlases_whole`, `Plot_intespecies_surfaces`, `adapt_template.ipynb`, `_Group_anal_3dLME_dvt_SBA`), `docs/PET_CT_review_journal.md`. `*_custom.py` (launchers saved by the interface) is git-ignored.

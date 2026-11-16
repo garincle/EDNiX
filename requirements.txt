@@ -1,25 +1,43 @@
-# Python dependencies of EDNiX (imported by the pipeline, statistics and interface code).
-# Neuroimaging programs (AFNI, ANTs, FSL, FreeSurfer, Connectome Workbench, ITK-SNAP)
-# are provided by the Singularity containers, not by pip.
-# Versions are not pinned here: record the versions of your validated environment with
-#   pip freeze > requirements-lock.txt
-numpy
-scipy
-pandas
-openpyxl
-nibabel
-nilearn>=0.9        # nilearn.maskers
-antspyx             # import ants
-scikit-image        # import skimage
-scikit-learn        # import sklearn
-statsmodels
-patsy
-pygam
-matplotlib
-seaborn
-pybids              # import bids
-nipype
-nitime
-pydicom
-joblib
-tqdm
+# Python dependencies of EDNiX: every third-party module imported by the pipeline (modalities/, Tools/,
+# atlases/, Statistics/, GUI/) and by the paper scripts (Paper/).
+# Checked against the code by tests/unit/test_requirements.py (AST scan of every import).
+#
+# This file states compatible ranges. The exact, validated versions are in requirements-lock.txt:
+#   bash Tools/setup_venv.sh            builds the venv from requirements-lock.txt
+#   bash Tools/setup_venv.sh --unlocked builds it from this file (newest compatible versions)
+#
+# Neuroimaging programs (AFNI, ANTs, FSL, FreeSurfer, Connectome Workbench, ITK-SNAP, SynthStrip,
+# TPCCLIB) come from the Singularity/Apptainer images, not from pip (docs/installation.md).
+
+# --- core numerics / data
+numpy>=1.24
+scipy>=1.10
+pandas>=2.0
+openpyxl>=3.1          # engine of pandas read_excel / to_excel (not imported directly)
+joblib>=1.2
+
+# --- neuroimaging
+nibabel>=5.0
+nilearn>=0.10          # nilearn.maskers
+antspyx>=0.4.2         # import ants
+nipype>=1.8            # skull-strip / template helpers, PETPVC interface (modalities/pet/pvc.py)
+nitransforms>=23.0     # motion.py: ANTs/AFNI transform I/O
+pydicom>=2.4.5         # PET: isotope and scan start from DICOM (modalities/pet/dcmFile.py)
+
+# --- statistics
+scikit-image>=0.21     # import skimage
+scikit-learn>=1.5.0    # import sklearn
+statsmodels>=0.14
+patsy>=0.5
+pygam>=0.9
+nitime>=0.10           # fMRI QC spectra
+
+# --- deep learning: U-Net skull-stripping (muSkullStrip, run with this interpreter by
+#     modalities/anat/skullstrip/Unetmask.py and fMRI/Skullstrip_func.py) and its fine-tuning
+#     (Tools/UNet_Model_training.py)
+torch>=2.10            # >= 2.10: fixes of CVE-2025-32434 and CVE-2026-24747 (code execution on torch.load)
+
+# --- figures / reports
+matplotlib>=3.7
+seaborn>=0.13
+lxml>=6.1.0            # paper_claims.py (reads the manuscript .docx)
