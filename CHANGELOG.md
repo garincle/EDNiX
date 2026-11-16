@@ -1,5 +1,10 @@
 # Changelog
 
+## PyTorch build matched to the NVIDIA driver, November 2026
+
+- `Tools/setup_venv.sh --freeze` records the build of the frozen venv's torch in the lock (`# torch-index: https://download.pytorch.org/whl/cuXYZ`); the install takes torch from that index, so the CUDA build of the validated environment is reproduced instead of the default PyPI build (CUDA 13.2 for torch 2.15, unusable with a CUDA 12.0 driver such as gpu-07-01's: `torch.cuda.is_available()` False).
+- `--torch-index URL` to choose the torch build; warning at the end of the install when a GPU is present but torch cannot use it.
+
 ## Reproducible Python environment, November 2026
 
 - `requirements.txt` now lists every third-party import of the code: added `torch` (U-Net skull-stripping `muSkullStrip_*`, run with the venv's `python3`, used by the Bat, Lemur and Macaque imagina launchers; `Tools/UNet_Model_training.py`), `nitransforms` (`modalities/fMRI/motion.py`) and `lxml` (`paper_claims.py`); `pybids` and `tqdm` removed (no longer imported after the release cleanup); compatible lower bounds for every package.

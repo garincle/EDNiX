@@ -32,6 +32,12 @@ and writes the installed versions to `venvEDNiX/ednix-freeze.txt`.
 The U-Net skull-stripping (`muSkullStrip.py`, methods `muSkullStrip_*`) is run with the `python3` found on
 the `PATH`: activate the venv before running a launcher, so that it finds `torch`.
 
+**PyTorch and the NVIDIA driver.** A CUDA build of torch needs a driver supporting the same CUDA major version
+(`nvidia-smi`, "CUDA Version"). With an older driver (e.g. CUDA 12.0), a torch built for CUDA 13 imports but
+`torch.cuda.is_available()` is `False` and the U-Net runs on the CPU; the script prints a warning. `--freeze`
+records the build of the frozen torch in the lock (`# torch-index: https://download.pytorch.org/whl/cu121`), and
+the install takes torch from that index. `--torch-index URL` overrides it, `--cpu` installs the CPU build.
+
 After a change of environment that has been validated (tests + smoke test), update the lock from it:
 
 ```bash
