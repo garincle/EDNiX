@@ -220,21 +220,31 @@ def test_run_all_ednix_splits_launchers_by_subject(tmp_path):
     # a PET / CT study template keeps the launcher in one process
     T = dict(L, template=True, kind='pet')
     assert len(R.make_jobs([T], tmp_path)) == 1
-    # an anat study template is cut into chained stages A (1 job) -> B (3 workers) -> C (1 job) -> D (3 workers)
+    # an anat study template is cut into chained stages: A loop1 (reference job + 3 workers) -> A2 create (1 job)
+    # -> B loop2 (3 workers) -> C use (1 job) -> D loop3 (3 workers)
     A = dict(L, template=True)
     jobs = R.make_jobs([A], tmp_path)
-    assert [j['stage'] for j in jobs] == ['A', 'B', 'B', 'B', 'C', 'D', 'D', 'D']
-    assert [j['env']['EDNIX_ANAT_STAGES'] for j in jobs] == ['loop1,create'] + ['loop2'] * 3 + ['use'] + ['loop3'] * 3
-    assert jobs[0]['script'] == jobs[4]['script'] == L['path']           # A and C see all the subjects
-    assert sorted(p for j in jobs[1:4] for p in j['pairs']) == sorted(jobs[0]['pairs'])
+    assert [j['stage'] for j in jobs] == [None, 'A', 'A', 'A', 'A2', 'B', 'B', 'B', 'C', 'D', 'D', 'D']
+    assert jobs[0]['ref_job'] and all(j.get('needs_ref') for j in jobs[1:4])
+    assert [j['env']['EDNIX_ANAT_STAGES'] for j in jobs] == \
+        ['loop1'] * 4 + ['create'] + ['loop2'] * 3 + ['use'] + ['loop3'] * 3
+    ref = '|'.join(jobs[0]['pairs'][0])
+    assert all(j['env']['EDNIX_ANAT_REF'] == ref for j in jobs)
+    assert all(j['env']['EDNIX_ANAT_LOOP1_SKIP'] == ref for j in jobs[1:4])
+    assert 'EDNIX_ANAT_LOOP1_SKIP' not in jobs[4]['env']
+    assert jobs[4]['script'] == jobs[8]['script'] == L['path']           # A2 and C see all the subjects
+    assert sorted(p for j in jobs[1:4] for p in j['pairs']) == sorted(jobs[4]['pairs'])
     d = R.dependencies(jobs + [dict(launcher=F)])
-    assert d[0] == set() and d[1] == d[2] == d[3] == {0} and d[4] == {1, 2, 3} and d[5] == {4}
-    assert d[8] == set(range(8))                                         # the func waits for every anat stage
+    assert d[0] == set() and d[1] == d[2] == d[3] == {0} and d[4] == {1, 2, 3}
+    assert d[5] == d[6] == d[7] == {4} and d[8] == {5, 6, 7} and d[9] == {8}
+    assert d[12] == set(range(12))                                       # the func waits for every anat stage
     # --anat-from B: loop1 / template already done
     jobs = R.make_jobs([A], tmp_path, 'B')
     assert [j['stage'] for j in jobs] == ['B', 'B', 'B', 'C', 'D', 'D', 'D']
     d = R.dependencies(jobs)
     assert d[0] == set() and d[3] == {0, 1, 2}
+    # --anat-from A2: loop1 already done, the template is built
+    assert [j['stage'] for j in R.make_jobs([A], tmp_path, 'A2')][0] == 'A2'
     # the stage variable reaches the worker
     out.unlink()
     stamp = tmp_path / 'stage.txt'
@@ -246,7 +256,8 @@ def test_run_all_ednix_splits_launchers_by_subject(tmp_path):
     assert all(r['status'] == 'done' for r in res.values())
     assert not list((tmp_path / 'tmp').glob('*')) if (tmp_path / 'tmp').exists() else True   # per-job TMPDIR removed
     got = stamp.read_text().split()
-    assert got[0] == 'loop1,create' and got[1:4] == ['loop2'] * 3 and got[4] == 'use' and got[5:] == ['loop3'] * 3
+    assert got[:4] == ['loop1'] * 4 and got[4] == 'create' and got[5:8] == ['loop2'] * 3 and got[8] == 'use' \
+        and got[9:] == ['loop3'] * 3
 
 
 def test_build_library_V2_discovery_and_manifest(tmp_path, monkeypatch):
