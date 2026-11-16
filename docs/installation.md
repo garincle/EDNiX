@@ -43,6 +43,11 @@ CUDA 12.6, which runs with a driver supporting CUDA 12.0). This torch is older t
 `requirements.txt`, set for CVE-2025-32434 and CVE-2026-24747; both concern loading untrusted checkpoints, while
 EDNiX only loads its own U-Net models. `--unlocked` installs versions above the floor.
 
+`antspyx` is 0.4.2 in the lock. Three PET/CT registration tests (`test_ct_with_neck_and_shoulders_intracranial_start`,
+`test_pet_study_template_bridged_to_the_reference_3v2`, `test_ct_study_template_without_anatomy_2v2`) fail with
+0.4.2 and pass with 0.6.3: they are marked as expected failures when antspyx < 0.6. The CT intracranial start and
+the PET / CT study-template bridges are therefore validated with antspyx 0.6.3 only.
+
 After a change of environment that has been validated (tests + smoke test), update the lock from it:
 
 ```bash
