@@ -7,7 +7,7 @@
 1. Copy the `GUI` folder into the EDNiX folder (next to `modalities/`, `Tools/`...).
 2. In a terminal (a double-click on a `.sh` file often opens it in a text editor instead of running it):
 
-       bash /home/cgarin/PycharmProjects/EDNiX/GUI/install_shortcut.sh
+       bash <EDNiX folder>/GUI/install_shortcut.sh
 
    An EDNiX icon appears on the desktop and in the applications menu.
 3. Usually nothing else is needed: the launcher finds the Python of the EDNiX environment (venv in `~/PycharmProjects`, `<EDNiX>/venv`, conda environments). Otherwise set it in `ednix_gui.conf`: one line `EDNIX_PYTHON=/path/to/bin/python`, **without `#` in front**.
@@ -16,7 +16,7 @@
 
 Run it once from a terminal to see the messages:
 
-    bash /home/cgarin/PycharmProjects/EDNiX/GUI/launch_EDNiX_GUI.sh
+    bash <EDNiX folder>/GUI/launch_EDNiX_GUI.sh
 
 After a double-click the same messages are in `~/.ednix_gui/launch.log`, and an error window opens if the launcher fails.
 
@@ -34,10 +34,10 @@ After a double-click the same messages are in `~/.ednix_gui/launch.log`, and an 
 
 ## Interface on a remote server
 
-To use the interface of a server (for example the GPU server) from your own computer, set once in `GUI/ednix_gui.conf` of your computer:
+To use the interface of a server (for example a GPU server) from your own computer, set once in `GUI/ednix_gui.conf` of your computer:
 
-    EDNIX_REMOTE_HOST=gpu-07-01
-    EDNIX_REMOTE_REPO=/home/cgarin/PycharmProjects/EDNiX
+    EDNIX_REMOTE_HOST=my-server
+    EDNIX_REMOTE_REPO=/path/to/EDNiX
 
 then run from the EDNiX folder of your computer:
 

@@ -1,10 +1,12 @@
 import os
 import sys
+sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))  # the EDNiX folder
 
 opj = os.path.join
 opb = os.path.basename
 
-MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+# MAIN_PATH: this EDNiX folder; DATA_ROOT: folder of the BIDS datasets (environment variable EDNIX_DATA)
+from Tools.ednix_paths import MAIN_PATH, DATA_ROOT
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS, load_bids
@@ -20,7 +22,7 @@ from Tools.ednix_checkpoint import anat_resume_groups
 # Where are the data
 
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Marmoset/BIDS_Hori/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj(DATA_ROOT, 'Marmoset/BIDS_Hori/'))
 # which format ?
 BIDStype = 'sub-{ID}_ses-{Session}_{Timage}.nii*'
 

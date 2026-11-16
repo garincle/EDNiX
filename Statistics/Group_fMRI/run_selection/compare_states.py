@@ -1,10 +1,10 @@
 """
 Is a new selection identical to an earlier one?
 
-    python compare_states.py                      # newest archived state vs current state
+    python compare_states.py OUTPUT_ROOT          # newest archived state vs current state
     python compare_states.py OLD NEW              # two selection_state.pkl, or two OUTPUT_ROOTs
 
-Without arguments: OUTPUT_ROOT of config_ednix.SELECTION_CONFIG; OLD = the most recent
+With one argument (OUTPUT_ROOT of the run): OLD = the most recent
 <OUTPUT_ROOT>/_previous_runs/<date>/07_state/selection_state.pkl (every new run moves the
 previous state there), NEW = <OUTPUT_ROOT>/07_state/selection_state.pkl.
 
@@ -22,7 +22,7 @@ import pickle
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, '/home/cgarin/PycharmProjects/EDNiX/')
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 IGNORED = {"saved", "versions", "paths"}
 RTOL = 1e-12
@@ -127,10 +127,11 @@ def compare(old_path, new_path):
 if __name__ == "__main__":
     if len(sys.argv) == 3:
         old_p, new_p = _state_file(sys.argv[1]), _state_file(sys.argv[2])
-    else:
-        from Statistics.Group_fMRI.run_selection import config_ednix as cfg
-        root = cfg.SELECTION_CONFIG["OUTPUT_ROOT"]
+    elif len(sys.argv) == 2:
+        root = sys.argv[1]
         old_p, new_p = latest_archived(root), _state_file(root)
         if old_p is None:
             sys.exit(f"no archived state under {root}/_previous_runs")
+    else:
+        sys.exit(__doc__)
     sys.exit(1 if compare(old_p, new_p) else 0)

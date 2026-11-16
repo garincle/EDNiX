@@ -1,9 +1,11 @@
 import os
 import sys
+sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))  # the EDNiX folder
 opn = os.path.normpath
 opj = os.path.join
 
-MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+# MAIN_PATH: this EDNiX folder; DATA_ROOT: folder of the BIDS datasets (environment variable EDNIX_DATA)
+from Tools.ednix_paths import MAIN_PATH, DATA_ROOT
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS, load_bids
@@ -17,7 +19,7 @@ from modalities.pet import _0_Pipeline_launcher
 # registration and relies on that coregistration (check the QC image); 1v2a re-estimates it and works in both cases. Through the CT (scenario 1v2b): run ../Launcher_ct/Launcher_ct_CERMEP.py first, then set IhaveaCT = True.
 ######################################################################################################################
 species = 'Human'
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Human/BIDS_Merida/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj(DATA_ROOT, 'Human/BIDS_Merida/'))
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['pet'], suffixes=['pet'], extensions=['.nii.gz'])
 
 ### select the subject, session to process

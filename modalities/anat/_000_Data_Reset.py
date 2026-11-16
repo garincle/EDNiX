@@ -7,7 +7,7 @@ KEPT
   - masks and segmentations corrected by hand, wherever they are under anat/ (MANUAL_PATTERNS):
       <ID>_final_mask.nii.gz          itk_1 (read back by step 2)
       <ID>_final_mask_2.nii.gz        itk_2 (read back by step 5), and its _pre_itk2_backup
-      <ID>_final_mask_orig.nii.gz     older name, kept by Tools/Clean_BIDS.py
+      <ID>_final_mask_orig.nii.gz     older name (pipeline versions before 2026-11), kept
       <ID>_backtonative_mask.nii.gz   itk_3 (read back by step 8)
       *_desc-manual*                  masks / aseg drawn with the 'manual' methods (skullstrip/manualmask.py,
                                       loop3/manualaseg.py)

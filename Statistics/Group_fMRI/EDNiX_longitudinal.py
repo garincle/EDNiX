@@ -52,7 +52,7 @@ except ImportError:
     # pygam is not used by fit_gamm (spline LMM, statsmodels/patsy only)
 
 try:
-    from Exemples.Study_EDNiX.analysis.ednix_bids_tools import PAPER_RC
+    from Tools.ednix_bids_tools import PAPER_RC
 except ImportError:          # the core package must not require the study scripts
     PAPER_RC = {}
 

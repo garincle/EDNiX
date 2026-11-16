@@ -13,10 +13,12 @@ the modules are imported from.
 ## Run it
 
 ```
-python Statistics/Group_fMRI/run_selection/launcher.py
+python Paper/run_selection/launcher.py
 ```
 
-- Datasets and settings are in `config_ednix.py`.
+- The datasets and settings of the paper are in `Paper/run_selection/config_ednix.py`: copy
+  `Paper/run_selection/launcher.py` and `config_ednix.py` and set your datasets (`BIDS_CONFIGS`)
+  and `SELECTION_CONFIG["OUTPUT_ROOT"]`.
 - The output goes under `SELECTION_CONFIG["OUTPUT_ROOT"]`, in the tree below.
 - To add a species, add one entry to `BIDS_CONFIGS` and its tip in the time tree to
   `selection.CONFIG["SPECIES_TO_TREE_TIP"]`.
@@ -26,7 +28,7 @@ python Statistics/Group_fMRI/run_selection/launcher.py
 Each new run moves the previous `07_state` to `_previous_runs/<date>/`. Then run:
 
 ```
-python Statistics/Group_fMRI/run_selection/compare_states.py
+python Statistics/Group_fMRI/run_selection/compare_states.py <OUTPUT_ROOT>
 ```
 
 It compares the new state with the most recent archived one, entry by entry: profiles,
@@ -91,9 +93,9 @@ means the selection is the same.
 
 ## Validation without data
 
-`validation/synthetic_pipeline.py` runs the whole pipeline (selection, statistics,
+`Paper/run_selection/validation/synthetic_pipeline.py` runs the whole pipeline (selection, statistics,
 figures; AFNI steps off) on synthetic seed maps. It can run from two checkouts, and
-`compare_states.py` + `validation/compare_outputs.py` then compare the results.
+`compare_states.py` + `Paper/run_selection/validation/compare_outputs.py` then compare the results.
 
 The move into this package was checked this way on 2026-10-27, against 0707c94: the
 state was identical, and so were 58/58 tables and texts.

@@ -47,7 +47,10 @@ def _palette_color_map(names):
 
 def article_color(name):
     """Article colour of a species or dataset label, or None."""
-    from Exemples.Study_EDNiX.analysis import paper_style as _ps
+    try:                                   # article palette when the paper code is present
+        from Paper.analysis import paper_style as _ps
+    except ImportError:
+        return None
     if name in _ps.SPECIES_COLORS:
         return _ps.SPECIES_COLORS[name]
     sp = _ps.dataset_info(name)[0] or next(

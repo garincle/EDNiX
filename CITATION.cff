@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use EDNiX, please cite it using the metadata from this file (and the article once published)."
+title: "EDNiX: a multi-species pipeline for anatomical, functional MRI and PET neuroimaging"
+type: software
+authors:
+  - family-names: Garin
+    given-names: Clément
+    affiliation: "Institut des Sciences Cognitives Marc Jeannerod, CNRS UMR 5229, Lyon, France"
+repository-code: "https://github.com/garincle/EDNiX"
+url: "https://garincle.github.io/EDNiX/guide/"
+license: Apache-2.0
+abstract: >-
+  EDNiX takes BIDS datasets of rodents, bats, dogs, non-human primates and humans through anatomical,
+  functional MRI and PET/CT preprocessing, brings every subject into a common cross-species atlas
+  framework (multi-level EDNiX atlases, volume and cortical surface), and runs group and comparative
+  analyses.
+keywords:
+  - neuroimaging
+  - comparative neuroscience
+  - MRI
+  - fMRI
+  - PET
+  - BIDS
+  - cross-species atlas
