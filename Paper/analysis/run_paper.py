@@ -6,7 +6,7 @@ run_paper.py -- statistics then figures of the EDNiX paper.
     python run_paper.py --stats-only       # numbers only, no drawing
     python run_paper.py --refresh          # re-read the EDNiX outputs (no cache)
 
-Before: the run selection of Figures 4-5 / Supp. 8-12 must exist
+Before: the run selection of Figures 4-5 / Supp. 10-14 must exist
 (python Paper/run_selection/launcher.py, writes its 07_state).
 Output: <PAPER_DIR>/<Figure>/<Figure>.pdf|png, <Figure>_stats.xlsx|txt, panels/.
 """

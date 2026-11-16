@@ -34,7 +34,7 @@ CACHE_DIR = opj(PAPER_DIR, '_cache')
 # sensitivity_analysis/fmri_qc/ (former folder name: Suppl_Figure_4-5-6_QC)
 QC_DIR = opj(SENSITIVITY_DIR, 'fmri_qc')
 
-# Run selection of Figures 4-5 and Supp. 8-12 (Statistics/Group_fMRI/run_selection):
+# Run selection of Figures 4-5 and Supp. 10-14 (Statistics/Group_fMRI/run_selection):
 # its 07_state is the only input of the fMRI statistics (one setting, in config_ednix)
 from Paper.run_selection.config_ednix import SELECTION_CONFIG as _SELECTION
 FMRI_SELECTION_ROOT = _SELECTION["OUTPUT_ROOT"]       # .../Fig_5_V15__quant20
