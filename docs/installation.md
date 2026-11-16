@@ -26,7 +26,7 @@ Options of `Tools/setup_venv.sh`: `--cpu` (PyTorch without CUDA), `--dev` (pytes
 The script checks the installation (`pip check`, import of every package, `Tools/check_requirements.py`)
 and writes the installed versions to `venvEDNiX/ednix-freeze.txt`.
 
-`venvEDNiX` at the root of the EDNiX folder is where the orchestrator and the interface look for Python.
+`venvEDNiX` at the root of the EDNiX folder is where the interface (`GUI/launch_EDNiX_GUI.sh`) looks for Python; `run_all_ednix.py` uses the interpreter that runs it.
 The U-Net skull-stripping (`muSkullStrip.py`, methods `muSkullStrip_*`) is run with the `python3` found on
 the `PATH`: activate the venv before running a launcher, so that it finds `torch`.
 

@@ -42,4 +42,4 @@ torch>=2.10            # >= 2.10: fixes of CVE-2025-32434 and CVE-2026-24747 (co
 # --- figures / reports
 matplotlib>=3.7
 seaborn>=0.13
-lxml>=6.1.0            # analysis/validation/paper_claims.py (reads the manuscript .docx)
+lxml>=6.1.0            # paper_claims.py (reads the manuscript .docx)
