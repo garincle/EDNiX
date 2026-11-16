@@ -135,6 +135,101 @@ def norm(targetname,target_anatfile,masktarget,target_vol,
     return mTx2
 
 
+# acpc rigid alignment (loop1). antsRegistration with MI samples 20 % of the voxels at random (no fixed seed in
+# ANTsPy): on some sessions a run lands in a wrong local minimum that pushes the brain out of the template grid
+# (Rat sub-301909: one third of the brain kept), while a re-run works. The default run is kept when it passes the
+# check below; otherwise other starting points / seeds are tried and the best one is kept.
+ACPC_MIN_KEPT = 0.90          # fraction of the brain (in mm3) that must stay inside the template grid
+ACPC_SEEDS = (1, 2, 3)
+
+
+def _brain_kept_and_dice(fixed, moving, tx):
+    """fraction of the moving brain (voxels > 0, in mm3) kept inside the fixed grid after tx, and its Dice with the
+    fixed brain (voxels > 0)"""
+    mb = ants.threshold_image(moving, 1e-6, 1e30)
+    w = ants.apply_transforms(fixed=fixed, moving=mb, transformlist=tx, interpolator='nearestNeighbor').numpy() > 0.5
+    fb = fixed.numpy() > 0
+    kept = w.sum() * np.prod(fixed.spacing) / max(float((mb.numpy() > 0.5).sum() * np.prod(moving.spacing)), 1e-9)
+    dice = 2 * (w & fb).sum() / max(float(w.sum() + fb.sum()), 1e-9)
+    return float(kept), float(dice)
+
+
+def _acpc_candidate(kind, seed, fixed, moving, moving_mask, tmp_prefix, type_of_transform, affmetricT, affmetric):
+    """kind 'default' = translation then rigid (the historical EDNiX alignment);
+    'rotsearch' = ants.affine_initializer (search over rotations from the image centres) then rigid"""
+    os.environ['ANTS_RANDOM_SEED'] = str(seed)
+    if kind == 'default':
+        t1 = ants.registration(fixed=fixed, moving=moving, type_of_transform='Translation', aff_metric=affmetricT,
+                               moving_mask=moving_mask, outprefix=tmp_prefix + 'T_')
+        init = t1['fwdtransforms']
+    else:
+        init = [ants.affine_initializer(fixed, moving, search_factor=20, radian_fraction=0.15,
+                                        use_principal_axis=False, local_search_iterations=10,
+                                        txfn=tmp_prefix + 'init.mat')]
+    r = ants.registration(fixed=fixed, moving=moving, initial_transform=init, moving_mask=moving_mask,
+                          type_of_transform=type_of_transform, aff_metric=affmetric, outprefix=tmp_prefix + 'R_')
+    return r['fwdtransforms']
+
+
+def acpc(targetname, target_anatfile, masktarget, target_vol, source_anatfile, target_transfo,
+         type_of_transform, affmetricTrans, affmetric, interpol, diary_name, suffix):
+    """rigid alignment of the skull-stripped anat to the template (step acpc of loop1), with a check that the brain
+    stays in the template grid. Writes, as norm(): <target_transfo>/acpc_0GenericAffine.mat and
+    <target_vol>/<targetname>_space-acpc<suffix>.nii.gz"""
+    import glob, shutil
+    os.makedirs(target_transfo, exist_ok=True)
+    fixed = ants.image_read(source_anatfile)
+    moving = ants.image_read(target_anatfile)
+    mmask = ants.image_read(masktarget) if masktarget else None
+    seed0 = os.environ.get('ANTS_RANDOM_SEED')
+    tried = []
+    try:
+        plan = [('default', ACPC_SEEDS[0])] + \
+               [('rotsearch', ACPC_SEEDS[0])] + [(k, s) for s in ACPC_SEEDS[1:] for k in ('default', 'rotsearch')]
+        for n, (kind, seed) in enumerate(plan):
+            prefix = opj(target_transfo, 'acpc_try' + str(n) + '_')
+            tx = _acpc_candidate(kind, seed, fixed, moving, mmask, prefix, type_of_transform, affmetricTrans, affmetric)
+            kept, dice = _brain_kept_and_dice(fixed, moving, tx)
+            tried.append(dict(kind=kind, seed=seed, kept=kept, dice=dice, tx=tx[0]))
+            run_cmd.msg('INFO: acpc ' + kind + ' seed ' + str(seed) + ': brain kept in the template grid ' +
+                        str(round(100 * kept, 1)) + ' %, Dice with the template ' + str(round(dice, 3)),
+                        diary_name, 'OKGREEN')
+            if n == 0 and kept >= ACPC_MIN_KEPT:
+                break
+            if n == 1:
+                best = max(tried, key=lambda t: t['dice'])
+                if best['kept'] >= ACPC_MIN_KEPT:
+                    break
+        best = tried[0] if len(tried) == 1 else max(tried, key=lambda t: t['dice'])
+        if len(tried) > 1:
+            run_cmd.msg('WARNING: acpc of ' + targetname + ': the default alignment kept only ' +
+                        str(round(100 * tried[0]['kept'], 1)) + ' % of the brain in the template grid; kept ' +
+                        best['kind'] + ' seed ' + str(best['seed']) + ' (' + str(round(100 * best['kept'], 1)) +
+                        ' %, Dice ' + str(round(best['dice'], 3)) + ')', diary_name, 'WARNING')
+        if best['kept'] < ACPC_MIN_KEPT:
+            run_cmd.msg('WARNING: acpc of ' + targetname + ': no alignment keeps ' + str(int(100 * ACPC_MIN_KEPT)) +
+                        ' % of the brain in the template grid: check the skull stripping or put a manual ' +
+                        targetname + '_acpc_tmp.nii.gz in preprocessing', diary_name, 'WARNING')
+        out_mat = opj(target_transfo, 'acpc_0GenericAffine.mat')
+        shutil.copyfile(best['tx'], out_mat)
+    finally:
+        if seed0 is None:
+            os.environ.pop('ANTS_RANDOM_SEED', None)
+        else:
+            os.environ['ANTS_RANDOM_SEED'] = seed0
+        for f in glob.glob(opj(target_transfo, 'acpc_try*')):
+            os.remove(f)
+
+    Norm = ants.apply_transforms(fixed=fixed, moving=moving, transformlist=[out_mat], interpolator=interpol)
+    out_img = opj(target_vol, targetname + '_space-acpc' + suffix + '.nii.gz')
+    ants.image_write(Norm, out_img, ri=False)
+    with open(out_img.replace('.nii.gz', '.json'), 'w') as f:
+        json.dump({"Sources": [target_anatfile, source_anatfile],
+                   "Description": 'Rigid alignment to the template (acpc), ' + best['kind'] + ' seed ' + str(best['seed']) +
+                                  ', brain kept in grid ' + str(round(100 * best['kept'], 1)) + ' %.'}, f, indent=2)
+    return [out_mat]
+
+
 def myelin(targetname,sourcename,ref_template,labels_dir,atlas_label,transfolist,w2inv_inv,interpol,diary_name):
 
     nl = 'Normalization to the ' + sourcename + ' template'
