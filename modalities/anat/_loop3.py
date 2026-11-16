@@ -1,5 +1,6 @@
 # import
 import os
+import re
 import json
 import nibabel as nib
 
@@ -283,109 +284,126 @@ def run(ID, Session, data_path, max_ses, creat_study_template, study_template_at
 
     # ...................................................................................................................
 
-    if 11 in Skip_step:
-        run_cmd.msg('INFO: skip step ' + str(11), diary_file, 'OKGREEN')
-    else:
-        FS_surf.Wcreate(FS_dir, ID, 'lr', diary_file, sing_fs, export_fs)
-
-        if check_visualy_each_img == True:
-            FS_freeview.FSview(FS_dir, ID, 'white', sing_fs, FS_refs)
-
-        # inflated surface + curvature only; the spherical registration is the separate step 'sphere' below
-        FS_surf.Wconfig(FS_dir, FS_refs, ID, 'lr', diary_file, sing_fs, export_fs, sphere=False)
-
-    # ...................................................................................................................
-
-    if 'sphere' in Skip_step:
-        run_cmd.msg('INFO: skip step sphere (spherical registration, not needed by the EDNiX native-space outputs; '
-                    'needed only for doBALSAspace / fs_LR, fs_extras and the aparc of the T2w pial)',
-                    diary_file, 'OKGREEN')
-    else:
-        # You can go grab a cup of coffe, it can take more than an hour...
-        FS_surf.Wsphere(FS_dir, FS_refs, ID, 'lr', diary_file, sing_fs, export_fs)
-
-    # ...................................................................................................................
-
-    if 12 in Skip_step:
-        run_cmd.msg('INFO: skip step ' + str(12), diary_file, 'OKGREEN')
-    else:
-        # pial search capped at preFS.MAX_REAL_THICKNESS real mm (smallbrain header rescale taken into account)
-        FS_surf.Pcreate(ID, 'lr', diary_file, export_fs,
-                        max_fs_mm=preFS.pial_max(preFS.real_mm_per_fs(new_Ref_file,
-                                                                      opj(dir_prepro, ID + '_rescale.json'))))
-
-        if opi(T2_img):
-            f = open(new_Ref_file.replace('.nii.gz', '.json'))
-            jsonF = json.load(f)
-            if not 'transformation of T2w image' in jsonF['Description']:
-                if opi(opj(dir_prepro, ID + '_rescale.json')):
-                    change_hd, _, _, _, _ = smallbrain.check(opj(dir_prepro, ID + '_rescale.json'))
-                else:
-                    change_hd = 0
-
-                FS_surf.PcreateT2(T2_img, data_path, aseg_img, 'lr',
-                                  change_hd, diary_file, sing_fs, export_fs)
-
-        # _12_make_pial.make_pial(FS_dir, ID, type_norm, otheranat, Hmin, Ref_file,do_surfacewith, overwrite,sing_fs, diary_file)
-        if check_visualy_each_img == True:
-            FS_freeview.FSview(FS_dir, ID, 'pial', sing_fs, FS_refs)
-
-    # ...................................................................................................................
-
-    if 'flat_map' in Skip_step:
-        run_cmd.msg('INFO: skip step ' + str('flat_map'), diary_file, 'OKGREEN')
-    else:
-        # Flat maps
-        #### 4.4.1 Left hemisphere
-        FS_flat.map(FS_dir, ID, 'left', cmd_tksurfer, cmd_flatten, diary_file, sing_fs, export_fs)
-        #### 4.4.2 Right hemisphere
-        FS_flat.map(FS_dir, ID, 'right', cmd_tksurfer, cmd_flatten, diary_file, sing_fs, export_fs)
-
-    # ...................................................................................................................
-
-    if 14 in Skip_step:
-        run_cmd.msg('INFO: skip step ' + str(14), diary_file, 'OKGREEN')
-    else:
-        print(str(list_atlas))
-        print(str(addatlas))
-        list_atlas = templatefeat.atlas(list_atlas, addatlas)
-        print(str(list_atlas))
-        a = list()
-        for x in list_atlas[0]:
-            a.append(opj(labels_dir, ID + '_seg-' + x + '_dseg.nii.gz'))
-
-        if opi(opj(dir_prepro, ID + '_rescale.json')):
-            change_hd, _, _, _, _ = smallbrain.check(opj(dir_prepro, ID + '_rescale.json'))
+    # Surfaces (steps 11 -> 15). A surface that FreeSurfer cannot build (broken segmentation, non-manifold
+    # mesh after every topology seed) only stops the surfaces of this session: the volumetric outputs, the
+    # anat QC and the func / pet of this subject do not need them. EDNIX_STRICT=1 keeps the old behaviour.
+    surface_flag = opj(path_anat, 'QC_anat', ID + '_SURFACE_FAILED.txt')
+    try:
+        if 11 in Skip_step:
+            run_cmd.msg('INFO: skip step ' + str(11), diary_file, 'OKGREEN')
         else:
-            change_hd = 0
+            FS_surf.Wcreate(FS_dir, ID, 'lr', diary_file, sing_fs, export_fs)
 
-        # 'fs_extras' in Skip_step: no FreeSurfer parcellation Destrieux / DKT nor FreeSurfer statistics (humans);
-        # EDNiX does not use them
-        # the FreeSurfer parcellations of fs_extras are registered through ?h.sphere.reg
-        extras = 'fs_extras' not in Skip_step and FS_surf.sphere_done(FS_dir, ID)
-        if 'fs_extras' not in Skip_step and not extras and species == 'Human':
-            run_cmd.msg('WARNING: fs_extras needs the spherical registration (step sphere): not computed',
-                        diary_file, 'WARNING')
-        FS_finalise.FS_finalise(FS_dir, ID, a, list_atlas[1], list_atlas[3], change_hd,
-                                diary_file, sing_fs, export_fs, path_label_code, species, FS_refs, sing_afni, sing_wb,
-                                extras=extras)
+            if check_visualy_each_img == True:
+                FS_freeview.FSview(FS_dir, ID, 'white', sing_fs, FS_refs)
 
-    # ...................................................................................................................
+            # inflated surface + curvature only; the spherical registration is the separate step 'sphere' below
+            FS_surf.Wconfig(FS_dir, FS_refs, ID, 'lr', diary_file, sing_fs, export_fs, sphere=False)
 
-    if 15 in Skip_step:
-        run_cmd.msg('INFO: skip step ' + str(15), diary_file, 'OKGREEN')
-    else:
-        if opi(opj(dir_prepro, ID + '_rescale.json')):
-            _, scaling, resamp, _, DATfile = smallbrain.check(opj(dir_prepro, ID + '_rescale.json'))
+        # ...................................................................................................................
+
+        if 'sphere' in Skip_step:
+            run_cmd.msg('INFO: skip step sphere (spherical registration, not needed by the EDNiX native-space outputs; '
+                        'needed only for doBALSAspace / fs_LR, fs_extras and the aparc of the T2w pial)',
+                        diary_file, 'OKGREEN')
         else:
-            scaling = ''
-            resamp = ''
-            DATfile = ''
+            # You can go grab a cup of coffe, it can take more than an hour...
+            FS_surf.Wsphere(FS_dir, FS_refs, ID, 'lr', diary_file, sing_fs, export_fs)
 
-        FS_2_WB.WB_prep(cmd_mris, FS_dir, FS_refs, data_path, ID, species, scaling, resamp, DATfile,
-                        reference, list_atlas, balsa_folder, BALSAname, balsa_brainT1,
-                        path_label_code, targetsuffix, listTimage, doBALSAspace,
-                        diary_file, sing_fs, sing_wb, sing_afni, export_fs, list_transfo, type_norm, iso)
+        # ...................................................................................................................
+
+        if 12 in Skip_step:
+            run_cmd.msg('INFO: skip step ' + str(12), diary_file, 'OKGREEN')
+        else:
+            # pial search capped at preFS.MAX_REAL_THICKNESS real mm (smallbrain header rescale taken into account)
+            FS_surf.Pcreate(ID, 'lr', diary_file, export_fs,
+                            max_fs_mm=preFS.pial_max(preFS.real_mm_per_fs(new_Ref_file,
+                                                                          opj(dir_prepro, ID + '_rescale.json'))))
+
+            if opi(T2_img):
+                f = open(new_Ref_file.replace('.nii.gz', '.json'))
+                jsonF = json.load(f)
+                if not 'transformation of T2w image' in jsonF['Description']:
+                    if opi(opj(dir_prepro, ID + '_rescale.json')):
+                        change_hd, _, _, _, _ = smallbrain.check(opj(dir_prepro, ID + '_rescale.json'))
+                    else:
+                        change_hd = 0
+
+                    FS_surf.PcreateT2(T2_img, data_path, aseg_img, 'lr',
+                                      change_hd, diary_file, sing_fs, export_fs)
+
+            # _12_make_pial.make_pial(FS_dir, ID, type_norm, otheranat, Hmin, Ref_file,do_surfacewith, overwrite,sing_fs, diary_file)
+            if check_visualy_each_img == True:
+                FS_freeview.FSview(FS_dir, ID, 'pial', sing_fs, FS_refs)
+
+        # ...................................................................................................................
+
+        if 'flat_map' in Skip_step:
+            run_cmd.msg('INFO: skip step ' + str('flat_map'), diary_file, 'OKGREEN')
+        else:
+            # Flat maps
+            #### 4.4.1 Left hemisphere
+            FS_flat.map(FS_dir, ID, 'left', cmd_tksurfer, cmd_flatten, diary_file, sing_fs, export_fs)
+            #### 4.4.2 Right hemisphere
+            FS_flat.map(FS_dir, ID, 'right', cmd_tksurfer, cmd_flatten, diary_file, sing_fs, export_fs)
+
+        # ...................................................................................................................
+
+        if 14 in Skip_step:
+            run_cmd.msg('INFO: skip step ' + str(14), diary_file, 'OKGREEN')
+        else:
+            print(str(list_atlas))
+            print(str(addatlas))
+            list_atlas = templatefeat.atlas(list_atlas, addatlas)
+            print(str(list_atlas))
+            a = list()
+            for x in list_atlas[0]:
+                a.append(opj(labels_dir, ID + '_seg-' + x + '_dseg.nii.gz'))
+
+            if opi(opj(dir_prepro, ID + '_rescale.json')):
+                change_hd, _, _, _, _ = smallbrain.check(opj(dir_prepro, ID + '_rescale.json'))
+            else:
+                change_hd = 0
+
+            # 'fs_extras' in Skip_step: no FreeSurfer parcellation Destrieux / DKT nor FreeSurfer statistics (humans);
+            # EDNiX does not use them
+            # the FreeSurfer parcellations of fs_extras are registered through ?h.sphere.reg
+            extras = 'fs_extras' not in Skip_step and FS_surf.sphere_done(FS_dir, ID)
+            if 'fs_extras' not in Skip_step and not extras and species == 'Human':
+                run_cmd.msg('WARNING: fs_extras needs the spherical registration (step sphere): not computed',
+                            diary_file, 'WARNING')
+            FS_finalise.FS_finalise(FS_dir, ID, a, list_atlas[1], list_atlas[3], change_hd,
+                                    diary_file, sing_fs, export_fs, path_label_code, species, FS_refs, sing_afni, sing_wb,
+                                    extras=extras)
+
+        # ...................................................................................................................
+
+        if 15 in Skip_step:
+            run_cmd.msg('INFO: skip step ' + str(15), diary_file, 'OKGREEN')
+        else:
+            if opi(opj(dir_prepro, ID + '_rescale.json')):
+                _, scaling, resamp, _, DATfile = smallbrain.check(opj(dir_prepro, ID + '_rescale.json'))
+            else:
+                scaling = ''
+                resamp = ''
+                DATfile = ''
+
+            FS_2_WB.WB_prep(cmd_mris, FS_dir, FS_refs, data_path, ID, species, scaling, resamp, DATfile,
+                            reference, list_atlas, balsa_folder, BALSAname, balsa_brainT1,
+                            path_label_code, targetsuffix, listTimage, doBALSAspace,
+                            diary_file, sing_fs, sing_wb, sing_afni, export_fs, list_transfo, type_norm, iso)
+
+        if opi(surface_flag):
+            os.remove(surface_flag)
+    except FS_surf.SurfaceError as e:
+        if run_cmd.STRICT:
+            raise
+        why = re.sub(r'\x1b\[[0-9;]*m', '', str(e)).strip()
+        os.makedirs(os.path.dirname(surface_flag), exist_ok=True)
+        with open(surface_flag, 'w') as f:
+            f.write(why + '\n')
+        run_cmd.msg('WARNING: surfaces of ' + str(ID) + ' session ' + str(Session) + ' abandoned (steps 11-15), '
+                    'the rest of the session continues: ' + why + ' -> ' + surface_flag, diary_file, 'WARNING')
 
     # ...................................................................................................................
 
