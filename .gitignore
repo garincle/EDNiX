@@ -46,3 +46,6 @@ __pycache__/
 GUI/**/__pycache__/
 # run_all_ednix / rebuild_all_ednix logs
 run_reports/
+
+# launchers saved by the GUI (edited copies of the examples)
+*_custom.py

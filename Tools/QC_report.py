@@ -234,7 +234,7 @@ def assign_images(images, subjects_sessions):
 
 
 # =====================================================================================================================
-# surface QC (from the surface variant tests: test_surface_variants_library.py)
+# surface QC (from the surface variant tests: test_surface_variants_library.py, branch dev-archive)
 # =====================================================================================================================
 def _fs_scale(prepro_dir, ID):
     """Real mm per FreeSurfer mm: 1 / s, s = header scale of smallbrain.get (first diagonal term of the .dat file)."""

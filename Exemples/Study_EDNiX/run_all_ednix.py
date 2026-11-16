@@ -52,7 +52,7 @@ PYTHON = sys.executable                           # interpreter of the EDNiX env
 REPORT_DIR = MAIN_PATH / 'run_reports'
 PHASES = ['anat', 'ct', 'pet', 'func', 'qc']      # 'qc' = QC reports at the end
 ONLY = []                                         # launcher name fragments, e.g. ['Rat', 'Mouse']; [] = all
-EXCLUDE = ['quicktest', '_custom', 'Check_pet_boundary']
+EXCLUDE = ['_custom']   # launchers saved by the GUI as <name>_custom.py
 RESET = False                                     # preview + ONE 'YES' before launching (see the cleaners)
 RESET_ANAT_SCOPE = 'all'                          # 'all' or 'surfaces' (rebuild only the surfaces)
 THREADS_PER_WORKER = 4                            # ANTs / AFNI / numpy threads of one worker
