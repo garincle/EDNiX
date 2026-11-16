@@ -43,6 +43,13 @@ if (ATLAS_LIB / 'atlas').is_dir():
     OPTIONS['species'] = sorted(C.list_species(ATLAS_LIB))
 MODELS = {}
 HTTPD = None
+
+
+def resolve_data_path(path):
+    """bids_dir of a launcher, written opj(DATA_ROOT, '<Species>/<BIDS>/'): DATA_ROOT = $EDNIX_DATA, default
+    <EDNiX>/data (same rule as Tools/ednix_paths.py); absolute paths are kept."""
+    root = os.environ.get('EDNIX_DATA') or (str(REPO / 'data') if REPO else '')
+    return os.path.join(root, os.path.expanduser(path)) if path else path
 DOCS = C.pipeline_docs(REPO)
 PIPE_RE = C.re.compile(r'([\w.]*)\.(preprocess_anat|preprocess_fmri|preprocess_pet|preprocess_ct|preprocess_data)\s*\(')
 
@@ -220,9 +227,10 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception:
                     continue
                 for f in m.fields:
-                    if f.name == 'bids_dir' and isinstance(f.value, str) and Path(f.value).is_dir():
-                        out.append(dict(path=f.value.rstrip('/'), launcher=p.name,
-                                        has_qc=(Path(f.value) / 'QC').is_dir()))
+                    bids = resolve_data_path(f.value) if f.name == 'bids_dir' and isinstance(f.value, str) else None
+                    if bids and Path(bids).is_dir():
+                        out.append(dict(path=bids.rstrip('/'), launcher=p.name,
+                                        has_qc=(Path(bids) / 'QC').is_dir()))
             seen, uniq = set(), []
             for o in out:
                 if o['path'] not in seen:

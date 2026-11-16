@@ -1,4 +1,4 @@
-"""prepa_v2 copied verbatim from Exemples/Study_EDNiX/analysis/validation/test_surface_variants_library.py
+"""prepa_v2 copied verbatim from Exemples/Study_EDNiX/analysis/validation/test_surface_variants_library.py (branch dev-archive)
 (branch surface-variants-test, PR #84), the implementation validated by the surface tests. Reference for
 test_surface_v2h.py only."""
 import math

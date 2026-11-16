@@ -1,5 +1,6 @@
 import os
 import sys
+sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))  # the EDNiX folder
 import Tools.Read_atlas
 from Tools import Load_subject_with_BIDS, load_bids
 from modalities.fMRI import _0_Pipeline_launcher
@@ -7,12 +8,13 @@ from Tools.ednix_checkpoint import fmri_resume_groups
 opn = os.path.normpath
 opj = os.path.join
 
-MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+# MAIN_PATH: this EDNiX folder; DATA_ROOT: folder of the BIDS datasets (environment variable EDNIX_DATA)
+from Tools.ednix_paths import MAIN_PATH, DATA_ROOT
 sys.path.insert(1, opj(MAIN_PATH))
 
 species    = 'Dog'
 # Override os.path.join to always return Linux-style paths
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Dog/BIDS_Boch_K9/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj(DATA_ROOT, 'Dog/BIDS_Boch_K9/'))
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['func'], suffixes= ['bold'], extensions=['.nii.gz'])
 
 ### select the subject, session to process
@@ -79,7 +81,7 @@ _0_Pipeline_launcher.preprocess_fmri(
                     Slice_timing_info,
                     TfMRI, type_norm, creat_study_template,
                     anat_func_same_space, coregistration_longitudinal,
-                    Method_mask_func, extra_erode=extra_erode, do_anat_to_func=do_anat_to_func, folderforTemplate_Anat='/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/mammals/carnivorans/Dog/EDNiX/volumes/', IhaveanANAT=False,
+                    Method_mask_func, extra_erode=extra_erode, do_anat_to_func=do_anat_to_func, folderforTemplate_Anat=opj(MAIN_PATH, 'Atlases_library/atlas/mammals/carnivorans/Dog/EDNiX/volumes/'), IhaveanANAT=False,
                     ntimepoint_treshold=100, REF_int=0, T1_eq=5, correction_direction='Auto', overwrite_option=True,
                     DwellT='Auto', SED='Auto', TR='Auto', TRT='Auto',
                     nb_ICA_run=20, ICA_cleaning='Skip',

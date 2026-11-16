@@ -1,4 +1,6 @@
 import os
+import sys
+sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))  # the EDNiX folder
 import Tools.Load_subject_with_BIDS
 import Tools.Read_atlas
 from Tools import Load_subject_with_BIDS, load_bids
@@ -7,8 +9,9 @@ from Tools.ednix_checkpoint import fmri_resume_groups
 opn = os.path.normpath
 opj = os.path.join
 
-MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Mouselemur/BIDS_Garin/'))
+# MAIN_PATH: this EDNiX folder; DATA_ROOT: folder of the BIDS datasets (environment variable EDNIX_DATA)
+from Tools.ednix_paths import MAIN_PATH, DATA_ROOT
+bids_dir = Load_subject_with_BIDS.linux_path(opj(DATA_ROOT, 'Mouselemur/BIDS_Garin/'))
 # which format ?
 BIDStype = 1
 #### Create a pandas sheet for the dataset (I like it, it helps to know what you are about to process)

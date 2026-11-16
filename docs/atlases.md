@@ -52,7 +52,7 @@ Region names come from `label_code/<atlas>_label.txt`, a Workbench label file (o
 
 ## How the EDNiX atlases were built
 
-The scripts that build the EDNiX atlases from the original species atlases are in [`Exemples/Study_EDNiX/atlases`](../Exemples/Study_EDNiX/atlases):
+The scripts that build the EDNiX atlases from the original species atlases are in [`Paper/library_build`](../Paper/library_build):
 
 - `Atlas_nomenclature.py`: the region hierarchy of the EDNiX atlases (regions of each level and their parent regions), the reference for region names;
 - `Transform_orig_atlas_to_EDNiX.py`: translation of the labels of an original atlas into EDNiX labels (a table of old and new IDs applied with AFNI `3dcalc`) and resampling to the template;

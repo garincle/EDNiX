@@ -66,7 +66,7 @@ EDNiX also needs the **Singularity containers** of the neuroimaging programs (AF
 ## Quick start
 
 1. Copy an example launcher from [`Exemples/Study_EDNiX/Launcher_anat`](Exemples/Study_EDNiX/Launcher_anat) (anatomy) or [`Launcher_func`](Exemples/Study_EDNiX/Launcher_func) (functional MRI).
-2. Set `MAIN_PATH` (your EDNiX folder), `bids_dir` (your dataset), `species` and, if needed, the subjects to keep or remove.
+2. Set `bids_dir` (your dataset: relative to the folder given by the environment variable `EDNIX_DATA`, or absolute), `species` and, if needed, the subjects to keep or remove. `MAIN_PATH` (the EDNiX folder) is found automatically.
 3. Run it; `EDNIX_STRICT=1` stops the pipeline at the first failing command:
 
 ```bash
@@ -120,7 +120,8 @@ atlases/             atlas handling
 Statistics/          group statistics (Group_fMRI, Group_PET), phylogenetic analyses (Evo)
 Tools/               shared utilities (command runner, BIDS loading, geometry checks)
 GUI/                 desktop interface
-Exemples/            example launchers and the analyses of the EDNiX study
+Exemples/            example launchers (one per published dataset) and run_all_ednix.py
+Paper/               code of the figures and statistics of the EDNiX article, library build scripts
 tests/               unit tests and end-to-end smoke test
 docs/                documentation
 ```
@@ -129,6 +130,14 @@ docs/                documentation
 
 - The anatomical and functional pipelines are in use on the datasets of the example launchers.
 - The PET and CT pipelines (October 2026) are tested on synthetic data for all the scenarios of `pet4.svg` (1v1, 1v2a, 1v2b, 2v1, 2v2, 3v1, 3v2); their first runs on real data must be checked (see [docs/pet_pipeline.md](docs/pet_pipeline.md), section *Limitations*).
+
+## Reproducing the article
+
+`Paper/` holds the code of every figure, table and statistic of the article (`Paper/analysis/run_paper.py`), the run-selection configuration of the published datasets (`Paper/run_selection/`) and the scripts that built the atlas library (`Paper/library_build/`). See [Paper/README.md](Paper/README.md).
+
+## Citation and license
+
+If you use EDNiX, please cite the article (see [CITATION.cff](CITATION.cff)). EDNiX is distributed under the Apache License 2.0 ([LICENSE](LICENSE)). The neuroimaging programs run through the containers (AFNI, ANTs, FSL, FreeSurfer, Connectome Workbench, ITK-SNAP, TPCCLIB) keep their own licenses.
 
 ## Contributing
 

@@ -8,8 +8,7 @@ import pytest
 
 from conftest import REPO
 
-EXCLUDE = ('Archives', 'UNet_Model_training', '_T1_T2_quantif', 'old_orient_correct', 'Tools/niiRoi.py',
-           'Tools/Clean_BIDS.py')
+EXCLUDE = ('Archives', 'UNet_Model_training', '_T1_T2_quantif', 'Tools/niiRoi.py')
 MODULES = sorted(
     str(p.relative_to(REPO))[:-3].replace('/', '.')
     for d in ('modalities', 'Tools', 'atlases', 'Statistics')

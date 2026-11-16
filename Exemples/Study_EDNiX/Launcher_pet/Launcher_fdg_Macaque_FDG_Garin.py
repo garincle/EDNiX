@@ -1,9 +1,11 @@
 import os
 import sys
+sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))  # the EDNiX folder
 opn = os.path.normpath
 opj = os.path.join
 
-MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+# MAIN_PATH: this EDNiX folder; DATA_ROOT: folder of the BIDS datasets (environment variable EDNIX_DATA)
+from Tools.ednix_paths import MAIN_PATH, DATA_ROOT
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS, load_bids
@@ -24,7 +26,7 @@ from modalities.pet import _0_Pipeline_launcher
 # Manual brain masks (native PET space, one per session): pet/raw/masks/ (read by EDNiX since PR #87: brain mask of bratio).
 ######################################################################################################################
 species = 'Macaque'
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Macaque/BIDS_Macaque_FDG_Garin/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj(DATA_ROOT, 'Macaque/BIDS_Macaque_FDG_Garin/'))
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['pet'], suffixes=['pet'], extensions=['.nii.gz'])
 
 ### select the subject, session to process

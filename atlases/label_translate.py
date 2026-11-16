@@ -17,8 +17,8 @@ spgo = subprocess.getoutput
 
 EDNIX_removelist = [0,1,2,3,4,5,6,13,33,34,35]
 
-Atlaspath = opj('/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/')
-LUTfile = '/home/cgarin/PycharmProjects/EDNiX/Atlases_library/atlas/ednix_lut/EDNIxCSCLR_StatsLUT.txt'
+Atlaspath = opj(opd(opd(os.path.abspath(__file__))), 'Atlases_library', 'atlas', '')   # <EDNiX>/Atlases_library/atlas/
+LUTfile = opj(Atlaspath, 'ednix_lut', 'EDNIxCSCLR_StatsLUT.txt')
 species_list = ['Pig', 'Human', 'Macaque', 'Mouselemur', 'Marmoset', 'Chimpanzee', 'Dog', 'Cat', 'Mouse', 'Rat']
 
 

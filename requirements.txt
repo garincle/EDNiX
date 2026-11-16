@@ -1,5 +1,5 @@
 # Python dependencies of EDNiX: every third-party module imported by the pipeline (modalities/, Tools/,
-# atlases/, Statistics/, GUI/) and by the paper scripts (Exemples/Study_EDNiX/analysis/).
+# atlases/, Statistics/, GUI/) and by the paper scripts (Paper/).
 # Checked against the code by tests/unit/test_requirements.py (AST scan of every import).
 #
 # This file states compatible ranges. The exact, validated versions are in requirements-lock.txt:
@@ -13,9 +13,8 @@
 numpy>=1.24
 scipy>=1.10
 pandas>=2.0
-openpyxl>=3.1          # pandas .xlsx I/O
+openpyxl>=3.1          # engine of pandas read_excel / to_excel (not imported directly)
 joblib>=1.2
-tqdm>=4.66.3
 
 # --- neuroimaging
 nibabel>=5.0
@@ -23,7 +22,6 @@ nilearn>=0.10          # nilearn.maskers
 antspyx>=0.4.2         # import ants
 nipype>=1.8            # skull-strip / template helpers, PETPVC interface (modalities/pet/pvc.py)
 nitransforms>=23.0     # motion.py: ANTs/AFNI transform I/O
-pybids>=0.16           # import bids
 pydicom>=2.4.5         # PET: isotope and scan start from DICOM (modalities/pet/dcmFile.py)
 
 # --- statistics

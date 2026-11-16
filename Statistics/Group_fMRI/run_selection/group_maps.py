@@ -20,14 +20,13 @@ import pandas as pd
 import numpy as np
 
 # ── EDNiX environment ─────────────────────────────────────────────────────────
-MAIN_PATH = '/home/cgarin/PycharmProjects/EDNiX/'
+MAIN_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))) + os.sep
 ATLAS_LIB = os.path.join(MAIN_PATH, 'Atlases_library')
 sys.path.insert(0, MAIN_PATH)
-sys.path.insert(0, os.path.join(MAIN_PATH, 'code'))
 
 # ── Imports ───────────────────────────────────────────────────────────────────
 from Tools import Load_subject_with_BIDS, load_bids
-from Exemples.Study_EDNiX.analysis.ednix_bids_tools import (
+from Tools.ednix_bids_tools import (
     extract_bold_paths, parse_label_file, get_atlas_label_path,
 )
 from Tools import niftotoWBsurface
@@ -36,41 +35,41 @@ from Statistics.Group_fMRI import _Group_anal_3dLMEr_SBA as _lmer_sba
 from Statistics.Group_fMRI import _Group_anal_3dLMEr_Mirror as _lmer_mirror
 
 # ── Singularity / wb_command ─────────────────────────────────────────────────
-SING_WB = (
-    'singularity exec --cleanenv '
-    f'--bind {ATLAS_LIB}/,/scratch2/,/scratch/ '
-    f'/home/cgarin/PycharmProjects/EDNiX/Singularity_library/Singularity/workbench_2.1.0.sif'
-)
+SING_WB = ''   # set by configure()
+
+
+def _sing_wb(bind):
+    return ('singularity exec --cleanenv '
+            f'--bind {",".join([ATLAS_LIB + "/"] + list(bind))} '
+            f'{os.path.join(MAIN_PATH, "Singularity_library", "Singularity", "workbench_2.1.0.sif")}')
 
 NORMALIZE_PERCENTILE = 95
 
 # ── Output directory ─────────────────────────────────────────────────────────
-OUTPUT_BASE = '/scratch2/EDNiX/results/EDNiX_Figures/Figure_5_SBA'
+OUTPUT_BASE = os.path.join(os.getcwd(), 'EDNiX_SBA_group_maps')
 
 # ── Dataset definitions ───────────────────────────────────────────────────────
-SPECIES_BIDS_DICT = {
-    'Rat':        '/scratch2/EDNiX/Rat/BIDS_Grandjean',
-    'Mouse':      '/scratch2/EDNiX/Mouse/BIDS_Grandjean2',
-    'Dog':        '/scratch2/EDNiX/Dog/BIDS_Boch_K9',
-    'Marmoset':   '/scratch2/EDNiX/Marmoset/BIDS_Tian',
-    'Mouselemur': '/scratch2/EDNiX/Mouselemur/BIDS_Garin',
-}
-SPECIES_MULTI_BIDS = {
-    'Macaque': [
-        '/scratch2/EDNiX/Macaque/BIDS_Tremblay',
-        '/scratch2/EDNiX/Macaque/BIDS_BenHamed',
-        '/scratch2/EDNiX/Macaque/BIDS_Zhu_Garin',
-    ],
-    'Human': [
-        '/scratch2/EDNiX/Human/BIDS_Merida',
-        '/scratch2/EDNiX/Human/BIDS_Park',
-        '/scratch2/EDNiX/Human/BIDS_Castrillon',
-    ],
-    'Marmoset': [
-    '/scratch2/EDNiX/Marmoset/BIDS_Tian',
-    '/scratch2/EDNiX/Marmoset/BIDS_Hori',
-    ],
-}
+# {species: BIDS folder} and {species: [BIDS folders]} of the datasets to map (set by configure())
+SPECIES_BIDS_DICT = {}
+SPECIES_MULTI_BIDS = {}
+CLASSIFICATION_DEFAULT = None
+
+
+def configure(species_bids=None, species_multi_bids=None, output_base=None, sing_bind=(), classification=None):
+    """Datasets, output folder and extra Singularity bind paths (the folders that hold the BIDS datasets)."""
+    global SING_WB, OUTPUT_BASE, CLASSIFICATION_DEFAULT
+    if species_bids is not None:
+        SPECIES_BIDS_DICT.clear(); SPECIES_BIDS_DICT.update(species_bids)
+    if species_multi_bids is not None:
+        SPECIES_MULTI_BIDS.clear(); SPECIES_MULTI_BIDS.update(species_multi_bids)
+    if output_base is not None:
+        OUTPUT_BASE = output_base
+    if classification is not None:
+        CLASSIFICATION_DEFAULT = classification
+    SING_WB = _sing_wb(sing_bind)
+
+
+configure()
 
 # ── Per-species configuration overrides ──────────────────────────────────────
 SPECIES_OVERRIDES = {
@@ -829,7 +828,7 @@ def main() -> None:
     )
     parser.add_argument(
         '--classification', type=str,
-        default='/scratch2/EDNiX/results/EDNiX_Figures/Figure_4_rsfMRI_QC/lvl2/all/classification_results.xlsx',
+        default=CLASSIFICATION_DEFAULT,
         help='Path to classification_results.xlsx',
     )
     parser.add_argument(
@@ -948,221 +947,3 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
-
-
-'''
-# =============================================================================
-# MAIN
-# =============================================================================
-
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description='Run SBA rendering for EDNiX species by classification category (threshold based on number of BOLD runs).'
-    )
-    parser.add_argument(
-        '--species', nargs='+', default=None,
-        help='Subset of species to process (default: all).',
-    )
-    parser.add_argument(
-        '--classification', type=str,
-        default='/scratch2/EDNiX/results/EDNiX_Figures/Figure_4_rsfMRI_QC/lvl2/all/classification_results.xlsx',
-        help='Path to classification_results.xlsx',
-    )
-    parser.add_argument(
-        '--categories', nargs='+', default=None,
-        help='Categories to process (default: all).',
-    )
-    parser.add_argument(
-        '--min-n', type=int, default=4,
-        help='Minimum number of BOLD runs required to process a category (default: 4).',
-    )
-    parser.add_argument(
-        '--homogenize', action='store_true',
-        help='Subsample all categories to the same N (smallest category with >=4 subjects).',
-    )
-    parser.add_argument(
-        '--skip-analyses', nargs='+', default=None,
-        help='Skip specific analyses (e.g., analysis1 analysis2).',
-    )
-    parser.add_argument(
-        '--output', type=str, default=OUTPUT_BASE,
-        help='Base output directory for results.',
-    )
-    parser.add_argument(
-        '--exclude-lateralized', action='store_true', default=True,
-        help='Only run bilateral seeds (drop any region prefixed L_/R_) when a ROI substring matches multiple label rows.',
-    )
-    args, _ = parser.parse_known_args()
-
-    # Build full species→[bids_dirs] map
-    all_species: dict[str, list[str]] = {}
-    for sp, d in SPECIES_BIDS_DICT.items():
-        all_species[sp] = [d]
-    for sp, dirs in SPECIES_MULTI_BIDS.items():
-        all_species[sp] = dirs
-
-    if args.species:
-        unknown = set(args.species) - set(all_species)
-        if unknown:
-            print(f"[ERROR] Unknown species: {unknown}")
-            sys.exit(1)
-        to_run = {sp: all_species[sp] for sp in args.species}
-    else:
-        to_run = all_species
-
-    categories_to_process = args.categories if args.categories is not None else CATEGORIES
-
-    print(f"\n{'=' * 70}")
-    print(f"  EDNiX SBA by Category (threshold based on BOLD runs)")
-    print(f"  Species: {', '.join(to_run)}")
-    print(f"  Categories: {categories_to_process}")
-    print(f"  Minimum runs: {args.min_n}")
-    print(f"  Homogenize: {args.homogenize}")
-    print(f"  Output: {args.output}")
-    print(f"{'=' * 70}\n")
-
-    # ── Load classification ───────────────────────────────────────────────────
-    all_category_subjects = {}
-
-    for species, bids_dirs in to_run.items():
-        print(f"\n{'=' * 70}")
-        print(f"  Loading classification for {species}")
-        print(f"{'=' * 70}")
-
-        category_subjects = load_classification_subjects(
-            args.classification,
-            species=species,
-            bids_dir=None,
-            categories=categories_to_process,
-        )
-
-        if category_subjects is None:
-            print(f"  [WARN] No classification data for {species}")
-            continue
-
-        all_category_subjects[species] = category_subjects
-
-        print(f"\n  Summary for {species}:")
-        total_subj = sum(len(subj) for subj in category_subjects.values() if subj is not None)
-        print(f"    Total subjects (all categories): {total_subj}")
-        for cat in categories_to_process:
-            n = len(category_subjects.get(cat, []))
-            print(f"    {cat}: {n} subjects")
-
-    # ── Process each species and category ────────────────────────────────────
-    print(f"\n{'=' * 70}")
-    print(f"  Starting SBA processing (min runs = {args.min_n})")
-    print(f"{'=' * 70}\n")
-
-    all_processed = []
-    all_skipped = []
-
-    # First pass: full dataset (no homogenization), includes 'All'
-    if not args.homogenize:
-        for species, bids_dirs in to_run.items():
-            if species not in all_category_subjects:
-                continue
-
-            category_subjects = all_category_subjects[species]
-            categories_to_process_with_all = list(set(categories_to_process + ['All']))
-
-            for cat in categories_to_process_with_all:
-                subjects = category_subjects.get(cat, [])
-                if not subjects:
-                    all_skipped.append((species, cat, 0, "no subjects"))
-                    continue
-
-                # We'll let process_species_category check the run count
-                try:
-                    success = process_species_category(
-                        species, bids_dirs, cat, subjects,
-                        bids_label=Path(bids_dirs[0]).name,
-                        output_suffix="Full",
-                        skip_analyses=args.skip_analyses if args.skip_analyses else ['analysis1', 'analysis2'],
-                        results_base_dir=args.output,
-                        min_runs=args.min_n,
-                        exclude_lateralized=args.exclude_lateralized,   # NEW — was missing
-                    )
-                    if success:
-                        all_processed.append((species, cat, len(subjects), "full"))
-                    else:
-                        all_skipped.append((species, cat, len(subjects), "insufficient runs"))
-                except Exception as exc:
-                    print(f"\n[ERROR] {species} - {cat} failed: {exc}")
-                    import traceback
-                    traceback.print_exc()
-                    all_skipped.append((species, cat, len(subjects), "error"))
-
-    # Second pass: homogenized (EXCLUDING 'All')
-    if args.homogenize:
-        print(f"\n{'=' * 70}")
-        print(f"  Starting HOMOGENIZED SBA processing")
-        print(f"  (Subsampling subjects, min runs still applies)")
-        print(f"{'=' * 70}\n")
-
-        for species, bids_dirs in to_run.items():
-            if species not in all_category_subjects:
-                continue
-
-            category_subjects = all_category_subjects[species]
-            categories_for_homogenization = [cat for cat in categories_to_process if cat != 'All']
-            category_subjects_filtered = {cat: category_subjects[cat] for cat in categories_for_homogenization}
-
-            subsampled, target_n = subsample_categories(
-                category_subjects_filtered,
-                target_n=None,
-                random_seed=42
-            )
-
-            if target_n < 1:
-                print(f"\n  [SKIP] {species}: no categories with >=4 subjects")
-                continue
-
-            for cat in categories_for_homogenization:
-                subjects = subsampled.get(cat, [])
-                if not subjects:
-                    all_skipped.append((species, cat, 0, "no subjects after subsampling"))
-                    continue
-
-                try:
-                    success = process_species_category(
-                        species, bids_dirs, cat, subjects,
-                        bids_label=Path(bids_dirs[0]).name,
-                        output_suffix="Homogenized",
-                        skip_analyses=args.skip_analyses if args.skip_analyses else ['analysis2'],
-                        results_base_dir=args.output,
-                        min_runs=args.min_n,
-                    )
-                    if success:
-                        all_processed.append((species, cat, len(subjects), "homogenized"))
-                    else:
-                        all_skipped.append((species, cat, len(subjects), "insufficient runs (homogenized)"))
-                except Exception as exc:
-                    print(f"\n[ERROR] {species} - {cat} failed (homogenized): {exc}")
-                    import traceback
-                    traceback.print_exc()
-                    all_skipped.append((species, cat, len(subjects), "error"))
-
-    # ── Final summary ─────────────────────────────────────────────────────────
-    print(f"\n{'=' * 70}")
-    print(f"  SBA by Category COMPLETE")
-    print(f"{'=' * 70}")
-
-    print(f"\n  Processed runs:")
-    for species, cat, n_subj, mode in all_processed:
-        print(f"    ✅ {species} - {cat}: {n_subj} subjects ({mode})")
-
-    if all_skipped:
-        print(f"\n  Skipped runs:")
-        for species, cat, n_subj, reason in all_skipped:
-            print(f"    ❌ {species} - {cat}: {n_subj} subjects ({reason})")
-
-    print(f"\n  Results saved to: {args.output}")
-    print(f"\n{'#' * 70}")
-    print("  Done.")
-    print(f"{'#' * 70}\n")
-
-
-if __name__ == '__main__':
-    main()
-'''

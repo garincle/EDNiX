@@ -2,11 +2,20 @@
 
 ## Reproducible Python environment, November 2026
 
-- `requirements.txt` now lists every third-party import of the code: added `torch` (U-Net skull-stripping `muSkullStrip_*`, run with the venv's `python3`, used by the Bat, Lemur and Macaque imagina launchers; `Tools/UNet_Model_training.py`), `nitransforms` (`modalities/fMRI/motion.py`) and `lxml` (`paper_claims.py`); compatible lower bounds for every package.
+- `requirements.txt` now lists every third-party import of the code: added `torch` (U-Net skull-stripping `muSkullStrip_*`, run with the venv's `python3`, used by the Bat, Lemur and Macaque imagina launchers; `Tools/UNet_Model_training.py`), `nitransforms` (`modalities/fMRI/motion.py`) and `lxml` (`paper_claims.py`); `pybids` and `tqdm` removed (no longer imported after the release cleanup); compatible lower bounds for every package.
 - `requirements-lock.txt`: exact versions of all packages (direct and transitive). `Tools/setup_venv.sh` builds `venvEDNiX` from it (`--cpu`, `--dev`, `--unlocked`, `--venv`, `--python`), checks it (`pip check`, imports) and, with `--freeze`, rewrites the lock from a validated venv.
 - `Tools/check_requirements.py` + `tests/unit/test_requirements.py`: AST scan of every import; fails when a package is missing from either file.
 - CI (`tests.yml`) installs the lock through `setup_venv.sh` instead of the unpinned `requirements.txt`.
 - `docs/installation.md`: setup, lock update, table of the programs outside pip.
+
+## Public release cleanup, November 2026
+
+- Development residue removed (kept on branch `dev-archive` = master `b77008e`): every `Archives/` folder, `Exemples/Study_Zhu_Garin`, `EDNiX_orchestrator.py` (replaced by `run_all_ednix.py`), the quick-test launcher, `Launcher_anat_Macaque_imagina_custom.py` (byte-identical copy saved by the interface), calibration and diagnostic scripts of `analysis/validation`, unreferenced modules (`old_orient_correct`, `FS_modif`, `WB_nuclei`, `EDNiXpath`, `check_timing`, `WB_matrices`, `Clean_BIDS`, `add_atlas_to_spec`, `fille_atlases_whole`, `Plot_intespecies_surfaces`, `adapt_template.ipynb`, `_Group_anal_3dLME_dvt_SBA`), `docs/PET_CT_review_journal.md`. `*_custom.py` (launchers saved by the interface) is git-ignored.
+- `Paper/`: the code of the article moved out of the examples: `Exemples/Study_EDNiX/analysis` -> `Paper/analysis`, `Exemples/Study_EDNiX/atlases` -> `Paper/library_build`, `rebuild_all_ednix.py` -> `Paper/`, `run_selection/config_ednix.py`, `launcher.py`, `validation/` -> `Paper/run_selection/`, figure tests -> `Paper/tests` (in `testpaths`). Imports `Exemples.Study_EDNiX.analysis` -> `Paper.analysis`.
+- Shared by the pipeline and the paper, moved to the core: `ednix_bids_tools.py` -> `Tools/`, `Atlas_nomenclature.py` -> `atlases/`.
+- No machine-specific path left outside `Paper/`: example launchers find `MAIN_PATH` from their location and read the datasets under `DATA_ROOT` (`EDNIX_DATA`, default `<EDNiX>/data`; `Tools/ednix_paths.py`), `opj(DATA_ROOT, '<Species>/<BIDS>/')`; `run_all_ednix.py` and the interface resolve it the same way. `run_selection`: `selection.CONFIG` has no local default (`OUTPUT_ROOT` required; `CLASSIFICATION_PATH`, `TREE_PATH`, `BRAIN_MASS_XLSX` = None), `group_maps.configure()` sets datasets / output / Singularity binds (paper values in `Paper/run_selection/config_ednix.py`, identical to before), `compare_states.py OUTPUT_ROOT`, dead copy of `main()` removed from `group_maps.py`. `UNet_Model_training.py`, `label_translate.py`, GUI docs: generic paths.
+- `Check_pet_boundary.py` -> `Tools/pet_boundary_summary.py <bids_dir> [--fwhm]` (dataset-level 95 % CI of the boundary offsets; the per-session check stays in PET step 6).
+- `LICENSE` (Apache-2.0), `CITATION.cff`, `Paper/README.md`; README and `docs/launchers.md` updated.
 
 ## PET / CT study template start, November 2026
 

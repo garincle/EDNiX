@@ -11,10 +11,26 @@ A launcher is a short Python script that describes one dataset (paths, species, 
 
 The example launchers cover bat, dog, human, mouse lemur, macaque, marmoset, mouse and rat datasets. Start from the one closest to your species and acquisition.
 
+## Where EDNiX and the data are
+
+The example launchers contain no machine-specific path. `MAIN_PATH` (the EDNiX folder) is found from the launcher's own location (`Tools/ednix_paths.py`), and every dataset is written relative to `DATA_ROOT`:
+
+```python
+bids_dir = Load_subject_with_BIDS.linux_path(opj(DATA_ROOT, 'Rat/BIDS_Grandjean/'))
+```
+
+`DATA_ROOT` is the environment variable `EDNIX_DATA` (default: `<EDNiX>/data`). With the datasets stored as `<folder>/<Species>/<BIDS folder>`, set it once:
+
+```bash
+export EDNIX_DATA=/path/to/my/data      # e.g. in ~/.bashrc
+```
+
+An absolute path in place of `'Rat/BIDS_Grandjean/'` is used as is, so a launcher can also point anywhere without `EDNIX_DATA`. Launchers saved by the interface as `<name>_custom.py` are ignored by git and by `run_all_ednix.py`.
+
 ## Minimal edits
 
-1. `MAIN_PATH`: your EDNiX folder, **ending with `/`**.
-2. `bids_dir`: your BIDS dataset.
+1. `bids_dir`: your BIDS dataset (relative to `DATA_ROOT`, or absolute).
+2. (`MAIN_PATH` is set automatically; keep the launcher inside `Exemples/Study_EDNiX/Launcher_*`, or replace the `sys.path.insert` line by the path of your EDNiX folder if you move it elsewhere.)
 3. `species`: a species folder name of the atlas library (`Mouse`, `Rat`, `Bat`, `Mouselemur`, `Marmoset`, `Macaque`, `Dog`, `Human`...).
 4. `list_to_keep` / `list_to_remove`: `(subject, session)` pairs, see [bids.md](bids.md).
 5. `Skip_step`: steps not to run (see the step tables of the [anatomical](reference/anat_parameters.md), [functional](reference/fmri_parameters.md), [PET](reference/pet_parameters.md) and [CT](reference/ct_parameters.md) references).
@@ -56,13 +72,13 @@ RESET_DRY_RUN = True       # True: list what would be removed; False: remove, af
 
 Files are removed one by one (manual files stay where the pipeline looks for them), then empty folders are pruned. Every action is written to the subject's diary.
 
-## Full rebuild in one command: `rebuild_all_ednix.py`
+## Full rebuild in one command: `Paper/rebuild_all_ednix.py` (maintainers)
 
-`Exemples/Study_EDNiX/rebuild_all_ednix.py` chains everything with one confirmation: it previews the library build, the BIDS reset (dry run, manual masks and crops kept) and the jobs, asks one `YES`, then detaches (survives closing the terminal) and logs to `run_reports/rebuild_<date>.log`. It builds `Atlases_library_V2` (`atlases/build_library_V2.py`), stops if a species fails or if the library does not match its manifest (nothing in the BIDS folders is touched before that), swaps the libraries (`Atlases_library` → `Atlases_library_V1`, `Atlases_library_V2` → `Atlases_library`), resets the BIDS folders and runs `run_all_ednix.py`. If `Atlases_library` is already the V2 library, the build is skipped (resume).
+This rebuilds the atlas library from the original species atlases, which are not distributed (users download the built library, see [installation.md](installation.md)). `Paper/rebuild_all_ednix.py` chains everything with one confirmation: it previews the library build, the BIDS reset (dry run, manual masks and crops kept) and the jobs, asks one `YES`, then detaches (survives closing the terminal) and logs to `run_reports/rebuild_<date>.log`. It builds `Atlases_library_V2` (`Paper/library_build/build_library_V2.py`), stops if a species fails or if the library does not match its manifest (nothing in the BIDS folders is touched before that), swaps the libraries (`Atlases_library` → `Atlases_library_V1`, `Atlases_library_V2` → `Atlases_library`), resets the BIDS folders and runs `run_all_ednix.py`. If `Atlases_library` is already the V2 library, the build is skipped (resume).
 
 ```bash
-python Exemples/Study_EDNiX/rebuild_all_ednix.py --plan     # preview only
-python Exemples/Study_EDNiX/rebuild_all_ednix.py            # preview, YES, then everything in the background
+python Paper/rebuild_all_ednix.py --plan     # preview only
+python Paper/rebuild_all_ednix.py            # preview, YES, then everything in the background
 ```
 
 ## Relaunching everything: `run_all_ednix.py`

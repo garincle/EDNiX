@@ -1,9 +1,11 @@
 import os
 import sys
+sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))  # the EDNiX folder
 opn = os.path.normpath
 opj = os.path.join
 
-MAIN_PATH = opj('/home/cgarin/PycharmProjects/EDNiX/')
+# MAIN_PATH: this EDNiX folder; DATA_ROOT: folder of the BIDS datasets (environment variable EDNIX_DATA)
+from Tools.ednix_paths import MAIN_PATH, DATA_ROOT
 sys.path.insert(1, opj(MAIN_PATH))
 
 from Tools import Load_subject_with_BIDS, load_bids
@@ -19,7 +21,7 @@ from modalities.pet import _0_Pipeline_launcher
 # (20-45 min, the window of the Patlak fit of the paper), not of the whole acquisition (dominated by the blood pool).
 ######################################################################################################################
 species = 'Human'
-bids_dir = Load_subject_with_BIDS.linux_path(opj('/scratch2/EDNiX/Human/BIDS_Castrillon/'))
+bids_dir = Load_subject_with_BIDS.linux_path(opj(DATA_ROOT, 'Human/BIDS_Castrillon/'))
 # the PET files are listed (as in the CERMEP and Tremblay launchers), not the T1w
 allinfo_study_c = load_bids.Load_BIDS_to_pandas(bids_dir, modalities=['pet'], suffixes=['pet'], extensions=['.nii.gz'])
 

@@ -46,15 +46,10 @@ EDNIX_ROOT = Path(__file__).resolve().parents[1]
 UNET_DIR_CANDIDATES = [
     EDNIX_ROOT / 'Singularity_library' / 'Singularity' / 'NHP-BrainExtraction' / 'UNet_Model',
     EDNIX_ROOT / 'Tool_library' / 'Singularity' / 'NHP-BrainExtraction' / 'UNet_Model',
-    Path('/home/cgarin/PycharmProjects/EDNiX/Singularity_library/Singularity/NHP-BrainExtraction/UNet_Model'),
-    Path('/srv/projects/easymribrain/code/EDNiX/Singularity_library/Singularity/NHP-BrainExtraction/UNet_Model'),
-    Path('/srv/projects/easymribrain/code/EDNiX/Tool_library/Singularity/NHP-BrainExtraction/UNet_Model'),
 ]
-DATA_ROOT_CANDIDATES = [Path('/scratch2/EDNiX'), Path('/srv/projects/easymribrain/data/MRI')]
-OUT_DIR_CANDIDATES = [
-    (Path('/srv/projects/easymribrain/scratch'), 'Training_UNet_cross_species'),
-    (Path('/scratch2'), 'Training_UNet_cross_species'),
-]
+# folder of the BIDS datasets (<root>/<Species>/<BIDS folder>): environment variable EDNIX_DATA, else <EDNiX>/data
+DATA_ROOT_CANDIDATES = ([Path(os.environ['EDNIX_DATA'])] if os.environ.get('EDNIX_DATA') else []) + [EDNIX_ROOT / 'data']
+OUT_DIR_CANDIDATES = [(Path(p), 'Training_UNet_cross_species') for p in [os.environ.get('EDNIX_DATA')] if p]
 INIT_MODEL_NAME = 'model-02-_cross_species-epoch'
 
 RESCALE_DIM = 256   # must stay = muSkullStrip default (-rescale 256)

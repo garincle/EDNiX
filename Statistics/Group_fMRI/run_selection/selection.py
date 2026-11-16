@@ -28,7 +28,7 @@ from Statistics.Group_fMRI.run_selection import surfaces as fpp     # surface re
 
 CONFIG = dict(
     # --- where everything goes -------------------------------------------
-    OUTPUT_ROOT="/scratch2/EDNiX/results/EDNiX_Figures/Fig_5",
+    OUTPUT_ROOT=None,   # required: output folder of the run (set it in the config passed to run_selection)
 
     # --- paths formerly read from Figure5_SBA_KeeporNot -------------------
     RESULTS_BASE_DIR=None,  # None (recommandé) = <OUTPUT_ROOT>/03_group_maps,
@@ -40,8 +40,7 @@ CONFIG = dict(
         # s'écraseraient silencieusement l'un l'autre au même endroit.
     # subject list: classification of the former network-QC figure (archived); None or a
     # missing file with CATEGORY="All" = every subject with a func/ folder in the BIDS
-    CLASSIFICATION_PATH=("/scratch2/EDNiX/results/EDNiX_Figures/Figure_4_rsfMRI_QC/"
-                         "lvl2/all/classification_results.xlsx"),
+    CLASSIFICATION_PATH=None,
     CATEGORY="All",
     STAT_SUFFIX="ttest-stat_fisher_cmap",
     STAT_MAP_USE_THRESHOLDED=False,  # False (correct) : moyenne Fisher-z NON
@@ -178,7 +177,7 @@ CONFIG = dict(
     RUN_REFERENCE_METHOD_COMPARISON=False,
 
     # --- tests phylogénétiques comparatifs (arbre daté complet) -----------
-    TREE_PATH="/scratch2/EDNiX/Liste_des_espèces.nwk",  # arbre daté (Newick) :
+    TREE_PATH=None,  # arbre daté (Newick) :
         # âges des nœuds pour F6/F7, Mantel, K, PGLS. Le pipeline s'arrête si le
         # fichier est absent (None = anciennes valeurs approximatives codées en
         # dur, à ne pas publier).
@@ -215,7 +214,7 @@ CONFIG = dict(
     RUN_PAPER_FIGURES=True,  # 06_figures/Fig5, 06_figures/Fig6 (un fichier par panneau,
         # sans titre, n et p seulement) ; toutes les autres figures sont
         # déplacées dans 06_figures/supplementary/ en fin de run.
-    BRAIN_MASS_XLSX="/scratch2/EDNiX/Herculano-Houzel_mammalian_brain_dataset_complete.xlsx",
+    BRAIN_MASS_XLSX=None,    # classeur Herculano-Houzel (masse cérébrale par espèce), figures seulement
     BRAIN_MASS_G=None,       # {espèce: g} -- remplace le xlsx si donné
     SURFACE_COMMON_SCALE=True,   # 5a : re-rendu wb_command de toutes les cartes d'un
         # dataset (tous les runs, gardés, non gardés) avec UNE échelle de couleur fixe
@@ -2182,6 +2181,8 @@ def run_selection(sri, bids_configs, config=None, df_qc_by_label=None):
     if cfg["UNIT"] not in fu.VALID_UNITS:
         raise ValueError(f"UNIT must be one of {fu.VALID_UNITS}, got {cfg['UNIT']!r}")
 
+    if not cfg.get("OUTPUT_ROOT"):
+        raise ValueError("run_selection: set OUTPUT_ROOT (output folder) in config")
     paths = _tree(cfg["OUTPUT_ROOT"])
     if cfg["MAP_TAG"] is None:
         import hashlib
