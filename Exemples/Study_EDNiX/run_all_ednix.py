@@ -59,8 +59,9 @@ THREADS_PER_WORKER = 4                            # ANTs / AFNI / numpy threads 
 CORE_MARGIN = 4                                   # cores left free for the machine
 MAX_SPLIT = 6                                     # max subject workers per launcher
 SPLIT_ANAT_TEMPLATE = True                        # cut anat study-template launchers into chained stages A-D
-ANAT_TEMPLATE_STAGES = [('A', 'loop1,create', False),  # (key, EDNIX_ANAT_STAGES, split by subject)
-                        ('B', 'loop2', True),
+ANAT_TEMPLATE_STAGES = [('A', 'loop1', True),          # (key, EDNIX_ANAT_STAGES, split by subject)
+                        ('A2', 'create', False),        # loop1 is per session: workers (+ a reference job), then
+                        ('B', 'loop2', True),           # the study template is built once from all of them
                         ('C', 'use', False),
                         ('D', 'loop3', True)]
 TMP_ROOT = os.environ.get('EDNIX_TMPDIR', '')    # temporary files of the workers (ANTsPy, AFNI, nibabel); '' = <run>/tmp
@@ -202,12 +203,27 @@ def _split(L, pairs, subs, n, work_dir, tag, env, stage, cost_w):
 
 
 def _template_stage_jobs(L, pairs, subs, nsplit, work_dir, anat_from):
+    """chained stages of a study-template anat launcher. Every stage gets the same reference session
+    (EDNIX_ANAT_REF). Stage A (loop1) is split like a plain anat launcher: a reference job runs loop1 on the
+    reference session (it writes bids_dir/BASE_SS_anat_res.nii.gz), then subject workers run loop1 on the others."""
     names = [k for k, _, _ in ANAT_TEMPLATE_STAGES]
+    ref = '|'.join(pairs[0])
     jobs = []
     for key, stages, split in ANAT_TEMPLATE_STAGES[names.index(anat_from):]:
         tag = f'__{key}_' + stages.replace(',', '+')
-        jobs += _split(L, pairs, subs, nsplit if split else 1, work_dir, tag,
-                       {'EDNIX_ANAT_STAGES': stages}, key, WEIGHT['anat'] / 2)
+        env = {'EDNIX_ANAT_STAGES': stages, 'EDNIX_ANAT_REF': ref}
+        n = nsplit if split else 1
+        if key == 'A' and n > 1:
+            wref = Path(work_dir) / f"{L['name']}__A_ref.py"
+            jobs.append(dict(launcher=L, script=_write_worker(L, [pairs[0]], wref), pairs=[pairs[0]],
+                             cost=WEIGHT['anat'] * 99, label=wref.stem, env=dict(env), stage=None, ref_job=True))
+            workers = _split(L, pairs, subs, n, work_dir, tag, dict(env, EDNIX_ANAT_LOOP1_SKIP=ref), key,
+                             WEIGHT['anat'] / 2)
+            for w in workers:
+                w['needs_ref'] = True
+            jobs += workers
+            continue
+        jobs += _split(L, pairs, subs, n, work_dir, tag, env, key, WEIGHT['anat'] / 2)
     return jobs
 
 
@@ -228,9 +244,10 @@ def _shared_ref_jobs(L, pairs, subs, n, work_dir):
 
 def make_jobs(launchers, work_dir, anat_from=ANAT_TEMPLATE_STAGES[0][0]):
     """One job per launcher, or subject workers. An anat launcher that builds a study template is cut into chained
-    stages (SPLIT_ANAT_TEMPLATE): A loop1 + template creation (all subjects), B loop2 (subject workers),
-    C study template finalisation + atlases (all subjects), D loop3 (subject workers). anat_from='B' skips A
-    (loop1 and the template already done), 'C' skips A and B, 'D' runs loop3 only."""
+    stages (SPLIT_ANAT_TEMPLATE): A loop1 (reference job + subject workers), A2 template creation (all subjects),
+    B loop2 (subject workers), C study template finalisation + atlases (all subjects), D loop3 (subject workers).
+    anat_from='A2' skips loop1, 'B' skips A and A2 (loop1 and the template already done), 'C' skips up to B,
+    'D' runs loop3 only."""
     jobs = []
     for L in launchers:
         pairs = selected_pairs(L)
