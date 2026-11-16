@@ -57,7 +57,8 @@ Short version (details in [docs/installation.md](docs/installation.md)):
 ```bash
 git clone https://github.com/garincle/EDNiX.git
 cd EDNiX
-pip install -r requirements.txt
+bash Tools/setup_venv.sh          # venvEDNiX with the pinned versions of requirements-lock.txt
+source venvEDNiX/bin/activate
 ```
 
 EDNiX also needs the **Singularity containers** of the neuroimaging programs (AFNI, ANTs, FSL, FreeSurfer, Connectome Workbench, ITK-SNAP; tpcclib for the PET kinetic models) and the **atlas library** (`Atlases_library/`), which are not installed by pip.

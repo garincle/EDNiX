@@ -1,5 +1,13 @@
 # Changelog
 
+## Reproducible Python environment, November 2026
+
+- `requirements.txt` now lists every third-party import of the code: added `torch` (U-Net skull-stripping `muSkullStrip_*`, run with the venv's `python3`, used by the Bat, Lemur and Macaque imagina launchers; `Tools/UNet_Model_training.py`), `nitransforms` (`modalities/fMRI/motion.py`) and `lxml` (`analysis/validation/paper_claims.py`); compatible lower bounds for every package.
+- `requirements-lock.txt`: exact versions of all packages (direct and transitive). `Tools/setup_venv.sh` builds `venvEDNiX` from it (`--cpu`, `--dev`, `--unlocked`, `--venv`, `--python`), checks it (`pip check`, imports) and, with `--freeze`, rewrites the lock from a validated venv.
+- `Tools/check_requirements.py` + `tests/unit/test_requirements.py`: AST scan of every import; fails when a package is missing from either file.
+- CI (`tests.yml`) installs the lock through `setup_venv.sh` instead of the unpinned `requirements.txt`.
+- `docs/installation.md`: setup, lock update, table of the programs outside pip.
+
 ## PET / CT study template start, November 2026
 
 - `studyT.initial_template`: `ants.build_template` now starts from the mean of the session images registered rigidly to the first one, on a grid of its spacing and axes, of the largest extent of the images + 15 mm per side, centred on the centre of mass of the first image (order of sammba-mri `anats_to_common`: centring, rigid, then affine / non-linear). ANTsPy's default start, the unaligned sum of the images on the grid of the first one, made shifted copies of the brain when the heads sat at different scanner positions; the template drifted out of that grid (macaque FDG brain template cut on 3 faces by ~12 mm; reproduced on the phantom with 15 mm offsets, with SyNRA and TRSAA). Used by the PET (step 2) and CT (step 2) study templates; CT images are shifted to >= 0 for the start only.
