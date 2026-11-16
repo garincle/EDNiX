@@ -74,7 +74,7 @@ import matplotlib.pyplot as plt
 from scipy import stats as sstats
 
 try:                                        # region hierarchy of the EDNiX atlases (order of the atlas figure)
-    from Exemples.Study_EDNiX.atlases import Atlas_nomenclature as _AN
+    from atlases import Atlas_nomenclature as _AN
 except ImportError:                         # pragma: no cover
     _AN = None
 

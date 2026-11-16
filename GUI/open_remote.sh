@@ -3,11 +3,11 @@
 # local browser, through an SSH tunnel. Runs keep going on the server when you close it.
 #
 #   bash GUI/open_remote.sh                 # host and folder from ednix_gui.conf
-#   bash GUI/open_remote.sh gpu-07-01       # host given here, EDNiX folder from ednix_gui.conf
+#   bash GUI/open_remote.sh my-server       # host given here, EDNiX folder from ednix_gui.conf
 #
 # Settings (ednix_gui.conf, same folder):
-#   EDNIX_REMOTE_HOST=gpu-07-01                         ssh host (an alias of ~/.ssh/config works)
-#   EDNIX_REMOTE_REPO=/home/cgarin/PycharmProjects/EDNiX EDNiX folder on that host
+#   EDNIX_REMOTE_HOST=my-server                         ssh host (an alias of ~/.ssh/config works)
+#   EDNIX_REMOTE_REPO=/path/to/EDNiX              EDNiX folder on that host
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONF="$DIR/ednix_gui.conf"
 if [ -f "$CONF" ]; then

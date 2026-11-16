@@ -264,7 +264,7 @@ def test_build_library_V2_discovery_and_manifest(tmp_path, monkeypatch):
     """Library V2: template discovery (freesurfer folders ignored) and checksum verification."""
     import importlib.util
     spec = importlib.util.spec_from_file_location(
-        'build_library_V2', os.path.join(os.path.dirname(__file__), '..', '..', 'Exemples', 'Study_EDNiX', 'atlases',
+        'build_library_V2', os.path.join(os.path.dirname(__file__), '..', '..', 'Paper', 'library_build',
                                          'build_library_V2.py'))
     lib = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(lib)

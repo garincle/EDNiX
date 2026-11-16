@@ -1,6 +1,6 @@
 """
 Atlas label utilities used by the pipeline (moved from
-Exemples/Study_EDNiX/analysis/ednix_bids_tools.py so that the core package
+Tools/ednix_bids_tools.py so that the core package
 does not depend on study scripts).
 """
 import os

@@ -59,7 +59,7 @@ from Statistics.Group_fMRI.run_selection import group_maps as fig5
 from Statistics.Group_fMRI.run_selection import outlier_qc as qc
 
 try:
-    from Exemples.Study_EDNiX.analysis.ednix_bids_tools import parse_label_file
+    from Tools.ednix_bids_tools import parse_label_file
 except ImportError:
     parse_label_file = None  # only needed if you don't pass label_df directly
 

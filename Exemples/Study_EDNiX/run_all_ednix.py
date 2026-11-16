@@ -44,6 +44,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 MAIN_PATH = HERE.parents[1]                       # the EDNiX repository
 sys.path.insert(0, str(MAIN_PATH))
+from Tools.ednix_paths import resolve_data_path  # noqa: E402
 
 # =====================================================================================================================
 # SETTINGS
@@ -110,7 +111,7 @@ def _lists_ignored(tree):
 def parse_launcher(path, kind):
     src = Path(path).read_text(encoding='utf-8')
     tree = ast.parse(src)
-    bids = _literal(tree, 'bids_dir')
+    bids = resolve_data_path(_literal(tree, 'bids_dir'))   # opj(DATA_ROOT, '<Species>/<BIDS>/') -> full path
     keep = _literal(tree, 'list_to_keep', []) or []
     remove = _literal(tree, 'list_to_remove', []) or []
     template = any(_literal(tree, v, False) is True for v in ('creat_study_template_pet', 'creat_study_template_ct')) \
