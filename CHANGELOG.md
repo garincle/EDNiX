@@ -1,5 +1,11 @@
 # Changelog
 
+## Paper: V4 figure numbering in the documentation, November 2026
+
+- `Paper/analysis/README.md`: figure -> code table rewritten with the V4 numbering (Supp. 7 FreeSurfer, 8 longitudinal vs cross-sectional, 9 human association vs primary, 10-14 run selection, 15 FDG pairs), current Fig. 1, 4 and 6 panels, coverage of `paper_claims`.
+- `run_paper.py`, `paper_data.py`, `sensitivity_analysis/fmri_selection/README.md`: run selection feeds Supp. 10-14 (was 8-12).
+- `paper_claims_registry.py`: display labels of the human association claims (Supp. Fig. 7 -> 9) and of the ablation claims (Supp. Fig. 15g/h -> 8g/h); ids and sources unchanged.
+
 ## Reproducible Python environment, November 2026
 
 - `requirements.txt` now lists every third-party import of the code: added `torch` (U-Net skull-stripping `muSkullStrip_*`, run with the venv's `python3`, used by the Bat, Lemur and Macaque imagina launchers; `Tools/UNet_Model_training.py`), `nitransforms` (`modalities/fMRI/motion.py`) and `lxml` (`paper_claims.py`); `pybids` and `tqdm` removed (no longer imported after the release cleanup); compatible lower bounds for every package.
