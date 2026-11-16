@@ -22,7 +22,7 @@ import argparse
 
 import numpy as np
 
-_REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), *[os.pardir] * 4))
+_REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), *[os.pardir] * 3))
 for p in (_REPO, '/home/cgarin/PycharmProjects/EDNiX/'):
     if os.path.isdir(p) and p not in sys.path:
         sys.path.insert(0, p)

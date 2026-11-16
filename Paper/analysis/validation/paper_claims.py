@@ -61,8 +61,8 @@ import pandas as pd
 
 opj = os.path.join
 HERE = os.path.dirname(os.path.abspath(__file__))
-ANALYSIS = os.path.dirname(HERE)                                   # .../Study_EDNiX/analysis
-REPO = os.path.dirname(os.path.dirname(os.path.dirname(ANALYSIS)))  # repository root
+ANALYSIS = os.path.dirname(HERE)                                   # .../Paper/analysis
+REPO = os.path.dirname(os.path.dirname(ANALYSIS))                   # repository root
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
