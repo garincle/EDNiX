@@ -38,6 +38,11 @@ the `PATH`: activate the venv before running a launcher, so that it finds `torch
 records the build of the frozen torch in the lock (`# torch-index: https://download.pytorch.org/whl/cu121`), and
 the install takes torch from that index. `--torch-index URL` overrides it, `--cpu` installs the CPU build.
 
+The lock is the freeze of the environment that produced the paper results (Python 3.11, torch 2.7.1 built for
+CUDA 12.6, which runs with a driver supporting CUDA 12.0). This torch is older than the `torch>=2.10` floor of
+`requirements.txt`, set for CVE-2025-32434 and CVE-2026-24747; both concern loading untrusted checkpoints, while
+EDNiX only loads its own U-Net models. `--unlocked` installs versions above the floor.
+
 After a change of environment that has been validated (tests + smoke test), update the lock from it:
 
 ```bash

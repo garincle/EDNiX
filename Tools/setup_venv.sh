@@ -151,7 +151,19 @@ fi
 [ "$DEV" = 1 ] && "$VPY" -m pip install --quiet pytest pytest-xdist
 
 # ---------------------------------------------------------------- verification
-"$VPY" -m pip check
+# pip check: dependency conflicts stop the script; a crash of pip itself on a wheel tag it cannot parse
+# (InvalidTag, e.g. itk-5.4.4.post1 '...-cp311-abi3-...' with recent pip) only gives a warning.
+if ! "$VPY" -m pip check > "$TMP/pipcheck.log" 2>&1; then
+  if grep -q 'InvalidTag' "$TMP/pipcheck.log"; then
+    echo "[EDNiX] WARNING: 'pip check' could not run (pip cannot parse a wheel tag):"
+    grep 'InvalidTag' "$TMP/pipcheck.log" | tail -n 1 | sed 's/^/        /'
+    echo "        dependency consistency not verified by pip; the import check below still runs."
+  else
+    cat "$TMP/pipcheck.log"; echo "[EDNiX] pip check failed: inconsistent dependencies"; exit 1
+  fi
+else
+  cat "$TMP/pipcheck.log"
+fi
 EDNIX_REPO="$REPO" "$VPY" - <<'EOF'
 import importlib
 import os, sys

@@ -36,6 +36,8 @@ nitime>=0.10           # fMRI QC spectra
 #     modalities/anat/skullstrip/Unetmask.py and fMRI/Skullstrip_func.py) and its fine-tuning
 #     (Tools/UNet_Model_training.py)
 torch>=2.10            # >= 2.10: fixes of CVE-2025-32434 and CVE-2026-24747 (code execution on torch.load)
+                       # The lock (environment of the paper results) keeps torch 2.7.1+cu126, below this floor:
+                       # these CVEs concern loading untrusted checkpoints; EDNiX only loads its own U-Net models.
 
 # --- figures / reports
 matplotlib>=3.7
