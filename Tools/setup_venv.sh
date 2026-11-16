@@ -9,7 +9,7 @@
 #   bash Tools/setup_venv.sh --freeze        write requirements-lock.txt from an existing, validated venv
 #
 # <EDNiX>/venvEDNiX is where GUI/launch_EDNiX_GUI.sh looks first; run_all_ednix.py uses the interpreter that runs it
-# for the interpreter. The U-Net skull-stripping (muSkullStrip.py) runs with the `python3` found on the PATH:
+# The U-Net skull-stripping (muSkullStrip.py) runs with the `python3` found on the PATH:
 # activate the venv (source venvEDNiX/bin/activate) before running a launcher.
 #
 # Non-pip requirements (not installed here): Singularity/Apptainer + the .sif images (AFNI, FSL, FreeSurfer,
