@@ -52,6 +52,19 @@ With one field map per run (`'new'`), each run uses its own field; with a shared
 | `'AFNI'` | design matrix built with `3dDeconvolve` (motion and derivatives, tissue signals, band-pass as sine / cosine regressors, polynomials), projected with `3dTproject` together with censoring and smoothing |
 | `'fMRIPrep_style'` | 24-parameter motion model, aCompCor on white matter and CSF (see below), optional global signal, projected with `3dTproject` with the temporal filter; the regressors are saved in `*_confounds_fMRIPrep_style.tsv` |
 | `'Grandjean'` | motion and mean white-matter and CSF signals, with the temporal filter; the mean signal is added back unless `normalize` is set |
+| `'None'` | no denoising: the input of step 7 is copied as the residual (no filter, regression, smoothing or normalisation); replaces `do_not_correct_signal=True`, which still works but is deprecated |
+
+The default is `'fMRIPrep_style'`; the case of the name is ignored.
+
+**Several methods in one run.** `post_treatment_method` also takes a list, for example `['fMRIPrep_style', 'Grandjean']`: steps 7 to 11 and 13 are run once per method, on the same preprocessed data. The **first** method writes the usual outputs (`postprocessed_rs`, `Stats`, `QC`), so every analysis that reads them is unchanged; each other method writes the same files in folders suffixed with its name:
+
+| output | first method | other method `<m>` |
+|---|---|---|
+| residuals, acpc-func / acpc-anat / template | `postprocessed_rs/` | `postprocessed_rs_<m>/` |
+| matrices (step 10), seed maps (step 11) | `<space>/Stats/` | `<space>/Stats_<m>/` |
+| specificity (step 13) | `func/QC/*_full_results.json`, `all_runs_classification.csv` | `func/QC_<m>/` |
+
+Step 12 (motion, tSNR, DVARS, FWHM...) is run for the first method only. Put first the method whose outputs your analyses already read: `['Grandjean', 'fMRIPrep_style']` makes Grandjean the unsuffixed one.
 
 **Which regressors each method uses.** `extract_WM`, `extract_Vc` and `extract_GS` select the regressors of the `'AFNI'` method. `'Grandjean'` always uses the mean white-matter and ventricle signals (when the masks exist), whatever `extract_WM` and `extract_Vc` say, and `'fMRIPrep_style'` always uses aCompCor of both tissues; `extract_GS` adds the global signal to `'AFNI'` and `'fMRIPrep_style'`. `extract_exterior_CSF` is not available (it must be `False`): no step produces its mask, and the signals are extracted from skull-stripped data, which are zero outside the brain.
 
@@ -79,4 +92,5 @@ The atlas tab of the interface picks seeds by clicking regions in 3D and writes 
 
 - `func/acpc-func/postprocessed_rs/`: denoised time series in AC-PC space at functional resolution.
 - `func/templates/<reference>/postprocessed_rs/`: the same in template space, with correlation matrices and seed-based maps.
+- `..._<method>/` (`postprocessed_rs_<method>`, `Stats_<method>`, `QC_<method>`): the outputs of the second and next methods when `post_treatment_method` is a list.
 - `func/raw/matrices/`: motion matrices, FD and censoring files, distortion fields (`*_desc-sdc_1Warp.nii.gz` with a JSON report).

@@ -19,7 +19,7 @@ STATIC_OPTIONS = {
     'Align_img_to_template': ['Ants', 'No', ''],
     'doWARPonfunc': ['header', 'WARP'],
     'registration_type': ['origin', 'fast', 'V2'],
-    'post_treatment_method': ['AFNI', 'Grandjean', 'fMRIPrep_style'],
+    'post_treatment_method': ['fMRIPrep_style', 'Grandjean', 'AFNI', 'None'],
     'fMRImasks': ['aseg', 'custom'],
     'transfo_message': ['do_it_for_me', 'do_as_I_said'],
     'resting_or_task': ['resting', 'task'],
