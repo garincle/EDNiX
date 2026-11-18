@@ -430,6 +430,8 @@ class Volume:
         if data.ndim == 4:
             if frame == 'mean':
                 data = np.asarray(data[..., :min(data.shape[3], 20)], dtype=np.float32).mean(-1)
+            elif frame == 'late':
+                data = np.asarray(data[..., -min(data.shape[3], 3):], dtype=np.float32).mean(-1)
             else:
                 data = data[..., frame or 0]
         self.data = np.asarray(data, dtype=np.float32)
@@ -453,6 +455,14 @@ class Volume:
                                                  if np.any(self.data > 0) else np.ones_like(self.data, bool))
         cx = ndi.center_of_mass(s.astype(float))[0]
         return int(np.clip(round(cx + offset_mm / self.zooms[0]), 0, self.data.shape[0] - 1))
+
+    def sag_index_frac(self, support, frac):
+        """Sagittal index at the centre of mass of `support` shifted to the left by `frac` of its
+        left-right extent (frac = 0: centre of the object; 0.15: parasagittal, inside one hemisphere)."""
+        xs = np.where(support)[0]
+        if xs.size == 0:
+            return self.sag_index(None)
+        return self.sag_index(support, offset_mm=-frac * np.ptp(xs) * self.zooms[0])
 
     def sagittal(self, i):
         """2-D sagittal slice: rows = superior -> inferior, columns = posterior -> anterior."""
@@ -630,6 +640,31 @@ def upsample(a, k, order=0):
 def _disk(r):
     yy, xx = np.mgrid[-r:r + 1, -r:r + 1]
     return (yy ** 2 + xx ** 2) <= r ** 2
+
+
+def _otsu(v, nbins=256):
+    """Otsu threshold of a 1-D sample (between-class variance maximised)."""
+    h, e = np.histogram(v, bins=nbins)
+    c = (e[:-1] + e[1:]) / 2
+    w0 = np.cumsum(h)
+    w1 = w0[-1] - w0
+    m0 = np.cumsum(h * c) / np.maximum(w0, 1)
+    m1 = (np.sum(h * c) - np.cumsum(h * c)) / np.maximum(w1, 1)
+    return float(c[np.argmax(w0 * w1 * (m0 - m1) ** 2)])
+
+
+def object_support(data):
+    """Head / brain of an image whose background is not zero (EPI, PET): largest connected component
+    above the Otsu threshold (intensities clipped at the 99.5th percentile), holes filled. Used to
+    centre the slice on the object rather than on the field of view, which is often much larger than
+    the head and not centred on it."""
+    d = np.where(np.isfinite(data), data, 0)
+    pos = d[d > 0]
+    if pos.size == 0:
+        return np.ones(d.shape, bool)
+    m = _largest(d > _otsu(np.minimum(pos, np.percentile(pos, 99.5))))
+    m = ndi.binary_fill_holes(ndi.binary_closing(m, iterations=2))
+    return m if m.any() else d > np.percentile(pos, 30)
 
 
 def _largest(m):

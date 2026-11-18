@@ -50,6 +50,12 @@ PATTERNS = {
     'tmpl':      f'func/templates/{REFERENCE}/preprocessing/BASE_SS_fMRI.nii.gz',
 }
 
+# Session drawn: first sub-*/ses-* of FUNC_BIDS with every file, or SUBJECT (e.g. 'sub-Courtney') first.
+SUBJECT = None
+# Sagittal slice: centre of the head / brain shifted left by this fraction of its left-right extent
+# (0 = midline, 0.15 = parasagittal). The slice index of each frame is printed on the console.
+SAG_OFFSET_FRAC = 0.15
+
 FW, FH = 17.6, 15.8
 RED, YEL, GRN = '#FF5A36', '#FFD400', '#3DDC97'
 
@@ -173,10 +179,14 @@ def thumbs_real(files):
     V = sch.Volume
     asp = FH / FW
 
-    def sl(vol, support, contours=(), labels=None, pad=0.10, head=False):
-        i = vol.sag_index(support > 0.5, offset_mm=-0.15 * np.ptp(np.where(support > 0.5)[0]) * vol.zooms[0])
+    def sl(vol, support, contours=(), labels=None, pad=0.10, head=False, name=''):
+        # head=True (raw / EPI-space frames): the slice is centred on the head itself, not on a
+        # percentile threshold that keeps the background noise of the whole field of view
+        obj = sch.object_support(vol.data) if head else support > 0.5
+        i = vol.sag_index_frac(obj, SAG_OFFSET_FRAC)
+        print(f'  [Supp 2] {name}: sagittal slice {i}/{vol.data.shape[0]}')
         img = vol.sagittal(i)
-        sup = img > np.percentile(img[img > 0], 25) if head else np.rot90((support > 0.5)[i])
+        sup = np.rot90(obj[i]) if head else np.rot90((support > 0.5)[i])
         sy, sx = sch.fit_crop(img, asp * vol.zooms[1] / vol.zooms[2], sup, pad=pad)
         cp = lambda a: sch.crop_pad(a, sy, sx)
         cs = [(cp(np.rot90(m[i])), col, lw) + tuple(rest) for m, col, lw, *rest in contours]
@@ -208,20 +218,21 @@ def thumbs_real(files):
     vox = vox[rng.choice(len(vox), min(300, len(vox)), replace=False)]
     vox = (vox - vox.mean(1, keepdims=True)) / (vox.std(1, keepdims=True) + 1e-9)
     return dict(
-        raw=sl(bold, thr(bold), head=True),
+        raw=sl(bold, None, head=True, name='raw'),
         motion=Thumb(plot=motion_plot(disp, fd, 0.2)),
-        sdc=sl(unw, thr(unw), contours=[(thr(n4.resample_like(unw, order=1)), RED, 0.5, (0, (1.5, 1)))], head=True),
-        inref=sl(inref, thr(inref), head=True),
-        acpc=sl(mean, brain, contours=[(a_wm, YEL, 0.45)]),
-        atlas=sl(mean, brain, labels=atlas.data),
+        sdc=sl(unw, None, contours=[(thr(n4.resample_like(unw, order=1)), RED, 0.5, (0, (1.5, 1)))], head=True,
+               name='sdc'),
+        inref=sl(inref, None, head=True, name='inref'),
+        acpc=sl(mean, brain, contours=[(a_wm, YEL, 0.45)], name='acpc'),
+        atlas=sl(mean, brain, labels=atlas.data, name='atlas'),
         carpet=Thumb(plot=carpet_plot(vox)),
-        tmpl=sl(mtpl, thr(tmpl), contours=[(thr(tmpl), YEL, 0.45)]),
+        tmpl=sl(mtpl, thr(tmpl), contours=[(thr(tmpl), YEL, 0.45)], name='tmpl'),
     ), files['mean_acpc']
 
 
 def get_thumbs(force_synthetic=False):
     if not force_synthetic:
-        files, ses = sch.find_session(FUNC_BIDS, PATTERNS)
+        files, ses = sch.find_session(FUNC_BIDS, PATTERNS, prefer=SUBJECT)
         if files:
             try:
                 th, _ = thumbs_real(files)
@@ -373,10 +384,15 @@ def make(out=OUT, force_synthetic=False):
 
 
 def main():
+    global SUBJECT, SAG_OFFSET_FRAC
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[1])
     ap.add_argument('--synthetic', action='store_true', help='synthetic images even if the data are found')
     ap.add_argument('--out', default=None, help='output folder (default <PAPER_DIR>/Supp_Fig_02)')
+    ap.add_argument('--subject', default=SUBJECT, help="subject drawn first, e.g. sub-Courtney")
+    ap.add_argument('--sag-offset', type=float, default=SAG_OFFSET_FRAC,
+                    help='sagittal slice: left shift from the centre, fraction of the left-right extent')
     a = ap.parse_args()
+    SUBJECT, SAG_OFFSET_FRAC = a.subject, a.sag_offset
     make(os.path.join(a.out, 'Supp_Fig_02') if a.out else OUT, a.synthetic)
 
 
