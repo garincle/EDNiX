@@ -1,5 +1,10 @@
 # Changelog
 
+## PET / CT QC contour refreshed, November 2026
+
+- `coreg2anat.qc_contour` (PET step 6, CT registration QC): the head contour of a target without brain mask (study template) is cached in `QC/<target>_desc-qccontour_mask.nii.gz`; it is now recomputed when it is older than the target image or not on its grid. Before, a study template rebuilt after the first run kept the contour of the old template (large, shifted outline on `*_space-studyTemplate_pet.png` although the registration was correct; seen on the macaque FDG 3v2 sessions). QC images only, no result changes.
+- Test `test_qc_contour_follows_a_rebuilt_study_template`.
+
 ## PyTorch build matched to the NVIDIA driver, November 2026
 
 - `Tools/setup_venv.sh --freeze` records the build of the frozen venv's torch in the lock (`# torch-index: https://download.pytorch.org/whl/cuXYZ`); the install takes torch from that index, so the CUDA build of the validated environment is reproduced instead of the default PyPI build (CUDA 13.2 for torch 2.15, unusable with a CUDA 12.0 driver such as gpu-07-01's: `torch.cuda.is_available()` False).
