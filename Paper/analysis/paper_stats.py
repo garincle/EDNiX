@@ -36,6 +36,8 @@ lines), and returns them with what paper_figures.py needs to draw the figure.
                                             units kept per state
   supp14    run dispersion and QC           SD of r with the kept map; QC meta-analysis
   supp15    FDG profile similarity          pairs of subjects by class, label-permutation test
+  supp16    awake vs anaesthetised          per state (datasets with both): n runs / animals,
+                                            r between state profiles, animal-pair r (descriptive)
   stable1   acquisition parameters          per dataset: n, field, scanner, TR, TE, flip, voxel,
                                             volumes, duration, arousal state; implausible TRs flagged
 
@@ -63,14 +65,14 @@ opj = os.path.join
 
 SECTIONS = ("figure1", "figure2", "figure3", "figure4", "figure5", "figure6", "supp1", "supp2",
             "supp3", "supp4", "supp5", "supp6", "supp8", "supp9", "supp10", "supp11", "supp12",
-            "supp13", "supp14", "supp15", "stable1")
+            "supp13", "supp14", "supp15", "supp16", "stable1")
 FOLDER = dict(figure1="Figure_1", figure2="Figure_2", figure3="Figure_3",
               figure4="Figure_4", figure5="Figure_5", figure6="Figure_6", supp1="Supp_Fig_01",
               supp2="Supp_Fig_02", supp3="Supp_Fig_03", supp4="Supp_Fig_04",
               supp5="Supp_Fig_05",
               supp6="Supp_Fig_06", supp9="Supp_Fig_09", supp10="Supp_Fig_10",
               supp13="Supp_Fig_13", supp12="Supp_Fig_12", supp11="Supp_Fig_11",
-              supp14="Supp_Fig_14", supp15="Supp_Fig_15", supp8="Supp_Fig_08",
+              supp14="Supp_Fig_14", supp15="Supp_Fig_15", supp16="Supp_Fig_16", supp8="Supp_Fig_08",
               stable1="Supp_Table_01")
 
 
@@ -597,6 +599,35 @@ def _kept_by_state(d, labels):
         lines.append(f"  total: kept {int(tot['kept_awake'].sum())} awake and "
                      f"{int(tot['kept_anaesthetised'].sum())} anaesthetised units")
     return tot, lines
+
+
+# pool of supp16: "kept" = runs kept by the final round (as the maps of
+# Paper/run_selection/state_group_maps.py, default), "all" = every run
+SUPP16_POOL = "kept"
+
+
+def supp16(inp):
+    """Awake vs anaesthetised inside the datasets holding both states (Mouse, Marmoset_Hori):
+       a  group seed map of each state (state_group_maps.py, read from 08_state_maps/)
+       b  median run profile of each state + LOSO consensus
+       c  r between animal-mean profiles (other animal / same state, same animal / other
+          state, other animal / other state), r between the state profiles, voxelwise r
+    Descriptive only (state nested in sessions; small pools)."""
+    from Paper.analysis.fmri_fingerprints import state_maps_figure as smf
+    c = inp.fmri()
+    idx = smf.read_map_index(inp.fmri_root)
+    pool = (idx or {}).get("pool", SUPP16_POOL)
+    runs, vecs = smf.runs_from_context(c, pool=pool)
+    if runs.empty:
+        return dict(tables={}, lines=["no dataset holds both states"], draw=None)
+    res = smf.compute(runs, vecs, c["vecs_all"], c["species_of_label"],
+                      (idx or {}).get("rows"))
+    lines = [f"pool = {pool} runs (final round {c['final_round']}); maps: "
+             + ("08_state_maps/state_maps.json" if idx else
+                "NOT computed -- run Paper/run_selection/state_group_maps.py")] + res["lines"]
+    return dict(tables=dict(a_maps_and_counts=res["summary"], c_pairs=res["pairs"],
+                            runs=runs.drop(columns=["key"])),
+                lines=lines, draw=dict(stats=res, pct=(idx or {}).get("pct", 90.0)))
 
 
 def supp12(inp):
