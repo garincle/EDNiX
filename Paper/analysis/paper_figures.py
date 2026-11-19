@@ -27,6 +27,8 @@ Nature widths: 89 / 120 / 183 mm; text 5-7 pt; PDF with TrueType fonts, PNG 600 
   supp12   proximity rows (F16b)
   supp11    a selection vs variability levels (F20), b raw species gap (selected vs random)
   supp14   a SD of run r with the kept map (F9), b QC vs that r (F10)
+  supp16   awake vs anaesthetised: state maps, fingerprints, profile similarity
+           (fmri_fingerprints/state_maps_figure.py; maps: Paper/run_selection/state_group_maps.py)
   stable1  Supplementary Table 1, acquisition parameters (library/acquisition_table.py)
 fMRI panels: fmri_fingerprints/ (fingerprints.py, profile_stats.py, paper_panels.py,
 supp_panels.py), the drawing functions of the former Fig5 pipeline.
@@ -249,6 +251,15 @@ def supp14(res, inp, paper_dir=None):
 def supp15(res, inp, paper_dir=None):
     from Paper.analysis.library import multimodal_figure as mmf
     return mmf.draw_supp_pairs(res["draw"]["pet"], pst.out_base("supp15", paper_dir))
+
+
+def supp16(res, inp, paper_dir=None):
+    from Paper.analysis.fmri_fingerprints import state_maps_figure as smf
+    if not res.get("draw"):
+        return None
+    c = inp.fmri()
+    return smf.draw(res["draw"]["stats"], c["common"], c["order"], c["region_mask"],
+                    pst.out_base("supp16", paper_dir), pct=res["draw"]["pct"])
 
 
 def supp8(res, inp, paper_dir=None):
