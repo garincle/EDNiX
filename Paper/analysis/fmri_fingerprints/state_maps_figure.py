@@ -27,13 +27,11 @@ import os
 
 import numpy as np
 import pandas as pd
-import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 from matplotlib.lines import Line2D
 
 import Paper.analysis.fmri_fingerprints.fingerprints as ff
-import Paper.analysis.fmri_fingerprints.profile_stats as fa
 from Paper.analysis import paper_style as ps
 
 AWAKE, ANESTH = ff.AWAKE, ff.ANESTH

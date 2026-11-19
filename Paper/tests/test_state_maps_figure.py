@@ -14,7 +14,7 @@ def _synthetic():
     sol = {"Mouse": "Mouse", "Rat": "Rat", "Human_X": "Human"}
     group = {lab: rng.normal(0, 1, n) for lab in sol}
     rows, vecs = [], {}
-    for j, (subj, state) in enumerate([("AWa1", "awake"), ("AWa2", "awake"), ("AWa3", "awake"),
+    for subj, state in ([("AWa1", "awake"), ("AWa2", "awake"), ("AWa3", "awake"),
                                        ("ISOa1", "isoflurane"), ("ISOa2", "isoflurane")]):
         key = (subj, "1", "1", "seed")
         vecs.setdefault("Mouse", {})[key] = group["Mouse"] + rng.normal(0, 0.3, n)
