@@ -193,6 +193,53 @@ def resolve_TR(TR, info_RS):
                      "give the TR in seconds in the launcher (for example TR='2.0').")
 
 
+POST_TREATMENT_METHODS = ('fMRIPrep_style', 'Grandjean', 'AFNI', 'None')
+
+
+def resolve_post_treatment(post_treatment_method, do_not_correct_signal=False):
+    """
+    (methods, message) for step 7. `methods` is the list of the denoising methods to run, with their
+    canonical spelling; the first one writes the usual outputs, every other one writes its own copy of
+    the post-processing folders, suffixed with its name (see post_treatment_dirs).
+
+    post_treatment_method : str, None or list of them. Case is ignored ('fmriprep_style' is accepted).
+        None or 'None' = no denoising (the input of step 7 is copied as the residual).
+    do_not_correct_signal : deprecated. True means post_treatment_method='None' whatever the method(s)
+        given, as before; `message` then says so (None otherwise).
+    """
+    if do_not_correct_signal:
+        return ['None'], ("WARNING: do_not_correct_signal=True is deprecated: use post_treatment_method='None'. "
+                          f"post_treatment_method={post_treatment_method!r} is ignored (no denoising), as before.")
+    items = list(post_treatment_method) if isinstance(post_treatment_method, (list, tuple)) else [post_treatment_method]
+    if not items:
+        raise ValueError('post_treatment_method is an empty list: give at least one of ' + str(POST_TREATMENT_METHODS))
+    canonical = {m.lower(): m for m in POST_TREATMENT_METHODS}
+    methods = []
+    for item in items:
+        key = 'none' if item is None else str(item).strip().lower()
+        if key not in canonical:
+            raise ValueError(f'post_treatment_method {item!r} unknown: expected one of {POST_TREATMENT_METHODS} '
+                             f'(or a list of them).')
+        if canonical[key] in methods:
+            raise ValueError(f'post_treatment_method {canonical[key]!r} is given twice in {post_treatment_method!r}.')
+        methods.append(canonical[key])
+    return methods, None
+
+
+def post_treatment_dirs(rank, method, dir_prepro_orig_postprocessed, dir_prepro_acpc_postprocessed,
+                        dir_prepro_template_postprocessed):
+    """
+    Output folders of one denoising method: (orig_postprocessed, acpc_postprocessed,
+    template_postprocessed, stats_name, qc_name). The first method (rank 0) keeps the usual names, so
+    every analysis written for one method reads it unchanged; the method of rank k > 0 adds '_<method>':
+    postprocessed_rs_<method> (in acpc-func, acpc-anat and templates/<reference>), Stats_<method>
+    (matrices of step 10, seed maps of step 11) and QC_<method> (specificity of step 13).
+    """
+    tag = '' if rank == 0 else '_' + method
+    return (dir_prepro_orig_postprocessed + tag, dir_prepro_acpc_postprocessed + tag,
+            dir_prepro_template_postprocessed + tag, 'Stats' + tag, 'QC' + tag)
+
+
 def preprocess_fmri(Skip_step, MAIN_PATH, bids_dir,
                     species, allinfo_study_c, endfmri, endjson, endmap, resting_or_task,
                     animalPosition, humanPosition, orientation,
@@ -206,7 +253,7 @@ def preprocess_fmri(Skip_step, MAIN_PATH, bids_dir,
                     costAllin='lpa',
                     doWARPonfunc=False, registration_type='origin', type_of_transform='BOLDAffine', n_for_ANTS='Lanczos', aff_metric_ants='meansquares', aff_metric_ants_Transl='mattes', dilate_mask=0,
                     list_to_keep=[], list_to_remove=[], atlas_followers=[[], [], [], []],
-                    reference='EDNiX', post_treatment_method='Grandjean',
+                    reference='EDNiX', post_treatment_method='fMRIPrep_style',
                     band='0.01 0.1', blur=0, do_not_correct_signal = False, extract_WM=True, extract_Vc = False, extract_GS = False,
                     use_erode_WM_func_masks = True, use_erode_V_func_masks=True, normalize='Skip',
                     acompcor_mode='fixed', acompcor_n_fixed=5, acompcor_variance=0.50, acompcor_max=15,
@@ -317,14 +364,38 @@ def preprocess_fmri(Skip_step, MAIN_PATH, bids_dir,
         Multi-level atlas selection for processing.
     reference : str, optional
         Reference dataset/session ('EDNiX' by default).
-    post_treatment_method : str, optional
-        Method for post-processing (default: 'Grandjean').
+    post_treatment_method : str or list of str, optional
+        Denoising of step 7 (default: 'fMRIPrep_style'). Possible methods (case ignored):
+          'fMRIPrep_style' : 24-parameter motion model (Friston et al. 1996), aCompCor of the white
+                             matter and of the ventricles (Behzadi et al. 2007; see acompcor_mode),
+                             optional global signal (extract_GS), projected together with the
+                             temporal filter (band), the censoring and the smoothing (blur) by
+                             3dTproject; regressors saved in *_confounds_fMRIPrep_style.tsv.
+          'Grandjean'      : 6 motion parameters + mean white-matter and ventricle signals, regressed
+                             with the temporal filter by 3dTproject; the temporal mean is added back
+                             unless normalize is set (Grandjean et al. 2020 rodent protocol).
+          'AFNI'           : design matrix of 3dDeconvolve (motion and derivatives, the tissue
+                             signals chosen by extract_WM / extract_Vc / extract_GS, band-pass as
+                             sine / cosine regressors, polynomials), projected by 3dTproject.
+          'None'           : no denoising: the input of step 7 is copied as the residual (no filter,
+                             no regression, no smoothing, no normalisation). Replaces
+                             do_not_correct_signal=True.
+        A list runs several methods, e.g. ['fMRIPrep_style', 'Grandjean']: steps 7 to 11 and 13 are
+        run once per method. The FIRST method writes the usual outputs (postprocessed_rs, Stats, QC),
+        so the analyses that read them are unchanged; every other method writes the same files in
+        folders suffixed with its name: acpc-func/postprocessed_rs_<method>,
+        acpc-anat/postprocessed_rs_<method>, templates/<reference>/postprocessed_rs_<method>,
+        <space>/Stats_<method> (matrices of step 10, seed maps of step 11) and func/QC_<method>
+        (specificity of step 13). Step 12 (QC) is run for the first method only. Put first the method
+        whose outputs your analyses already read: ['Grandjean', 'fMRIPrep_style'] makes Grandjean the
+        unsuffixed one (postprocessed_rs) and fMRIPrep_style the suffixed one.
     band : str, optional
         Temporal filter band (default: '0.01 0.1').
     blur : float, optional
         Gaussian smoothing kernel in mm.
     do_not_correct_signal : bool, optional
-        Skip temporal or spatial signal corrections.
+        Deprecated: use post_treatment_method='None'. True still skips the denoising (whatever
+        post_treatment_method says, with a warning); default False.
     motion_method : str, optional
         Program that estimates the head motion in step 1: 'ants' (default, ANTs rigid), '3dvolreg' (AFNI) or
         'mcflirt' (FSL). The transforms of 3dvolreg and MCFLIRT are converted into the ANTs matrices used
@@ -415,6 +486,11 @@ def preprocess_fmri(Skip_step, MAIN_PATH, bids_dir,
     if kwargs:
         run_cmd.printcolor('WARNING: unknown argument(s) ignored by preprocess_fmri: ' +
                            ', '.join(sorted(kwargs)) + ' — check the spelling in your launcher.', 'WARNING')
+
+    # denoising method(s) of step 7, checked before any subject is processed
+    post_treatment_methods, post_treatment_msg = resolve_post_treatment(post_treatment_method, do_not_correct_signal)
+    if post_treatment_msg:
+        run_cmd.printcolor(post_treatment_msg, 'WARNING')
 
     (FS_refs, template_dir, reference, balsa_folder, BALSAname, balsa_brainT1, BASE_atlas_folder, BASE_template, BASE_SS,
     BASE_mask, BASE_Gmask, BASE_WBGmask, BASE_Wmask, BASE_Vmask, CSF, GM, WM, Aseg_ref, list_atlas, path_label_code, all_ID,
@@ -989,58 +1065,74 @@ def preprocess_fmri(Skip_step, MAIN_PATH, bids_dir,
                                                    nb_ICA_run, nb_run, RS, ICA_cleaning, sing_fsl, sing_itk, TR_val, TfMRI, diary_file)
 
 
-                    if 7 in Skip_step:
-                        nl = 'skip step ' + str(7)
-                        run_cmd.msg(nl, diary_file, 'OKGREEN')
+                    # Steps 7-11 once per denoising method; the first method writes the usual folders,
+                    # the others the same folders suffixed with their name (post_treatment_dirs).
+                    method_dirs = [(method,) + post_treatment_dirs(rank, method, dir_prepro_orig_postprocessed,
+                                                                   dir_prepro_acpc_postprocessed,
+                                                                   dir_prepro_template_postprocessed)
+                                   for rank, method in enumerate(post_treatment_methods)]
+                    for rank, (method, pp_orig, pp_acpc, pp_template, stats_name, qc_name) in enumerate(method_dirs):
+                        if len(method_dirs) > 1:
+                            run_cmd.msg(f'INFO: denoising method {rank + 1}/{len(method_dirs)}: {method} '
+                                        f'(outputs in {opb(pp_orig)}, {stats_name}, {qc_name})', diary_file, 'HEADER')
+                        for path in (pp_orig, pp_acpc, pp_template):
+                            os.makedirs(path, exist_ok=True)
 
-                    else:
-                        _7_post_TTT.signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_orig_masks, dir_prepro_raw_process,
-                                                      nb_run, RS, blur, TR_val, ICA_cleaning, extract_WM, normalize, ID, post_treatment_method,
-                                                      do_not_correct_signal, band, extract_Vc, extract_GS, dir_prepro_orig_postprocessed, dir_prepro_raw_matrices, overwrite, sing_afni, sing_fsl, diary_file,
-                                                      acompcor_mode=acompcor_mode, acompcor_n_fixed=acompcor_n_fixed,
-                                                      acompcor_variance=acompcor_variance, acompcor_max=acompcor_max)
+                        if 7 in Skip_step:
+                            nl = 'skip step ' + str(7)
+                            run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-                    if 8 in Skip_step:
-                        nl = 'skip step ' + str(8)
-                        run_cmd.msg(nl, diary_file, 'OKGREEN')
+                        else:
+                            _7_post_TTT.signal_regression(dir_prepro_orig_process, dir_RS_ICA_native, dir_prepro_orig_masks, dir_prepro_raw_process,
+                                                          nb_run, RS, blur, TR_val, ICA_cleaning, extract_WM, normalize, ID, method,
+                                                          False, band, extract_Vc, extract_GS, pp_orig, dir_prepro_raw_matrices, overwrite, sing_afni, sing_fsl, diary_file,
+                                                          acompcor_mode=acompcor_mode, acompcor_n_fixed=acompcor_n_fixed,
+                                                          acompcor_variance=acompcor_variance, acompcor_max=acompcor_max)
 
-                    else:
-                        _8_fMRI_to_anat.to_anat_space(dir_prepro_acpc_process, dir_prepro_orig_process, bids_dir, ID, TfMRI,
-                                                      nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space, dir_prepro_acpc_postprocessed, dir_prepro_orig_postprocessed, diary_file,
-                                                      process_nopostpro=process_nopostpro)
+                        if 8 in Skip_step:
+                            nl = 'skip step ' + str(8)
+                            run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-                    if 9 in Skip_step:
-                        nl = 'skip step ' + str(9)
-                        run_cmd.msg(nl, diary_file, 'OKGREEN')
+                        else:
+                            _8_fMRI_to_anat.to_anat_space(dir_prepro_acpc_process, dir_prepro_orig_process, bids_dir, ID, TfMRI,
+                                                          nb_run, RS, n_for_ANTS, do_anat_to_func, anat_func_same_space, pp_acpc, pp_orig, diary_file,
+                                                          process_nopostpro=process_nopostpro)
 
-                    else:
-                        _9_coregistration_to_template_space.to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prepro_template_labels, n_for_ANTS,
-                                                                                     dir_prepro_orig_postprocessed, dir_prepro_acpc_postprocessed, dir_prepro_template_postprocessed,
-                                                                                     nb_run, RS, do_anat_to_func, list_atlas, info, dir_prepro_orig_process, species,
-                                                                                     BASE_atlas_folder, opd(BASE_mask), anat_func_same_space, dir_prepro_acpc_process,
-                                                                                     dir_prepro_template_masks, IhaveanANAT, use_erode_WM_func_masks, overwrite, sing_afni, diary_file,
-                                                                                     process_nopostpro=process_nopostpro)
+                        if 9 in Skip_step:
+                            nl = 'skip step ' + str(9)
+                            run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-                    if 10 in Skip_step:
-                        nl = 'skip step ' + str(10)
-                        run_cmd.msg(nl, diary_file, 'OKGREEN')
+                        else:
+                            _9_coregistration_to_template_space.to_common_template_space(dir_prepro_template_process, bids_dir, ID, dir_prepro_template_labels, n_for_ANTS,
+                                                                                         pp_orig, pp_acpc, pp_template,
+                                                                                         nb_run, RS, do_anat_to_func, list_atlas, info, dir_prepro_orig_process, species,
+                                                                                         BASE_atlas_folder, opd(BASE_mask), anat_func_same_space, dir_prepro_acpc_process,
+                                                                                         dir_prepro_template_masks, IhaveanANAT, use_erode_WM_func_masks, overwrite, sing_afni, diary_file,
+                                                                                         process_nopostpro=process_nopostpro)
 
-                    else:
-                        _10_Correl_matrix.correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_matrix, segmentation_name_list,
-                                                        ID, Session, TR_val, dir_prepro_orig_labels, dir_prepro_orig, matrix_fit,
-                                                        sing_afni, diary_file)
+                        if 10 in Skip_step:
+                            nl = 'skip step ' + str(10)
+                            run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-                    if 11 in Skip_step:
-                        nl = 'skip step ' + str(11)
-                        run_cmd.msg(nl, diary_file, 'OKGREEN')
+                        else:
+                            _10_Correl_matrix.correl_matrix(pp_orig, RS, nb_run, selected_atlases_matrix, segmentation_name_list,
+                                                            ID, Session, TR_val, dir_prepro_orig_labels, dir_prepro_orig, matrix_fit,
+                                                            sing_afni, diary_file, stats_name=stats_name)
 
-                    else:
-                        _11_Seed_base_many_regionsatlas.SBA(SBAspace, BASE_SS, erod_seed, dir_prepro_orig_labels, dir_prepro_orig, dir_prepro_orig_process,
-                                                            dir_prepro_acpc_labels, dir_prepro_acpc, dir_prepro_acpc_postprocessed, anat_subject, dir_prepro_acpc_process,
-                                                            RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func, dir_prepro_acpc_masks, TfMRI, ID,
-                                                            dir_prepro_template_postprocessed, dir_prepro_template_labels, dir_prepro_template_masks, dir_prepro_orig_postprocessed,
-                                                            n_cut, threshold_val, sing_afni, diary_file, smoothSBA, TR_val, dir_prepro_template, dir_prepro_template_process)
+                        if 11 in Skip_step:
+                            nl = 'skip step ' + str(11)
+                            run_cmd.msg(nl, diary_file, 'OKGREEN')
 
+                        else:
+                            _11_Seed_base_many_regionsatlas.SBA(SBAspace, BASE_SS, erod_seed, dir_prepro_orig_labels, dir_prepro_orig, dir_prepro_orig_process,
+                                                                dir_prepro_acpc_labels, dir_prepro_acpc, pp_acpc, anat_subject, dir_prepro_acpc_process,
+                                                                RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func, dir_prepro_acpc_masks, TfMRI, ID,
+                                                                pp_template, dir_prepro_template_labels, dir_prepro_template_masks, pp_orig,
+                                                                n_cut, threshold_val, sing_afni, diary_file, smoothSBA, TR_val, dir_prepro_template, dir_prepro_template_process,
+                                                                stats_name=stats_name)
+
+                    # Step 12 (QC of the run) on the first method only: motion, tSNR, ghosting do not depend
+                    # on the denoising; its FWHM is the one of the first method's residual.
                     if 12 in Skip_step:
                         nl = 'skip step ' + str(12)
                         run_cmd.msg(nl, diary_file, 'OKGREEN')
@@ -1049,12 +1141,15 @@ def preprocess_fmri(Skip_step, MAIN_PATH, bids_dir,
                         _12_fMRI_QC.fMRI_QC(correction_direction, path_func, ID, dir_prepro_template_process, dir_prepro_template_labels, dir_prepro_orig_masks, dir_prepro_orig_process, dir_prepro_orig_postprocessed, dir_prepro_raw_matrices,
                                             dir_prepro_template_postprocessed, dir_prepro_raw_process, dir_prepro_orig_labels, RS, nb_run, sing_afni, diary_file)
 
-                    if 13 in Skip_step:
-                        nl = 'skip step ' + str(13)
-                        run_cmd.msg(nl, diary_file, 'OKGREEN')
+                    # Step 13 (connectivity specificity) once per method: it reads the matrices of step 10.
+                    for method, pp_orig, pp_acpc, pp_template, stats_name, qc_name in method_dirs:
+                        if 13 in Skip_step:
+                            nl = 'skip step ' + str(13)
+                            run_cmd.msg(nl, diary_file, 'OKGREEN')
 
-                    else:
-                        _14_fMRI_QC_matrix.fMRI_QC_matrix(path_func, dir_prepro_orig, intra_thresh, delta_thresh, RS, nb_run, diary_file)
+                        else:
+                            _14_fMRI_QC_matrix.fMRI_QC_matrix(path_func, dir_prepro_orig, intra_thresh, delta_thresh, RS, nb_run, diary_file,
+                                                              stats_name=stats_name, qc_name=qc_name)
 
                     if 'itk_3' in Skip_step:
                         nl = 'skip step ' + str('itk_3')

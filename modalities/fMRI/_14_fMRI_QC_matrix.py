@@ -548,7 +548,7 @@ def generate_qc_plots(corr_matrix, roi_names, output_dir, prefix,
 # =============================================================================
 
 def fMRI_QC_matrix(path_func, dir_prepro_orig, intra_thresh, delta_thresh,
-                   RS, nb_run, diary_file):
+                   RS, nb_run, diary_file, stats_name='Stats', qc_name='QC'):
     """
     Run per-subject, per-run FC QC classification.
 
@@ -558,17 +558,21 @@ def fMRI_QC_matrix(path_func, dir_prepro_orig, intra_thresh, delta_thresh,
         Minimum median homotopic correlation to pass (want > this).
     delta_thresh : float
         Minimum intra − inter_hetero gap to be Specific (want > this).
+    stats_name, qc_name : str
+        Folders of the matrices read (<dir_prepro_orig>/<stats_name>) and of the results
+        (<path_func>/<qc_name>): 'Stats' / 'QC', or 'Stats_<method>' / 'QC_<method>' for a
+        denoising method other than the first one of post_treatment_method.
     """
     run_cmd.msg('## Working on fMRI QC matrix analysis ##', diary_file, 'HEADER')
 
-    out_results = opj(path_func, 'QC')
+    out_results = opj(path_func, qc_name)
     os.makedirs(out_results, exist_ok=True)
 
     all_classifications = []
 
     for i in range(int(nb_run)):
         root_RS     = extract_filename(RS[i])
-        matrix_file = opj(dir_prepro_orig, 'Stats', 'Correl_matrix', 'EDNIxCSCLR', 'correlation',
+        matrix_file = opj(dir_prepro_orig, stats_name, 'Correl_matrix', 'EDNIxCSCLR', 'correlation',
                           f'EDNIxCSCLR_2_run_{i}_correlation_matrix.csv')
 
         if not ope(matrix_file):

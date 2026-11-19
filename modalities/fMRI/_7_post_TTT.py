@@ -452,12 +452,16 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native,
         _write_1d(bp_bytes, bp_out)
 
     # =========================================================================
-    # LOOP 2 — Signal regression (or bypass if do_not_correct_signal)
+    # LOOP 2 — Signal regression (or bypass if post_treatment_method='None')
     # =========================================================================
 
-    if do_not_correct_signal:
+    # 'None' (or None) = no denoising; do_not_correct_signal=True is the former
+    # (deprecated) spelling of the same thing and still wins over the method.
+    if do_not_correct_signal or post_treatment_method is None or str(post_treatment_method) == 'None':
         # Bypass: copy input to residual slot so downstream steps have a
         # consistent file to read regardless of correction setting.
+        run_cmd.msg('INFO: no denoising (post_treatment_method=\'None\'): the input of step 7 is copied as '
+                    'the residual (no filter, regression, smoothing or normalisation).', diary_file, 'OKGREEN')
         for run_idx in range(int(nb_run)):
             root_RS = extract_filename(RS[run_idx])
             func_input = (
@@ -472,7 +476,7 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native,
                        ' -prefix ' + residual + ' -expr "a"')
             run_cmd.do(command, diary_file)
             _write_json(residual, func_input,
-                        'Bypass copy — do_not_correct_signal=True.', command)
+                        "Bypass copy — post_treatment_method='None' (no denoising).", command)
         return
 
     for run_idx in range(int(nb_run)):
@@ -892,7 +896,7 @@ def signal_regression(dir_prepro_orig_process, dir_RS_ICA_native,
             else:
                 raise ValueError(
                     f'Unknown post_treatment_method: "{post_treatment_method}". '
-                    f'Expected one of: AFNI, Grandjean, fMRIPrep_style.')
+                    f'Expected one of: fMRIPrep_style, Grandjean, AFNI, None.')
 
         except Exception as exc:
             # The error is logged with its traceback and the run is reported at the end.

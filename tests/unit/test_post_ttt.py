@@ -189,3 +189,45 @@ def test_tissue_report_is_written_for_each_run(emu, monkeypatch):
     emu.run('Grandjean', 'Skip', GS=False, Vc=False)
     assert seen['CSF']['voxels'] == 3 and seen['CSF']['used'] is False
     assert seen['WM']['used'] is True and seen['WM']['voxels'] > N.MIN_TISSUE_VOXELS
+
+
+def test_none_method_copies_the_input_as_residual(emu):
+    # post_treatment_method='None' replaces do_not_correct_signal=True: the residual is the input of step 7
+    out_none, _, _ = emu.run('None', 'zscore')
+    dirs, rs, _ = emu.make_subject()
+    raw = emu._load(os.path.join(dirs['proc'], rs + '_space-acpc-func_desc-fMRI_run_inRef.nii.gz'))
+    assert out_none is not None and np.allclose(out_none, raw)
+    out_flag, _, _ = emu.run('fMRIPrep_style', 'zscore', do_not_correct_signal=True)
+    assert np.allclose(out_flag, raw)
+
+
+def test_post_treatment_method_string_or_list():
+    from modalities.fMRI._0_Pipeline_launcher import resolve_post_treatment as R
+    assert R('fMRIPrep_style') == (['fMRIPrep_style'], None)          # a string: one method, as before
+    assert R('fmriprep_style')[0] == ['fMRIPrep_style']                # case ignored
+    assert R(['Grandjean', 'fMRIPrep_style'])[0] == ['Grandjean', 'fMRIPrep_style']
+    assert R(None)[0] == R('none')[0] == ['None']
+    methods, msg = R(['Grandjean', 'AFNI'], do_not_correct_signal=True)  # deprecated flag still wins
+    assert methods == ['None'] and 'deprecated' in msg
+    for bad in ('Grandjan', [], ['AFNI', 'afni']):
+        with pytest.raises(ValueError):
+            R(bad)
+
+
+def test_first_method_keeps_the_usual_folders():
+    from modalities.fMRI._0_Pipeline_launcher import post_treatment_dirs as D
+    base = ('/s/func/acpc-func/postprocessed_rs', '/s/func/acpc-anat/postprocessed_rs',
+            '/s/func/templates/EDNiX/postprocessed_rs')
+    assert D(0, 'Grandjean', *base) == base + ('Stats', 'QC')
+    assert D(1, 'fMRIPrep_style', *base) == tuple(b + '_fMRIPrep_style' for b in base) + \
+        ('Stats_fMRIPrep_style', 'QC_fMRIPrep_style')
+
+
+def test_steps_10_11_13_default_to_the_usual_folders():
+    import inspect
+    from modalities.fMRI import _10_Correl_matrix, _11_Seed_base_many_regionsatlas, _14_fMRI_QC_matrix, _0_Pipeline_launcher as L
+    assert inspect.signature(_10_Correl_matrix.correl_matrix).parameters['stats_name'].default == 'Stats'
+    assert inspect.signature(_11_Seed_base_many_regionsatlas.SBA).parameters['stats_name'].default == 'Stats'
+    p = inspect.signature(_14_fMRI_QC_matrix.fMRI_QC_matrix).parameters
+    assert p['stats_name'].default == 'Stats' and p['qc_name'].default == 'QC'
+    assert inspect.signature(L.preprocess_fmri).parameters['post_treatment_method'].default == 'fMRIPrep_style'
