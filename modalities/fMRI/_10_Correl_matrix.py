@@ -49,7 +49,7 @@ def erode_atlas_labels(atlas_data, max_iter=2, min_voxels=1):
 
 def correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_matrix, segmentation_name_list,
                   ID, Session, TR_val, dir_prepro_orig_labels, dir_prepro_orig, matrix_fit,
-                  sing_afni,diary_file):
+                  sing_afni,diary_file, stats_name='Stats'):
 
     nl = '##  Working on step ' + str(10) + '(function: _10_Correl_matrix).  ##'
     run_cmd.msg(nl, diary_file, 'HEADER')
@@ -68,13 +68,13 @@ def correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_ma
             if ope(func_filename):
                 atlas_filename = opj(dir_prepro_orig_labels, ID + '_seg-' + atlas[0] + '_dseg.nii.gz')
 
-                output_results = opj(dir_prepro_orig, 'Stats')
+                output_results = opj(dir_prepro_orig, stats_name)
                 if not ope(output_results):
                     os.mkdir(output_results)
-                output_results = opj(dir_prepro_orig, 'Stats', 'Correl_matrix')
+                output_results = opj(dir_prepro_orig, stats_name, 'Correl_matrix')
                 if not ope(output_results):
                     os.mkdir(output_results)
-                output_results = opj(dir_prepro_orig, 'Stats', 'Correl_matrix', atlas[0])
+                output_results = opj(dir_prepro_orig, stats_name, 'Correl_matrix', atlas[0])
                 if not ope(output_results):
                     os.mkdir(output_results)
 
@@ -258,7 +258,7 @@ def correl_matrix(dir_prepro_orig_postprocessed, RS, nb_run, selected_atlases_ma
                                      f'{len(atlas_filtered_list)} region names for {atlas[0]}.')
                 for correl_type in matrix_fit:
 
-                    output_results = opj(dir_prepro_orig, 'Stats', 'Correl_matrix', atlas[0], correl_type)
+                    output_results = opj(dir_prepro_orig, stats_name, 'Correl_matrix', atlas[0], correl_type)
                     if not ope(output_results):
                         os.mkdir(output_results)
 

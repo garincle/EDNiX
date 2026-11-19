@@ -365,7 +365,7 @@ def f20_variability_levels(table, draws, species_of_label, out, width_mm=183, nc
                 ax.text(0.97, 0.97, st, transform=ax.transAxes, ha="right", va="top",
                         fontsize=6)
             ax.set_xticks(x)
-            ax.set_xticklabels(["run", "session", "animal"], fontsize=5.5)
+            ax.set_xticklabels(["run", "session", "individual"], fontsize=5.5)
             if k % ncols == 0:
                 ax.set_ylabel("Median run-to-run r")
         for k in range(len(labs), nrows * ncols):

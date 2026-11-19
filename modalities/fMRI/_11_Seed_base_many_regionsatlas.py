@@ -29,7 +29,8 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prep
     dir_prepro_acpc_labels,dir_prepro_acpc, dir_prepro_acpc_postprocessed, anat_subject, dir_prepro_acpc_process,
     RS, nb_run, selected_atlases, panda_files, oversample_map, use_cortical_mask_func, dir_prepro_acpc_masks, TfMRI, ID,
     dir_prepro_template_postprocessed, dir_prepro_template_labels, dir_prepro_template_masks, dir_prepro_orig_postprocessed,
-    n_cut, threshold_val, sing_afni, diary_file, smoothSBA, TR_val, dir_prepro_template, dir_prepro_template_process):
+    n_cut, threshold_val, sing_afni, diary_file, smoothSBA, TR_val, dir_prepro_template, dir_prepro_template_process,
+    stats_name='Stats'):
 
 
     nl = '##  Working on step ' + str(11) + '(function: _11_Seed_base_many_regionsatlas).  ##'
@@ -40,10 +41,10 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prep
             root_RS = extract_filename(RS[i])
             if space=='func':
                 atlas_dir = dir_prepro_orig_labels
-                direction_results = opj(dir_prepro_orig, 'Stats')
+                direction_results = opj(dir_prepro_orig, stats_name)
                 if not ope(direction_results):
                     os.mkdir(direction_results)
-                direction_results = opj(dir_prepro_orig, 'Stats', 'SBA')
+                direction_results = opj(dir_prepro_orig, stats_name, 'SBA')
                 if not ope(direction_results):
                     os.mkdir(direction_results)
 
@@ -62,10 +63,10 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prep
 
             elif space=='anat':
                 atlas_dir = dir_prepro_acpc_labels
-                direction_results = opj(dir_prepro_acpc, 'Stats')
+                direction_results = opj(dir_prepro_acpc, stats_name)
                 if not ope(direction_results):
                     os.mkdir(direction_results)
-                direction_results = opj(dir_prepro_acpc, 'Stats', 'SBA')
+                direction_results = opj(dir_prepro_acpc, stats_name, 'SBA')
                 if not ope(direction_results):
                     os.mkdir(direction_results)
 
@@ -83,10 +84,10 @@ def SBA(SBAspace, BASE_SS_coregistr, erod_seed, dir_prepro_orig_labels, dir_prep
                     cortical_mask_func = opj(dir_prepro_acpc_masks,'mask_ref.nii.gz')
 
             elif space == 'atlas':
-                direction_results = opj(dir_prepro_template, 'Stats')
+                direction_results = opj(dir_prepro_template, stats_name)
                 if not ope(direction_results):
                     os.mkdir(direction_results)
-                direction_results = opj(dir_prepro_template, 'Stats', 'SBA')
+                direction_results = opj(dir_prepro_template, stats_name, 'SBA')
                 if not ope(direction_results):
                     os.mkdir(direction_results)
                 atlas_dir = dir_prepro_template_labels

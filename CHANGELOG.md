@@ -6,6 +6,19 @@
 - `pip check` no longer stops the install when pip itself cannot parse a wheel tag (InvalidTag on `itk-5.4.4.post1`, abi3 tag, with recent pip): warning; real dependency conflicts still stop it.
 - `--torch-index URL` to choose the torch build; warning at the end of the install when a GPU is present but torch cannot use it.
 
+## fMRI: several denoising methods in one run, November 2026
+
+- `post_treatment_method` takes a string (as before) or a list, e.g. `['fMRIPrep_style', 'Grandjean']`: steps 7-11 and 13 run once per method. The first method writes the usual folders (`postprocessed_rs`, `Stats`, `QC`), so the analyses that read them are unchanged; each other method writes `postprocessed_rs_<method>` (acpc-func, acpc-anat, templates/<reference>), `Stats_<method>` and `QC_<method>`. Step 12 runs for the first method only. Names are checked (case ignored, no duplicate) before any subject is processed.
+- Default of `preprocess_fmri` is now `'fMRIPrep_style'` (was `'Grandjean'`; every example launcher already set `'fMRIPrep_style'`).
+- `post_treatment_method='None'` = no denoising (input copied as residual), replacing `do_not_correct_signal=True`; the flag still works, with a deprecation warning, and still overrides the method(s).
+- `_10_Correl_matrix.correl_matrix`, `_11_Seed_base_many_regionsatlas.SBA`: optional `stats_name='Stats'`; `_14_fMRI_QC_matrix.fMRI_QC_matrix`: optional `stats_name='Stats'`, `qc_name='QC'`. GUI: `'None'` added to the choices. Docstring of `preprocess_fmri` lists every method.
+
+## Paper: V4 figure numbering in the documentation, November 2026
+
+- `Paper/analysis/README.md`: figure -> code table rewritten with the V4 numbering (Supp. 7 FreeSurfer, 8 longitudinal vs cross-sectional, 9 human association vs primary, 10-14 run selection, 15 FDG pairs), current Fig. 1, 4 and 6 panels, coverage of `paper_claims`.
+- `run_paper.py`, `paper_data.py`, `sensitivity_analysis/fmri_selection/README.md`: run selection feeds Supp. 10-14 (was 8-12).
+- `paper_claims_registry.py`: display labels of the human association claims (Supp. Fig. 7 -> 9) and of the ablation claims (Supp. Fig. 15g/h -> 8g/h); ids and sources unchanged.
+
 ## Reproducible Python environment, November 2026
 
 - `requirements.txt` now lists every third-party import of the code: added `torch` (U-Net skull-stripping `muSkullStrip_*`, run with the venv's `python3`, used by the Bat, Lemur and Macaque imagina launchers; `Tools/UNet_Model_training.py`), `nitransforms` (`modalities/fMRI/motion.py`) and `lxml` (`paper_claims.py`); `pybids` and `tqdm` removed (no longer imported after the release cleanup); compatible lower bounds for every package.

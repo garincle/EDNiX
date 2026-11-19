@@ -53,6 +53,7 @@ PET_PATTERNS = {
     'gm':       'pet/orig/masks/*_space-orig_label-GM_probseg.nii.gz',
 }
 PET_OPTIONAL = {
+    'dyn':      'pet/orig/preprocessing/*_desc-reorient_pet.nii.gz',   # reoriented dynamic image (step 1)
     'motion':   'pet/orig/preprocessing/forMC/*_desc-MoCo-within_motion.tsv',
     'cropbox':  'pet/orig/preprocessing/forMC/*_desc-cropbox_mask.nii.gz',
     'suv':      'pet/orig/postprocessing/*_desc-SUV-mean_pet.nii.gz',
@@ -184,8 +185,19 @@ def thumbs_real(syn):
             brain = atlas.data > 0
             vmax = np.percentile(mean.data[brain], 99.5)
             th['pet'] = sl(mean, brain, cmap=PET_CMAP, head=True, vmax=vmax)
-            raw = V(files['raw'], frame=0)
-            th['frame'] = sl(raw, raw.data > np.percentile(raw.data, 90), cmap=PET_CMAP, head=True)
+            # 'Dynamic frames, reoriented': the reoriented image (the raw BIDS image keeps the scanner
+            # orientation, e.g. sphinx for the macaque), mean of its last 3 frames (FDG uptake; the
+            # first frame is the injection bolus, a single bright spot in a vessel). Slice and crop on
+            # the brain (atlas in the orig space) or, failing that, on the object itself.
+            dyn = V(opt['dyn'] or files['raw'], frame='late')
+            if not opt['dyn']:
+                print('  [Supp 3] [WARN] no *_desc-reorient_pet.nii.gz -- raw image drawn (scanner orientation)')
+            th['frame_caption'] = 'reoriented' if opt['dyn'] else 'raw'
+            b_dyn = atlas.resample_like(dyn).data > 0
+            if b_dyn.sum() < 50:
+                b_dyn = sch.object_support(dyn.data)
+            th['frame'] = sl(dyn, b_dyn, cmap=PET_CMAP, head=True,
+                             vmax=np.percentile(dyn.data[b_dyn], 99.5))
             th['atlas'] = sl(mean, brain, labels=atlas.data, vmax=vmax)
             gm = V(files['gm']).resample_like(mean, order=1)
             th['gm'] = sl(gm, brain, cmap='viridis', vmax=1.0)
@@ -330,7 +342,8 @@ def panel_a(cv, th, y0):
 def panel_b(cv, th, y0):
     cv.panel('b', 1.0, y0, 'Example PET session: image after each main step; analyses run in PET space')
     frames = [
-        dict(thumb=th['frame'], title='Dynamic frames', step=1, op='prepro', space='pet', caption='reoriented'),
+        dict(thumb=th['frame'], title='Dynamic frames', step=1, op='prepro', space='pet',
+             caption=th.get('frame_caption', 'reoriented')),
         dict(thumb=th['motion'], title='Motion', step=4, op='reg', space='pet', caption='frames, then runs',
              link=dict(kind='flow')),
         dict(thumb=th['crop'], title='Session mean', step=5, op='prepro', space='pet', caption='crop box (head)',
