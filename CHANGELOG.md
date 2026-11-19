@@ -1,5 +1,11 @@
 # Changelog
 
+## PyTorch build matched to the NVIDIA driver, November 2026
+
+- `Tools/setup_venv.sh --freeze` records the build of the frozen venv's torch in the lock (`# torch-index: https://download.pytorch.org/whl/cuXYZ`); the install takes torch from that index, so the CUDA build of the validated environment is reproduced instead of the default PyPI build (CUDA 13.2 for torch 2.15, unusable with a CUDA 12.0 driver such as gpu-07-01's: `torch.cuda.is_available()` False).
+- `pip check` no longer stops the install when pip itself cannot parse a wheel tag (InvalidTag on `itk-5.4.4.post1`, abi3 tag, with recent pip): warning; real dependency conflicts still stop it.
+- `--torch-index URL` to choose the torch build; warning at the end of the install when a GPU is present but torch cannot use it.
+
 ## fMRI: several denoising methods in one run, November 2026
 
 - `post_treatment_method` takes a string (as before) or a list, e.g. `['fMRIPrep_style', 'Grandjean']`: steps 7-11 and 13 run once per method. The first method writes the usual folders (`postprocessed_rs`, `Stats`, `QC`), so the analyses that read them are unchanged; each other method writes `postprocessed_rs_<method>` (acpc-func, acpc-anat, templates/<reference>), `Stats_<method>` and `QC_<method>`. Step 12 runs for the first method only. Names are checked (case ignored, no duplicate) before any subject is processed.

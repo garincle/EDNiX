@@ -32,6 +32,23 @@ and writes the installed versions to `venvEDNiX/ednix-freeze.txt`.
 The U-Net skull-stripping (`muSkullStrip.py`, methods `muSkullStrip_*`) is run with the `python3` found on
 the `PATH`: activate the venv before running a launcher, so that it finds `torch`.
 
+**PyTorch and the NVIDIA driver.** A CUDA build of torch needs a driver supporting the same CUDA major version
+(`nvidia-smi`, "CUDA Version"). With an older driver (e.g. CUDA 12.0), a torch built for CUDA 13 imports but
+`torch.cuda.is_available()` is `False` and the U-Net runs on the CPU; the script prints a warning. `--freeze`
+records the build of the frozen torch in the lock (`# torch-index: https://download.pytorch.org/whl/cu121`), and
+the install takes torch from that index. `--torch-index URL` overrides it, `--cpu` installs the CPU build.
+
+The lock is the freeze of the environment that produced the paper results (Python 3.11, torch 2.7.1 built for
+CUDA 12.6, which runs with a driver supporting CUDA 12.0). This torch is older than the `torch>=2.10` floor of
+`requirements.txt`, set for CVE-2025-32434 and CVE-2026-24747; both concern loading untrusted checkpoints, while
+EDNiX only loads its own U-Net models. `--unlocked` installs versions above the floor.
+
+`antspyx` is 0.4.2 in the lock. Four PET/CT registration tests (`test_ct_with_neck_and_shoulders_intracranial_start`,
+`test_ct_large_rotation_search_and_brain_window_pass`, `test_pet_study_template_bridged_to_the_reference_3v2`,
+`test_ct_study_template_without_anatomy_2v2`) fail with 0.4.2 (the rotation search in 2 runs out of 3) and pass
+with 0.6.3: they are marked as expected failures when antspyx < 0.6. The CT starts (rotation search, intracranial
+start) and the PET / CT study-template bridges are therefore validated with antspyx 0.6.3 only.
+
 After a change of environment that has been validated (tests + smoke test), update the lock from it:
 
 ```bash
