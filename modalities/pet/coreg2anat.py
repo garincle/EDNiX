@@ -918,12 +918,23 @@ def _boundary_check(rec_file, targets, pet_fwhm, bids_dir, diary_name):
 
 def qc_contour(target, qc_dir, name):
     """Contour of the QC images: brain mask of the target space, else a head mask of the target image
-    (study template without mask, ants.get_mask)."""
+    (study template without mask, ants.get_mask). The head mask is cached in qc_dir and recomputed when it is
+    older than the target image or not on its grid (a study template rebuilt after the first run kept the
+    contour of the old template)."""
     if target.get('mask') and opi(target['mask']):
         return target['mask']
     out = opj(qc_dir, name + '_desc-qccontour_mask.nii.gz')
-    if not opi(out):
-        ants.image_write(ants.get_mask(ants.image_read(target['image'])), out, ri=False)
+    img = None
+    if opi(out) and os.path.getmtime(out) >= os.path.getmtime(target['image']):
+        img = ants.image_read(target['image'])
+        m = ants.image_read(out)
+        if (m.shape == img.shape and np.allclose(m.origin, img.origin, atol=1e-3)
+                and np.allclose(m.spacing, img.spacing, atol=1e-4)
+                and np.allclose(m.direction, img.direction, atol=1e-4)):
+            return out
+    if img is None:
+        img = ants.image_read(target['image'])
+    ants.image_write(ants.get_mask(img), out, ri=False)
     return out
 
 

@@ -1288,3 +1288,29 @@ def test_pvc_engine_choice(monkeypatch):
         pvc.engine_for('RBV', 'petpvc')
     monkeypatch.setattr(shutil, 'which', lambda name: '/usr/bin/petpvc')
     assert pvc.engine_for('IY', 'auto') == 'petpvc' and pvc.engine_for('RBV', 'python') == 'python'
+
+
+def test_qc_contour_follows_a_rebuilt_study_template(tmp_path):
+    """The cached head contour of the QC images is recomputed when the study template is rebuilt on another grid
+    (it kept the contour of the first template: large, shifted outline on the space-studyTemplate QC)."""
+    a = np.zeros((40, 40, 40), dtype='float32')
+    a[10:30, 10:30, 10:30] = 100.0
+    old = ants.from_numpy(a, origin=(0.0, 0.0, 0.0), spacing=(2.0, 2.0, 2.0))
+    tpl = str(tmp_path / 'studyTemplate_pet.nii.gz')
+    ants.image_write(old, tpl, ri=False)
+    target = dict(image=tpl, mask='')
+    first = coreg2anat.qc_contour(target, str(tmp_path), 'studyTemplate')
+    assert ants.image_read(first).shape == (40, 40, 40)
+    # same template, cache kept
+    t0 = os.path.getmtime(first)
+    assert coreg2anat.qc_contour(target, str(tmp_path), 'studyTemplate') == first
+    assert os.path.getmtime(first) == t0
+    # template rebuilt: brain-masked, smaller grid, other origin
+    b = np.zeros((24, 26, 24), dtype='float32')
+    b[4:20, 4:22, 4:20] = 100.0
+    new = ants.from_numpy(b, origin=(12.0, 10.0, 12.0), spacing=(1.0, 1.0, 1.0))
+    ants.image_write(new, tpl, ri=False)
+    os.utime(tpl, (t0 + 10, t0 + 10))
+    m = ants.image_read(coreg2anat.qc_contour(target, str(tmp_path), 'studyTemplate'))
+    assert m.shape == new.shape and np.allclose(m.origin, new.origin)
+    assert int(m.sum()) > 0
