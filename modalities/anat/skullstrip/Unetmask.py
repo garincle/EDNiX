@@ -14,12 +14,19 @@ from Tools.extract_filename import extract_filename
 def do(input_for_msk,output_for_mask,model,Unetpath,option2,sing_afni,diary_file):
 
     Unet_dir = opj(Unetpath, 'NHP-BrainExtraction', 'UNet_Model')
+    model_path = opj(Unet_dir, 'models', model)
+    if not ope(model_path):
+        # without this check muSkullStrip.py fails (only logged unless EDNIX_STRICT=1) and the run
+        # stops later on the missing *_pre_mask.nii.gz, which does not say which model was missing
+        nl = ('ERROR: U-Net model not found: ' + model_path +
+              ' (copy the model file into ' + opj(Unet_dir, 'models') + ' or choose another brain_skullstrip method)')
+        raise Exception(run_cmd.error(nl, diary_file))
 
     process_dir = opd(output_for_mask)
     print(input_for_msk)
     command = ('python3 ' + opj(Unet_dir, 'muSkullStrip.py') +
                ' -in ' + input_for_msk +
-               ' -model ' + opj(Unet_dir, 'models', model) +
+               ' -model ' + model_path +
                ' -out ' + process_dir)
     print(command)
     run_cmd.run(command, diary_file)
