@@ -72,7 +72,9 @@ The pipeline calls AFNI, ANTs, FSL, FreeSurfer, Connectome Workbench, ITK-SNAP a
     tpcclib.sif                      (PET kinetic models: Turku PET Centre tools)
 ```
 
-The U-Net skull-stripping models are read from the same folder. FreeSurfer needs its licence file in the container environment.
+The U-Net skull-stripping models are read from the same folder.
+
+FreeSurfer needs a licence. It is free but personal, so the released `freesurfer_NHP.sif` does not contain one: register at https://surfer.nmr.mgh.harvard.edu/registration.html and save the file as `~/license.txt` (or `~/.freesurfer/license.txt`, `<EDNiX folder>/license.txt`, `Singularity_library/Singularity/license.txt`, or point `FS_LICENSE` to it). EDNiX finds it, mounts its folder and passes it to the container as `FS_LICENSE`; without it, a warning is printed and the surface steps fail.
 
 Programs outside pip and the containers:
 

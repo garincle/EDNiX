@@ -1,5 +1,8 @@
 # Changelog
 
+## FreeSurfer licence supplied by the user, November 2026
+
+- The released `freesurfer_NHP.sif` no longer contains a FreeSurfer licence key (a key is personal and may not be redistributed). `Tools/Load_EDNiX_requirement.py` looks for the user's licence (`FS_LICENSE`, `~/license.txt`, `~/.freesurfer/license.txt`, `<EDNiX>/license.txt`, `Singularity_library/Singularity/license.txt`), mounts its folder and passes it to every container as `FS_LICENSE`. When none is found it prints a warning and keeps the previous behaviour, so older images that carry their own key still work. The FreeSurfer binaries are unchanged.
 ## PET / CT QC contour refreshed, November 2026
 
 - `coreg2anat.qc_contour` (PET step 6, CT registration QC): the head contour of a target without brain mask (study template) is cached in `QC/<target>_desc-qccontour_mask.nii.gz`; it is now recomputed when it is older than the target image or not on its grid. Before, a study template rebuilt after the first run kept the contour of the old template (large, shifted outline on `*_space-studyTemplate_pet.png` although the registration was correct; seen on the macaque FDG 3v2 sessions). QC images only, no result changes.
