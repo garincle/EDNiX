@@ -14,6 +14,24 @@ ITK_sif      = 'itksnap_5.0.9.sif'
 turku_sif    = 'tpcclib.sif'
 synStrip_sif = 'synthstrip.1.5.sif'
 
+
+def find_fs_license(MAIN_PATH, s_path):
+    """Path of the user's FreeSurfer license, or '' when none is found.
+
+    The released freesurfer_NHP.sif carries no license key (a FreeSurfer license is
+    personal and may not be redistributed): each user registers for a free one at
+    https://surfer.nmr.mgh.harvard.edu/registration.html and saves it as one of these.
+    """
+    candidates = [os.environ.get('FS_LICENSE', ''),
+                  os.path.expanduser('~/license.txt'),
+                  os.path.expanduser('~/.freesurfer/license.txt'),
+                  opj(MAIN_PATH, 'license.txt'),
+                  opj(s_path, 'license.txt')]
+    for f in candidates:
+        if f and os.path.isfile(f):
+            return os.path.abspath(f)
+    return ''
+
 def load_requirement(MAIN_PATH,reftemplate_path,bids_dir,singularity):
     # AFNI appends every command to ~/.afni.log (1.4 GB here): switch it off, natively and in the container
     os.environ.setdefault('AFNI_DONT_LOGFILE', 'YES')
@@ -31,7 +49,21 @@ def load_requirement(MAIN_PATH,reftemplate_path,bids_dir,singularity):
 
     elif singularity == 'yes':
         s_path = opj(opd(MAIN_PATH), 'Singularity_library', 'Singularity')
-        s_bind = '--bind ' + ','.join([bids_dir,reftemplate_path,s_path])
+        binds  = [bids_dir,reftemplate_path,s_path]
+
+        # FreeSurfer reads $FS_LICENSE inside the container; images built before v4.0
+        # still carry their own key and keep working when no license is found here.
+        fs_license = find_fs_license(MAIN_PATH, s_path)
+        if fs_license:
+            os.environ['SINGULARITYENV_FS_LICENSE'] = fs_license
+            if opd(fs_license) not in binds:
+                binds.append(opd(fs_license))
+        else:
+            print('WARNING: no FreeSurfer license found (FS_LICENSE, ~/license.txt, ~/.freesurfer/license.txt, '
+                  'the EDNiX folder or Singularity_library/Singularity). Surface steps need one: register for free at '
+                  'https://surfer.nmr.mgh.harvard.edu/registration.html and save it as ~/license.txt.')
+
+        s_bind = '--bind ' + ','.join(binds)
 
         sing_func1  = 'singularity run ' + s_bind
         sing_func2  = 'singularity exec ' + s_bind

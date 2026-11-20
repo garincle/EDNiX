@@ -1,5 +1,9 @@
 # Changelog
 
+## FreeSurfer licence supplied by the user, November 2026
+
+- The released `freesurfer_NHP.sif` no longer contains a FreeSurfer licence key (a key is personal and may not be redistributed). `Tools/Load_EDNiX_requirement.py` looks for the user's licence (`FS_LICENSE`, `~/license.txt`, `~/.freesurfer/license.txt`, `<EDNiX>/license.txt`, `Singularity_library/Singularity/license.txt`), mounts its folder and passes it to every container as `FS_LICENSE`. When none is found it prints a warning and keeps the previous behaviour, so older images that carry their own key still work. The FreeSurfer binaries are unchanged.
+
 ## PyTorch build matched to the NVIDIA driver, November 2026
 
 - `Tools/setup_venv.sh --freeze` records the build of the frozen venv's torch in the lock (`# torch-index: https://download.pytorch.org/whl/cuXYZ`); the install takes torch from that index, so the CUDA build of the validated environment is reproduced instead of the default PyPI build (CUDA 13.2 for torch 2.15, unusable with a CUDA 12.0 driver such as gpu-07-01's: `torch.cuda.is_available()` False).
