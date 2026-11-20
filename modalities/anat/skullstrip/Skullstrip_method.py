@@ -37,7 +37,10 @@ SSmethodslist= ['3dSkullStrip','3dSkullStrip_noDilate','3dSkullStrip_macaque','3
                 'bet2_ANTS','Custum_ANTS_NL','Custum_ANTS_Garin',
                 'CustumThreshold_',
                 'synthstrip',
-                'muSkullStrip_Human','Custum_Macaque2',
+                'muSkullStrip_Human','muSkullStrip_macaque',
+                'muSkullStrip_cross_species','muSkullStrip_cross_species_dil',
+                'muSkullStrip_cross_speciesV2','muSkullStrip_cross_speciesV2_dil',
+                'Custum_Macaque2',
                 'QWARP','Custum_QWARP','Custum_QWARPT2','Custum_QWARPT2_dil',
                 'NoSkullStrip','Manual']
 
@@ -351,6 +354,14 @@ def Skullstrip_method(brain_skullstrip, end_maskname, input_for_msk,output_for_m
 
         elif brain_skullstrip == 'muSkullStrip_cross_species_dil':
             Unetmask.do(input_for_msk, output_for_mask, 'model-02-_cross_species-epoch', Unetpath, ' -fill_holes -dilate_result 10 -10',
+                        sing_afni, diary_file)
+
+        elif brain_skullstrip == 'muSkullStrip_cross_speciesV2':
+            Unetmask.do(input_for_msk, output_for_mask, 'model-legacy-ep9', Unetpath, ' -fill_holes',
+                        sing_afni, diary_file)
+
+        elif brain_skullstrip == 'muSkullStrip_cross_speciesV2_dil':
+            Unetmask.do(input_for_msk, output_for_mask, 'model-legacy-ep9', Unetpath, ' -fill_holes -dilate_result 10 -10',
                         sing_afni, diary_file)
 
         elif brain_skullstrip == 'Custum_Macaque2':

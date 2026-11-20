@@ -1,5 +1,10 @@
 # Changelog
 
+## Cross-species U-Net V2 skull-strip, November 2026
+
+- Two anatomical skull-strip methods, `muSkullStrip_cross_speciesV2` and `muSkullStrip_cross_speciesV2_dil`: same post-processing as `muSkullStrip_cross_species` / `_dil` (hole filling, and for `_dil` a 10-voxel dilation followed by a 10-voxel erosion), with the fine-tuned model `model-legacy-ep9` (to place in `NHP-BrainExtraction/UNet_Model/models/`). The V1 methods are unchanged.
+- `Unetmask.do` stops with a clear error naming the expected path when the model file is missing (before, `muSkullStrip.py` failed and the run stopped later on a missing `*_pre_mask.nii.gz`).
+
 ## FreeSurfer licence supplied by the user, November 2026
 
 - The released `freesurfer_NHP.sif` no longer contains a FreeSurfer licence key (a key is personal and may not be redistributed). `Tools/Load_EDNiX_requirement.py` looks for the user's licence (`FS_LICENSE`, `~/license.txt`, `~/.freesurfer/license.txt`, `<EDNiX>/license.txt`, `Singularity_library/Singularity/license.txt`), mounts its folder and passes it to every container as `FS_LICENSE`. When none is found it prints a warning and keeps the previous behaviour, so older images that carry their own key still work. The FreeSurfer binaries are unchanged.

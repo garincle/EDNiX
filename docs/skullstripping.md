@@ -11,8 +11,10 @@ Two orchestrators choose the method from its name: `modalities/anat/skullstrip/S
 | Sammba histogram masks | `sammba_mouse`, `sammba_dog`, `sammba_rat`, `Vol_sammba_<volume>` |
 | FSL BET | `_bet<F>` (for example `_bet070`), `bet2_ANTS` |
 | Template projection (ANTs, AFNI 3dQwarp) | `Custum_ANTS_NL`, `Custum_ANTS_Garin`, `CustumANTSGarin_<dil>`, `QWARP`, `Custum_QWARP`, `Custum_QWARPT2`, `Custum_QWARPT2_dil` |
-| Deep learning | `synthstrip`, `muSkullStrip_Human`, `muSkullStrip_macaque`, `muSkullStrip_cross_species`, `muSkullStrip_cross_species_dil`, `Custum_Macaque2` (macaque U-Net with a 3-voxel dilation) |
+| Deep learning | `synthstrip`, `muSkullStrip_Human`, `muSkullStrip_macaque`, `muSkullStrip_cross_species`, `muSkullStrip_cross_species_dil`, `muSkullStrip_cross_speciesV2`, `muSkullStrip_cross_speciesV2_dil` (cross-species U-Net `model-legacy-ep9`, without or with the 10/-10 closing of `_dil`), `Custum_Macaque2` (macaque U-Net with a 3-voxel dilation) |
 | Other | `NoSkullStrip` (positive voxels), `Manual` |
+
+The U-Net methods read their model from `Singularity_library/Singularity/NHP-BrainExtraction/UNet_Model/models/` (`model-legacy-ep9` for the V2 methods must be copied there).
 
 The template-projection methods register the subject to the template with the ANTs parameters of the `SS1`, `SS2` or `SS3` block of `list_transfo`.
 
