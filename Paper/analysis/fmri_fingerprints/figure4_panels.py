@@ -269,7 +269,7 @@ def fig4_validation_and_similarity(val, D, species_of_label, out, width_mm=191, 
         ax_sch = fig.add_axes([9.0 / W, (top - 3.0) / H, 30.0 / W, 6.0 / H])
         ax_b = fig.add_axes([9.0 / W, bottom / H, 30.0 / W, (hb - 7.0) / H])
         ax_d = fig.add_axes([123.0 / W, bottom / H, 22.0 / W, (hb - 7.0) / H])
-        ax_e = fig.add_axes([160.0 / W, bottom / H, 22.0 / W, (hb - 7.0) / H])
+        ax_e = fig.add_axes([156.5 / W, bottom / H, 23.0 / W, (hb - 7.0) / H])
         h = val["heldout"]
         sv.draw_b_schematic(ax_sch, n=h["n_values"], fs=fs)
         sv.draw_d(ax_b, val["levels"], h["p_classes"], h["n_draws"], fs=fs)
