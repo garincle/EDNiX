@@ -196,6 +196,7 @@ def nifti_to_surface_wb(
     display_zero: bool         = True,
     display_positive: bool     = True,
     display_negative: bool     = True,
+    show_colorbar: bool        = True,
 ):
     """
     Project any 3D or 4D NIfTI volume onto a species surface using wb_command,
@@ -235,6 +236,9 @@ def nifti_to_surface_wb(
     display_zero         : Show zero values on brain (default: True)
     display_positive     : Show positive values on brain (default: True)
     display_negative     : Show negative values on brain (default: True)
+    show_colorbar        : False hides the colour bar (and any scale bar) of the scene
+                           (m_displayedFlag of the annotations), e.g. when a figure draws
+                           one shared colour bar itself (default: True = scene as saved)
 
     Returns
     -------
@@ -544,6 +548,14 @@ def nifti_to_surface_wb(
                     r'(<Object Type="boolean" Name="m_showTickMarksSelected">)'
                     r'(?:true|false)(</Object>)',
                     rf'\g<1>{tick_str}\g<2>', scene_txt)
+
+                # Patch G: hide the colour bar / scale bar annotations of the scene
+                # (Workbench AnnotationColorBar / AnnotationScaleBar save m_displayedFlag)
+                if not show_colorbar:
+                    scene_txt, n_hidden = re.subn(
+                        r'(<Object Type="boolean" Name="m_displayedFlag">)true(</Object>)',
+                        r'\g<1>false\g<2>', scene_txt)
+                    print(f"  [scene] Hid {n_hidden} colour/scale bar annotation(s)", flush=True)
 
                 # Patch F: disable the EDNIxCSC label-atlas overlay, which sits
                 # on top of the stack (index 0, opacity 1, enabled) and hides
