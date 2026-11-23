@@ -404,7 +404,7 @@ def result_lines(summary, assoc):
 # ══════════════════════════════════════════════════════════════════════════════
 def draw_supp15(res, out_base):
     """a-f: per-subject values in both modes (species rows, modality columns; solid =
-    longitudinal, dashed grey = cross-sectional, same scans). g: within-subject residual
+    longitudinal, dashed grey = cross-sectional, same scans; key above the first row). g: within-subject residual
     SD ratio (cross / long) with bootstrap 95% CI. h: slope in % per year, both modes."""
     import matplotlib
     matplotlib.use('Agg')
@@ -436,6 +436,13 @@ def draw_supp15(res, out_base):
                 ax.set_xlabel('Age (years)')
                 ax.set_ylabel(label)
                 ax.set_title(f'{sp}, {title.lower()}', fontsize=6)
+        # line key of a-f (solid = longitudinal in the species colour, dashed grey = cross-sectional),
+        # one legend above the first row; neutral colour for the solid line since it differs by species
+        from matplotlib.lines import Line2D
+        fig.legend(handles=[Line2D([], [], color='0.15', lw=0.8, label=f'{MODE_LONG} (species colour)'),
+                            Line2D([], [], color='0.55', lw=0.7, ls='--', label=MODE_CROSS)],
+                   loc='lower center', bbox_to_anchor=(0.5, fig.axes[0].get_position().y1 + 0.035), ncol=2, fontsize=5.5, frameon=False,
+                   handlelength=2.2, columnspacing=2.0)
         # g, h: forest plots, one row per species x modality
         lab = [f'{r.species} {r.modality}' for r in summ.itertuples()]
         y = np.arange(len(summ))[::-1]
