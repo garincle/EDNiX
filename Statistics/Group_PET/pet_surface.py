@@ -35,7 +35,8 @@ PALETTES = dict(DEFAULT_MAPS, sd_all=('videen_style', False), cv_all=('videen_st
 
 def render_pet_surfaces(result, species, atlas_lib, species_fragment, sing_wb, scene_template=None,
                         scene_label='New Scene 1', maps=None, projection='ribbon', surface_type='inflated',
-                        output_dir=None, png_width=1200, png_height=400, delete_surf_file=True, ranges=None):
+                        output_dir=None, png_width=1200, png_height=400, delete_surf_file=True, ranges=None,
+                        show_colorbar=True):
     """
     Projects maps of a group result onto the surfaces of the species and renders them.
 
@@ -49,6 +50,7 @@ def render_pet_surfaces(result, species, atlas_lib, species_fragment, sing_wb, s
     projection      : 'ribbon' (default), 'ribbon_dil', 'enclosing', 'vox'... (niftotoWBsurface)
     ranges          : {key: (neg_max, pos_max)} fixed colour scale (e.g. the same bratio range for every species of
                       a cross-species figure); default: 1st / 99th percentile of each map (symmetric: 99th of |x|)
+    show_colorbar   : False hides the colour bar of the scene (the figure draws its own shared bar)
     Returns {key: dscalar path} (the PNG has the same name, .png, when a scene is given).
     """
     from Tools import niftotoWBsurface
@@ -79,7 +81,8 @@ def render_pet_surfaces(result, species, atlas_lib, species_fragment, sing_wb, s
             species_fragment=species_fragment, sing_wb=sing_wb, surface_type=surface_type, projection=projection,
             palette_name=palette, pos_max=pos_max, neg_max=neg_max, colorbar_mode='fixed',
             scene_template=scene_template, scene_label=scene_label, png_width=png_width, png_height=png_height,
-            delete_surf_file=delete_surf_file, display_zero=False, display_negative=symmetric)
+            delete_surf_file=delete_surf_file, display_zero=False, display_negative=symmetric,
+            show_colorbar=show_colorbar)
         stem = opb(path).replace('.nii.gz', '')
         done[k] = opj(out_dir, stem + '.dscalar.nii')
     return done
