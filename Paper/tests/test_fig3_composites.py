@@ -81,3 +81,19 @@ def test_region_stats_annual_change_and_loro():
     assert any('OVERLAP' in l for l in st['lines'])
     assert any('sign change without' in l and 'Striate (V1)' in l for l in st['lines'])
     assert 'Association without PFC' not in t.index      # 1 region left = PPC alone
+
+
+def test_bic_curve_choice():
+    from Statistics.Group_fMRI.EDNiX_longitudinal import fit_gamm
+    rng = np.random.default_rng(3)
+    rows = []
+    for i in range(10):                        # small sample, as BIDS_Park
+        b = rng.normal(0, 1)
+        for s in range(2):
+            age = 20 + 7 * i + 3 * s
+            rows.append(dict(subject=str(i), age=age, lin=b + 0.05 * age + rng.normal(0, .3),
+                             quad=b + 0.004 * (age - 50) ** 2 + rng.normal(0, .3)))
+    df = pd.DataFrame(rows)
+    assert fit_gamm(df, 'lin', 'age', spline_df='bic')['edf'] == 1
+    assert fit_gamm(df, 'quad', 'age', spline_df='bic')['edf'] >= 2
+    assert fit_gamm(df, 'lin', 'age')['edf'] == 4                     # former default kept

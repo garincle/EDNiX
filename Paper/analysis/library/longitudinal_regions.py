@@ -8,6 +8,7 @@ and models as Figure 3; every region of both categories, both species, three mea
   a-c / d-f  Human / Macaque: spline-LMM trajectory of every region, in % of the value
              fitted at the youngest age (log scale: a region's size does not weigh in);
              association regions in blues, primary regions in oranges
+  (archive, not in the figure since 2026-11-24; numbers kept in the stats)
   g-i / j-l  Human / Macaque: annual change (%/year, 95% CI) of a linear mixed model on
              log values, in two blocks: top, every region alone (circles); bottom, every
              composite (squares) and every composite without one region (open diamonds,
@@ -123,7 +124,8 @@ def region_stats(species_rows, modalities=None, hemisphere="left",
             for reg in regions:                                   # single regions
                 m, info, why = _long_rows(morph, mod, reg, [reg], age_df, age_col,
                                           hemisphere, min_sessions)
-                g = fit_gamm(m, "log_y", age_col, min_sessions) if not m.empty else None
+                g = (fit_gamm(m, "log_y", age_col, min_sessions, spline_df=LG.FIG3_SPLINE_DF)
+                     if not m.empty else None)
                 if g:
                     curves[(sp, mod, reg)] = dict(age=g["age_grid"],
                                                   pct=100 * np.expm1(g["pred"] - g["pred"][0]))
@@ -216,9 +218,22 @@ def stats_text(st):
             + "\n".join(st["lines"]) + "\n")
 
 
-def draw_regions(st, out_path, panel_w=3.4, panel_h=2.7):
-    """4 x 3 figure (rows: Human curves, Macaque curves, Human annual change, Macaque
-    annual change; columns = Figure 3 measures). Writes <out_path>.png/.pdf."""
+def draw_regions(st, out_path, panel_w=3.4, panel_h=2.7, archive_annual=True):
+    """Supp. Fig. 10 = a-f, the region curves (rows Human, Macaque; columns = Figure 3
+    measures). The annual-change panels (former g-l, 2026-11-24: removed from the figure
+    for now) are drawn alone in <dir>/archive/<name>_annual_change_ARCHIVE.png/.pdf when
+    archive_annual. Returns the paths."""
+    paths = _draw(st, out_path, panel_w, panel_h, curves=True, annual=False)
+    if archive_annual:
+        d, name = os.path.split(out_path)
+        paths += _draw(st, os.path.join(d, "archive", f"{name}_annual_change_ARCHIVE"),
+                       panel_w, panel_h, curves=False, annual=True)
+    return paths
+
+
+def _draw(st, out_path, panel_w, panel_h, curves=True, annual=True):
+    """Region curves (one row per species) and / or annual-change panels (one row per
+    species), columns = Figure 3 measures."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -227,15 +242,20 @@ def draw_regions(st, out_path, panel_w=3.4, panel_h=2.7):
     from Tools.ednix_bids_tools import PAPER_RC
 
     mods, species, tab = st["modalities"], st["species"], st["table"]
-    nrows, ncols = 2 * len(species), len(mods)
+    nrows, ncols = (int(curves) + int(annual)) * len(species), len(mods)
+    r0 = len(species) if curves else 0                            # first annual-change row
     regions = LG.ASSOCIATION_REGIONS + LG.PRIMARY_REGIONS
     rc = dict(PAPER_RC); rc.update(LG._FIG_RC)
     with plt.rc_context(rc):
-        fig = plt.figure(figsize=(panel_w * ncols + 1.0, panel_h * nrows * 0.95 + 0.5))
-        gs = gridspec.GridSpec(nrows, ncols, figure=fig, hspace=0.45, wspace=0.75,
-                               left=0.15, right=0.99, top=0.96, bottom=0.07)
+        fig = plt.figure(figsize=(panel_w * ncols + 1.0,
+                                  panel_h * nrows * 0.95 + (0.5 if annual else 0)))
+        gs = gridspec.GridSpec(nrows, ncols, figure=fig, hspace=0.45,
+                               wspace=0.75 if annual else 0.42,
+                               left=0.15 if annual else 0.11, right=0.99,
+                               top=0.96 if nrows > 2 else 0.92,
+                               bottom=(0.07 if nrows > 2 else 0.14) if annual else 0.1)
         letter, empty, row_label = LG._panel_tools(fig)
-        for i, sp in enumerate(species):                           # trajectories
+        for i, sp in enumerate(species if curves else []):        # trajectories
             for c, (mod, _, _, title) in enumerate(mods):
                 ax = fig.add_subplot(gs[i, c])
                 letter(ax)
@@ -265,9 +285,9 @@ def draw_regions(st, out_path, panel_w=3.4, panel_h=2.7):
                                       f"{'assoc.' if CATEGORY_OF[r] == 'Association' else 'primary'})")
                          for r in regions]
                     ax.legend(handles=h, fontsize=5.5, frameon=False, loc="best")
-        for i, sp in enumerate(species):                           # annual change
+        for i, sp in enumerate(species if annual else []):        # annual change
             for c, (mod, _, _, title) in enumerate(mods):
-                ax = fig.add_subplot(gs[len(species) + i, c])
+                ax = fig.add_subplot(gs[r0 + i, c])
                 letter(ax)
                 b = tab[(tab["species"] == sp) & (tab["modality"] == mod)] if len(tab) else tab
                 if b.empty:
@@ -301,18 +321,22 @@ def draw_regions(st, out_path, panel_w=3.4, panel_h=2.7):
                 ax.set_ylim(-0.8, n_bot + n_top + 1.0)
                 ax.axvline(0, color="0.5", lw=0.6, ls=":")
                 ax.set_xlabel("Annual change (%/year, 95% CI)")
+                if i == 0 and not curves:
+                    ax.set_title(title, fontweight="bold", pad=12)
                 ax.spines[["top", "right"]].set_visible(False)
                 if c == 0:
                     ax.annotate(f"{st['labels'][sp]}\nannual change", xy=(-0.95, 0.5),
                                 xycoords="axes fraction", rotation=90, ha="center",
                                 va="center", fontsize=9, fontweight="bold")
-        h = [Line2D([], [], marker="o", color="0.3", ls="", ms=4, label="one region"),
+        h = [] if not annual else [
+             Line2D([], [], marker="o", color="0.3", ls="", ms=4, label="one region"),
              Line2D([], [], marker="s", color="0.3", ls="", ms=4,
                     label="composite, all regions of the category"),
              Line2D([], [], marker="D", color="0.3", mfc="white", ls="", ms=4,
                     label="composite without one region (leave-one-region-out)")]
-        fig.legend(handles=h, loc="lower center", ncol=3, fontsize=7, frameon=False,
-                   bbox_to_anchor=(0.55, 0.0))
+        if h:
+            fig.legend(handles=h, loc="lower center", ncol=3, fontsize=7, frameon=False,
+                       bbox_to_anchor=(0.55, 0.0))
         paths = LG._save(fig, out_path)
         plt.close(fig)
     return paths

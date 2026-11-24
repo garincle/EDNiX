@@ -96,6 +96,11 @@ FIG3_REGION_SETS = {'Primary': PRIMARY_REGIONS, 'Association': ASSOCIATION_REGIO
 FIG3_MAIN_REGIONS = {'Human': 'Association', 'Macaque': 'Association'}
 FIG3_SUPP_REGIONS = {'Human': 'Primary', 'Macaque': 'Primary'}
 FIG3_COMPOSITE_LEVELS = (3, 4, 2)
+# Complexity of the age curve of every longitudinal panel (Fig. 3, Supp. Figs. 9-10),
+# fixed a priori (2026-11-24): chosen by BIC among linear, quadratic, cubic and cubic
+# spline with one knot (EDNiX_longitudinal.fit_gamm). The former fixed df = 4 spline
+# over-fitted the human data (10 subjects, ~2 sessions each). Same rule in both species.
+FIG3_SPLINE_DF = 'bic'
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1122,7 +1127,8 @@ def _fit_fig3_panels(species_rows, region, atlas_level, hemisphere, min_sessions
                 continue
             rdf = m[m['region'] == reg].copy()
             fits[(sp, mod)] = dict(rdf=rdf, age_col=age_col, region=reg, info=info,
-                                   gamm=fit_gamm(rdf, metric_col, age_col, min_sessions),
+                                   gamm=fit_gamm(rdf, metric_col, age_col, min_sessions,
+                                                 spline_df=FIG3_SPLINE_DF),
                                    lme=fit_lme(rdf, metric_col, age_col, min_sessions))
     return fits
 
@@ -1339,7 +1345,9 @@ def _traj_report_line(L, sp, col_title, metric_label, f):
     unit = metric_label.split('(')[-1].rstrip(')') if '(' in metric_label else ''
     parts = [f"{L}  {sp} {col_title}: n={rdf['subject'].nunique()} subjects, {len(rdf)} sessions"]
     if g:
-        parts.append(f"spline LMM age effect LRT chi2({g['edf']:.0f})={g['lr_stat']:.2f}, {_fmt_p(g['p_age'])}")
+        parts.append(f"curve: {g.get('shape', 'spline')} (BIC "
+                     + ", ".join(f"df{k}={v:.1f}" for k, v in g.get('bic', {}).items())
+                     + f"); age effect LRT chi2({g['edf']:.0f})={g['lr_stat']:.2f}, {_fmt_p(g['p_age'])}")
         if not np.isnan(g.get('p_nonlinear', np.nan)):
             parts.append(f"non-linearity (spline vs linear) LRT chi2({g['edf'] - 1:.0f})="
                          f"{g['lr_nonlinear']:.2f}, {_fmt_p(g['p_nonlinear'])}")
@@ -1390,11 +1398,14 @@ def _figure3_text(report, species_rows, region, fits, atlas_level, hemisphere, m
         *data,
         "",
         "Models",
-        f"  Curve ± band (a–{last}): linear mixed model with a cubic B-spline basis of age "
-        "(df = 4, unpenalised regression spline) and a subject random intercept, fitted by "
-        "maximum likelihood; 95% pointwise confidence band from the fixed-effect covariance. "
-        "Age effect: likelihood-ratio test against the intercept-only model (chi2, 4 df); "
-        "non-linearity: LRT spline vs linear-age model (chi2, 3 df).",
+        f"  Curve ± band (a–{last}): linear mixed model of age with a subject random intercept, "
+        "fitted by maximum likelihood; the shape of the age curve (linear, quadratic, cubic, "
+        "or cubic B-spline with one interior knot = 1 to 4 df) is chosen per panel by the "
+        "Bayesian information criterion (rule fixed a priori, same for every panel and "
+        "species); 95% pointwise confidence band from the fixed-effect covariance. Age "
+        "effect: likelihood-ratio test against the intercept-only model (chi2, df of the "
+        "chosen curve; conditional on the BIC choice, so descriptive); non-linearity: LRT "
+        "chosen curve vs linear (chi2, df - 1), only when a non-linear curve is chosen.",
         f"  Inset (a–{last}): slope of the linear mixed model metric ~ age + (1|subject) (ML), "
         "per year, Wald p; replaced by 'non-linear' + LRT p when the non-linearity test is "
         "significant (p < 0.05), since a single slope would misdescribe the trajectory. "

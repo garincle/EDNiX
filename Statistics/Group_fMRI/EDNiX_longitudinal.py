@@ -147,32 +147,52 @@ def _ml_random_intercept(y, X, groups):
     return float(llf), beta, cov, f'LMM random intercept (ML, var ratio {lam:.3g})'
 
 
+SPLINE_DF_CANDIDATES = (1, 2, 3, 4)
+
+
+def _age_basis(age_z, grid_z, k):
+    """Fixed-effect design of age, k degrees of freedom (+ intercept), on the data and on
+    the prediction grid. k = 1 linear; k = 2 quadratic (B-spline degree 2, no interior
+    knot); k = 3 cubic polynomial; k >= 4 cubic B-spline with k - 3 interior knots."""
+    from patsy import dmatrix, build_design_matrices
+    if k == 1:
+        return (np.column_stack([np.ones(len(age_z)), age_z]),
+                np.column_stack([np.ones(len(grid_z)), grid_z]))
+    X = dmatrix(f"bs(age_z, df={k}, degree={min(3, k)})", pd.DataFrame({'age_z': age_z}),
+                return_type='dataframe')
+    Xg = np.asarray(build_design_matrices([X.design_info], pd.DataFrame({'age_z': grid_z}))[0])
+    return X.to_numpy(), Xg
+
+
 def fit_gamm(df: pd.DataFrame,
              metric_col: str,
              age_col: str,
              min_sessions: int = MIN_SESSIONS,
-             spline_df: int = 4) -> dict:
+             spline_df=4,
+             candidates=SPLINE_DF_CANDIDATES) -> dict:
     """
-    Mixed model with an unpenalised cubic B-spline age basis
-    (metric ~ bs(age, df=spline_df) + (1|subject)), fitted by ML.
+    Mixed model with an unpenalised age basis and a subject random intercept
+    (metric ~ f(age) + (1|subject)), fitted by ML.
     NB: despite the historical name, this is not a penalised GAMM.
 
-    Age effect: likelihood-ratio test against the intercept-only model
-    (chi2, spline_df degrees of freedom). The previous version returned the
-    minimum of the individual coefficient p-values (random-effect variance term
-    included), which gave ~19% false positives at alpha = 0.05 under the null.
+    spline_df: an int = fixed cubic B-spline basis of that df (former behaviour, df = 4);
+    'bic' = complexity chosen among `candidates` (1 linear, 2 quadratic, 3 cubic, 4 cubic
+    spline with one knot; see _age_basis) by the Bayesian information criterion of the ML
+    fits. BIC penalises each extra coefficient by log(n), so with few subjects / sessions
+    a curve only bends when the data support it (Schwarz 1978); the rule is the same for
+    every panel and is fixed before looking at the curves.
 
-    Non-linearity: LRT spline vs linear-age model (same random intercept),
-    spline_df - 1 degrees of freedom (p_nonlinear).
+    Age effect: likelihood-ratio test of the chosen model against the intercept-only model
+    (chi2, df degrees of freedom). After a BIC choice this P is conditional on the choice
+    (anti-conservative): the linear mixed-model slope (fit_lme) is the confirmatory test.
+    Non-linearity: LRT chosen model vs linear-age model (df - 1); NaN when linear is chosen.
 
-    Predictions use the spline basis of the fitted data (same knots) and the
-    full fixed-effect covariance for the confidence band.
+    Predictions use the basis of the fitted data (same knots) and the full fixed-effect
+    covariance for the confidence band.
     """
     if not _HAS_SMF:
         warnings.warn("statsmodels not available - spline LMM disabled")
         return None
-
-    from patsy import dmatrix, build_design_matrices
     from scipy.stats import chi2
 
     sub = df[[age_col, metric_col, 'subject']].dropna()
@@ -181,39 +201,46 @@ def fit_gamm(df: pd.DataFrame,
 
     y = sub[metric_col].to_numpy(dtype=float)
     groups = sub['subject'].to_numpy()
+    n = len(y)
     age_mu, age_sd = sub[age_col].mean(), sub[age_col].std() + 1e-9
-    age_z = pd.DataFrame({'age_z': (sub[age_col].to_numpy(dtype=float) - age_mu) / age_sd})
-    grid_z = np.linspace(age_z['age_z'].min(), age_z['age_z'].max(), 200)
+    age_z = (sub[age_col].to_numpy(dtype=float) - age_mu) / age_sd
+    grid_z = np.linspace(age_z.min(), age_z.max(), 200)
 
-    try:
-        X = dmatrix(f"bs(age_z, df={spline_df}, degree=3)", age_z, return_type='dataframe')
-        Xg = np.asarray(build_design_matrices([X.design_info], pd.DataFrame({'age_z': grid_z}))[0])
-        ll1, beta, cov, kind = _ml_random_intercept(y, X.to_numpy(), groups)
-        ll0, _, _, _ = _ml_random_intercept(y, np.ones((len(y), 1)), groups)
-        ll_lin, _, _, _ = _ml_random_intercept(
-            y, np.column_stack([np.ones(len(y)), age_z['age_z'].to_numpy()]), groups)
-        dof = spline_df
-        method = f'{kind.split(" (")[0]}, cubic B-spline age basis (df={spline_df}), LRT vs intercept-only'
-    except Exception as e:
-        warnings.warn(f"spline model failed — {metric_col}: {e}; linear model used")
-        X = np.column_stack([np.ones(len(y)), age_z['age_z'].to_numpy()])
-        Xg = np.column_stack([np.ones_like(grid_z), grid_z])
-        ll1, beta, cov, kind = _ml_random_intercept(y, X, groups)
-        ll0, _, _, _ = _ml_random_intercept(y, X[:, :1], groups)
-        ll_lin = ll1
-        dof = 1
-        method = f'{kind.split(" (")[0]}, linear age (fallback), LRT vs intercept-only'
-
+    ll0, _, _, _ = _ml_random_intercept(y, np.ones((n, 1)), groups)
+    fits, bic = {}, {}
+    ks = list(candidates) if spline_df == 'bic' else [1, int(spline_df)]
+    for k in dict.fromkeys(ks):
+        try:
+            X, Xg = _age_basis(age_z, grid_z, k)
+            ll, beta, cov, kind = _ml_random_intercept(y, X, groups)
+        except Exception as e:
+            warnings.warn(f"age basis df={k} failed — {metric_col}: {e}")
+            continue
+        fits[k] = (ll, beta, cov, kind, Xg)
+        bic[k] = -2.0 * ll + (k + 1) * np.log(n)
+    if not fits:
+        return None
+    if spline_df == 'bic':
+        dof = min(bic, key=bic.get)
+        rule = f"df chosen by BIC among {list(candidates)}"
+    else:
+        dof = int(spline_df) if int(spline_df) in fits else 1
+        rule = f"fixed df={spline_df}" + ("" if dof == int(spline_df) else " (failed: linear used)")
+    ll1, beta, cov, kind, Xg = fits[dof]
+    ll_lin = fits[1][0] if 1 in fits else ll1
     lr = max(2.0 * (ll1 - ll0), 0.0)
-    lr_nl = max(2.0 * (ll1 - ll_lin), 0.0)   # spline vs linear age (non-linearity), dof-1 df
+    lr_nl = max(2.0 * (ll1 - ll_lin), 0.0)
     pred = Xg @ beta
     se = np.sqrt(np.clip(np.einsum('ij,jk,ik->i', Xg, cov, Xg), 0, None))
+    shape = {1: 'linear', 2: 'quadratic', 3: 'cubic'}.get(dof, f'cubic B-spline df={dof}')
     return dict(
         age_grid=grid_z * age_sd + age_mu, pred=pred,
         ci_lower=pred - 1.96 * se, ci_upper=pred + 1.96 * se,
         p_age=float(chi2.sf(lr, dof)), lr_stat=lr,
         p_nonlinear=float(chi2.sf(lr_nl, dof - 1)) if dof > 1 else np.nan, lr_nonlinear=lr_nl,
-        edf=float(dof), method=method, n=len(sub),
+        edf=float(dof), shape=shape, bic={int(k): float(v) for k, v in bic.items()},
+        method=f'{kind.split(" (")[0]}, {shape} age basis ({rule}), LRT vs intercept-only',
+        n=n,
     )
 
 def fit_lme(df: pd.DataFrame,
