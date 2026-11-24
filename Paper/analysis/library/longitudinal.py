@@ -1353,7 +1353,8 @@ def _traj_report_line(L, sp, col_title, metric_label, f):
                          f"{g['lr_nonlinear']:.2f}, {_fmt_p(g['p_nonlinear'])}")
     if l and 'slope_per_unit' in l:
         parts.append(f"linear LME slope={l['slope_per_unit']:.4g} ± {l['se_per_unit']:.2g} (SE) {unit}/year, "
-                     f"{_fmt_p(l['p_slope'])}, marginal R²={l['r2_marginal']:.3f}")
+                     f"{_fmt_p(l['p_slope'])}, marginal R²={l['r2_marginal']:.3f}"
+                     + (f" [statsmodels failed: {l['fallback']}]" if l.get('fallback') else ""))
     return '; '.join(parts)
 
 
@@ -1378,8 +1379,11 @@ def _figure3_text(report, species_rows, region, fits, atlas_level, hemisphere, m
                   assoc_species, primary_regions, association_regions, title='FIGURE 3'):
     ntraj = 3 * len(species_rows)
     last = 'abcdefghijklmnopqrstuvwxyz'[ntraj - 1]
-    data = [f"  a–{last}: {hemisphere} hemisphere; subjects with >= {min_sessions} sessions; "
-            "a session lacking one region of a composite is dropped."]
+    used = sorted({str(f['rdf']['hemisphere'].iloc[0]) for f in fits.values()
+                   if f is not None and 'hemisphere' in f['rdf'] and len(f['rdf'])})
+    data = [f"  a–{last}: hemisphere used = {', '.join(used) or '?'} (requested: {hemisphere}; "
+            "'bilateral' when the data hold no left hemisphere); subjects with >= "
+            f"{min_sessions} sessions; a session lacking one region of a composite is dropped."]
     for sp, *_ in species_rows:
         data.append(f"    {sp}: " + _region_desc(_region_spec(region, sp), fits, sp,
                                                     FIG3_MODALITIES, atlas_level))

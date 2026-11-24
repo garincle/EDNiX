@@ -285,8 +285,23 @@ def fit_lme(df: pd.DataFrame,
         return dict(slope=slope, slope_per_unit=slope / age_sd, se_per_unit=se_z / age_sd,
                     p_slope=pval, intercept=inter, r2_marginal=r2_m, n=len(sub))
     except Exception as e:
-        warnings.warn(f"fit_lme error — {metric_col}: {e}")
-        return {}
+        # statsmodels cannot invert the Hessian when the subject variance is at its
+        # boundary (0): exact profiled ML fit instead (same model, same ML criterion)
+        try:
+            from scipy.stats import norm
+            y = tmp[sc].to_numpy(float)
+            X = np.column_stack([np.ones(len(y)), tmp['age_z'].to_numpy(float)])
+            _, beta, cov, kind = _ml_random_intercept(y, X, tmp['subject'].to_numpy())
+            age_sd = tmp[age_col].std() + 1e-9
+            se_z = float(np.sqrt(cov[1, 1]))
+            warnings.warn(f"fit_lme — {metric_col}: statsmodels failed ({e}); {kind} used")
+            return dict(slope=float(beta[1]), slope_per_unit=float(beta[1]) / age_sd,
+                        se_per_unit=se_z / age_sd, p_slope=float(2 * norm.sf(abs(beta[1]) / se_z)),
+                        intercept=float(beta[0]), r2_marginal=np.nan, n=len(sub),
+                        fallback=kind)
+        except Exception as e2:
+            warnings.warn(f"fit_lme error — {metric_col}: {e}; fallback failed: {e2}")
+            return {}
 
 
 # ══════════════════════════════════════════════════════════════════════════════

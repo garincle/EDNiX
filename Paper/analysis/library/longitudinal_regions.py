@@ -155,7 +155,11 @@ def region_stats(species_rows, modalities=None, hemisphere="left",
             rows.extend(block)
             lines.extend(_block_lines(sp, title, block))
     table = pd.DataFrame(rows)
-    return dict(curves=curves, table=table, lines=lines, modalities=modalities,
+    hemis = sorted({str(h) for sp, morph, *_ in species_rows for k in ("surface",)
+                    for h in (LG.composite_region_rows(morph, k, "Primary",
+                                                       hemisphere=hemisphere)[1]["hemisphere"],)
+                    if h is not None})
+    return dict(curves=curves, table=table, lines=lines, modalities=modalities, hemispheres=hemis,
                 species=[r[0] for r in species_rows],
                 labels={r[0]: r[4] for r in species_rows}, letters=letters)
 
@@ -210,7 +214,7 @@ def _block_lines(sp, title, block):
 
 def stats_text(st):
     return ("Supplementary Figure 10 -- region-by-region trajectories of the Figure 3 "
-            "composites (left hemisphere)\n"
+            "composites (hemisphere: " + ", ".join(st.get("hemispheres", ["?"])) + ")\n"
             "Annual change = 100*(exp(b)-1), b = slope/year of log(value) ~ age + (1|subject), ML; "
             "95% CI from b +/- 1.96 SE; single regions: BH-FDR over the 6 regions of one "
             "species x measure. Leave-one-region-out only where >= 2 regions remain (primary); "

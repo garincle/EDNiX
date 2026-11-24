@@ -97,3 +97,16 @@ def test_bic_curve_choice():
     assert fit_gamm(df, 'lin', 'age', spline_df='bic')['edf'] == 1
     assert fit_gamm(df, 'quad', 'age', spline_df='bic')['edf'] >= 2
     assert fit_gamm(df, 'lin', 'age')['edf'] == 4                     # former default kept
+
+
+def test_fit_lme_boundary_fallback():
+    """Subject variance ~0 (statsmodels singular): exact ML fallback gives the OLS slope."""
+    from Statistics.Group_fMRI.EDNiX_longitudinal import fit_lme
+    rng = np.random.default_rng(5)
+    rows = [dict(subject=str(i), age=20 + 7 * i + 3 * s,
+                 y=0.01 * (20 + 7 * i + 3 * s) + rng.normal(0, 0.05))
+            for i in range(10) for s in range(2)]
+    df = pd.DataFrame(rows)
+    r = fit_lme(df, 'y', 'age')
+    ols = np.polyfit(df['age'], df['y'], 1)[0]
+    assert r and r['slope_per_unit'] == pytest.approx(ols, rel=0.05)
