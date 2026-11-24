@@ -17,16 +17,16 @@ Figure 6 -- Multimodal, multi-species imaging approaches to build an intersectio
  g  (right of f) multimodal fingerprint of each species (radar): volume, positive coupling to the retrosplenial seed
     and FDG, each z-scored across the regions within each subject, mean +- SEM. PANEL_D = 'summary': heatmap + forest
     plot instead, full width.
- Supplementary Figure 15 (draw_supp_pairs): Pearson r between the regional profiles of pairs of subjects by class
+ Supplementary Figure 17 (draw_supp_pairs): Pearson r between the regional profiles of pairs of subjects by class
     (same subject eyes open / closed, within a dataset, between the human datasets, human vs macaque).
 Regions grouped by lobe in the order of the atlas sunburst of Figure 1 (Atlas_nomenclature.atlas_order), radars
 counter-clockwise from the top as the sunburst, lobe colours of Figure 1 on the rim and under the bars.
 
 Data, units and level conventions: multimodal_profiles.py, pet_datasets.py. Colours: species colour of the article
 (paper_style.py); the datasets of a species differ by marker (paper_style.dataset_marker) and, for the bars, by hatching.
-  figure6_stats()        every table and test (paper_stats.figure6, paper_stats.supp15)
+  figure6_stats()        every table and test (paper_stats.figure6, paper_stats.supp17)
   draw_figure6()         surface renders + the figure + its legend (paper_figures.figure6)
-  draw_supp_pairs()      Supplementary Figure 15 (paper_figures.supp15)
+  draw_supp_pairs()      Supplementary Figure 17 (paper_figures.supp17)
 A second macaque dataset is added by one line in PET_DATASETS: c, d, e and f follow (with one macaque, d is left out).
 """
 import os
@@ -761,7 +761,7 @@ def build_figure(pngs, rng, pet, prof_c, regions_c, summ=None, si=None, dpngs=No
 
 
 def draw_supp_pairs(pet, pre):
-    """Supplementary Figure 15: Pearson r between the regional FDG profiles of pairs of subjects, by class
+    """Supplementary Figure 17: Pearson r between the regional FDG profiles of pairs of subjects, by class
     (<pre>.png/.svg/.pdf and <pre>_legend.txt)."""
     os.makedirs(os.path.dirname(pre), exist_ok=True)
     with plt.rc_context(PAPER_RC):
@@ -781,7 +781,7 @@ def supp_pairs_legend(pet):
     a, b = HUMAN_DATASETS
     t = pet['ptest'].iloc[0] if len(pet['ptest']) else None
     return (
-        f'Supplementary Figure 15 | Similarity of the regional FDG profiles between subjects. Pearson r between the '
+        f'Supplementary Figure 17 | Similarity of the regional FDG profiles between subjects. Pearson r between the '
         f'regional bratio profiles (EDNiX level {LEVEL}, {len(pet["regions"])} regions) of pairs of subjects, by '
         f'class: the same {ds_name(b)} subject in its two sessions (eyes open vs eyes closed), two subjects of the same '
         f'dataset, one subject of each human dataset, a human and a macaque. One session per subject in the '
@@ -824,7 +824,7 @@ def legend_text(pet, prof_c, regions_c, rng, cmc, summ=None, drng=None):
         f'{rng[0]:.2f}-{rng[1]:.2f} (jet; 1st-99th percentile of the maps, saturated beyond), shared by {la} and {lc}. '
         f'{lb}, Reproducibility across human datasets: regional group means of {ds_name(a)} vs {ds_name(b)} (EDNiX level '
         f'{LEVEL}, {len(pet["regions"])} regions; dot colour, lobe of Figure 1; bars, SEM; dashed, identity): '
-        f'{_agree_sentence(pet["agree"].iloc[0])}. Similarity between individual profiles: Supplementary Figure 15. '
+        f'{_agree_sentence(pet["agree"].iloc[0])}. Similarity between individual profiles: Supplementary Figure 17. '
         f'{lc}, Group-mean bratio of the macaque dataset{"s" if len(macs) > 1 else ""} ({mac_txt}) on the macaque '
         f'surface, same scale as {la}. '
         + (f'{ld}, Reproducibility across macaque datasets, as {lb}: {_agree_sentence(pet["agree_mac"].iloc[0])}'

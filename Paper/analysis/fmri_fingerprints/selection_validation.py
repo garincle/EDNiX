@@ -260,7 +260,7 @@ def species_signal(vecs, ds, selected, sp_of_ds, n_draws=N_DRAWS, n_perm=2000, s
         gp = ss.gap_perm_p(res, sp_of_ds, rng, n_perm) if with_p else (ss.gap(res, sp_of_ds), None)
         mant = {k: ss.species_mantel(prof, sp_of_ds, with_p=with_p)
                 for k, prof in (("raw", g), ("residual", res))}
-        # raw gap (common profile kept): Supplementary Fig. 11b (Clément, V4 comment)
+        # raw gap (common profile kept): Supplementary Fig. 13b (Clément, V4 comment)
         mant["gap_raw"] = (ss.gap_perm_p(g, sp_of_ds, rng, n_perm) if with_p
                            else (ss.gap(g, sp_of_ds), None))
         return gp, mant
@@ -333,8 +333,8 @@ _CACHE = {}
 
 
 def compute(c, n_splits=N_SPLITS, n_draws=N_DRAWS):
-    """All numbers of Fig. 4b, d, e and Supplementary Fig. 11b. Cached per fMRI context
-    (figure4 and supp11 of paper_stats call it in the same process)."""
+    """All numbers of Fig. 4b, d, e and Supplementary Fig. 13b. Cached per fMRI context
+    (figure4 and supp13 of paper_stats call it in the same process)."""
     key = (id(c), n_splits, n_draws)
     if key not in _CACHE:
         _CACHE[key] = _compute(c, n_splits, n_draws)
@@ -596,7 +596,7 @@ def draw_species(ax, sp, fs=5.5):
 
 
 def raw_gap_lines(sp):
-    """Supplementary Fig. 11b: the same test on the raw group profiles (common profile kept)."""
+    """Supplementary Fig. 13b: the same test on the raw group profiles (common profile kept)."""
     r = sp.get("raw")
     if not r:
         return []
@@ -621,7 +621,7 @@ def raw_gap_table(sp):
 
 
 def draw_species_raw(ax, sp, fs=5.5):
-    """Supplementary Fig. 11b: species gap on the raw group profiles (common profile kept)."""
+    """Supplementary Fig. 13b: species gap on the raw group profiles (common profile kept)."""
     r = sp["raw"]
     _draw_pools(ax, r["gap_all"], r["p_all"], r["rand"], float(np.median(r["rand_p"])),
                 r["gap_sel"], r["p_sel"], r["p_vs_random"],
@@ -629,7 +629,7 @@ def draw_species_raw(ax, sp, fs=5.5):
 
 
 def plot_species_raw(sp, out, width_mm=45, height_mm=55):
-    """Stand-alone panel (Supplementary Fig. 11b); writes <out>.png/.pdf."""
+    """Stand-alone panel (Supplementary Fig. 13b); writes <out>.png/.pdf."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

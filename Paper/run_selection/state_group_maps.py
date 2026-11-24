@@ -1,5 +1,5 @@
 """Group seed maps of each arousal state, inside the datasets that hold both states
-(Supplementary figure 'awake vs anaesthetised', paper section supp16).
+(Supplementary figure 'awake vs anaesthetised', paper section supp18).
 
     python Paper/run_selection/state_group_maps.py                 # kept runs of the final round
     python Paper/run_selection/state_group_maps.py --pool all      # every run of each state
@@ -7,7 +7,7 @@
 
 For every dataset whose runs are both awake and anaesthetised (state rule of
 config_ednix.BIDS_CONFIGS; every state other than "awake" counts as anaesthetised, as in
-Supp. 13), the runs of the pool are split by state and each half goes through the SAME
+Supp. 15), the runs of the pool are split by state and each half goes through the SAME
 AFNI 3dttest++ as the kept / not-kept maps of Figure 5 (profiles.rerun_balanced_by_run,
 balance=False: every run of the state, no subsampling; the map drawn is the mean Fisher z,
 sub-brick 0, so its scale does not grow with n). The two maps of a dataset are then
@@ -21,7 +21,7 @@ dataset (2 datasets x 2 states); 3dClustSim only for n > 14 runs.
 Output: <OUTPUT_ROOT>/08_state_maps/
     state_map_index.xlsx    label, state, n_runs, n_animals, map_path, found, png, range
     state_runs.xlsx         every run of the pool with its state and animal
-    state_maps.json         same index, read by paper_stats.supp16
+    state_maps.json         same index, read by paper_stats.supp18
     surfaces/<label>__<state>/   wb_command renders
 """
 import argparse

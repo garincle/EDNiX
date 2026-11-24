@@ -1,4 +1,4 @@
-"""Supp. Fig. 16 (awake vs anaesthetised): statistics and drawing on synthetic profiles."""
+"""Supp. Fig. 18 (awake vs anaesthetised): statistics and drawing on synthetic profiles."""
 import numpy as np
 import pandas as pd
 
@@ -46,4 +46,4 @@ def test_draw_without_maps(tmp_path):
 
 
 def test_section_registered():
-    assert "supp16" in pst.SECTIONS and pst.FOLDER["supp16"] == "Supp_Fig_16"
+    assert "supp18" in pst.SECTIONS and pst.FOLDER["supp18"] == "Supp_Fig_18"

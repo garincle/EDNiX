@@ -7,7 +7,8 @@ lines), and returns them with what paper_figures.py needs to draw the figure.
 
   figure1   atlas hierarchy                 no statistic
   figure2   cortical morphometry, level 2   per species median, IQR, n subjects
-  figure3   longitudinal morphometry        spline LMM, linear LME, association vs primary
+  figure3   longitudinal morphometry        spline LMM, linear LME (human association cortex,
+                                            macaque primary cortex), association vs primary
   figure4   selection of the fMRI runs      a  r of every dataset with the LOSO consensus
                                             b, d, e selection vs 10 random runs per dataset:
                                                noise (pair classes), species identity (d),
@@ -27,28 +28,32 @@ lines), and returns them with what paper_figures.py needs to draw the figure.
   (supp7    FreeSurfer vs EDNiX, human      validation/supp_freesurfer_comparison.py, not here)
   supp8     longitudinal vs cross-sectional same scans processed with and without the longitudinal
             (Fig. 3 datasets)                  option: residual SD, slope SE and bias (subject bootstrap)
-  supp9     human association vs primary    paired t-tests (BIDS_Park)
-  supp10    behaviour of the selection      convergence, consensus by dataset, invariance
-  supp11    selection vs variability levels animal / session gaps vs random subsets;
+  supp9     Fig. 3 complementary cortex     spline LMM, linear LME: human primary, macaque
+                                            association (Fig. 3 a-f shows the other set)
+  supp10    Fig. 3 region by region         annual change (log LMM) of every region, every
+                                            composite and every leave-one-region-out composite
+  supp11    human association vs primary    paired t-tests (BIDS_Park)
+  supp12    behaviour of the selection      convergence, consensus by dataset, invariance
+  supp13    selection vs variability levels animal / session gaps vs random subsets;
                                             b raw species gap, selected vs random
-  supp12    proximity of the datasets       sibling rank of every dataset
-  supp13    scores and arousal state        selection scores; r with the criterion by state;
+  supp14    proximity of the datasets       sibling rank of every dataset
+  supp15    scores and arousal state        selection scores; r with the criterion by state;
                                             units kept per state
-  supp14    run dispersion and QC           SD of r with the kept map; QC meta-analysis
-  supp15    FDG profile similarity          pairs of subjects by class, label-permutation test
-  supp16    awake vs anaesthetised          per state (datasets with both): n runs / animals,
+  supp16    run dispersion and QC           SD of r with the kept map; QC meta-analysis
+  supp17    FDG profile similarity          pairs of subjects by class, label-permutation test
+  supp18    awake vs anaesthetised          per state (datasets with both): n runs / animals,
                                             r between state profiles, animal-pair r (descriptive)
   stable1   acquisition parameters          per dataset: n, field, scanner, TR, TE, flip, voxel,
                                             volumes, duration, arousal state; implausible TRs flagged
 
-fMRI statistics (figure4, figure5, supp10-supp14) read only the saved run selection
+fMRI statistics (figure4, figure5, supp12-supp16) read only the saved run selection
 (Statistics/Group_fMRI/run_selection, <FMRI_SELECTION_ROOT>/07_state), with the settings
 of fmri_fingerprints/settings.py: the functions and the settings are those of the former
 Fig5 pipeline (sensitivity_analysis/fmri_selection/exploration_pipeline.py), so every
 number is the one that pipeline wrote (checked on synthetic data: validation/).
 
     python paper_stats.py                  # every figure
-    python paper_stats.py figure4 supp12   # some figures
+    python paper_stats.py figure4 supp14   # some figures
 Everything (statistics and figures): run_paper.py.
 """
 import os
@@ -64,15 +69,15 @@ from Paper.analysis import paper_data as pdat
 opj = os.path.join
 
 SECTIONS = ("figure1", "figure2", "figure3", "figure4", "figure5", "figure6", "supp1", "supp2",
-            "supp3", "supp4", "supp5", "supp6", "supp8", "supp9", "supp10", "supp11", "supp12",
-            "supp13", "supp14", "supp15", "supp16", "stable1")
+            "supp3", "supp4", "supp5", "supp6", "supp8", "supp9", "supp10", "supp11", "supp12", "supp13", "supp14",
+            "supp15", "supp16", "supp17", "supp18", "stable1")
 FOLDER = dict(figure1="Figure_1", figure2="Figure_2", figure3="Figure_3",
               figure4="Figure_4", figure5="Figure_5", figure6="Figure_6", supp1="Supp_Fig_01",
               supp2="Supp_Fig_02", supp3="Supp_Fig_03", supp4="Supp_Fig_04",
               supp5="Supp_Fig_05",
-              supp6="Supp_Fig_06", supp9="Supp_Fig_09", supp10="Supp_Fig_10",
-              supp13="Supp_Fig_13", supp12="Supp_Fig_12", supp11="Supp_Fig_11",
-              supp14="Supp_Fig_14", supp15="Supp_Fig_15", supp16="Supp_Fig_16", supp8="Supp_Fig_08",
+              supp6="Supp_Fig_06", supp9="Supp_Fig_09", supp10="Supp_Fig_10", supp11="Supp_Fig_11", supp12="Supp_Fig_12",
+              supp15="Supp_Fig_15", supp14="Supp_Fig_14", supp13="Supp_Fig_13",
+              supp16="Supp_Fig_16", supp17="Supp_Fig_17", supp18="Supp_Fig_18", supp8="Supp_Fig_08",
               stable1="Supp_Table_01")
 
 
@@ -140,7 +145,7 @@ class Inputs:
 
     def fmri(self):
         """Saved selection + shared objects (fmri_fingerprints.context) + the group
-        fingerprints used by Figure 4 and Supp. 10 (fmri_group)."""
+        fingerprints used by Figure 4 and Supp. 12 (fmri_group)."""
         def load():
             from Paper.analysis.fmri_fingerprints import context
             c = context.prepare(context.load_state(self.fmri_root))
@@ -153,7 +158,7 @@ class Inputs:
 # Shared fMRI objects (same code as fingerprints.make_fingerprint_figures)
 # ═══════════════════════════════════════════════════════════════════════════
 def fmri_group(c):
-    """Group fingerprints of every dataset and what Figure 4 and Supp. 10 share:
+    """Group fingerprints of every dataset and what Figure 4 and Supp. 12 share:
       vecs_all   {label: scaled group profile} of the Figure 4 group maps
                  (context.prepare: round-final KEPT maps, PHYLOGENY_USE_FINAL_ROUND)
       dist_all   per dataset r / 1 - r with the LOSO consensus and with Human
@@ -487,6 +492,25 @@ def supp6(inp):
 
 
 def supp9(inp):
+    """Figure 3 a-f with the complementary cortex (lg.FIG3_SUPP_REGIONS): human primary,
+    macaque association; same data, models and inset rule as Figure 3."""
+    from Paper.analysis.library import longitudinal as lg
+    st = lg.figure3_stats(inp.figure3_rows(), region=lg.FIG3_SUPP_REGIONS, assoc_species='',
+                          title='SUPPLEMENTARY FIGURE 9')
+    return dict(tables=dict(panels=st["table"]), lines=st["report"], text=st["text"],
+                draw=dict(stats=st))
+
+
+def supp10(inp):
+    """Every region of the Fig. 3 composites, both species and measures: spline-LMM
+    trajectories, annual change, leave-one-region-out (library/longitudinal_regions.py)."""
+    from Paper.analysis.library import longitudinal_regions as lr
+    st = lr.region_stats(inp.figure3_rows())
+    return dict(tables=dict(annual_change=st["table"]), lines=st["lines"],
+                text=lr.stats_text(st), draw=dict(stats=st))
+
+
+def supp11(inp):
     from Paper.analysis.library import human_assoc_primary as hap
     morph, age = inp.human_park()
     st = hap.supp6_stats(morph, age)
@@ -494,7 +518,7 @@ def supp9(inp):
                 draw=dict(stats=st))
 
 
-def supp10(inp):
+def supp12(inp):
     """a  convergence of the iterative selection (F1e)
        b  regional profile of every dataset (all runs) and the consensus (F1c)
        c  invariance of every region; regions used by the score (F5)"""
@@ -525,7 +549,7 @@ def supp10(inp):
         names="region") if per else f1c, c_region_invariance=inv), lines=lines, draw={})
 
 
-def supp13(inp):
+def supp15(inp):
     """a  selection score of every unit, per dataset (F3)
        b  r of every run with its dataset's final-round selection criterion, by arousal
           state; within-animal sign-flip test (F8b / 6c)
@@ -601,12 +625,12 @@ def _kept_by_state(d, labels):
     return tot, lines
 
 
-# pool of supp16: "kept" = runs kept by the final round (as the maps of
+# pool of supp18: "kept" = runs kept by the final round (as the maps of
 # Paper/run_selection/state_group_maps.py, default), "all" = every run
 SUPP16_POOL = "kept"
 
 
-def supp16(inp):
+def supp18(inp):
     """Awake vs anaesthetised inside the datasets holding both states (Mouse, Marmoset_Hori):
        a  group seed map of each state (state_group_maps.py, read from 08_state_maps/)
        b  median run profile of each state + LOSO consensus
@@ -630,7 +654,7 @@ def supp16(inp):
                 lines=lines, draw=dict(stats=res, pct=(idx or {}).get("pct", 90.0)))
 
 
-def supp12(inp):
+def supp14(inp):
     """Proximity of every dataset to its sibling and to the other species (F16b)."""
     c = inp.fmri()
     return dict(tables=dict(distances=c["dist_all"],
@@ -639,7 +663,7 @@ def supp12(inp):
                 lines=_sibling_lines(c["sibling"]), draw={})
 
 
-def supp11(inp):
+def supp13(inp):
     """a  inter-run / inter-session / inter-animal similarity, selected runs vs random
           subsets of the same size (F20)
        b  species gap on the raw group profiles (common profile kept), selected vs random"""
@@ -665,7 +689,7 @@ def supp11(inp):
                 draw=dict(vt=vt, vdraws=vdraws, species=sp))
 
 
-def supp14(inp):
+def supp16(inp):
     """a  SD across runs of r with the dataset's kept group map (F9)
        b  external QC vs that r: per-dataset correlations, meta-analysis (F10)"""
     from Paper.analysis.fmri_fingerprints import profile_stats as fa
@@ -708,7 +732,7 @@ def supp14(inp):
     return dict(tables=tables, lines=lines, draw=draw)
 
 
-def supp15(inp):
+def supp17(inp):
     """Similarity of the regional FDG profiles between pairs of subjects (former right half of Figure 6c):
     classes same subject / other session, within a dataset, between the human datasets, human vs macaque."""
     pet = inp.multimodal()["pet"]

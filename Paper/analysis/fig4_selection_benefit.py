@@ -16,7 +16,7 @@ Two outcomes:
      selection maximises, so A shows that the criterion works, not that it generalises.
   B  r with the other dataset of the same species (datasets with a sibling only). Independent of
      the criterion for the sibling's runs: asks whether selected profiles of two independent
-     datasets of one species agree better than unselected ones (Fig. 4c, Supp. 10).
+     datasets of one species agree better than unselected ones (Fig. 4c, Supp. 12).
 
 Tests (one-sided, selected > comparison):
   paired Wilcoxon signed-rank and paired t-test on Fisher z of r, selected vs all, across datasets;

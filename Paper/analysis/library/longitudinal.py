@@ -87,6 +87,17 @@ ASSOCIATION_REGIONS = [
     "Post_parietal_Cx",     # posterior parietal
 ]
 
+# FIG 3 a-f: cortex shown per species (decided a priori, 2026-11-24). Human ageing:
+# association cortex, expected to decline first ("last in, first out"); macaque
+# development: primary cortex. The complementary sets go to the Supplementary figure
+# placed just before the human association-vs-primary figure (paper_stats.supp9).
+# A composite = the regions of the set, summed (surface, volume) or surface-weighted
+# mean (thickness), finest atlas level among FIG3_COMPOSITE_LEVELS, left hemisphere.
+FIG3_REGION_SETS = {'Primary': PRIMARY_REGIONS, 'Association': ASSOCIATION_REGIONS}
+FIG3_MAIN_REGIONS = {'Human': 'Association', 'Macaque': 'Primary'}
+FIG3_SUPP_REGIONS = {'Human': 'Primary', 'Macaque': 'Association'}
+FIG3_COMPOSITE_LEVELS = (3, 4, 2)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # STEP 1 — Load morphometry via ednix_bids_tools
@@ -268,6 +279,25 @@ _FIG3D_METRICS = {
 FIG3D_COLORS = {"Association": "#2E86C1", "Primary": "#E67E22"}  # blue vs orange
 
 
+def _match_regions(available, region_list):
+    """Atlas names of `region_list` among `available`: exact (case-insensitive) name
+    first, else the first substring match. Exact first, because a substring match alone
+    would take 'Extra_striate_Cx' for 'Striate_Cx' (it comes first alphabetically)."""
+    matched = []
+    for want in region_list:
+        wl = want.lower().strip()
+        exact = [a for a in available if a.lower().strip() == wl]
+        if exact:
+            matched.append(exact[0])
+            continue
+        for avail in available:
+            al = avail.lower().strip()
+            if wl in al or al in wl:
+                matched.append(avail)
+                break
+    return list(dict.fromkeys(matched))
+
+
 def assoc_primary_trajectories(morph_data, age_df, primary_regions, association_regions,
                                species_label="Macaque", data_key="surface"):
     """
@@ -330,25 +360,8 @@ def assoc_primary_trajectories(morph_data, age_df, primary_regions, association_
     available = sorted(df["region"].unique())
     print(f"  [Fig3D] {species_label}: Available regions: {available}")
 
-    def _match(region_list):
-        # exact (case-insensitive) name first: a substring match alone would take
-        # 'Extra_striate_Cx' for 'Striate_Cx' (it comes first alphabetically)
-        matched = []
-        for want in region_list:
-            wl = want.lower().strip()
-            exact = [a for a in available if a.lower().strip() == wl]
-            if exact:
-                matched.append(exact[0])
-                continue
-            for avail in available:
-                al = avail.lower().strip()
-                if wl in al or al in wl:
-                    matched.append(avail)
-                    break
-        return list(dict.fromkeys(matched))
-
-    prim_regions = _match(primary_regions)
-    assoc_regions = _match(association_regions)
+    prim_regions = _match_regions(available, primary_regions)
+    assoc_regions = _match_regions(available, association_regions)
     print(f"  [Fig3D] {species_label}: Matched PRIMARY: {prim_regions}")
     print(f"  [Fig3D] {species_label}: Matched ASSOCIATION: {assoc_regions}")
 
@@ -410,6 +423,93 @@ def assoc_primary_trajectories(morph_data, age_df, primary_regions, association_
         return None
     print(f"  [Fig3D] {species_label}: assoc rows: {len(assoc)}, prim rows: {len(prim)}")
     return assoc, prim, metric_label
+
+
+def composite_region_rows(morph, data_key, set_name, regions=None, hemisphere='left',
+                          levels=FIG3_COMPOSITE_LEVELS):
+    """
+    One value per subject x session for a set of regions (Fig. 3 a-f composites), in the
+    format of load_morphometry (region = set_name). Surface area and volume: sum over the
+    regions. Thickness: mean weighted by the surface area of each region in the same
+    session (unweighted mean when no surface is available; said in the returned info).
+    Atlas level = first of `levels` present; `hemisphere` when present, else bilateral.
+    Returns (rows DataFrame, info dict: level, hemisphere, matched, missing, weighting).
+    """
+    regions = FIG3_REGION_SETS[set_name] if regions is None else regions
+    metric_col = _FIG3D_METRICS[data_key][0]
+    info = dict(set=set_name, level=None, hemisphere=None, matched=[], missing=list(regions),
+                weighting='sum' if data_key != 'thickness' else None)
+    df = morph.get(data_key, pd.DataFrame()) if morph else pd.DataFrame()
+    if df is None or df.empty or 'region' not in df.columns:
+        return pd.DataFrame(), info
+    if 'atlas_level' in df.columns:
+        level = next((l for l in levels if l in set(df['atlas_level'])), None)
+        if level is None:
+            return pd.DataFrame(), info
+        df = df[df['atlas_level'] == level]
+        info['level'] = level
+    hemi = None
+    if 'hemisphere' in df.columns:
+        hs = set(df['hemisphere'])
+        hemi = hemisphere if hemisphere in hs else ('bilateral' if 'bilateral' in hs else None)
+        if hemi is not None:
+            df = df[df['hemisphere'] == hemi]
+    info['hemisphere'] = hemi
+    matched = _match_regions(sorted(df['region'].unique()), regions)
+    info['matched'] = matched
+    info['missing'] = [r for r in regions
+                       if not _match_regions(matched, [r])]
+    if not matched:
+        return pd.DataFrame(), info
+    df = df[df['region'].isin(matched)].copy()
+    df['subject'] = df['subject'].astype(str)
+    keys = ['subject'] + (['session'] if 'session' in df.columns else [])
+    if 'session' in df.columns:
+        df['session'] = df['session'].astype(str)
+    df = df.dropna(subset=[metric_col])
+
+    if data_key == 'thickness':
+        surf = composite_weights(morph, info, keys)
+        if surf is not None:
+            df = df.merge(surf, on=keys + ['region'], how='left')
+        if surf is not None and df['_w'].notna().all() and (df['_w'] > 0).all():
+            info['weighting'] = 'surface-weighted mean'
+            df['_wx'] = df[metric_col] * df['_w']
+            g = df.groupby(keys)['_wx'].sum() / df.groupby(keys)['_w'].sum()
+        else:
+            info['weighting'] = 'unweighted mean (surface area unavailable)'
+            g = df.groupby(keys)[metric_col].mean()
+        n = df.groupby(keys)['region'].nunique()
+    else:
+        g = df.groupby(keys)[metric_col].sum()
+        n = df.groupby(keys)['region'].nunique()
+    out = g.rename(metric_col).to_frame().join(n.rename('_n')).reset_index()
+    # a session missing one region of the set would bias the composite: dropped
+    out = out[out['_n'] == len(matched)].drop(columns='_n')
+    out['region'] = set_name
+    out['atlas_level'] = info['level']
+    out['hemisphere'] = hemi if hemi is not None else 'all'
+    return out, info
+
+
+def composite_weights(morph, info, keys):
+    """Surface area per subject x session x region at the composite's level and
+    hemisphere (weights of the thickness composite): DataFrame with '_w', or None."""
+    s = morph.get('surface', pd.DataFrame()) if morph else pd.DataFrame()
+    if s is None or s.empty:
+        return None
+    if info['level'] is not None and 'atlas_level' in s.columns:
+        s = s[s['atlas_level'] == info['level']]
+    if info['hemisphere'] is not None and 'hemisphere' in s.columns:
+        s = s[s['hemisphere'] == info['hemisphere']]
+    s = s[s['region'].isin(info['matched'])].copy()
+    if s.empty:
+        return None
+    s['subject'] = s['subject'].astype(str)
+    if 'session' in s.columns:
+        s['session'] = s['session'].astype(str)
+    s = s.rename(columns={'surface_area_mm2': '_w'})
+    return s[keys + ['region', '_w']].groupby(keys + ['region'], as_index=False).mean()
 
 
 def draw_assoc_vs_primary(ax, assoc, prim, metric_label, age_label="Age (years)",
@@ -990,23 +1090,39 @@ def _assoc_primary_test(assoc, prim):
     return out
 
 
+def _region_spec(region, sp):
+    """Region shown for species `sp`: a dict {species: name} or one name for all.
+    A name of FIG3_REGION_SETS = composite; any other name = one atlas region."""
+    return region.get(sp) if isinstance(region, dict) else region
+
+
 def _fit_fig3_panels(species_rows, region, atlas_level, hemisphere, min_sessions, modalities):
-    """{(species, modality): dict(rdf, gamm, lme) or None} — one fit per panel."""
+    """{(species, modality): dict(rdf, gamm, lme, region, info) or None}, one fit per panel.
+    region: one atlas region at `atlas_level` (e.g. 'Isocortex', former Fig. 3), or a
+    FIG3_REGION_SETS name (composite, see composite_region_rows), or {species: either}."""
     from Statistics.Group_fMRI.EDNiX_longitudinal import prepare_longitudinal, fit_gamm, fit_lme
     fits = {}
     for sp, morph, age_df, age_col, _ in species_rows:
+        reg = _region_spec(region, sp)
         for mod, metric_col, _, _ in modalities:
             df_mod = morph.get(mod, pd.DataFrame()) if morph else pd.DataFrame()
             fits[(sp, mod)] = None
-            if df_mod is None or df_mod.empty:
+            if df_mod is None or df_mod.empty or reg is None:
                 continue
-            m = prepare_longitudinal(df_mod, age_df, age_col, atlas_level=atlas_level,
-                                     hemisphere=hemisphere, regions=[region],
+            info, level = None, atlas_level
+            if reg in FIG3_REGION_SETS:
+                df_mod, info = composite_region_rows(morph, mod, reg, hemisphere=hemisphere)
+                level = info['level']
+                if df_mod.empty:
+                    print(f"  [Fig3/{sp}_{mod}] {reg}: no composite ({info})")
+                    continue
+            m = prepare_longitudinal(df_mod, age_df, age_col, atlas_level=level,
+                                     hemisphere=hemisphere, regions=[reg],
                                      min_sessions=min_sessions, label=f'Fig3/{sp}_{mod}')
             if m.empty:
                 continue
-            rdf = m[m['region'] == region].copy()
-            fits[(sp, mod)] = dict(rdf=rdf, age_col=age_col,
+            rdf = m[m['region'] == reg].copy()
+            fits[(sp, mod)] = dict(rdf=rdf, age_col=age_col, region=reg, info=info,
                                    gamm=fit_gamm(rdf, metric_col, age_col, min_sessions),
                                    lme=fit_lme(rdf, metric_col, age_col, min_sessions))
     return fits
@@ -1042,42 +1158,59 @@ def _save(fig, out_path):
     return paths
 
 
-def figure3_stats(species_rows, region='Isocortex', atlas_level=ATLAS_LEVEL,
+def figure3_stats(species_rows, region=None, atlas_level=ATLAS_LEVEL,
                   hemisphere='left', min_sessions=MIN_SESSIONS, modalities=None,
-                  assoc_species=None, primary_regions=None, association_regions=None):
+                  assoc_species=None, primary_regions=None, association_regions=None,
+                  title='FIGURE 3'):
     """
     Every number of Figure 3, without drawing (paper_stats.figure3):
-      a–f  one trajectory fit per (species, modality): spline LMM (gamm) + linear LME
+      a–f  one trajectory fit per (species, modality): spline LMM (gamm) + linear LME,
+           region per species = FIG3_MAIN_REGIONS (Human association, Macaque primary)
+           unless `region` is given (one name, or {species: name}; 'Isocortex' = former
+           Figure 3)
       g–i  association vs primary % change of assoc_species + paired t-test
+           (assoc_species='' : no such row, e.g. the complementary Supplementary figure)
     Panels lettered row by row as on the figure. Returns a dict read by draw_figure3:
     panels (list, figure order), report (lines of Figure_3_stats.txt), text (the file),
     table (one row per panel).
     """
+    region              = FIG3_MAIN_REGIONS if region is None else region
     modalities          = FIG3_MODALITIES if modalities is None else modalities
     assoc_species       = FIG3_ASSOC_SPECIES if assoc_species is None else assoc_species
     primary_regions     = PRIMARY_REGIONS if primary_regions is None else primary_regions
     association_regions = ASSOCIATION_REGIONS if association_regions is None else association_regions
 
     fits = _fit_fig3_panels(species_rows, region, atlas_level, hemisphere, min_sessions, modalities)
-    assoc_row = next((r for r in species_rows if r[0] == assoc_species), None)
+    assoc_row = (next((r for r in species_rows if r[0] == assoc_species), None)
+                 if assoc_species else None)
     letters = iter('abcdefghijklmnopqrstuvwxyz')
     panels, report, rows = [], [], []
 
     for r, (sp, morph, age_df, age_col, label) in enumerate(species_rows):
+        reg = _region_spec(region, sp)
         for c, (mod, metric_col, metric_label, col_title) in enumerate(modalities):
             L = next(letters)
             f = fits[(sp, mod)]
             panels.append(dict(kind='trajectory', letter=L, row=r, col=c, species=sp,
-                               label=label, modality=mod, metric_col=metric_col,
+                               label=label, region=reg, modality=mod, metric_col=metric_col,
                                metric_label=metric_label, col_title=col_title,
                                age_col=age_col, fit=f))
             if f is None:
-                report.append(f"{L}  {sp} {col_title}: no data")
-                rows.append(dict(panel=L, species=sp, modality=mod, kind='trajectory'))
+                report.append(f"{L}  {sp} {reg} {col_title}: no data")
+                rows.append(dict(panel=L, species=sp, region=reg, modality=mod,
+                                 kind='trajectory'))
             else:
-                report.append(_traj_report_line(L, sp, col_title, metric_label, f))
+                report.append(_traj_report_line(
+                    L, f"{sp} {reg.lower()} cortex" if reg in FIG3_REGION_SETS else f"{sp} {reg}",
+                    col_title, metric_label, f))
                 g, lm, rdf = f['gamm'] or {}, f['lme'] or {}, f['rdf']
-                rows.append(dict(panel=L, species=sp, modality=mod, kind='trajectory',
+                info = f['info'] or {}
+                rows.append(dict(panel=L, species=sp, region=reg, modality=mod,
+                                 kind='trajectory',
+                                 atlas_level=info.get('level', atlas_level),
+                                 regions_summed=', '.join(info.get('matched', [reg])),
+                                 regions_missing=', '.join(info.get('missing', [])),
+                                 composite=info.get('weighting', ''),
                                  n_subjects=rdf['subject'].nunique(), n_sessions=len(rdf),
                                  gamm_edf=g.get('edf'), gamm_lr=g.get('lr_stat'),
                                  gamm_p_age=g.get('p_age'),
@@ -1113,8 +1246,9 @@ def figure3_stats(species_rows, region='Isocortex', atlas_level=ATLAS_LEVEL,
                                  primary_pct=st['primary_pct'], t=st['t'], p=st['p'],
                                  dz=st['dz']))
 
-    text = _figure3_text(report, region, atlas_level, hemisphere, min_sessions,
-                         assoc_species, primary_regions, association_regions)
+    text = _figure3_text(report, species_rows, region, fits, atlas_level, hemisphere,
+                         min_sessions, assoc_species if assoc_row is not None else '',
+                         primary_regions, association_regions, title=title)
     return dict(panels=panels, report=report, text=text, table=pd.DataFrame(rows),
                 ncols=len(modalities), nrows=len(species_rows) + int(assoc_row is not None))
 
@@ -1122,8 +1256,8 @@ def figure3_stats(species_rows, region='Isocortex', atlas_level=ATLAS_LEVEL,
 def draw_figure3(stats, out_dir, panel_w=3.4, panel_h=2.7, name='Figure3'):
     """
     Main Figure 3 (3 x 3, a given metric aligned in each column), from figure3_stats:
-      a–c  Human trajectories      (surface | thickness | volume)
-      d–f  Macaque trajectories
+      a–c  Human trajectories, association cortex   (surface | thickness | volume)
+      d–f  Macaque trajectories, primary cortex
       g–i  Association vs primary cortex, % change from baseline (assoc_species)
     Trajectory panels: individual subjects + spline-LMM fit ± 95% CI; inset = linear
     LME slope per year and its p. Association panels: inset = paired-test p.
@@ -1157,7 +1291,9 @@ def draw_figure3(stats, out_dir, panel_w=3.4, panel_h=2.7, name='Figure3'):
                 if P['row'] == 0:
                     ax.set_title(P['col_title'], fontweight='bold', pad=12)
                 if P['col'] == 0:
-                    row_label(ax, P['label'])
+                    reg = P.get('region')
+                    row_label(ax, P['label'] if reg in (None, 'Isocortex')
+                              else f"{P['label']}\n{reg.lower()} cortex")
             else:
                 res, st = P['res'], P['test']
                 if res is None:
@@ -1177,7 +1313,7 @@ def draw_figure3(stats, out_dir, panel_w=3.4, panel_h=2.7, name='Figure3'):
     return paths
 
 
-def plot_figure3(species_rows, out_dir, region='Isocortex', atlas_level=ATLAS_LEVEL,
+def plot_figure3(species_rows, out_dir, region=None, atlas_level=ATLAS_LEVEL,
                  hemisphere='left', min_sessions=MIN_SESSIONS, modalities=None,
                  assoc_species=None, primary_regions=None, association_regions=None,
                  panel_w=3.4, panel_h=2.7, name='Figure3'):
@@ -1214,33 +1350,60 @@ def _traj_report_line(L, sp, col_title, metric_label, f):
     return '; '.join(parts)
 
 
-def _figure3_text(report, region, atlas_level, hemisphere, min_sessions,
-                  assoc_species, primary_regions, association_regions):
+def _region_desc(reg, fits, species, modalities, atlas_level):
+    """'<set> = r1 + r2 (level L, ...)' for a composite, '<region>, level L' otherwise."""
+    if reg not in FIG3_REGION_SETS:
+        return f"{reg}, atlas {ATLAS_NAME} level {atlas_level}"
+    infos = [fits[(species, m[0])]['info'] for m in modalities
+             if fits.get((species, m[0])) and fits[(species, m[0])]['info']]
+    if not infos:
+        return f"{reg} cortex = {' + '.join(FIG3_REGION_SETS[reg])} (not found)"
+    i0 = infos[0]
+    w = next((i['weighting'] for i in infos if i['set'] and 'mean' in str(i['weighting'])),
+             'surface-weighted mean')
+    miss = sorted({m for i in infos for m in i['missing']})
+    return (f"{reg} cortex = {' + '.join(i0['matched'])} (atlas {ATLAS_NAME} level "
+            f"{i0['level']}; surface area and volume summed, thickness {w}"
+            + (f"; NOT FOUND: {', '.join(miss)}" if miss else "") + ")")
+
+
+def _figure3_text(report, species_rows, region, fits, atlas_level, hemisphere, min_sessions,
+                  assoc_species, primary_regions, association_regions, title='FIGURE 3'):
+    ntraj = 3 * len(species_rows)
+    last = 'abcdefghijklmnopqrstuvwxyz'[ntraj - 1]
+    data = [f"  a–{last}: {hemisphere} hemisphere; subjects with >= {min_sessions} sessions; "
+            "a session lacking one region of a composite is dropped."]
+    for sp, *_ in species_rows:
+        data.append(f"    {sp}: " + _region_desc(_region_spec(region, sp), fits, sp,
+                                                    FIG3_MODALITIES, atlas_level))
+    if assoc_species:
+        data.append(f"  {'abcdefghijklmnopqrstuvwxyz'[ntraj]}–"
+                    f"{'abcdefghijklmnopqrstuvwxyz'[ntraj + 2]}: {assoc_species}; "
+                    f"association = {', '.join(association_regions)}; primary = "
+                    f"{', '.join(primary_regions)} (summed within group, finest available atlas "
+                    "level among 3/4/2, left hemisphere when available).")
     return '\n'.join([
-        "FIGURE 3 — panel statistics (moved out of the figure)",
+        f"{title} — panel statistics (moved out of the figure)",
         "=" * 70,
         f"Generated {datetime.now().strftime('%Y-%m-%d %H:%M')}",
         "",
         "Data",
-        f"  a–f: {region}, atlas {ATLAS_NAME} level {atlas_level}, {hemisphere} hemisphere; "
-        f"subjects with >= {min_sessions} sessions.",
-        f"  g–i: {assoc_species}; association = {', '.join(association_regions)}; "
-        f"primary = {', '.join(primary_regions)} (summed within group, finest available atlas "
-        "level among 3/4/2, left hemisphere when available).",
+        *data,
         "",
         "Models",
-        "  Curve ± band (a–f): linear mixed model with a cubic B-spline basis of age (df = 4, "
-        "unpenalised regression spline) and a subject random intercept, fitted by maximum "
-        "likelihood; 95% pointwise confidence band from the fixed-effect covariance. Age effect: "
-        "likelihood-ratio test against the intercept-only model (chi2, 4 df); non-linearity: "
-        "LRT spline vs linear-age model (chi2, 3 df).",
-        "  Inset (a–f): slope of the linear mixed model metric ~ age + (1|subject) (ML), per "
-        "year, Wald p; replaced by 'non-linear' + LRT p when the non-linearity test is "
+        f"  Curve ± band (a–{last}): linear mixed model with a cubic B-spline basis of age "
+        "(df = 4, unpenalised regression spline) and a subject random intercept, fitted by "
+        "maximum likelihood; 95% pointwise confidence band from the fixed-effect covariance. "
+        "Age effect: likelihood-ratio test against the intercept-only model (chi2, 4 df); "
+        "non-linearity: LRT spline vs linear-age model (chi2, 3 df).",
+        f"  Inset (a–{last}): slope of the linear mixed model metric ~ age + (1|subject) (ML), "
+        "per year, Wald p; replaced by 'non-linear' + LRT p when the non-linearity test is "
         "significant (p < 0.05), since a single slope would misdescribe the trajectory. "
         "Marginal R² after Nakagawa & Schielzeth (2013).",
-        "  g–i: % change from each subject's first session; curves = individual subjects, "
-        "thick line = mean ± SEM on a common age grid (drawn where >= 3 subjects contribute). "
-        "Inset p: paired t-test, association − primary, on the last-session % change.",
+        *(["  Association vs primary panels: % change from each subject's first session; "
+           "curves = individual subjects, thick line = mean ± SEM on a common age grid (drawn "
+           "where >= 3 subjects contribute). Inset p: paired t-test, association − primary, "
+           "on the last-session % change."] if assoc_species else []),
         "",
         "Caveats",
         "  The age slope pools within-subject change and between-subject age differences "

@@ -23,8 +23,8 @@ Entry keys
     data      dataset names the value must come from; checked as literals in `data_files`
               (default: the producer file)
 
-Coverage: Fig. 2 (validation paragraph), Fig. 3 / Supp. Fig. 9 (longitudinal), Supp. Fig. 7
-(FreeSurfer), Supp. Fig. 8 (longitudinal vs cross-sectional), Fig. 4 / Supp. Figs. 11-13 (run
+Coverage: Fig. 2 (validation paragraph), Fig. 3 / Supp. Fig. 11 (longitudinal), Supp. Fig. 7
+(FreeSurfer), Supp. Fig. 8 (longitudinal vs cross-sectional), Fig. 4 / Supp. Figs. 13-15 (run
 selection), Fig. 6 (FDG and multimodal fingerprints; prefixes of the V5 text, to update when
 the Fig. 6 paragraph is rewritten). Numbers without an entry appear in the 'untraced' sheet.
 """
@@ -41,7 +41,7 @@ ABL = A + 'library/longitudinal_ablation.py'
 PDATA = A + 'paper_data.py'
 
 F3 = 'Figure_3/Figure_3_stats.xlsx'
-S7 = 'Supp_Fig_09/Supp_Fig_09_stats.xlsx'
+S7 = 'Supp_Fig_11/Supp_Fig_11_stats.xlsx'
 VAL = 'Validation/validation_morphometry.xlsx'
 F2 = 'Figure_2/Figure_2_stats.xlsx'
 XS = 'Supplementary_stats/extra_stats.txt'
@@ -100,15 +100,15 @@ def s14(measure, column):
 
 cm2 = (lambda v: v / 100.0)          # mm² -> cm²
 
-# ── Fig. 4 / Supp. 11-13 (run selection) and Fig. 6 (FDG) ───────────────────
+# ── Fig. 4 / Supp. 13-15 (run selection) and Fig. 6 (FDG) ───────────────────
 SEL = A + 'fmri_fingerprints/selection_validation.py'
 PSTATS = A + 'paper_stats.py'
 MMF = A + 'library/multimodal_figure.py'
 PETD = A + 'library/pet_datasets.py'
 CFG_SEL = 'Paper/run_selection/config_ednix.py'
 F4 = 'Figure_4/Figure_4_stats.xlsx'
-S11 = 'Supp_Fig_11/Supp_Fig_11_stats.xlsx'
-S13 = 'Supp_Fig_13/Supp_Fig_13_stats.xlsx'
+S11 = 'Supp_Fig_13/Supp_Fig_13_stats.xlsx'
+S13 = 'Supp_Fig_15/Supp_Fig_15_stats.xlsx'
 F6 = 'Figure_6/Figure_6_stats.xlsx'
 
 
@@ -322,17 +322,17 @@ CLAIMS = [
     dict(id='F3.hum.apc.vol', figure='Fig. 3c', what='volume loss % per year (pooled, absolute)', prefix='correspond to a loss of ≈', k=1,
          source=val('annual_change', 'Human', 'volume', 'apc_pooled'), transform=abs, tol=0.05,
          producer=(VALID, 'annual_change', 'apc_pooled=')),
-    dict(id='S7.vol.assoc', figure='Supp. Fig. 9c', what='human association % change, volume', prefix='lost more volume than primary-dominated cortex (',
+    dict(id='S7.vol.assoc', figure='Supp. Fig. 11c', what='human association % change, volume', prefix='lost more volume than primary-dominated cortex (',
          source=dict(file=S7, sheet='panels', where=dict(modality='volume'), column='assoc_pct'), producer=(HAP, 'supp6_stats', "assoc_pct=st['assoc_pct']")),
-    dict(id='S7.vol.prim', figure='Supp. Fig. 9c', what='human primary % change, volume', prefix='lost more volume than primary-dominated cortex (', k=1,
+    dict(id='S7.vol.prim', figure='Supp. Fig. 11c', what='human primary % change, volume', prefix='lost more volume than primary-dominated cortex (', k=1,
          source=dict(file=S7, sheet='panels', where=dict(modality='volume'), column='primary_pct'), producer=(HAP, 'supp6_stats', "primary_pct=st['primary_pct']")),
-    dict(id='S7.vol.t', figure='Supp. Fig. 9c', what='human assoc vs primary volume, paired t', prefix='paired t(9) = ',
+    dict(id='S7.vol.t', figure='Supp. Fig. 11c', what='human assoc vs primary volume, paired t', prefix='paired t(9) = ',
          source=dict(file=S7, sheet='panels', where=dict(modality='volume'), column='t'), producer=(HAP, 'supp6_stats', "t=st['t']")),
-    dict(id='S7.vol.p', figure='Supp. Fig. 9c', what='human assoc vs primary volume, P', prefix='paired t(9) = ', k=1,
+    dict(id='S7.vol.p', figure='Supp. Fig. 11c', what='human assoc vs primary volume, P', prefix='paired t(9) = ', k=1,
          source=dict(file=S7, sheet='panels', where=dict(modality='volume'), column='p'), producer=(HAP, 'supp6_stats', "p=st['p']")),
-    dict(id='S7.area.p', figure='Supp. Fig. 9a', what='human assoc vs primary surface, P', prefix='non-significant trend for surface area (P = ',
+    dict(id='S7.area.p', figure='Supp. Fig. 11a', what='human assoc vs primary surface, P', prefix='non-significant trend for surface area (P = ',
          source=dict(file=S7, sheet='panels', where=dict(modality='surface'), column='p'), producer=(HAP, 'supp6_stats', "p=st['p']")),
-    dict(id='S7.thick.p', figure='Supp. Fig. 9b', what='human assoc vs primary thickness, P', prefix='none for thickness (P = ',
+    dict(id='S7.thick.p', figure='Supp. Fig. 11b', what='human assoc vs primary thickness, P', prefix='none for thickness (P = ',
          source=dict(file=S7, sheet='panels', where=dict(modality='thickness'), column='p'), producer=(HAP, 'supp6_stats', "p=st['p']")),
     dict(id='F3.legend.mac.sessions', figure='Fig. 3 legend', what='macaque sessions in the trajectories', prefix='n = 8 macaques (',
          source=f3('Macaque', 'thickness', 'n_sessions'), producer=(LONG, 'figure3_stats', 'n_sessions=len(rdf)')),
@@ -397,15 +397,15 @@ CLAIMS = [
          prefix='(each P ≤ ', source=dict(compute=lambda src: float(src.sheet(F4, 'b_pair_class_p')
                                                                    ['p_selected_vs_random'].max()), file=F4),
          tol=0.0005, producer=(SEL, 'heldout', 'p_cls = np.array')),
-    # Supp. Fig. 11b: raw species gap
-    dict(id='S11b.gap.sel', figure='Supp. Fig. 11b', what='raw species gap, selected runs',
+    # Supp. Fig. 13b: raw species gap
+    dict(id='S11b.gap.sel', figure='Supp. Fig. 13b', what='raw species gap, selected runs',
          prefix='than for 10 random runs per dataset (', source=dict(file=S11, sheet='b_species_gap_raw',
                                                                    column='gap', where=dict(pool='selected')),
          producer=(SEL, 'raw_gap_table', 'gap=[')),
-    dict(id='S11b.gap.rand', figure='Supp. Fig. 11b', what='raw species gap, random draws (median)',
+    dict(id='S11b.gap.rand', figure='Supp. Fig. 13b', what='raw species gap, random draws (median)',
          prefix='than for 10 random runs per dataset (', k=1,
          source=_random_median(S11, 'b_species_gap_raw', 'gap'), producer=(SEL, 'raw_gap_table', 'gap=[')),
-    dict(id='S11b.gap.p', figure='Supp. Fig. 11b', what='raw species gap, selected vs random P',
+    dict(id='S11b.gap.p', figure='Supp. Fig. 13b', what='raw species gap, selected vs random P',
          prefix='than for 10 random runs per dataset (', k=2,
          source=dict(file=S11, sheet='b_species_gap_raw', column='p_selected_vs_random', where=dict(pool='selected')),
          producer=(SEL, 'species_signal', 'p_vs_random=float((1 + np.sum(rr')),
@@ -422,11 +422,11 @@ CLAIMS = [
     dict(id='F4.d.pvs', figure='Fig. 4d', what='species gap, selected vs random P',
          prefix='comparable to that of random runs (median ', k=1,
          source=_share_random_ge_selected(F4, 'd_species_signal', 'gap'), producer=(SEL, 'species_signal', 'p_vs_random=float(')),
-    # Supp. Fig. 13c: units kept per state
-    dict(id='S13c.marmoset.awake', figure='Supp. Fig. 13c', what='Marmoset_Hori: units kept awake',
+    # Supp. Fig. 15c: units kept per state
+    dict(id='S13c.marmoset.awake', figure='Supp. Fig. 15c', what='Marmoset_Hori: units kept awake',
          prefix='(marmoset: ', source=dict(file=S13, sheet='c_kept_by_state', column='kept_awake',
                                            where=dict(label='Marmoset_Hori')), producer=(PSTATS, '_kept_by_state', 'kept_awake=ka')),
-    dict(id='S13c.marmoset.anaesth', figure='Supp. Fig. 13c', what='Marmoset_Hori: units kept anaesthetised',
+    dict(id='S13c.marmoset.anaesth', figure='Supp. Fig. 15c', what='Marmoset_Hori: units kept anaesthetised',
          prefix='(marmoset: ', k=1, source=dict(file=S13, sheet='c_kept_by_state', column='kept_anaesthetised',
                                                 where=dict(label='Marmoset_Hori')), producer=(PSTATS, '_kept_by_state', 'kept_anaesthetised=kn')),
     # Fig. 4e: phylogenetic gradient
@@ -506,8 +506,13 @@ METHODS = [
          file='Statistics/Group_fMRI/EDNiX_longitudinal.py', func='fit_lme', snippet='reml=False', expected='reml=False'),
     dict(id='M.long.min.sessions', quote='Only subjects with ≥ 2 sessions were included', kind='constant',
          file=LONG, name='MIN_SESSIONS', expected=2),
-    dict(id='M.long.level', quote='Isocortical (atlas level 1', kind='constant', file=LONG, name='ATLAS_LEVEL', expected=1,
-         note='Fig. 3 a-f use atlas level 1 (Isocortex)'),
+    dict(id='M.long.level', quote='atlas level 3', kind='constant', file=LONG, name='FIG3_COMPOSITE_LEVELS',
+         expected=(3, 4, 2),
+         note='Fig. 3 a-f: human association / macaque primary composites, level 3 (Isocortex level 1 '
+              'until 2026-11-24); the Methods must name the regions summed'),
+    dict(id='M.long.regions', quote='association cortex', kind='constant', file=LONG, name='FIG3_MAIN_REGIONS',
+         expected={'Human': 'Association', 'Macaque': 'Primary'},
+         note='Fig. 3 a-f: human association, macaque primary; complementary sets = Supp. Fig. 9'),
     dict(id='M.long.hemisphere', quote='left hemisphere', kind='default', file=LONG, func='figure3_stats',
          arg='hemisphere', expected='left',
          note='Fig. 3 a-f use the LEFT hemisphere only: the Methods / legend must say so (quote absent = not stated)'),

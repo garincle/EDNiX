@@ -1,6 +1,6 @@
 """
 Supplementary figure: awake vs anaesthetised, inside the datasets that hold both states
-(paper section supp16; group maps computed by Paper/run_selection/state_group_maps.py).
+(paper section supp18; group maps computed by Paper/run_selection/state_group_maps.py).
 
 One row per dataset (Mouse, Marmoset_Hori):
   a  retrosplenial seed map (mean Fisher z) of the runs of each state, on the dataset's
@@ -16,7 +16,7 @@ One row per dataset (Mouse, Marmoset_Hori):
 
 Descriptive by design: state is nested in sessions (and, in Mouse, in the subject label)
 and the pools are small (the final-round selection keeps 10 runs per dataset), so no
-awake - anaesthetised test is drawn here; the within-animal tests are Supp. 13.
+awake - anaesthetised test is drawn here; the within-animal tests are Supp. 15.
 
 Pure functions (no file reading except the PNG renders), so the figure can be drawn on
 synthetic inputs (Paper/tests/test_state_maps_figure.py, preview script).
@@ -184,7 +184,7 @@ def draw(stats, common, order, region_mask, out_base, pct=90.0):
     summ, pairs, profs = stats["summary"], stats["pairs"], stats["profiles"]
     labels = list(summ["label"])
     if not labels:
-        print("  [supp16] no dataset holding both states -- skipped")
+        print("  [supp18] no dataset holding both states -- skipped")
         return None
     o = np.arange(len(common)) if order is None else np.asarray(order)
     mask = (np.ones(len(common), bool) if region_mask is None
@@ -325,6 +325,6 @@ def _write_legend(stats, out_base, pct):
         f"{n_txt}. Arousal state is nested in sessions and acquisition protocol, and every "
         "anaesthetic regimen is pooled as 'anaesthetised'; the panels are descriptive and "
         "no awake versus anaesthetised test is made here (within-animal tests: "
-        "Supplementary Fig. 13).")
+        "Supplementary Fig. 15).")
     with open(out_base + "_legend.txt", "w", encoding="utf-8") as f:
         f.write(txt + "\n")

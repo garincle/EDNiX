@@ -47,7 +47,7 @@ Statistics, per species x modality (surface area, thickness, volume)
     5. Model-free check: per subject with >= 3 sessions, SD of the residuals around its
        own least-squares line; paired Wilcoxon signed-rank, longitudinal vs
        cross-sectional.
-    6. Fig. 3g-i (macaque) / Supp. Fig. 9 (human): association vs primary paired t-test,
+    6. Fig. 3g-i (macaque) / Supp. Fig. 11 (human): association vs primary paired t-test,
        recomputed in each mode (t, P, d_z).
 
 Outputs (paper_stats.supp8 / paper_figures.supp8, run_paper.py supp8)
@@ -318,7 +318,7 @@ def nonlinearity(m, age_col):
 
 
 def assoc_primary_both(morph, age_df, species):
-    """Fig. 3g-i / Supp. Fig. 9 association - primary paired t-test in both modes."""
+    """Fig. 3g-i / Supp. Fig. 11 association - primary paired t-test in both modes."""
     from Paper.analysis.library import longitudinal as lg
     rows = []
     for mod, *_ in lg.FIG3_MODALITIES:
@@ -392,7 +392,7 @@ def result_lines(summary, assoc):
                      f'{r.resid_sd_long_median:.4g} vs {r.resid_sd_cross_median:.4g}, '
                      f'Wilcoxon {_p(r.resid_sd_wilcoxon_p)}')
     if not assoc.empty:
-        L += ['', 'Association - primary, paired t on last-session % change (Fig. 3g-i, Supp. Fig. 9):']
+        L += ['', 'Association - primary, paired t on last-session % change (Fig. 3g-i, Supp. Fig. 11):']
         for r in assoc.itertuples():
             L.append(f'  {r.species} {r.modality} {r.mode}: {r.assoc_pct:+.2f}% vs '
                      f'{r.primary_pct:+.2f}%, t({r.n - 1}) = {r.t:.2f}, {_p(r.p)}, dz = {r.dz:.2f}')
