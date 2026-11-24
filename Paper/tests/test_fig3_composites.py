@@ -76,7 +76,8 @@ def test_region_stats_annual_change_and_loro():
     t = st['table'].set_index('estimate')
     assert t.loc['PFC', 'pct_per_year'] == pytest.approx(100 * np.expm1(-0.02), abs=0.1)
     assert t.loc['Striate_Cx', 'pct_per_year'] == pytest.approx(100 * np.expm1(-0.06), abs=0.1)
-    assert abs(t.loc['Primary - Striate_Cx', 'pct_per_year']) < 0.1      # driver removed
+    assert abs(t.loc['Primary without Striate_Cx', 'pct_per_year']) < 0.1      # driver removed
     assert t.loc['Primary', 'pct_per_year'] < -0.5                        # driven by V1
     assert any('OVERLAP' in l for l in st['lines'])
-    assert any('LORO Primary' in l and 'Striate_Cx' in l for l in st['lines'])
+    assert any('sign change without' in l and 'Striate (V1)' in l for l in st['lines'])
+    assert 'Association without PFC' not in t.index      # 1 region left = PPC alone

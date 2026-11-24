@@ -9,8 +9,7 @@ Nature widths: 89 / 120 / 183 mm; text 5-7 pt; PDF with TrueType fonts, PNG 600 
 
   figure1  atlas surfaces + hierarchy (sunburst)          library/figure1_surfaces.py, atlas_sunburst.py
   figure2  cortical morphometry, level 2                  library/morphometry_figure.py
-  figure3  longitudinal morphometry (human association,    library/longitudinal.py
-           macaque primary cortex)
+  figure3  longitudinal morphometry, association cortex   library/longitudinal.py
   figure4  a common profile + datasets over their LOSO consensus, b selection vs random runs
            (noise), c dataset similarity matrix in r, d phylogenetic gradient, e species identity
            (selection_validation.py)
@@ -22,7 +21,7 @@ Nature widths: 89 / 120 / 183 mm; text 5-7 pt; PDF with TrueType fonts, PNG 600 
   supp1-3  pipeline schematics (anat, fMRI, FDG-PET + CT)  library/schematic_*.py
   supp4    acquisition parameters (<= 4, all datasets)    library/acquisition_table.py
   supp5/6  anatomical / functional QC                     library/qc_figures.py
-  supp9    Fig. 3 complementary cortex (human primary, macaque association)  library/longitudinal.py
+  supp9    Fig. 3 with primary cortex (both species)  library/longitudinal.py
   supp10   Fig. 3 region by region (trajectories, annual change, leave-one-region-out)  library/longitudinal_regions.py
   supp11    human association vs primary                   library/human_assoc_primary.py
   supp12    a convergence (F1e), b consensus by dataset (F1c), c region invariance (F5)

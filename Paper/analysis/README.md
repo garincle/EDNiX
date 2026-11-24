@@ -33,7 +33,7 @@ Outputs: `/scratch2/EDNiX/results/EDNiX_Figures/Paper/<Figure>/` (`paper_data.PA
 |---|---|---|
 | Fig. 1 | atlas surfaces (Workbench scenes) + hierarchy (sunburst) | `library/figure1_surfaces.py`, `library/atlas_sunburst.py` |
 | Fig. 2 | cortical morphometry, atlas level 2, bilateral, log10 | `library/morphometry_figure.py` |
-| Fig. 3 | longitudinal morphometry (BIDS_Park: association cortex, BIDS_Zhu_Garin: primary cortex; macaque association vs primary) | `library/longitudinal.py` |
+| Fig. 3 | longitudinal morphometry (association cortex, BIDS_Park and BIDS_Zhu_Garin; macaque association vs primary) | `library/longitudinal.py` |
 | Fig. 4 | the run selection: a common profile + each dataset vs its leave-one-species-out consensus, b selection vs random runs (noise, pair classes), c dataset similarity matrix r (F16a), d phylogenetic gradient, e species identity; run-to-run r (5b) in the tables only | `fmri_fingerprints/figure4_panels.py`, `fmri_fingerprints/selection_validation.py` |
 | Fig. 5 | its result: seed maps, selected vs excluded runs (5a) | `fmri_fingerprints/paper_panels.py` |
 | Fig. 6 | multimodal profile: a-c FDG bratio (human, macaque), b / d reproducibility within species, e regional bratio vs the pooled macaques, f macaque - human, g multimodal fingerprints | `library/multimodal_figure.py`, `library/multimodal_profiles.py`, `library/pet_datasets.py` |
@@ -44,7 +44,7 @@ Outputs: `/scratch2/EDNiX/results/EDNiX_Figures/Paper/<Figure>/` (`paper_data.PA
 | Supp. 5 / 6 | anatomical / functional QC | `library/qc_figures.py` |
 | Supp. 7 | EDNiX vs FreeSurfer recon-all, human (BIDS_Park); standalone script, not a `run_paper` section (writes `Supp_Fig_07/`) | `validation/supp_freesurfer_comparison.py` |
 | Supp. 8 | longitudinal vs cross-sectional processing of the Fig. 3 datasets (BIDS_Park vs BIDS_Park_nolong, BIDS_Zhu_Garin vs its non-longitudinal copy): residual SD, slope SE, slope bias, paired subject bootstrap | `library/longitudinal_ablation.py` |
-| Supp. 9 | Fig. 3 a-f with the complementary cortex: human primary, macaque association | `library/longitudinal.py` (`FIG3_SUPP_REGIONS`) |
+| Supp. 9 | Fig. 3 a-f with primary cortex, both species | `library/longitudinal.py` (`FIG3_SUPP_REGIONS`) |
 | Supp. 10 | Fig. 3 region by region: spline-LMM trajectory and annual change (log LMM) of every association and primary region, every composite and every leave-one-region-out composite, both species | `library/longitudinal_regions.py` |
 | Supp. 11 | human association vs primary cortex (BIDS_Park) | `library/human_assoc_primary.py` |
 | Supp. 12 | a convergence (F1e), b consensus by dataset (F1c), c region invariance (F5) | `fmri_fingerprints/supp_panels.py` |

@@ -508,11 +508,11 @@ METHODS = [
          file=LONG, name='MIN_SESSIONS', expected=2),
     dict(id='M.long.level', quote='atlas level 3', kind='constant', file=LONG, name='FIG3_COMPOSITE_LEVELS',
          expected=(3, 4, 2),
-         note='Fig. 3 a-f: human association / macaque primary composites, level 3 (Isocortex level 1 '
+         note='Fig. 3 a-f: association composites (both species), level 3 (Isocortex level 1 '
               'until 2026-11-24); the Methods must name the regions summed'),
     dict(id='M.long.regions', quote='association cortex', kind='constant', file=LONG, name='FIG3_MAIN_REGIONS',
-         expected={'Human': 'Association', 'Macaque': 'Primary'},
-         note='Fig. 3 a-f: human association, macaque primary; complementary sets = Supp. Fig. 9'),
+         expected={'Human': 'Association', 'Macaque': 'Association'},
+         note='Fig. 3 a-f: association cortex, both species; primary cortex = Supp. Fig. 9'),
     dict(id='M.long.hemisphere', quote='left hemisphere', kind='default', file=LONG, func='figure3_stats',
          arg='hemisphere', expected='left',
          note='Fig. 3 a-f use the LEFT hemisphere only: the Methods / legend must say so (quote absent = not stated)'),

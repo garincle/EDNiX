@@ -7,8 +7,8 @@ lines), and returns them with what paper_figures.py needs to draw the figure.
 
   figure1   atlas hierarchy                 no statistic
   figure2   cortical morphometry, level 2   per species median, IQR, n subjects
-  figure3   longitudinal morphometry        spline LMM, linear LME (human association cortex,
-                                            macaque primary cortex), association vs primary
+  figure3   longitudinal morphometry        spline LMM, linear LME (association cortex, both
+                                            species), association vs primary
   figure4   selection of the fMRI runs      a  r of every dataset with the LOSO consensus
                                             b, d, e selection vs 10 random runs per dataset:
                                                noise (pair classes), species identity (d),
@@ -28,8 +28,8 @@ lines), and returns them with what paper_figures.py needs to draw the figure.
   (supp7    FreeSurfer vs EDNiX, human      validation/supp_freesurfer_comparison.py, not here)
   supp8     longitudinal vs cross-sectional same scans processed with and without the longitudinal
             (Fig. 3 datasets)                  option: residual SD, slope SE and bias (subject bootstrap)
-  supp9     Fig. 3 complementary cortex     spline LMM, linear LME: human primary, macaque
-                                            association (Fig. 3 a-f shows the other set)
+  supp9     Fig. 3 with primary cortex      spline LMM, linear LME, both species (Fig. 3 a-f
+                                            shows association cortex)
   supp10    Fig. 3 region by region         annual change (log LMM) of every region, every
                                             composite and every leave-one-region-out composite
   supp11    human association vs primary    paired t-tests (BIDS_Park)
@@ -492,8 +492,8 @@ def supp6(inp):
 
 
 def supp9(inp):
-    """Figure 3 a-f with the complementary cortex (lg.FIG3_SUPP_REGIONS): human primary,
-    macaque association; same data, models and inset rule as Figure 3."""
+    """Figure 3 a-f with primary cortex (lg.FIG3_SUPP_REGIONS), both species; same data,
+    models and inset rule as Figure 3."""
     from Paper.analysis.library import longitudinal as lg
     st = lg.figure3_stats(inp.figure3_rows(), region=lg.FIG3_SUPP_REGIONS, assoc_species='',
                           title='SUPPLEMENTARY FIGURE 9')

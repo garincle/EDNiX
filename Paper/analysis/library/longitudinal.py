@@ -87,15 +87,14 @@ ASSOCIATION_REGIONS = [
     "Post_parietal_Cx",     # posterior parietal
 ]
 
-# FIG 3 a-f: cortex shown per species (decided a priori, 2026-11-24). Human ageing:
-# association cortex, expected to decline first ("last in, first out"); macaque
-# development: primary cortex. The complementary sets go to the Supplementary figure
-# placed just before the human association-vs-primary figure (paper_stats.supp9).
+# FIG 3 a-f: cortex shown per species (Clement, 2026-11-24): association cortex in both
+# species; primary cortex of both species in Supplementary Fig. 9 (paper_stats.supp9),
+# every region in Supplementary Fig. 10 (library/longitudinal_regions.py).
 # A composite = the regions of the set, summed (surface, volume) or surface-weighted
 # mean (thickness), finest atlas level among FIG3_COMPOSITE_LEVELS, left hemisphere.
 FIG3_REGION_SETS = {'Primary': PRIMARY_REGIONS, 'Association': ASSOCIATION_REGIONS}
-FIG3_MAIN_REGIONS = {'Human': 'Association', 'Macaque': 'Primary'}
-FIG3_SUPP_REGIONS = {'Human': 'Primary', 'Macaque': 'Association'}
+FIG3_MAIN_REGIONS = {'Human': 'Association', 'Macaque': 'Association'}
+FIG3_SUPP_REGIONS = {'Human': 'Primary', 'Macaque': 'Primary'}
 FIG3_COMPOSITE_LEVELS = (3, 4, 2)
 
 
@@ -1165,7 +1164,7 @@ def figure3_stats(species_rows, region=None, atlas_level=ATLAS_LEVEL,
     """
     Every number of Figure 3, without drawing (paper_stats.figure3):
       a–f  one trajectory fit per (species, modality): spline LMM (gamm) + linear LME,
-           region per species = FIG3_MAIN_REGIONS (Human association, Macaque primary)
+           region per species = FIG3_MAIN_REGIONS (association cortex, both species)
            unless `region` is given (one name, or {species: name}; 'Isocortex' = former
            Figure 3)
       g–i  association vs primary % change of assoc_species + paired t-test
@@ -1257,7 +1256,7 @@ def draw_figure3(stats, out_dir, panel_w=3.4, panel_h=2.7, name='Figure3'):
     """
     Main Figure 3 (3 x 3, a given metric aligned in each column), from figure3_stats:
       a–c  Human trajectories, association cortex   (surface | thickness | volume)
-      d–f  Macaque trajectories, primary cortex
+      d–f  Macaque trajectories, association cortex
       g–i  Association vs primary cortex, % change from baseline (assoc_species)
     Trajectory panels: individual subjects + spline-LMM fit ± 95% CI; inset = linear
     LME slope per year and its p. Association panels: inset = paired-test p.
