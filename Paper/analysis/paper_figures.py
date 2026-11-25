@@ -11,7 +11,8 @@ Nature widths: 89 / 120 / 183 mm; text 5-7 pt; PDF with TrueType fonts, PNG 600 
   figure2  cortical morphometry, level 2                  library/morphometry_figure.py
   figure3  longitudinal morphometry                       library/longitudinal.py
   figure4  a common profile + datasets over their LOSO consensus, b selection vs random runs
-           (noise), c dataset similarity matrix in r, d phylogenetic gradient, e species identity
+           (noise), c dataset similarity matrix in r, d species identity, e phylogenetic signal (K_mult,
+           phylo_kmult.py)
            (selection_validation.py)
            (fmri_fingerprints/figure4_panels.py)
   figure5  seed maps, selected vs excluded runs (5a)
@@ -25,7 +26,8 @@ Nature widths: 89 / 120 / 183 mm; text 5-7 pt; PDF with TrueType fonts, PNG 600 
   supp10    a convergence (F1e), b consensus by dataset (F1c), c region invariance (F5)
   supp13    a selection scores (F3), b r with the criterion by arousal state (6c)
   supp12   proximity rows (F16b)
-  supp11    a selection vs variability levels (F20), b raw species gap (selected vs random)
+  supp11    a selection vs variability levels (F20), b raw species gap (selected vs random),
+           c Mantel raw profiles (former Fig. 4e), d K_mult leave-one-species-out
   supp14   a SD of run r with the kept map (F9), b QC vs that r (F10)
   supp16   awake vs anaesthetised: state maps, fingerprints, profile similarity
            (fmri_fingerprints/state_maps_figure.py; maps: Paper/run_selection/state_group_maps.py)
@@ -227,10 +229,18 @@ def supp11(res, inp, paper_dir=None):
     pb = _panel("supp11", "b_species_gap_raw", paper_dir)
     if d and not d["vt"].empty:
         _try("S11a", fsp.f20_variability_levels, d["vt"], d["vdraws"], c["species_of_label"], p)
+    pc = _panel("supp11", "c_phylo_mantel_raw", paper_dir)
+    pd_ = _panel("supp11", "d_kmult_leave_one_species_out", paper_dir)
     if d and d.get("species", {}).get("raw"):
         _try("S11b", sv.plot_species_raw, d["species"], pb)
+    if d and d.get("species", {}).get("mantel"):
+        _try("S11c", sv.plot_phylo_mantel, d["species"], pc)
+    if d and d.get("kmult"):
+        from Paper.analysis.fmri_fingerprints import phylo_kmult as pk
+        _try("S11d", pk.plot_loso_species, d["kmult"], pd_)
     base = pst.out_base("supp11", paper_dir)
-    ps.compose_images([_png(p), _png(pb)], base, layout=[[0, 1]])
+    ps.compose_images([_png(p), _png(pb), _png(pc), _png(pd_)], base,
+                      layout=[[0, 1], [2, 3]])
     return base
 
 

@@ -295,7 +295,12 @@ def figure4(inp):
                  "(fmri_fingerprints/selection_validation.py); the histograms above are kept "
                  "in the tables, no longer drawn")
     lines += ["  " + ln for ln in sv.result_lines(val)]
+    # e (Clément 2026-11-25): K_mult replaces the Mantel on the figure (Mantel -> Supp. 11c)
+    from Paper.analysis.fmri_fingerprints import phylo_kmult as pk
+    lines += ["  " + ln for ln in pk.result_lines(val["kmult"])]
     tables = dict(a_distances=dist,
+                  e_kmult=pk.table(val["kmult"]),
+                  e_kmult_loso_species=val["kmult"]["loso_species"],
                   heldout_random_draws=pd.DataFrame(val["heldout"]["rand"],
                                                       columns=["between_datasets",
                                                                "with_other_species", "G"]),
@@ -642,7 +647,9 @@ def supp12(inp):
 def supp11(inp):
     """a  inter-run / inter-session / inter-animal similarity, selected runs vs random
           subsets of the same size (F20)
-       b  species gap on the raw group profiles (common profile kept), selected vs random"""
+       b  species gap on the raw group profiles (common profile kept), selected vs random
+       c  Spearman Mantel on the raw group profiles (former Fig. 4e), selected vs random
+       d  K_mult of Fig. 4e with each species left out"""
     from Paper.analysis.fmri_fingerprints import fingerprints as ff
     c = inp.fmri()
     cfg = c["cfg"]
@@ -659,10 +666,21 @@ def supp11(inp):
     # b (Clément, V4 comment): species gap on the raw group profiles, selected vs random
     from Paper.analysis.fmri_fingerprints import selection_validation as sv
     sp = sv.compute(c)["species"]
-    lines = ["a  " + lines[0]] + lines[1:] + sv.raw_gap_lines(sp)
+    val = sv.compute(c)
+    m = sp["mantel"]["raw"]
+    mantel_lines = [f"S11c  Spearman Mantel, raw group profiles (former Fig. 4e): all runs rho = "
+                    f"{m['all'][0]:+.3f} (P = {m['all'][1]:.4g}); random median "
+                    f"{np.median(m['random']):+.3f}; selected rho = {m['selected'][0]:+.3f} "
+                    f"(P = {m['selected'][1]:.4g}); selected vs random P = {m['p_vs_random']:.4g}; "
+                    f"selected vs all runs P = {sp['mantel_delta']['raw']['p']:.4g}"]
+    from Paper.analysis.fmri_fingerprints import phylo_kmult as pk
+    loso = [ln for ln in pk.result_lines(val["kmult"]) if "leave-one-species-out" in ln]
+    lines = (["a  " + lines[0]] + lines[1:] + sv.raw_gap_lines(sp) + mantel_lines
+             + ["S11d  K_mult " + ln.strip() for ln in loso])
     return dict(tables=dict(variability_levels=vt, pooled=pooled_t,
-                            b_species_gap_raw=sv.raw_gap_table(sp)), lines=lines,
-                draw=dict(vt=vt, vdraws=vdraws, species=sp))
+                            b_species_gap_raw=sv.raw_gap_table(sp),
+                            d_kmult_loso_species=val["kmult"]["loso_species"]), lines=lines,
+                draw=dict(vt=vt, vdraws=vdraws, species=sp, kmult=val["kmult"]))
 
 
 def supp14(inp):

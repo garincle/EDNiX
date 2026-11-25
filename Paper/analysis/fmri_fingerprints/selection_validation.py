@@ -8,9 +8,10 @@ number of runs per dataset (25-195 before selection) never drives the result.
   b  noise removed: median and IQR of the run-to-run r for the three pair classes (same
      dataset / same species, other dataset / different species), all runs / random /
      selected, on regional values that played no part in the selection (see below).
-  d  phylogenetic gradient: Spearman Mantel between the species distance (1 - r of the
-     species mean group profiles) and the MRCA age (phylo.py, exact permutation), raw
-     profiles, all runs / random / selected. A gradient that the LOSO selection creates on 10
+  d  phylogenetic gradient (Clément 2026-11-25: drawn with K_mult, phylo_kmult.py; the
+     Spearman Mantel below moved to Supplementary Fig. 11c): Spearman Mantel between the
+     species distance (1 - r of the species mean group profiles) and the MRCA age (phylo.py,
+     exact permutation), raw profiles, all runs / random / selected. A gradient that the LOSO selection creates on 10
      runs per dataset (Clément 2026-10-30: it is the purpose of the criterion). A non-circular
      version (selection on half of the regional values, Mantel on the other half) is in the
      stats. The per-dataset convergence (r with the LOSO consensus on held-out values) is no
@@ -31,6 +32,8 @@ analysis/fig4b_selection_improvement.py, fig4_selection_benefit.py, fig4_selecti
 """
 import numpy as np
 import pandas as pd
+
+from Paper.analysis.fmri_fingerprints import phylo_kmult
 
 N_SPLITS = 50
 N_DRAWS = 200
@@ -348,7 +351,8 @@ def _compute(c, n_splits=N_SPLITS, n_draws=N_DRAWS):
     return dict(heldout=h, levels=h["levels"],
                 species=species_signal(vecs, ds, selected, sp_of_ds, n_draws=n_draws),
                 phylo_heldout=phylo_heldout(vecs, ds, sp_of_ds, n_splits=n_splits,
-                                            n_draws=n_draws))
+                                            n_draws=n_draws),
+                kmult=phylo_kmult.compute(vecs, ds, selected, sp_of_ds, n_draws=n_draws))
 
 
 MEASURES = ("between\ndatasets", "with other\nspecies", "dataset-\nspecific (G)")
@@ -638,6 +642,22 @@ def plot_species_raw(sp, out, width_mm=45, height_mm=55):
         fig, ax = plt.subplots(figsize=(width_mm / 25.4, height_mm / 25.4))
         draw_species_raw(ax, sp)
         ax.set_title("Raw species gap", fontsize=6, fontweight="bold", pad=1.5, loc="left")
+        fa.save_paper(fig, out)
+        plt.close(fig)
+    return out
+
+
+def plot_phylo_mantel(sp, out, width_mm=45, height_mm=55):
+    """Stand-alone panel (Supplementary Fig. 11c): the former Fig. 4e, Spearman Mantel on the
+    raw group profiles (replaced in Fig. 4e by K_mult, phylo_kmult.py, Clément 2026-11-25)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from Paper.analysis.fmri_fingerprints import profile_stats as fa
+    with fa.paper_style():
+        fig, ax = plt.subplots(figsize=(width_mm / 25.4, height_mm / 25.4))
+        draw_phylo(ax, sp)
+        ax.set_title("Mantel, raw profiles", fontsize=6, fontweight="bold", pad=1.5, loc="left")
         fa.save_paper(fig, out)
         plt.close(fig)
     return out
