@@ -23,6 +23,7 @@ import numpy as np
 MAIN_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))) + os.sep
 ATLAS_LIB = os.path.join(MAIN_PATH, 'Atlases_library')
 sys.path.insert(0, MAIN_PATH)
+from Statistics.Group_fMRI.run_selection import run_keys as _run_keys  # noqa: E402
 
 # ── Imports ───────────────────────────────────────────────────────────────────
 from Tools import Load_subject_with_BIDS, load_bids
@@ -503,6 +504,8 @@ def collect_bold_and_means(bids_dirs: list[str], list_to_keep=None) -> tuple[dic
                                         run = part.split('run-')[1].split('_')[0]
                                         break
 
+                            if _run_keys.variant_tags(filename):   # acq-/task- variants (run_keys)
+                                run = _run_keys.run_id(filename, default=run)
                             if bold_path not in all_bold['bold_path']:
                                 all_bold['bold_path'].append(bold_path)
                                 all_bold['subject'].append(sub)
@@ -538,6 +541,8 @@ def collect_bold_and_means(bids_dirs: list[str], list_to_keep=None) -> tuple[dic
                                 elif 'run-' in filename:
                                     run = filename.split('run-')[1].split('_')[0]
 
+                                if _run_keys.variant_tags(filename):   # acq-/task- variants
+                                    run = _run_keys.run_id(filename, default=run)
                                 if nii_file not in all_bold['bold_path']:
                                     all_bold['bold_path'].append(nii_file)
                                     all_bold['subject'].append(sub)

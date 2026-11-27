@@ -23,6 +23,7 @@ from matplotlib.lines import Line2D
 from scipy import stats as st
 
 from Statistics.Group_fMRI.run_selection import consensus as fa
+from Statistics.Group_fMRI.run_selection import run_keys as _run_keys
 
 
 opj = os.path.join
@@ -32,13 +33,9 @@ opb = os.path.basename
 
 
 def run_token(filename):
-    """Run id from a file name -- same rule as
-    SBA_Region_Profile_Index._extract_run_id (kept in sync by a unit test)."""
-    m = re.search(r"run-(RL|LR)-(\d+)", filename)
-    if m:
-        return f"{m.group(1)}-{m.group(2)}"
-    m = re.search(r"run-(\d+)", filename)
-    return m.group(1) if m else "NA"
+    """Run id from a file name -- the shared rule of run_keys.run_id, the same
+    as profiles._extract_run_id (acq- / non-'rest' task- labels included)."""
+    return _run_keys.run_id(filename, default="NA")
 
 
 def task_of(filename):

@@ -57,6 +57,7 @@ import matplotlib.pyplot as plt
 # ── Local modules ────────────────────────────────────────────────────────────
 from Statistics.Group_fMRI.run_selection import group_maps as fig5
 from Statistics.Group_fMRI.run_selection import outlier_qc as qc
+from Statistics.Group_fMRI.run_selection import run_keys as _run_keys
 
 try:
     from Tools.ednix_bids_tools import parse_label_file
@@ -170,16 +171,15 @@ def _extract_run_id(filename):
     run survived) — undercounting real data and producing a "1 subject"
     3dttest++ group after averaging instead of the true multi-run count.
 
-    Returns the run id as a string ("RL-4", "3", ...) — "NA" only if no
-    run token is found at all in the filename.
+    Since 2026-11-27 the id also carries the acq- label and a non-'rest'
+    task- label (run_keys.run_id): Babayan acq-AP/acq-PA and Hori
+    restawake/restanest runs with the same run number used to share one key
+    and overwrite each other here.
+
+    Returns the run id as a string ("RL-4", "3", "acqAP-01", ...) — "NA"
+    only if no run token and no variant label is found in the filename.
     """
-    m = re.search(r"run-(RL|LR)-(\d+)", filename)
-    if m:
-        return f"{m.group(1)}-{m.group(2)}"
-    m = re.search(r"run-(\d+)", filename)
-    if m:
-        return m.group(1)
-    return "NA"
+    return _run_keys.run_id(filename, default="NA")
 
 
 def _bold_root(bold_path):
@@ -951,10 +951,15 @@ def compute_region_profile(map_path, atlas_vol_path, label_df, stats=DEFAULT_REG
     if unknown:
         raise ValueError(f"Unknown stat(s) {unknown} — available: {list(_REGION_STATS)}")
 
-    map_data = qc._squeeze_trailing_singleton(nib.load(map_path).get_fdata())
+    # map_path / atlas_vol_path: a file path, or an already loaded nibabel image (the
+    # Fig. 4 map analyses profile thousands of in-memory mean maps; no NIfTI written)
+    map_img = map_path if hasattr(map_path, "get_fdata") else nib.load(map_path)
+    map_data = qc._squeeze_trailing_singleton(map_img.get_fdata())
 
-    atlas_img = nib.load(atlas_vol_path)
+    atlas_img = atlas_vol_path if hasattr(atlas_vol_path, "get_fdata") else nib.load(atlas_vol_path)
     atlas_data_raw = qc._squeeze_trailing_singleton(atlas_img.get_fdata())
+    atlas_name = (opb(atlas_vol_path) if isinstance(atlas_vol_path, (str, os.PathLike))
+                  else "atlas image")
 
     is_multilevel = atlas_data_raw.ndim == 4
     spatial_shape = atlas_data_raw.shape[:3] if is_multilevel else atlas_data_raw.shape
@@ -962,7 +967,7 @@ def compute_region_profile(map_path, atlas_vol_path, label_df, stats=DEFAULT_REG
     if map_data.shape != spatial_shape:
         raise ValueError(
             f"Grid mismatch: map {map_data.shape} vs atlas volume spatial shape "
-            f"{spatial_shape} ({atlas_vol_path}). The atlas volume must be in the "
+            f"{spatial_shape} ({atlas_name}). The atlas volume must be in the "
             f"SAME template space/grid as the SBA maps."
         )
 
@@ -975,12 +980,12 @@ def compute_region_profile(map_path, atlas_vol_path, label_df, stats=DEFAULT_REG
                 raise ValueError(f"atlas_level={atlas_level} out of range — this atlas volume "
                                   f"has {atlas_data_raw.shape[-1]} levels")
             id_to_level = {lid: idx for lid in label_ids}
-            print(f"  [INFO] {opb(atlas_vol_path)}: using atlas_level={atlas_level} "
+            print(f"  [INFO] {atlas_name}: using atlas_level={atlas_level} "
                   f"(forced) for all {len(set(label_ids))} regions")
         else:
             id_to_level, multi = _build_label_to_level_map(atlas_data_raw, label_ids)
             n_labels = len(set(label_ids))
-            print(f"  [INFO] {opb(atlas_vol_path)}: per-region level assignment — "
+            print(f"  [INFO] {atlas_name}: per-region level assignment — "
                   f"{len(id_to_level)}/{n_labels} label_ids found painted in the atlas "
                   f"volume (across its {atlas_data_raw.shape[-1]} levels)"
                   + (f"; {len(multi)} appeared in >1 level (kept the one with more voxels)"
@@ -1021,7 +1026,8 @@ def compute_region_profile(map_path, atlas_vol_path, label_df, stats=DEFAULT_REG
     if expected_range is not None:
         for stat_name in stats:
             sanity_check_profile(profile, value_col=stat_name, expected_range=expected_range,
-                                 label=opb(map_path))
+                                 label=(opb(map_path) if isinstance(map_path, (str, os.PathLike))
+                                         else "map image"))
     if PROFILE_METHOD != "median_r" and _TAIL_REFERENCE is not None:
         profile = to_channel_profile(profile)
     elif "_sketch" in profile.columns and _TAIL_REFERENCE is not None:
