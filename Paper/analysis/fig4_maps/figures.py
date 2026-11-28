@@ -319,9 +319,14 @@ def supp_surfaces(ctx, ph, nb, out_dir):
             img = ctx.dm[d].mean_image(ctx.keys_of(d, rows[g][d]))
             if target.shape[:3] != img.shape[:3]:
                 img = resample_to_img(img, target, interpolation="nearest")
-            p = os.path.join(sdir, "maps", lab, f"{lab}_{g}_ttest-stat_fisher_cmap_oversampled.nii.gz")
+            # one folder per group: render_common_scale resolves every path through
+            # surfaces._oversampled, which returns the FIRST '*_oversampled' file of the
+            # map's folder -- with all groups in one folder every column was the 'all' map
+            p = os.path.join(sdir, "maps", lab, g, f"{lab}_{g}_ttest-stat_fisher_cmap_oversampled.nii.gz")
             os.makedirs(os.path.dirname(p), exist_ok=True)
             nib.save(img, p)
+            if srf._oversampled(p) != p:
+                raise RuntimeError(f"{p}: surfaces._oversampled resolves to {srf._oversampled(p)}")
             mp[lab][g] = p
     with contextlib.redirect_stdout(io.StringIO()):
         pngs, _ = srf.render_common_scale(sri, sdir, mp, ctx.c["species_of_label"],

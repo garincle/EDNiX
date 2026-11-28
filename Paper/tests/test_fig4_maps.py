@@ -130,3 +130,27 @@ def test_selected_option(tmp_path, monkeypatch):
     pr_all, pr_sel = fa4.profiles(ctx, ph, "all"), fa4.profiles(ctx, ph, "selected")
     lab = SPECIES[0][0]
     assert not np.allclose(pr_all["vecs"][lab], pr_sel["vecs"][lab])
+
+
+def test_surface_maps_resolve_to_their_own_file(tmp_path, monkeypatch):
+    """supp_surfaces must hand render_common_scale one distinct file per group (the
+    renderer resolves a path to the first '*_oversampled' map of its folder)."""
+    from Paper.analysis.fig4_maps import analyses as fa4
+    from Paper.analysis.fig4_maps import figures as ff4
+    from Statistics.Group_fMRI.run_selection import surfaces as srf
+    os.makedirs(tmp_path / "data")
+    c = _build(str(tmp_path / "data"), monkeypatch)
+    ctx = fa4.Context(c, n_bins=3)
+    ph = fa4.phylogeny(ctx, 1)
+    seen = {}
+
+    def fake_render(sri, out_dir, maps, species_of_label, pct=90.0):
+        for lab, groups in maps.items():
+            seen[lab] = {g: nib.load(srf._oversampled(p)).get_fdata() for g, p in groups.items()}
+        return {}, {}
+    monkeypatch.setattr(srf, "render_common_scale", fake_render)
+    ff4.supp_surfaces(ctx, ph, {"P_bins": []}, str(tmp_path / "out"))
+    lab = SPECIES[0][0]
+    assert set(seen[lab]) == {"all", "selected", "bin1", "bin2", "bin3"}
+    assert not np.allclose(seen[lab]["selected"], seen[lab]["all"])
+    assert not np.allclose(seen[lab]["bin1"], seen[lab]["bin3"])
